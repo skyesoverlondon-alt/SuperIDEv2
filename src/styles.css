@@ -1,0 +1,240 @@
+:root {
+  color-scheme: dark;
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(circle at 20% 10%, #23283f 0%, #0d0f16 40%, #06070b 100%);
+  color: #f5f6fc;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.app-shell {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  min-height: 100vh;
+}
+
+.side-panel {
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(9, 11, 18, 0.78);
+  backdrop-filter: blur(10px);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.side-panel h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.side-panel .muted {
+  margin: 0 0 4px;
+  color: #9ca3b7;
+  font-size: 0.92rem;
+}
+
+.side-panel label {
+  font-size: 0.8rem;
+  color: #9ca3b7;
+}
+
+.side-panel input {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.02);
+  color: inherit;
+  padding: 12px;
+  outline: none;
+}
+
+.ghost {
+  margin-top: 8px;
+  border: 1px solid rgba(112, 165, 255, 0.5);
+  background: rgba(59, 130, 246, 0.14);
+  color: #d4e4ff;
+  border-radius: 12px;
+  padding: 10px 12px;
+  cursor: pointer;
+}
+
+.ghost:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.status {
+  margin-top: auto;
+  border-radius: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 0.9rem;
+}
+
+.status.ok {
+  border-color: rgba(52, 211, 153, 0.45);
+  color: #7cf4cb;
+}
+
+.status.fail {
+  border-color: rgba(248, 113, 113, 0.45);
+  color: #ffb2b2;
+}
+
+.chat-panel {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  min-height: 100vh;
+}
+
+.chat-panel header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 20px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.chat-panel header h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.chat-panel header span {
+  color: #a4acc1;
+  font-size: 0.82rem;
+}
+
+.messages {
+  padding: 28px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.bubble {
+  max-width: min(720px, 90%);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 12px 14px;
+  white-space: pre-wrap;
+  line-height: 1.45;
+}
+
+.bubble .meta {
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #a4acc1;
+  margin-bottom: 6px;
+}
+
+.bubble.user {
+  align-self: flex-end;
+  background: rgba(59, 130, 246, 0.18);
+}
+
+.bubble.assistant {
+  align-self: flex-start;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.bubble p {
+  margin: 0;
+}
+
+.composer {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  gap: 12px;
+  padding: 20px 28px 24px;
+}
+
+.composer textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 56px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.02);
+  color: inherit;
+  outline: none;
+  padding: 12px 14px;
+  font: inherit;
+}
+
+.composer button {
+  min-width: 100px;
+  border: none;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #4f7cff, #6f9bff);
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.composer button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.smoke-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  background: radial-gradient(circle at center, rgba(63, 75, 113, 0.3), rgba(8, 9, 13, 0.92));
+  backdrop-filter: blur(8px);
+  display: grid;
+  place-items: center;
+}
+
+.smoke-core {
+  text-align: center;
+  color: #e0e6fa;
+}
+
+.smoke-core p {
+  margin: 14px 0 0;
+  font-size: 0.96rem;
+}
+
+.smoke-ring {
+  width: 68px;
+  height: 68px;
+  border-radius: 999px;
+  border: 3px solid rgba(140, 172, 255, 0.25);
+  border-top-color: #8db0ff;
+  animation: spin 0.9s linear infinite;
+  margin: 0 auto;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 920px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .side-panel {
+    border-right: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+}

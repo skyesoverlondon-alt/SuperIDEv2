@@ -2,6 +2,9 @@
   command = "npm run build"
   publish = "dist"
 
+  [build.environment]
+    NPM_FLAGS = "--include=dev"
+
 [functions]
   directory = "netlify/functions"
 

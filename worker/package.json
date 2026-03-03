@@ -1,0 +1,17 @@
+{
+  "name": "kaixu-superide-runner",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "deploy": "wrangler deploy"
+  },
+  "dependencies": {
+    "itty-router": "^5.0.18",
+    "fflate": "^0.8.2"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3",
+    "wrangler": "^3.14.0"
+  }
+}

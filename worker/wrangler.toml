@@ -1,0 +1,22 @@
+name = "kaixu-superide-runner"
+main = "src/index.ts"
+compatibility_date = "2025-12-01"
+
+# Bindings for KV and R2.  The KV namespace stores encrypted
+# secrets (e.g. Netlify tokens) per user, and the R2 bucket
+# stores evidence ZIP files.  These names must match the
+# resources configured in your Cloudflare account.  Update the
+# id and bucket_name to the identifiers you provision in Cloudflare.
+kv_namespaces = [
+  { binding = "KX_SECRETS_KV", id = "da3b216bc7464a36ad5beb65db6c7aa0", preview_id = "da3b216bc7464a36ad5beb65db6c7aa0" }
+]
+r2_buckets = [
+  { binding = "KX_EVIDENCE_R2", bucket_name = "kaixu-superide-evidence" }
+]
+
+[vars]
+# Allow requests from your Netlify site origin.  You can set
+# multiple origins by comma separating them.  '*' will allow
+# any origin (not recommended for production).  Replace this
+# value with your actual Netlify site origin.
+ALLOW_ORIGINS = "*"

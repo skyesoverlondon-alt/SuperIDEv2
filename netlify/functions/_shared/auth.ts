@@ -1,0 +1,109 @@
+import { q } from "./neon";
+import { json } from "./response";
+
+const COOKIE = "kx_session";
+
+// Node crypto for hashing and HMAC
+import crypto from "crypto";
+
+function base64url(buf: Buffer) {
+  return buf
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
+}
+
+async function pbkdf2Hash(password: string, salt: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    crypto.pbkdf2(
+      password,
+      Buffer.from(salt, "base64"),
+      150000,
+      32,
+      "sha256",
+      (err, derivedKey) => {
+        if (err) return reject(err);
+        resolve(base64url(derivedKey));
+      }
+    );
+  });
+}
+
+export async function hashPassword(password: string): Promise<string> {
+  const salt = crypto.randomBytes(16).toString("base64");
+  const hash = await pbkdf2Hash(password, salt);
+  return `pbkdf2$sha256$150000$${salt}$${hash}`;
+}
+
+export async function verifyPassword(
+  password: string,
+  stored: string
+): Promise<boolean> {
+  const parts = stored.split("$");
+  if (parts.length < 6) return false;
+  const salt = parts[4];
+  const want = parts[5];
+  const got = await pbkdf2Hash(password, salt);
+  return timingSafeEqual(got, want);
+}
+
+function timingSafeEqual(a: string, b: string): boolean {
+  const aa = Buffer.from(a);
+  const bb = Buffer.from(b);
+  if (aa.length !== bb.length) return false;
+  return crypto.timingSafeEqual(aa, bb);
+}
+
+export function parseCookies(cookieHeader: string | undefined): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (!cookieHeader) return out;
+  cookieHeader.split(";").forEach((p) => {
+    const [k, ...rest] = p.trim().split("=");
+    out[k] = rest.join("=") || "";
+  });
+  return out;
+}
+
+export async function requireUser(event: any): Promise<{
+  user_id: string;
+  email: string;
+  org_id: string | null;
+} | null> {
+  const cookies = parseCookies(event.headers?.cookie);
+  const token = cookies[COOKIE];
+  if (!token) return null;
+  const now = new Date().toISOString();
+  const sess = await q(
+    "select s.token, s.user_id, u.email, u.org_id from sessions s join users u on u.id=s.user_id where s.token=$1 and s.expires_at>$2",
+    [token, now]
+  );
+  if (!sess.rows.length) return null;
+  return {
+    user_id: sess.rows[0].user_id,
+    email: sess.rows[0].email,
+    org_id: sess.rows[0].org_id,
+  };
+}
+
+export async function createSession(user_id: string) {
+  const token = base64url(crypto.randomBytes(32));
+  const expires = new Date(Date.now() + 1000 * 60 * 60 * 24 * 14); // 14 days
+  await q(
+    "insert into sessions(user_id, token, expires_at) values($1,$2,$3)",
+    [user_id, token, expires.toISOString()]
+  );
+  return { token, expires };
+}
+
+export function setSessionCookie(token: string, expires: Date): string {
+  return `${COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax; Secure; Expires=${expires.toUTCString()}`;
+}
+
+export function clearSessionCookie(): string {
+  return `${COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Secure; Expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+}
+
+export function forbid() {
+  return json(401, { error: "Unauthorized" });
+}
