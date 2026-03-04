@@ -561,6 +561,71 @@ body {
   gap: 8px;
 }
 
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.calendar-head {
+  text-align: center;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.calendar-cell {
+  min-height: 94px;
+  border-radius: 10px;
+  border: 1px solid var(--border-soft);
+  background: rgba(255, 255, 255, 0.04);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.calendar-cell.blank {
+  opacity: 0.35;
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.calendar-day {
+  font-size: 0.82rem;
+  color: #fff4c1;
+}
+
+.calendar-pill {
+  border-radius: 999px;
+  border: 1px solid var(--border-soft);
+  font-size: 0.68rem;
+  padding: 2px 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.calendar-pill.planned {
+  border-color: rgba(96, 165, 250, 0.5);
+  color: #cfe5ff;
+}
+
+.calendar-pill.confirmed {
+  border-color: rgba(250, 204, 21, 0.5);
+  color: #fff4c1;
+}
+
+.calendar-pill.done {
+  border-color: rgba(52, 211, 153, 0.5);
+  color: #b8ffe7;
+}
+
+.calendar-more {
+  font-size: 0.68rem;
+  color: var(--muted);
+}
+
 .admin-row {
   display: flex;
   align-items: center;

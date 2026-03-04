@@ -50,6 +50,12 @@ check "SkyeMail Surface" "GET" "$SITE_BASE/SkyeMail/index.html"
 check "SkyeChat Surface" "GET" "$SITE_BASE/SkyeChat/index.html"
 check "Neural Surface" "GET" "$SITE_BASE/Neural-Space-Pro/index.html"
 check "Upgrade Notes Surface" "GET" "$SITE_BASE/upgrade-notes.html"
+check "SkyeCalendar Surface" "GET" "$SITE_BASE/SkyeCalendar/index.html"
+check "SkyeTasks Surface" "GET" "$SITE_BASE/SkyeTasks/index.html"
+check "SkyeNotes Surface" "GET" "$SITE_BASE/SkyeNotes/index.html"
+check "SkyeForms Surface" "GET" "$SITE_BASE/SkyeForms/index.html"
+check "SkyeVault Surface" "GET" "$SITE_BASE/SkyeVault/index.html"
+check "SkyeAnalytics Surface" "GET" "$SITE_BASE/SkyeAnalytics/index.html"
 
 if [[ -n "$WORKER_URL" ]]; then
   check "Worker Health" "GET" "$WORKER_URL/health" "" "^(302|401|403)$"

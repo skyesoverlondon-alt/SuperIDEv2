@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SkyeTasks Platform</title>
+  <style>
+    :root { --bg:#090b14; --panel:#111830; --line:#2d3860; --text:#eef3ff; --muted:#9eb0da; }
+    *{box-sizing:border-box} body{margin:0;font-family:Verdana,sans-serif;background:radial-gradient(circle at 20% 0,#1b2550,#090b14 60%);color:var(--text)}
+    .wrap{max-width:1200px;margin:0 auto;padding:14px;display:grid;gap:12px}
+    .card{border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:12px}
+    .row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+    input,select,button{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:10px;background:#0b1022;color:var(--text)}
+    button{cursor:pointer;background:#1e2a5f}
+    .board{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+    .col{border:1px solid var(--line);border-radius:10px;padding:10px;background:#0d1230}
+    .item{border:1px solid #415088;border-radius:10px;padding:8px;margin-top:8px;background:#10183f}
+    .muted{color:var(--muted);font-size:.84rem}
+    @media (max-width: 900px){ .row{grid-template-columns:1fr 1fr;} .board{grid-template-columns:1fr;} }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="card">
+      <h1 style="margin:0">SkyeTasks Platform</h1>
+      <div class="muted">Task board with due dates auto-consumed by SkyeCalendar.</div>
+      <div style="margin-top:8px"><a href="/index.html?app=SkyeTasks">Return to IDE</a></div>
+    </section>
+
+    <section class="card">
+      <div class="row">
+        <input id="email" placeholder="email@company.com" />
+        <input id="password" type="password" placeholder="password" />
+        <input id="org" value="SkyeTasks Org" placeholder="Org" />
+        <button id="login">Login or Signup</button>
+      </div>
+      <div class="row" style="margin-top:8px;grid-template-columns: 1fr 1fr 1fr 1fr;">
+        <input id="ws" placeholder="Workspace ID" />
+        <input id="title" placeholder="Task title" />
+        <input id="assignee" placeholder="Assignee" />
+        <button id="add">Add Task</button>
+      </div>
+      <div class="row" style="margin-top:8px;grid-template-columns:1fr 1fr 1fr 1fr;">
+        <select id="priority"><option>low</option><option selected>medium</option><option>high</option></select>
+        <input id="due" type="date" />
+        <button id="load">Load</button>
+        <button id="save">Save</button>
+      </div>
+      <div class="muted" id="status">Ready.</div>
+    </section>
+
+    <section class="card board" id="board"></section>
+  </div>
+
+<script>
+const qs = new URLSearchParams(location.search);
+document.getElementById('ws').value = qs.get('ws_id') || 'primary-workspace';
+let model = [];
+const statusEl = document.getElementById('status');
+function setStatus(t){ statusEl.textContent = t; }
+
+async function call(path, options={}){
+  const r = await fetch(path, { credentials:'include', ...options });
+  const t = await r.text();
+  let d={}; try{ d=t?JSON.parse(t):{}; }catch{ d={raw:t}; }
+  if(!r.ok) throw new Error(d.error || path + ' failed (' + r.status + ')');
+  return d;
+}
+async function auth(){
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  const org = document.getElementById('org').value.trim() || 'SkyeTasks Org';
+  if(!email || !password) throw new Error('email/password required');
+  try { await call('/api/auth-login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})}); }
+  catch { await call('/api/auth-signup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password,orgName:org})}); }
+}
+
+async function load(){
+  await auth();
+  const ws = document.getElementById('ws').value.trim();
+  const data = await call('/api/skyetasks-list?ws_id=' + encodeURIComponent(ws) + '&limit=1');
+  model = Array.isArray(data.records) && data.records[0] && Array.isArray(data.records[0].payload) ? data.records[0].payload : [];
+  render();
+  setStatus('Loaded tasks.');
+}
+
+async function save(){
+  await auth();
+  const ws = document.getElementById('ws').value.trim();
+  await call('/api/skyetasks-save', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ ws_id: ws, title:'SkyeTasks Board', model })
+  });
+  setStatus('Saved tasks.');
+}
+
+function add(){
+  const title = document.getElementById('title').value.trim();
+  if(!title) return setStatus('Task title required');
+  model.unshift({
+    id: 'task-' + Date.now(), title,
+    description:'', status:'backlog', priority:document.getElementById('priority').value,
+    assignee: document.getElementById('assignee').value.trim() || 'unassigned',
+    due_at: document.getElementById('due').value || '',
+    updated_at: new Date().toISOString()
+  });
+  document.getElementById('title').value='';
+  render();
+}
+
+function update(id, patch){ model = model.map(t => t.id === id ? { ...t, ...patch, updated_at:new Date().toISOString() } : t); }
+
+function render(){
+  const cols = ['backlog','doing','done'];
+  const board = document.getElementById('board');
+  board.innerHTML = '';
+  cols.forEach(col => {
+    const c = document.createElement('div'); c.className = 'col'; c.innerHTML = '<strong>' + col.toUpperCase() + '</strong>';
+    model.filter(t => t.status === col).forEach(t => {
+      const item = document.createElement('div'); item.className='item';
+      item.innerHTML = '<strong>' + t.title + '</strong><div class="muted">owner=' + (t.assignee||'n/a') + ' priority=' + t.priority + '</div>';
+      const row = document.createElement('div'); row.className='row'; row.style.gridTemplateColumns='1fr 1fr'; row.style.marginTop='6px';
+      const sel = document.createElement('select'); ['backlog','doing','done'].forEach(s => { const o=document.createElement('option'); o.value=s; o.textContent=s; if(s===t.status)o.selected=true; sel.appendChild(o);});
+      sel.onchange = () => { update(t.id, { status: sel.value }); render(); };
+      const due = document.createElement('input'); due.type='date'; due.value=t.due_at || ''; due.onchange=()=>{ update(t.id,{due_at:due.value}); };
+      row.appendChild(sel); row.appendChild(due);
+      item.appendChild(row);
+      c.appendChild(item);
+    });
+    board.appendChild(c);
+  });
+}
+
+document.getElementById('login').onclick = () => auth().then(()=>setStatus('Session ready.')).catch(e=>setStatus(e.message));
+document.getElementById('load').onclick = () => load().catch(e=>setStatus(e.message));
+document.getElementById('save').onclick = () => save().catch(e=>setStatus(e.message));
+document.getElementById('add').onclick = add;
+render();
+</script>
+</body>
+</html>

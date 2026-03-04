@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SkyeCalendar Platform</title>
+  <style>
+    :root { --bg:#090a13; --panel:#12162a; --line:#2a3357; --text:#edf1ff; --muted:#9fb0d5; --gold:#f5cf49; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: "Segoe UI", Tahoma, sans-serif; color:var(--text); background: radial-gradient(circle at 10% 10%, #1a2040, #090a13 55%); }
+    .wrap { max-width: 1200px; margin: 0 auto; padding: 16px; display: grid; gap: 12px; }
+    .card { border:1px solid var(--line); background:var(--panel); border-radius:12px; padding:12px; }
+    .top { display:flex; justify-content:space-between; align-items:center; gap:10px; }
+    .title { margin:0; font-size:1.1rem; }
+    .muted { color:var(--muted); font-size:0.85rem; }
+    .row { display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap:8px; }
+    input, select, textarea, button { width:100%; border-radius:10px; border:1px solid var(--line); background:#0b1022; color:var(--text); padding:9px 10px; }
+    button { cursor:pointer; background:#1a2452; }
+    .actions { display:flex; gap:8px; flex-wrap:wrap; }
+    .actions button, .actions a { width:auto; }
+    .grid { display:grid; grid-template-columns: repeat(7, minmax(0,1fr)); gap:8px; }
+    .head { text-align:center; font-size:0.74rem; color:var(--muted); text-transform:uppercase; }
+    .day { min-height:110px; border:1px solid var(--line); border-radius:10px; padding:6px; display:flex; flex-direction:column; gap:4px; background:#0c1230; }
+    .blank { opacity:0.25; background:#0a0f23; }
+    .n { color:var(--gold); font-size:0.8rem; }
+    .pill { border:1px solid #455186; border-radius:999px; padding:2px 7px; font-size:0.68rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .done { border-color:#2f8c70; color:#b8ffe7; }
+    .planned { border-color:#3f68b3; color:#ccdeff; }
+    .confirmed { border-color:#b7932a; color:#ffe9a7; }
+    @media (max-width: 900px) { .row { grid-template-columns: 1fr 1fr; } .grid { grid-template-columns: repeat(2, minmax(0,1fr)); } .head { display:none; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="card top">
+      <div>
+        <h1 class="title">SkyeCalendar Platform</h1>
+        <div class="muted">Real calendar surface synced with SkyeTasks due dates.</div>
+      </div>
+      <div class="actions">
+        <a href="/index.html?app=SkyeCalendar">Return to IDE</a>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="row">
+        <input id="email" placeholder="email@company.com" />
+        <input id="password" type="password" placeholder="password" />
+        <input id="org" placeholder="Org Name" value="SkyeCalendar Org" />
+        <button id="login">Login or Signup</button>
+      </div>
+      <div class="muted" id="status">Ready.</div>
+    </section>
+
+    <section class="card">
+      <div class="row">
+        <input id="title" placeholder="Event title" />
+        <input id="start" type="date" />
+        <input id="end" type="date" />
+        <button id="add">Add Event</button>
+      </div>
+      <div class="row" style="margin-top:8px; grid-template-columns: 1fr 200px 200px 200px;">
+        <input id="ws" placeholder="Workspace ID" />
+        <input id="month" type="month" />
+        <button id="load">Load</button>
+        <button id="save">Save</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="grid" id="calendar"></div>
+    </section>
+  </div>
+
+<script>
+const q = new URLSearchParams(location.search);
+const ws = document.getElementById('ws');
+ws.value = q.get('ws_id') || 'primary-workspace';
+const month = document.getElementById('month');
+month.value = new Date().toISOString().slice(0, 7);
+const statusEl = document.getElementById('status');
+let events = [];
+
+function setStatus(t){ statusEl.textContent = t; }
+async function call(path, options = {}) {
+  const r = await fetch(path, { credentials:'include', ...options });
+  const t = await r.text();
+  let d = {}; try { d = t ? JSON.parse(t) : {}; } catch { d = { raw: t }; }
+  if (!r.ok) throw new Error(d.error || path + ' failed (' + r.status + ')');
+  return d;
+}
+
+async function ensureAuth(){
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  const org = document.getElementById('org').value.trim() || 'SkyeCalendar Org';
+  if (!email || !password) throw new Error('Enter email and password.');
+  try {
+    await call('/api/auth-login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ email, password }) });
+  } catch {
+    await call('/api/auth-signup', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ email, password, orgName: org }) });
+  }
+}
+
+async function load(){
+  await ensureAuth();
+  const w = ws.value.trim();
+  const cal = await call('/api/app-record-list?ws_id=' + encodeURIComponent(w) + '&app=SkyeCalendar&limit=1');
+  const task = await call('/api/skyetasks-list?ws_id=' + encodeURIComponent(w) + '&limit=1');
+  const local = Array.isArray(cal.records) && cal.records[0] && cal.records[0].payload && Array.isArray(cal.records[0].payload.events)
+    ? cal.records[0].payload.events : [];
+  const taskRows = Array.isArray(task.records) && task.records[0] && Array.isArray(task.records[0].payload) ? task.records[0].payload : [];
+  const taskEvents = taskRows.filter(x => x.due_at).map(x => ({
+    id: 'taskcal-' + x.id,
+    title: '[Task] ' + x.title,
+    start_date: x.due_at,
+    end_date: x.due_at,
+    owner: x.assignee || 'task-owner',
+    status: x.status === 'done' ? 'done' : x.status === 'doing' ? 'confirmed' : 'planned',
+    notes: 'priority=' + (x.priority || 'n/a')
+  }));
+  events = [...local.filter(x => !String(x.id||'').startsWith('taskcal-')), ...taskEvents];
+  render();
+  setStatus('Loaded calendar + task due dates.');
+}
+
+async function save(){
+  await ensureAuth();
+  const w = ws.value.trim();
+  await call('/api/app-record-save', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ ws_id: w, app:'SkyeCalendar', title:'SkyeCalendar Events', model:{ events } })
+  });
+  setStatus('Saved SkyeCalendar model.');
+}
+
+function render(){
+  const [y,m] = month.value.split('-').map(Number);
+  const first = new Date(y, m - 1, 1);
+  const start = first.getDay();
+  const count = new Date(y, m, 0).getDate();
+  const map = new Map();
+  for (const e of events){
+    const d = new Date(e.start_date + 'T00:00:00');
+    if (d.getFullYear() === y && d.getMonth() === m - 1){
+      const list = map.get(d.getDate()) || [];
+      list.push(e); map.set(d.getDate(), list);
+    }
+  }
+  const cal = document.getElementById('calendar');
+  cal.innerHTML = '';
+  ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(d => {
+    const h = document.createElement('div'); h.className = 'head'; h.textContent = d; cal.appendChild(h);
+  });
+  for(let i=0;i<start;i++){ const b=document.createElement('div'); b.className='day blank'; cal.appendChild(b); }
+  for(let day=1; day<=count; day++){
+    const c=document.createElement('div'); c.className='day';
+    const n=document.createElement('div'); n.className='n'; n.textContent=String(day); c.appendChild(n);
+    const list = map.get(day) || [];
+    list.slice(0,4).forEach(e => { const p=document.createElement('div'); p.className='pill ' + (e.status||'planned'); p.textContent=e.title; c.appendChild(p); });
+    if (list.length > 4){ const more=document.createElement('div'); more.className='muted'; more.textContent='+' + (list.length - 4) + ' more'; c.appendChild(more); }
+    cal.appendChild(c);
+  }
+}
+
+document.getElementById('login').onclick = () => ensureAuth().then(() => setStatus('Session ready.')).catch(e => setStatus(e.message));
+document.getElementById('load').onclick = () => load().catch(e => setStatus(e.message));
+document.getElementById('save').onclick = () => save().catch(e => setStatus(e.message));
+document.getElementById('month').onchange = render;
+document.getElementById('add').onclick = () => {
+  const t = document.getElementById('title').value.trim();
+  const s = document.getElementById('start').value;
+  const e = document.getElementById('end').value || s;
+  if (!t || !s) return setStatus('title/start required');
+  events.unshift({ id:'cal-' + Date.now(), title:t, start_date:s, end_date:e, owner:'owner', status:'planned', notes:'' });
+  document.getElementById('title').value=''; document.getElementById('start').value=''; document.getElementById('end').value='';
+  render();
+};
+render();
+</script>
+</body>
+</html>

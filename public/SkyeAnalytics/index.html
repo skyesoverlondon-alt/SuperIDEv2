@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SkyeAnalytics Platform</title>
+<style>
+:root{--bg:#090c16;--panel:#131935;--line:#32406c;--text:#eff3ff;--muted:#a9b6da;--gold:#f5cf49}*{box-sizing:border-box}
+body{margin:0;font-family:Tahoma,sans-serif;background:radial-gradient(circle at 10% 0,#1c2755,#090c16 60%);color:var(--text)}
+.wrap{max-width:1200px;margin:0 auto;padding:14px;display:grid;gap:12px}.card{border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:12px}
+.row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}input,button{width:100%;border:1px solid var(--line);border-radius:10px;background:#0b1128;color:var(--text);padding:9px 10px}button{cursor:pointer;background:#1d2a62}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.kpi{border:1px solid #46558c;border-radius:10px;padding:10px;background:#0f1738}.kpi strong{font-size:1.3rem;color:var(--gold)}
+.item{border:1px solid #46558c;border-radius:10px;padding:9px;margin-top:8px;background:#0f1738}.muted{color:var(--muted);font-size:.84rem}
+@media (max-width:900px){.row,.kpis{grid-template-columns:1fr 1fr}}
+</style></head><body><div class="wrap">
+<section class="card"><h1 style="margin:0">SkyeAnalytics Platform</h1><div class="muted">Standalone telemetry dashboard across chat, mail, tasks, and workspace activity.</div><div style="margin-top:8px"><a href="/index.html?app=SkyeAnalytics">Return to IDE</a></div></section>
+<section class="card">
+<div class="row"><input id="email" placeholder="email"/><input id="password" type="password" placeholder="password"/><input id="org" value="SkyeAnalytics Org"/><button id="login">Login or Signup</button></div>
+<div class="row" style="margin-top:8px"><input id="ws" placeholder="workspace"/><button id="refresh">Refresh Metrics</button><div></div><div></div></div><div class="muted" id="status">Ready.</div>
+</section>
+<section class="card"><div class="kpis" id="kpis"></div></section>
+<section class="card"><h3 style="margin:0 0 6px">Recent Records</h3><div id="recent"></div></section>
+</div>
+<script>
+const qs=new URLSearchParams(location.search);document.getElementById('ws').value=qs.get('ws_id')||'primary-workspace';const status=document.getElementById('status');
+function setStatus(t){status.textContent=t}
+async function call(path,opt={}){const r=await fetch(path,{credentials:'include',...opt});const t=await r.text();let d={};try{d=t?JSON.parse(t):{}}catch{d={raw:t}}if(!r.ok)throw new Error(d.error||path+' failed ('+r.status+')');return d}
+async function auth(){const email=document.getElementById('email').value.trim();const password=document.getElementById('password').value;const org=document.getElementById('org').value.trim()||'SkyeAnalytics Org';if(!email||!password)throw new Error('email/password required');try{await call('/api/auth-login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})})}catch{await call('/api/auth-signup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password,orgName:org})})}}
+async function refresh(){
+  await auth();
+  const ws=document.getElementById('ws').value.trim();
+  const [chat,mail,tasks,notes,forms,vault,cal,events] = await Promise.all([
+    call('/api/skychat-list?limit=20&channel=general').catch(()=>({records:[]})),
+    call('/api/skymail-list?limit=20').catch(()=>({records:[]})),
+    call('/api/skyetasks-list?ws_id='+encodeURIComponent(ws)+'&limit=1').catch(()=>({records:[]})),
+    call('/api/app-record-list?ws_id='+encodeURIComponent(ws)+'&app=SkyeNotes&limit=1').catch(()=>({records:[]})),
+    call('/api/app-record-list?ws_id='+encodeURIComponent(ws)+'&app=SkyeForms&limit=1').catch(()=>({records:[]})),
+    call('/api/app-record-list?ws_id='+encodeURIComponent(ws)+'&app=SkyeVault&limit=1').catch(()=>({records:[]})),
+    call('/api/app-record-list?ws_id='+encodeURIComponent(ws)+'&app=SkyeCalendar&limit=1').catch(()=>({records:[]})),
+    call('/api/sknore-events?ws_id='+encodeURIComponent(ws)+'&limit=20').catch(()=>({events:[]})),
+  ]);
+  const taskRows = Array.isArray(tasks.records) && tasks.records[0] && Array.isArray(tasks.records[0].payload) ? tasks.records[0].payload : [];
+  const notesRows = Array.isArray(notes.records) && notes.records[0] && notes.records[0].payload && Array.isArray(notes.records[0].payload.notes) ? notes.records[0].payload.notes : [];
+  const formRows = Array.isArray(forms.records) && forms.records[0] && forms.records[0].payload && Array.isArray(forms.records[0].payload.questions) ? forms.records[0].payload.questions : [];
+  const vaultRows = Array.isArray(vault.records) && vault.records[0] && vault.records[0].payload && Array.isArray(vault.records[0].payload.secrets) ? vault.records[0].payload.secrets : [];
+  const calRows = Array.isArray(cal.records) && cal.records[0] && cal.records[0].payload && Array.isArray(cal.records[0].payload.events) ? cal.records[0].payload.events : [];
+  const kpis = [
+    ['Chat Messages', Array.isArray(chat.records)?chat.records.length:0],
+    ['Mail Records', Array.isArray(mail.records)?mail.records.length:0],
+    ['Open Tasks', taskRows.filter(t=>t.status!=='done').length],
+    ['Calendar Events', calRows.length],
+    ['Notes', notesRows.length],
+    ['Form Questions', formRows.length],
+    ['Vault Secrets', vaultRows.length],
+    ['SKNore Blocks', Array.isArray(events.events)?events.events.length:0],
+  ];
+  const k = document.getElementById('kpis'); k.innerHTML='';
+  kpis.forEach(([label,val])=>{const el=document.createElement('div');el.className='kpi';el.innerHTML='<div>'+label+'</div><strong>'+val+'</strong>';k.appendChild(el);});
+  const recent=[...(chat.records||[]),...(mail.records||[])].slice(0,10);
+  const r=document.getElementById('recent');r.innerHTML='';
+  recent.forEach(x=>{const item=document.createElement('div');item.className='item';item.innerHTML='<strong>'+ (x.app||'record') +'</strong><div class="muted">'+(x.title||'n/a')+'</div>';r.appendChild(item);});
+  setStatus('Metrics refreshed.');
+}
+
+document.getElementById('login').onclick=()=>auth().then(()=>setStatus('Session ready.')).catch(e=>setStatus(e.message));
+document.getElementById('refresh').onclick=()=>refresh().catch(e=>setStatus(e.message));
+</script></body></html>

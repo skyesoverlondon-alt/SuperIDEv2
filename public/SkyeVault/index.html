@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SkyeVault Platform</title>
+<style>
+:root{--bg:#0a0d18;--panel:#151b35;--line:#344270;--text:#edf2ff;--muted:#a8b5d9}*{box-sizing:border-box}
+body{margin:0;font-family:Tahoma,sans-serif;background:radial-gradient(circle at 0 0,#1f2a58,#0a0d18 60%);color:var(--text)}
+.wrap{max-width:1100px;margin:0 auto;padding:14px;display:grid;gap:12px}.card{border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:12px}
+.row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}input,select,button{width:100%;border:1px solid var(--line);border-radius:10px;background:#0b1128;color:var(--text);padding:9px 10px}button{cursor:pointer;background:#1d2a62}
+.item{border:1px solid #47558d;border-radius:10px;padding:10px;background:#0f1738;margin-top:8px}.muted{color:var(--muted);font-size:.84rem}
+@media (max-width:900px){.row{grid-template-columns:1fr 1fr}}
+</style></head><body><div class="wrap">
+<section class="card"><h1 style="margin:0">SkyeVault Platform</h1><div class="muted">Secrets registry with rotation status and scoped ownership.</div><div style="margin-top:8px"><a href="/index.html?app=SkyeVault">Return to IDE</a></div></section>
+<section class="card">
+<div class="row"><input id="email" placeholder="email"/><input id="password" type="password" placeholder="password"/><input id="org" value="SkyeVault Org"/><button id="login">Login or Signup</button></div>
+<div class="row" style="margin-top:8px"><input id="ws" placeholder="workspace"/><input id="label" placeholder="Secret label"/><select id="scope"><option>workspace</option><option>org</option><option>deploy</option></select><button id="add">Register</button></div>
+<div class="row" style="margin-top:8px;grid-template-columns:1fr 1fr"><button id="load">Load</button><button id="save">Save</button></div><div class="muted" id="status">Ready.</div>
+</section>
+<section class="card" id="list"></section>
+</div>
+<script>
+const qs=new URLSearchParams(location.search);document.getElementById('ws').value=qs.get('ws_id')||'primary-workspace';let secrets=[];const status=document.getElementById('status');
+function setStatus(t){status.textContent=t}
+async function call(path,opt={}){const r=await fetch(path,{credentials:'include',...opt});const t=await r.text();let d={};try{d=t?JSON.parse(t):{}}catch{d={raw:t}}if(!r.ok)throw new Error(d.error||path+' failed ('+r.status+')');return d}
+async function auth(){const email=document.getElementById('email').value.trim();const password=document.getElementById('password').value;const org=document.getElementById('org').value.trim()||'SkyeVault Org';if(!email||!password)throw new Error('email/password required');try{await call('/api/auth-login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})})}catch{await call('/api/auth-signup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password,orgName:org})})}}
+async function load(){await auth();const ws=document.getElementById('ws').value.trim();const d=await call('/api/app-record-list?ws_id='+encodeURIComponent(ws)+'&app=SkyeVault&limit=1');secrets=Array.isArray(d.records)&&d.records[0]&&d.records[0].payload&&Array.isArray(d.records[0].payload.secrets)?d.records[0].payload.secrets:[];render();setStatus('Loaded vault model.')}
+async function save(){await auth();const ws=document.getElementById('ws').value.trim();await call('/api/app-record-save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ws_id:ws,app:'SkyeVault',title:'SkyeVault Secrets',model:{secrets}})});setStatus('Saved vault model.')}
+function add(){const label=document.getElementById('label').value.trim();if(!label)return setStatus('label required');secrets.unshift({id:'vault-'+Date.now(),label,scope:document.getElementById('scope').value,owner:'owner',last_rotated:new Date().toISOString().slice(0,10),status:'active',redacted_value:'****'});document.getElementById('label').value='';render()}
+function render(){const list=document.getElementById('list');list.innerHTML='';secrets.forEach(s=>{const item=document.createElement('div');item.className='item';item.innerHTML='<strong>'+s.label+'</strong><div class="muted">scope='+s.scope+' owner='+(s.owner||'n/a')+' last_rotated='+s.last_rotated+'</div>';const row=document.createElement('div');row.className='row';row.style.marginTop='6px';row.style.gridTemplateColumns='1fr 160px';const st=document.createElement('select');['active','rotation_due'].forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;if(v===s.status)o.selected=true;st.appendChild(o)});st.onchange=()=>{secrets=secrets.map(x=>x.id===s.id?{...x,status:st.value}:x)};const rot=document.createElement('button');rot.textContent='Rotate';rot.onclick=()=>{secrets=secrets.map(x=>x.id===s.id?{...x,last_rotated:new Date().toISOString().slice(0,10),status:'active'}:x);render()};row.appendChild(st);row.appendChild(rot);item.appendChild(row);list.appendChild(item);})}
+document.getElementById('login').onclick=()=>auth().then(()=>setStatus('Session ready.')).catch(e=>setStatus(e.message));
+document.getElementById('load').onclick=()=>load().catch(e=>setStatus(e.message));
+document.getElementById('save').onclick=()=>save().catch(e=>setStatus(e.message));
+document.getElementById('add').onclick=add;render();
+</script></body></html>

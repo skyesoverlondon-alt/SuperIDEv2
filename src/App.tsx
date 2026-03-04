@@ -748,6 +748,7 @@ export function App() {
   const [calendarDraftTitle, setCalendarDraftTitle] = useState("");
   const [calendarDraftStart, setCalendarDraftStart] = useState("");
   const [calendarDraftEnd, setCalendarDraftEnd] = useState("");
+  const [calendarViewMonth, setCalendarViewMonth] = useState(() => new Date().toISOString().slice(0, 7));
   const [calendarHydrated, setCalendarHydrated] = useState(false);
 
   const [driveAssets, setDriveAssets] = useState<DriveAsset[]>([
@@ -980,6 +981,32 @@ export function App() {
     }, 700);
     return () => clearTimeout(timer);
   }, [tasksModel, workspaceId, tasksHydrated, tasksRecordId]);
+
+  useEffect(() => {
+    // Mirror task due dates into calendar so schedule reflects execution board automatically.
+    setCalendarEvents((old) => {
+      const manual = old.filter((event) => !event.id.startsWith("taskcal-"));
+      const generated = tasksModel
+        .filter((task) => task.due_at)
+        .map((task) => {
+          const status: CalendarEvent["status"] = task.status === "done" ? "done" : task.status === "doing" ? "confirmed" : "planned";
+          return {
+            id: `taskcal-${task.id}`,
+            title: `[Task] ${task.title}`,
+            start_date: task.due_at,
+            end_date: task.due_at,
+            owner: task.assignee || authUser,
+            status,
+            notes: `priority=${task.priority} · source=SkyeTasks`,
+          } as CalendarEvent;
+        });
+
+      const merged = [...manual, ...generated].sort((a, b) => `${a.start_date}-${a.id}`.localeCompare(`${b.start_date}-${b.id}`));
+      const prev = [...old].sort((a, b) => `${a.start_date}-${a.id}`.localeCompare(`${b.start_date}-${b.id}`));
+      if (JSON.stringify(prev) === JSON.stringify(merged)) return old;
+      return merged;
+    });
+  }, [tasksModel, authUser]);
 
   useEffect(() => {
     if (!calendarHydrated) return;
@@ -2723,6 +2750,9 @@ export function App() {
       return (
         <section className="app-module">
           <header><h2>SkyeTasks</h2><p>Priority-aware execution board with assignees, due dates, and handoff controls.</p></header>
+          <div className="tool-actions left">
+            <a className="ghost" href={`/SkyeTasks/index.html?ws_id=${encodeURIComponent(workspaceId)}`} target="_blank" rel="noreferrer">Open Standalone</a>
+          </div>
           <div className="tool-row split">
             <input value={taskDraftTitle} onChange={(e) => setTaskDraftTitle(e.target.value)} placeholder="New task title" />
             <input value={taskDraftAssignee} onChange={(e) => setTaskDraftAssignee(e.target.value)} placeholder="Assignee email" />
@@ -2837,15 +2867,55 @@ export function App() {
       const filtered = calendarEvents.filter((item) =>
         `${item.title} ${item.owner} ${item.notes}`.toLowerCase().includes((appSearch || "").toLowerCase())
       );
+      const [year, month] = calendarViewMonth.split("-").map((n) => Number(n));
+      const first = new Date(year, Math.max(0, month - 1), 1);
+      const startPad = first.getDay();
+      const daysInMonth = new Date(year, Math.max(1, month), 0).getDate();
+      const dayCells = Array.from({ length: startPad + daysInMonth }, (_, i) => (i < startPad ? 0 : i - startPad + 1));
+      const eventsByDay = new Map<number, CalendarEvent[]>();
+      for (const evt of filtered) {
+        const dt = new Date(`${evt.start_date}T00:00:00`);
+        if (dt.getFullYear() === year && dt.getMonth() === month - 1) {
+          const day = dt.getDate();
+          const list = eventsByDay.get(day) || [];
+          list.push(evt);
+          eventsByDay.set(day, list);
+        }
+      }
       return (
         <section className="app-module">
-          <header><h2>SkyeCalendar</h2><p>Schedule operations with owner, status, and release readiness context.</p></header>
+          <header><h2>SkyeCalendar</h2><p>Real month-view calendar with event cards and automatic SkyeTasks due-date integration.</p></header>
+          <div className="tool-actions left">
+            <a className="ghost" href={`/SkyeCalendar/index.html?ws_id=${encodeURIComponent(workspaceId)}`} target="_blank" rel="noreferrer">Open Standalone</a>
+            <button className="ghost" type="button" onClick={() => setCalendarViewMonth(new Date().toISOString().slice(0, 7))}>Today</button>
+          </div>
           <div className="tool-row split">
             <input value={calendarDraftTitle} onChange={(e) => setCalendarDraftTitle(e.target.value)} placeholder="Event title" />
             <input type="date" value={calendarDraftStart} onChange={(e) => setCalendarDraftStart(e.target.value)} />
           </div>
           <div className="tool-row split">
             <input type="date" value={calendarDraftEnd} onChange={(e) => setCalendarDraftEnd(e.target.value)} />
+            <input type="month" value={calendarViewMonth} onChange={(e) => setCalendarViewMonth(e.target.value)} />
+          </div>
+          <div className="calendar-grid">
+            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
+              <div key={`h-${d}`} className="calendar-head">{d}</div>
+            ))}
+            {dayCells.map((day, idx) => {
+              if (!day) return <div key={`blank-${idx}`} className="calendar-cell blank" />;
+              const dayEvents = eventsByDay.get(day) || [];
+              return (
+                <div key={`day-${day}`} className="calendar-cell">
+                  <div className="calendar-day">{day}</div>
+                  {dayEvents.slice(0, 3).map((evt) => (
+                    <div key={evt.id} className={`calendar-pill ${evt.status}`}>{evt.title}</div>
+                  ))}
+                  {dayEvents.length > 3 && <div className="calendar-more">+{dayEvents.length - 3} more</div>}
+                </div>
+              );
+            })}
+          </div>
+          <div className="tool-actions left">
             <button
               className="ghost"
               type="button"
@@ -2947,6 +3017,9 @@ export function App() {
       return (
         <section className="app-module">
           <header><h2>SkyeVault</h2><p>Secret inventory with rotation status and scope controls.</p></header>
+          <div className="tool-actions left">
+            <a className="ghost" href={`/SkyeVault/index.html?ws_id=${encodeURIComponent(workspaceId)}`} target="_blank" rel="noreferrer">Open Standalone</a>
+          </div>
           <div className="tool-row split">
             <input value={vaultDraftLabel} onChange={(e) => setVaultDraftLabel(e.target.value)} placeholder="Secret label" />
             <select value={vaultDraftScope} onChange={(e) => setVaultDraftScope(e.target.value as VaultSecret["scope"])}>
@@ -3002,6 +3075,9 @@ export function App() {
       return (
         <section className="app-module">
           <header><h2>SkyeForms</h2><p>Questionnaire builder with required flags and response-ready prompts.</p></header>
+          <div className="tool-actions left">
+            <a className="ghost" href={`/SkyeForms/index.html?ws_id=${encodeURIComponent(workspaceId)}`} target="_blank" rel="noreferrer">Open Standalone</a>
+          </div>
           <div className="tool-row split">
             <input value={formDraftPrompt} onChange={(e) => setFormDraftPrompt(e.target.value)} placeholder="Question prompt" />
             <select value={formDraftType} onChange={(e) => setFormDraftType(e.target.value as FormQuestion["type"])}>
@@ -3053,6 +3129,9 @@ export function App() {
       return (
         <section className="app-module">
           <header><h2>SkyeNotes</h2><p>Knowledge notes with tags, search, and ownership metadata.</p></header>
+          <div className="tool-actions left">
+            <a className="ghost" href={`/SkyeNotes/index.html?ws_id=${encodeURIComponent(workspaceId)}`} target="_blank" rel="noreferrer">Open Standalone</a>
+          </div>
           <div className="tool-row split">
             <input value={noteDraftTitle} onChange={(e) => setNoteDraftTitle(e.target.value)} placeholder="Note title" />
             <input value={noteSearch} onChange={(e) => setNoteSearch(e.target.value)} placeholder="Search notes" />
@@ -3183,16 +3262,29 @@ export function App() {
         ["MVP Items Complete", completeMvpItems],
         ["Smoke Runs", smokeLedger.length],
         ["Open Tasks", tasksModel.filter((task) => task.status !== "done").length],
+        ["Calendar Events", calendarEvents.length],
+        ["Team Members", adminUsers.length],
       ];
       return (
         <section className="app-module">
-          <header><h2>SkyeAnalytics</h2><p>Suite KPI dashboard.</p></header>
+          <header><h2>SkyeAnalytics</h2><p>Operational dashboard with live platform KPIs and execution telemetry.</p></header>
+          <div className="tool-actions left">
+            <a className="ghost" href={`/SkyeAnalytics/index.html?ws_id=${encodeURIComponent(workspaceId)}`} target="_blank" rel="noreferrer">Open Standalone</a>
+          </div>
           <div className="kpi-grid">
             {kpis.map(([label, value]) => (
               <article key={label} className="kpi-card">
                 <div>{label}</div>
                 <strong>{value}</strong>
               </article>
+            ))}
+          </div>
+          <div className="list-stack">
+            {smokeResults.slice(-4).map((result) => (
+              <div key={`an-${result.name}-${result.url}`} className="list-item">
+                <strong>{result.name}</strong>
+                <div>Status={result.status} · {result.ok ? "PASS" : "FAIL"}</div>
+              </div>
             ))}
           </div>
         </section>
