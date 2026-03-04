@@ -179,3 +179,71 @@ Failing checks:
 2. Improvement: `upgrade-notes.html` is now deployed (`200`).
 3. Remaining gate: production DB/auth runtime config still broken at signup, blocking authenticated smoke paths.
 
+## Post-Push Live Smoke Log (commit `2b6ca4f`, 2026-03-04T23:13Z)
+
+Push/deploy trigger:
+1. Commit pushed to `origin/main`: `2b6ca4f`.
+2. Deploy probe confirmed routes are live.
+
+### A) Focused SKNore Live Sequence (post-push)
+Requested sequence: `policy-set -> blocked generate -> event appears`.
+
+Observed results:
+1. `POST /api/auth-signup` -> `500`
+2. `POST /api/ws-create` -> `401`
+3. `POST /api/sknore-policy-set` -> `401`
+4. `POST /api/kaixu-generate` -> `401`
+5. `GET /api/sknore-events` -> `401`
+
+Focused sequence verdict:
+1. Sequence still blocked by auth bootstrap failure.
+2. SKNore endpoints are present, but cannot be exercised without valid authenticated session.
+
+Auth blocker signature:
+1. `DB error: {"message":"invalid header: neon-connection-string" ... }`
+
+### B) Full Production Smoke Harness Re-run (post-push)
+Harness:
+1. `/tmp/full_system_smoke_prod.sh https://kaixusuperidev2.netlify.app`
+
+Summary:
+1. `PASS=3`
+2. `FAIL=8`
+
+Passing checks:
+1. `GET /` -> `200`
+2. `GET /upgrade-notes.html` -> `200`
+3. `GET /api/auth-me` -> `200` (empty session body)
+
+Failing checks:
+1. `GET /SkyeDocxPro/index.html` -> `301`
+2. `GET /SkyeMail/index.html` -> `301`
+3. `GET /SkyeChat/index.html` -> `301`
+4. `POST /api/auth-signup` -> `500` (`invalid header: neon-connection-string`)
+5. Auth identity match failed (`{}` returned)
+6. `POST /api/ws-create` -> `401`
+7. Workspace ID parse failed
+8. `GET /api/ws-list` -> `401`
+
+### C) Updated Repo Smokehouse Script Result
+Command:
+1. `./scripts/smokehouse.sh https://kaixusuperidev2.netlify.app`
+
+Summary:
+1. `PASS=7`
+2. `FAIL=0`
+
+Passing checks:
+1. `GET /` -> `200`
+2. `GET /SkyeMail/index.html` -> `200` (redirect-follow aware)
+3. `GET /SkyeChat/index.html` -> `200` (redirect-follow aware)
+4. `GET /Neural-Space-Pro/index.html` -> `200`
+5. `GET /upgrade-notes.html` -> `200`
+6. `POST /api/kaixu-generate` -> `401` (expected policy-protected)
+7. `GET /api/auth-me` -> `200`
+
+### D) Product Surface Fixes Included In `2b6ca4f`
+1. Real IDE control center added in-app: Monaco editing + file add/delete + workspace save/load + GitHub push + Netlify deploy controls.
+2. Neural Space Pro deployment surface fixed by syncing `Neural-Space-Pro/` into `public/` during `predev` and `prebuild`.
+3. Smoke client handling hardened for policy/CORS worker boundaries and production redirects.
+
