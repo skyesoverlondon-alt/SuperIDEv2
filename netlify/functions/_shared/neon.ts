@@ -11,14 +11,11 @@ function toHttpSqlEndpoint(url: string): { endpoint: string; headers: Record<str
   if (/^postgres(ql)?:\/\//i.test(url)) {
     const parsed = new URL(url);
     const endpoint = `https://${parsed.host}/sql`;
-    const user = decodeURIComponent(parsed.username || "");
-    const password = decodeURIComponent(parsed.password || "");
-    const basic = Buffer.from(`${user}:${password}`).toString("base64");
     return {
       endpoint,
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Basic ${basic}`,
+        "Neon-Connection-String": url,
       },
     };
   }

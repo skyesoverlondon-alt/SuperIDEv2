@@ -27,9 +27,9 @@ check() {
 
   local code
   if [[ "$method" == "GET" ]]; then
-    code=$(curl -sS -o /tmp/smoke.out -w "%{http_code}" --max-time 30 "$url" || true)
+    code=$(curl -L -sS -o /tmp/smoke.out -w "%{http_code}" --max-time 30 "$url" || true)
   else
-    code=$(curl -sS -o /tmp/smoke.out -w "%{http_code}" --max-time 30 -X "$method" -H "Content-Type: application/json" --data "$body" "$url" || true)
+    code=$(curl -L -sS -o /tmp/smoke.out -w "%{http_code}" --max-time 30 -X "$method" -H "Content-Type: application/json" --data "$body" "$url" || true)
   fi
 
   if [[ "$code" =~ ^2[0-9][0-9]$ ]]; then
@@ -46,6 +46,10 @@ check() {
 }
 
 check "Site Root" "GET" "$SITE_BASE/"
+check "SkyeMail Surface" "GET" "$SITE_BASE/SkyeMail/index.html"
+check "SkyeChat Surface" "GET" "$SITE_BASE/SkyeChat/index.html"
+check "Neural Surface" "GET" "$SITE_BASE/Neural-Space-Pro/index.html"
+check "Upgrade Notes Surface" "GET" "$SITE_BASE/upgrade-notes.html"
 
 if [[ -n "$WORKER_URL" ]]; then
   check "Worker Health" "GET" "$WORKER_URL/health" "" "^(302|401|403)$"

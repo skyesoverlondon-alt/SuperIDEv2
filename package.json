@@ -4,10 +4,12 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
+    "sync:neural": "rm -rf public/Neural-Space-Pro && mkdir -p public && cp -R Neural-Space-Pro public/Neural-Space-Pro",
     "sync:docxpro": "rm -rf public/SkyeDocxPro && mkdir -p public && cp -R SkyeDocxPro public/SkyeDocxPro",
-    "predev": "npm run sync:docxpro",
+    "sync:surfaces": "npm run sync:docxpro && npm run sync:neural",
+    "predev": "npm run sync:surfaces",
     "dev": "vite",
-    "prebuild": "npm run sync:docxpro",
+    "prebuild": "npm run sync:surfaces",
     "build": "vite build",
     "preview": "vite preview"
   },
