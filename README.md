@@ -130,6 +130,25 @@ WORKER_URL="https://<your-worker-domain>.workers.dev" ./scripts/smokehouse.sh ht
 
 See `SMOKEHOUSE.md` for latest recorded smoke output and interpretation.
 
+Smokehouse classification note:
+
+- `Worker Health` returning `302/401/403` is treated as pass when Worker is behind access policy.
+- `Generate API` returning `401` is treated as pass for unauthenticated smoke context (auth gate active).
+
+## SkyeDocxPro Enterprise Controls
+
+`/SkyeDocxPro/index.html` now includes enterprise review and governance controls:
+
+- Review Console tabs for Outline, Comments threads, and Timeline snapshots.
+- Suggestion Mode toggle with per-document suggestion log.
+- Template launcher and metadata editor (author/classification/tags/summary).
+- Page-break insertion for structured print and PDF output.
+- `.skye` export/import supports optional AES-GCM passphrase encryption.
+- Recovery Failsafe Kit (optional) adds recovery-code decrypt path if passphrase is forgotten.
+
+Encrypted `.skye` import prompts for passphrase first, then recovery code fallback when failsafe metadata is available.
+Use separate custody for secrets: store passphrase and recovery kit in different secure vault systems.
+
 ## SuperIDE + Neural Space Pro Integration
 
 Architecture priority is explicitly enforced:
@@ -259,6 +278,59 @@ Required Netlify env vars for mail send:
 - `SKYE_MAIL_FROM` (recommended; defaults to `SkyeMail <onboarding@resend.dev>`)
 
 SkyeAdmin/SkyeMail/SkyeChat UI in `src/App.tsx` now calls these endpoints directly.
+
+## Team Collaboration + Cross-App Share (Live)
+
+The suite now supports org team onboarding and direct project handoff from the IDE surface.
+
+- `GET /.netlify/functions/team-members`
+  - Returns org membership roster (email + role).
+
+- `POST /.netlify/functions/team-invite`
+  - Body: `{ "email": "teammate@company.com", "role": "member" }`
+  - Requires caller role `owner` or `admin`.
+  - Sends secure invite link by email (7-day expiry).
+
+- `POST /.netlify/functions/team-invite-accept`
+  - Body: `{ "token": "<invite-token>", "email": "teammate@company.com", "password": "<new-password>" }`
+  - Accepts invite, creates/links account, sets org membership role, and signs user in.
+
+- `GET /.netlify/functions/ws-member-list?id=<workspace-id>`
+  - Returns workspace-scoped members and roles (`editor`/`viewer`).
+
+- `POST /.netlify/functions/ws-member-set`
+  - Body: `{ "ws_id": "<workspace-id>", "email": "teammate@company.com", "role": "editor|viewer|remove" }`
+  - Requires caller role `owner` or `admin`.
+  - Sets or removes workspace-scoped permissions.
+
+- `POST /.netlify/functions/project-share`
+  - Body: `{ "ws_id": "<workspace-id>", "mode": "app|chat|mail|all", "recipient_email": "...", "channel": "general", "note": "..." }`
+  - Validates org/workspace ownership.
+  - Persists app share record and can fan out to SkyeChat and SkyeMail.
+
+- `POST /.netlify/functions/skychat-kaixu`
+  - Body: `{ "channel": "general", "message": "...", "ws_id": "<workspace-id>" }`
+  - Persists user message, requests kAIxU response via gateway, persists assistant reply in SkyeChat room history.
+
+Frontend behavior in `src/App.tsx`:
+
+- Every app now includes a built-in tutorial checklist.
+- IDE editor pane includes a "Project Share" panel for one-step team handoff.
+- SkyeAdmin includes secure invite-link + roster refresh + workspace permission controls.
+- SkyeChat includes "Send + Ask kAIxU" for mixed human + assistant room workflows.
+
+## SkyeDocxPro Integration (Live)
+
+`SkyeDocxPro` is now integrated as a first-class app inside the IDE while keeping legacy `SkyeDocs` intact.
+
+- Embedded path in SuperIDE: select `SkyeDocxPro` from app list.
+- Standalone path: `/SkyeDocxPro/index.html`
+- Product page path: `/SkyeDocxPro/homepage.html`
+
+Build/runtime asset sync:
+
+- `npm run sync:docxpro` copies `SkyeDocxPro/` into `public/SkyeDocxPro/`
+- `predev` and `prebuild` run this automatically
 
 ## Skye Standard
 

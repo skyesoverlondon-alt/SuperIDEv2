@@ -81,6 +81,38 @@ create table if not exists org_memberships (
 
 create index if not exists idx_org_memberships_org on org_memberships(org_id);
 
+-- Secure invite links for team onboarding.
+create table if not exists org_invites (
+  id uuid primary key default gen_random_uuid(),
+  org_id uuid not null references orgs(id) on delete cascade,
+  invited_by uuid references users(id),
+  invited_email text not null,
+  role text not null check (role in ('owner','admin','member','viewer')),
+  token_hash text not null unique,
+  status text not null default 'pending' check (status in ('pending','accepted','revoked','expired')),
+  expires_at timestamptz not null,
+  accepted_at timestamptz,
+  accepted_by uuid references users(id),
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_org_invites_org_status on org_invites(org_id, status, created_at desc);
+create index if not exists idx_org_invites_email on org_invites(lower(invited_email), status);
+
+-- Workspace-level access controls for enterprise role boundaries.
+create table if not exists workspace_memberships (
+  id uuid primary key default gen_random_uuid(),
+  ws_id uuid not null references workspaces(id) on delete cascade,
+  user_id uuid not null references users(id) on delete cascade,
+  role text not null check (role in ('editor','viewer')),
+  created_by uuid references users(id),
+  created_at timestamptz not null default now(),
+  unique (ws_id, user_id)
+);
+
+create index if not exists idx_workspace_memberships_ws on workspace_memberships(ws_id, role, created_at desc);
+create index if not exists idx_workspace_memberships_user on workspace_memberships(user_id, ws_id);
+
 -- Generic app records to back SkyeDocs/Sheets/Slides/Mail/etc.
 create table if not exists app_records (
   id uuid primary key default gen_random_uuid(),
@@ -95,6 +127,9 @@ create table if not exists app_records (
 );
 
 create index if not exists idx_app_records_org_app on app_records(org_id, app, updated_at desc);
+create index if not exists idx_app_records_org_mail_updated on app_records(org_id, updated_at desc) where app='SkyeMail';
+create index if not exists idx_app_records_org_chat_updated on app_records(org_id, updated_at desc) where app='SkyeChat';
+create index if not exists idx_app_records_chat_channel on app_records(org_id, (lower(payload->>'channel')), updated_at desc) where app='SkyeChat';
 
 -- SkyeTasks board entities
 create table if not exists skye_tasks (

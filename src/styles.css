@@ -38,6 +38,30 @@ body {
   font-size: 1.15rem;
 }
 
+.floating-logo {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  margin-right: 8px;
+  animation: logo-float-pulse 3.2s ease-in-out infinite;
+  filter: drop-shadow(0 0 10px rgba(167, 139, 250, 0.7)) drop-shadow(0 0 18px rgba(34, 211, 238, 0.35));
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+@keyframes logo-float-pulse {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 0.92;
+  }
+  50% {
+    transform: translateY(-6px) scale(1.06);
+    opacity: 1;
+  }
+}
+
 .topbar p {
   margin: 4px 0 0;
   color: #9ca3b7;
@@ -539,6 +563,21 @@ body {
   gap: 8px;
 }
 
+.smoke-warning {
+  border-radius: 10px;
+  border: 1px solid rgba(250, 204, 21, 0.5);
+  background: rgba(250, 204, 21, 0.08);
+  padding: 10px;
+  font-size: 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.smoke-warning strong {
+  color: #fde68a;
+}
+
 .smoke-item {
   border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -581,6 +620,42 @@ body {
 .ledger-meta {
   font-size: 0.78rem;
   color: #9ca8bf;
+}
+
+.merge-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 8, 16, 0.78);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.merge-modal {
+  width: min(1100px, calc(100vw - 40px));
+  max-height: calc(100vh - 40px);
+  overflow: auto;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(10, 14, 24, 0.96);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.merge-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+@media (max-width: 920px) {
+  .merge-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 920px) {

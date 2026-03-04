@@ -13,6 +13,12 @@ export const handler = async (event: any) => {
     "insert into workspaces(org_id,name,files_json) values($1,$2,$3::jsonb) returning id,org_id,name,created_at,updated_at",
     [u.org_id, wsName, "[]"]
   );
+  await q(
+    `insert into workspace_memberships(ws_id, user_id, role, created_by)
+     values($1,$2,$3,$4)
+     on conflict (ws_id, user_id) do update set role=excluded.role`,
+    [r.rows[0].id, u.user_id, "editor", u.user_id]
+  );
   await audit(u.email, u.org_id, r.rows[0].id, "ws.create", { name: wsName });
   return json(200, { ws: r.rows[0] });
 };

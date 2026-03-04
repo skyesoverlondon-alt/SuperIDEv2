@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>kAIxU SuperIDEv2 · Client Handoff for Procurement</title>
+		<style>
+			body { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 24px; line-height: 1.5; color: #0f172a; }
+			h1, h2, h3 { margin: 0 0 10px; }
+			h2 { margin-top: 20px; }
+			code { background: #f1f5f9; padding: 2px 6px; border-radius: 6px; }
+			ul { margin: 8px 0 12px 22px; }
+			table { border-collapse: collapse; width: 100%; margin: 10px 0 16px; }
+			th, td { border: 1px solid #cbd5e1; padding: 8px; vertical-align: top; text-align: left; }
+			th { background: #e2e8f0; }
+			.note { background: #eef2ff; border-left: 4px solid #6366f1; padding: 10px 12px; margin: 12px 0; }
+		</style>
+	</head>
+	<body>
+		<h1>kAIxU SuperIDEv2</h1>
+		<p><strong>Client Handoff for Procurement</strong> (external distribution copy).</p>
+		<p>Purpose: architecture visibility, operational access links, and security posture summary for enterprise review.</p>
+
+		<h2>Production Links</h2>
+		<table>
+			<thead>
+				<tr>
+					<th>Surface</th>
+					<th>URL</th>
+					<th>Use</th>
+				</tr>
+			</thead>
+			<tbody>
+				<tr>
+					<td>Primary application</td>
+					<td><code>https://kaixusuperidev2.netlify.app</code></td>
+					<td>End-user web application and API entry point.</td>
+				</tr>
+				<tr>
+					<td>Privileged backend runtime</td>
+					<td><code>https://kaixu-superide-runner.skyesoverlondon.workers.dev</code></td>
+					<td>Execution tier for controlled backend operations.</td>
+				</tr>
+				<tr>
+					<td>Runtime health endpoint</td>
+					<td><code>https://kaixu-superide-runner.skyesoverlondon.workers.dev/health</code></td>
+					<td>Health signal (may be policy-protected in enterprise access mode).</td>
+				</tr>
+			</tbody>
+		</table>
+
+		<h2>Architecture Summary</h2>
+		<ul>
+			<li><strong>Frontend:</strong> Browser-based application hosted on Netlify.</li>
+			<li><strong>Policy/API layer:</strong> Netlify Functions enforce user/session controls, token constraints, and auditable actions.</li>
+			<li><strong>Privileged operations layer:</strong> Cloudflare Worker performs signed server-to-server operations (push, deploy, export).</li>
+			<li><strong>Persistence:</strong> PostgreSQL (Neon) stores organizations, workspaces, audit records, and app event records.</li>
+		</ul>
+
+		<div class="note">
+			<strong>Model call path:</strong> Client request → Netlify function gate → policy/auth checks + audit logging → upstream AI gateway call from server context.
+		</div>
+
+		<h2>Client-Visible API Endpoints</h2>
+		<table>
+			<thead>
+				<tr>
+					<th>Capability</th>
+					<th>URL</th>
+					<th>Operational Note</th>
+				</tr>
+			</thead>
+			<tbody>
+				<tr>
+					<td>AI generation gate</td>
+					<td><code>https://kaixusuperidev2.netlify.app/api/kaixu-generate</code></td>
+					<td>Protected endpoint; requires valid authenticated context.</td>
+				</tr>
+				<tr>
+					<td>Session identity check</td>
+					<td><code>https://kaixusuperidev2.netlify.app/api/auth-me</code></td>
+					<td>Returns logged-in identity context.</td>
+				</tr>
+				<tr>
+					<td>Token administration</td>
+					<td><code>/.netlify/functions/token-issue</code>, <code>/.netlify/functions/token-list</code>, <code>/.netlify/functions/token-revoke</code></td>
+					<td>Scoped token issuance, visibility, and revocation controls.</td>
+				</tr>
+				<tr>
+					<td>SkyeMail + SkyeChat integration</td>
+					<td><code>/.netlify/functions/skymail-send</code>, <code>/.netlify/functions/skychat-notify</code></td>
+					<td>Mail dispatch and chat notification event capture.</td>
+				</tr>
+			</tbody>
+		</table>
+
+		<h2>Security & Governance Controls</h2>
+		<ul>
+			<li>Server-side credential model (no provider secrets exposed to browser clients).</li>
+			<li>Signed service-to-service requests between policy layer and privileged runner.</li>
+			<li>Org/workspace access checks applied on export, deploy, and push operations.</li>
+			<li>Token model supports scope restrictions, expiry, lock constraints, and revocation.</li>
+			<li>Comprehensive audit logging for generation, export, push, and deploy actions.</li>
+		</ul>
+
+		<h2>Smoke / Operational Validation</h2>
+		<ul>
+			<li>CLI smoke command: <code>./scripts/smokehouse.sh https://kaixusuperidev2.netlify.app https://kaixu-superide-runner.skyesoverlondon.workers.dev</code></li>
+			<li>Observed behavior: root and auth check are reachable; protected generation endpoint returns unauthorized when no valid auth is provided.</li>
+			<li>Worker health endpoint may redirect if enterprise access enforcement is enabled.</li>
+		</ul>
+
+		<h2>Reference Documentation</h2>
+		<ul>
+			<li><code>docs/ENTERPRISE_DEVICE_READINESS.md</code></li>
+			<li><code>docs/SUPREME_SMOKE_RUNBOOK.md</code></li>
+			<li><code>docs/HARDENING_TODO.md</code></li>
+		</ul>
+	</body>
+</html>

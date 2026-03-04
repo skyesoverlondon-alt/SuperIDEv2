@@ -4,7 +4,10 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
+    "sync:docxpro": "rm -rf public/SkyeDocxPro && mkdir -p public && cp -R SkyeDocxPro public/SkyeDocxPro",
+    "predev": "npm run sync:docxpro",
     "dev": "vite",
+    "prebuild": "npm run sync:docxpro",
     "build": "vite build",
     "preview": "vite preview"
   },

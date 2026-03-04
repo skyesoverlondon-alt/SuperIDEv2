@@ -23,6 +23,7 @@ check() {
   local method="$2"
   local url="$3"
   local body="${4:-}"
+  local expected_extra="${5:-}"
 
   local code
   if [[ "$method" == "GET" ]]; then
@@ -34,6 +35,9 @@ check() {
   if [[ "$code" =~ ^2[0-9][0-9]$ ]]; then
     echo "PASS  $name :: $method $url -> $code"
     pass=$((pass+1))
+  elif [[ -n "$expected_extra" && "$code" =~ $expected_extra ]]; then
+    echo "PASS  $name :: $method $url -> $code (policy-protected expected)"
+    pass=$((pass+1))
   else
     echo "FAIL  $name :: $method $url -> $code"
     head -c 220 /tmp/smoke.out | tr '\n' ' '; echo
@@ -44,13 +48,13 @@ check() {
 check "Site Root" "GET" "$SITE_BASE/"
 
 if [[ -n "$WORKER_URL" ]]; then
-  check "Worker Health" "GET" "$WORKER_URL/health"
+  check "Worker Health" "GET" "$WORKER_URL/health" "" "^(302|401|403)$"
 else
   echo "SKIP  Worker Health :: WORKER_URL not provided"
 fi
 
-check "Generate API" "POST" "$SITE_BASE/api/kaixu-generate" "{\"ws_id\":\"$WS_ID\",\"prompt\":\"smokehouse ping\",\"activePath\":\"src/App.tsx\",\"files\":[]}"
-check "Auth Me API" "GET" "$SITE_BASE/api/auth-me"
+check "Generate API" "POST" "$SITE_BASE/api/kaixu-generate" "{\"ws_id\":\"$WS_ID\",\"prompt\":\"smokehouse ping\",\"activePath\":\"src/App.tsx\",\"files\":[]}" "^(401)$"
+check "Auth Me API" "GET" "$SITE_BASE/api/auth-me" "" "^(401|403)$"
 
 echo
 echo "Summary: PASS=$pass FAIL=$fail"

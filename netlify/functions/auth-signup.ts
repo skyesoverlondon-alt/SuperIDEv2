@@ -22,6 +22,10 @@ export const handler = async (event: any) => {
       [email.toLowerCase(), pwHash, orgId]
     );
     const userId = userRow.rows[0].id;
+    await q(
+      "insert into org_memberships(org_id, user_id, role) values($1,$2,$3) on conflict (org_id, user_id) do nothing",
+      [orgId, userId, "owner"]
+    );
     // Create session
     const sess = await createSession(userId);
     // Audit

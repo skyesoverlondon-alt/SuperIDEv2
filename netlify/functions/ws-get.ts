@@ -1,6 +1,7 @@
 import { json } from "./_shared/response";
 import { requireUser, forbid } from "./_shared/auth";
 import { q } from "./_shared/neon";
+import { canReadWorkspace } from "./_shared/rbac";
 
 export const handler = async (event: any) => {
   const u = await requireUser(event);
@@ -13,5 +14,7 @@ export const handler = async (event: any) => {
   );
   if (!r.rows.length) return json(404, { error: "Not found." });
   if (r.rows[0].org_id !== u.org_id) return forbid();
+  const canRead = await canReadWorkspace(u.org_id as string, u.user_id, id);
+  if (!canRead) return json(403, { error: "Forbidden: no workspace access." });
   return json(200, { files: r.rows[0].files_json || [] });
 };

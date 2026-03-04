@@ -2,6 +2,7 @@ import { json } from "./_shared/response";
 import { requireUser, forbid } from "./_shared/auth";
 import { q } from "./_shared/neon";
 import { audit } from "./_shared/audit";
+import { canWriteWorkspace } from "./_shared/rbac";
 
 export const handler = async (event: any) => {
   const u = await requireUser(event);
@@ -14,6 +15,8 @@ export const handler = async (event: any) => {
   const r0 = await q("select org_id from workspaces where id=$1", [id]);
   if (!r0.rows.length) return json(404, { error: "Not found." });
   if (r0.rows[0].org_id !== u.org_id) return forbid();
+  const canWrite = await canWriteWorkspace(u.org_id as string, u.user_id, id);
+  if (!canWrite) return json(403, { error: "Forbidden: read-only workspace access." });
   await q(
     "update workspaces set files_json=$1::jsonb, updated_at=now() where id=$2",
     [JSON.stringify(files), id]
