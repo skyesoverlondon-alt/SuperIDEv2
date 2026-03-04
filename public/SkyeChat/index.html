@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SkyeChat Workspace</title>
+  <style>
+    :root {
+      --bg: #06050d;
+      --panel: #14112a;
+      --border: rgba(255,255,255,0.12);
+      --text: #f3f5ff;
+      --muted: #a6add1;
+      --gold: #ffd700;
+      --purple: #8a4fff;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Inter, system-ui, sans-serif; color: var(--text); background: radial-gradient(circle at 10% 20%, rgba(138,79,255,0.24), transparent 40%), var(--bg); }
+    .shell { display: grid; grid-template-rows: 64px 1fr; min-height: 100vh; }
+    .top { display:flex; align-items:center; justify-content:space-between; padding:0 16px; border-bottom:1px solid var(--border); background: rgba(0,0,0,.35); }
+    .brand { font-weight: 700; letter-spacing: .05em; }
+    .brand span { color: var(--gold); }
+    .top a, .top button { color: var(--text); background: transparent; border:1px solid var(--border); border-radius:8px; padding:7px 10px; text-decoration:none; cursor:pointer; }
+    .main { display:grid; grid-template-columns: 350px 1fr; gap:12px; padding:12px; }
+    .card { background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02)); border:1px solid var(--border); border-radius:12px; padding:12px; }
+    h2 { margin:0 0 10px; font-size:14px; text-transform:uppercase; letter-spacing:.06em; color:var(--gold); }
+    label { font-size:11px; text-transform:uppercase; color:var(--muted); display:block; margin:9px 0 5px; }
+    input, textarea { width:100%; background:#0d0b1b; color:var(--text); border:1px solid var(--border); border-radius:8px; padding:9px 10px; }
+    textarea { min-height:110px; resize:vertical; }
+    .actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+    button { background:#1b1736; border:1px solid var(--border); color:var(--text); border-radius:8px; padding:8px 10px; cursor:pointer; }
+    button.primary { background:var(--purple); border-color:var(--purple); }
+    .feed { display:flex; flex-direction:column; gap:8px; max-height:75vh; overflow:auto; }
+    .msg { border:1px solid var(--border); border-radius:10px; padding:10px; background: rgba(255,255,255,.03); }
+    .meta { color:var(--muted); font-size:12px; margin-top:4px; }
+    .status { font-size:12px; color:var(--gold); margin-top:8px; white-space:pre-wrap; }
+    .row { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header class="top">
+      <div class="brand">Skye<span>Chat</span> Workspace</div>
+      <div style="display:flex;gap:8px;">
+        <a href="/index.html">Back to IDE</a>
+        <button id="logoutBtn" type="button">Logout</button>
+      </div>
+    </header>
+
+    <main class="main">
+      <section class="card">
+        <h2>Account</h2>
+        <div class="row">
+          <input id="email" placeholder="email@company.com" />
+          <input id="orgName" placeholder="Organization" />
+        </div>
+        <input id="password" type="password" placeholder="Password" style="margin-top:8px;" />
+        <div class="actions">
+          <button id="signupBtn" type="button">Create Account</button>
+          <button id="loginBtn" type="button">Login</button>
+          <button id="meBtn" type="button">Refresh Session</button>
+        </div>
+
+        <h2 style="margin-top:14px;">Chat Profile</h2>
+        <label>Display name</label>
+        <input id="displayName" placeholder="Display name" />
+        <label>Handle</label>
+        <input id="handle" placeholder="@handle" />
+        <div class="actions">
+          <button id="saveProfileBtn" type="button">Save Profile</button>
+        </div>
+
+        <h2 style="margin-top:14px;">Room Composer</h2>
+        <label>Channel</label>
+        <input id="channel" value="general" />
+        <label>Message</label>
+        <textarea id="message" placeholder="Message to room"></textarea>
+        <div class="actions">
+          <button class="primary" id="postBtn" type="button">Post Message</button>
+          <button id="kaixuBtn" type="button">Post + Ask kAIxU</button>
+          <button id="loadBtn" type="button">Reload Channel</button>
+        </div>
+        <div class="status" id="status"></div>
+      </section>
+
+      <section class="card">
+        <h2>Room Feed</h2>
+        <label>Filter channel</label>
+        <input id="filterChannel" value="general" />
+        <label>Search</label>
+        <input id="search" placeholder="search messages or source" />
+        <div class="actions">
+          <button id="applyFilterBtn" type="button">Apply Filter</button>
+        </div>
+        <div class="feed" id="feed"></div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const statusEl = document.getElementById('status');
+    const feedEl = document.getElementById('feed');
+    const query = new URLSearchParams(window.location.search);
+    const wsId = query.get('ws_id') || 'primary-workspace';
+    const initialChannel = query.get('channel') || 'general';
+
+    document.getElementById('channel').value = initialChannel;
+    document.getElementById('filterChannel').value = initialChannel;
+
+    if (query.get('embed') === '1') {
+      document.querySelector('.top a').setAttribute('href', `/index.html?ws_id=${encodeURIComponent(wsId)}`);
+    }
+
+    function setStatus(text) { statusEl.textContent = text || ''; }
+
+    async function call(path, options = {}) {
+      const res = await fetch(path, { credentials: 'include', ...options });
+      let data = {};
+      try { data = await res.json(); } catch {}
+      if (!res.ok) throw new Error(data?.error || `${path} failed (${res.status})`);
+      return data;
+    }
+
+    async function refreshMe() {
+      const me = await call('/api/auth-me');
+      if (me?.email) {
+        document.getElementById('email').value = me.email;
+        setStatus(`Signed in as ${me.email}`);
+      } else {
+        setStatus('Not signed in. Create account or login to use SkyeChat workspace.');
+      }
+    }
+
+    async function signup() {
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const orgName = document.getElementById('orgName').value.trim() || 'SkyeChat Org';
+      await call('/api/auth-signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, orgName }),
+      });
+      await refreshMe();
+      await loadProfile();
+      await loadFeed();
+    }
+
+    async function login() {
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      await call('/api/auth-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      await refreshMe();
+      await loadProfile();
+      await loadFeed();
+    }
+
+    async function logout() {
+      await call('/api/auth-logout', { method: 'POST' });
+      setStatus('Logged out.');
+      feedEl.innerHTML = '';
+    }
+
+    async function saveProfile() {
+      const displayName = document.getElementById('displayName').value.trim();
+      const handle = document.getElementById('handle').value.trim();
+      await call('/api/app-profile-set', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ app: 'SkyeChat', title: displayName || handle || 'SkyeChat Profile', profile: { display_name: displayName, handle } }),
+      });
+      setStatus('SkyeChat profile saved.');
+    }
+
+    async function loadProfile() {
+      const data = await call('/api/app-profile-get?app=SkyeChat');
+      const p = data?.profile?.payload || {};
+      if (p?.display_name) document.getElementById('displayName').value = p.display_name;
+      if (p?.handle) document.getElementById('handle').value = p.handle;
+    }
+
+    async function postMessage() {
+      const channel = document.getElementById('channel').value.trim();
+      const message = document.getElementById('message').value.trim();
+      const displayName = document.getElementById('displayName').value.trim() || 'SkyeChat User';
+      await call('/api/skychat-notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channel, message, source: `SkyeChat Workspace · ${displayName}` }),
+      });
+      setStatus(`Posted to #${channel}`);
+      await loadFeed();
+    }
+
+    async function postWithKaixu() {
+      const channel = document.getElementById('channel').value.trim();
+      const message = document.getElementById('message').value.trim();
+      await call('/api/skychat-kaixu', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channel, message, ws_id: wsId }),
+      });
+      setStatus(`Posted + kAIxU response in #${channel}`);
+      await loadFeed();
+    }
+
+    async function loadFeed() {
+      const channel = document.getElementById('filterChannel').value.trim();
+      const query = document.getElementById('search').value.trim();
+      const qs = new URLSearchParams();
+      qs.set('limit', '50');
+      if (channel) qs.set('channel', channel);
+      if (query) qs.set('q', query);
+      const data = await call(`/api/skychat-list?${qs.toString()}`);
+      const records = Array.isArray(data?.records) ? data.records : [];
+      feedEl.innerHTML = records.map((record) => {
+        const payload = record?.payload || {};
+        const c = payload?.channel || 'general';
+        const m = payload?.message || record?.title || '(empty)';
+        const s = payload?.source || 'unknown';
+        return `<div class="msg"><strong>#${c}</strong><div>${m}</div><div class="meta">source: ${s}</div></div>`;
+      }).join('') || '<div class="meta">No messages found.</div>';
+    }
+
+    document.getElementById('signupBtn').onclick = () => signup().catch((e) => setStatus(e.message));
+    document.getElementById('loginBtn').onclick = () => login().catch((e) => setStatus(e.message));
+    document.getElementById('meBtn').onclick = () => refreshMe().then(loadProfile).catch((e) => setStatus(e.message));
+    document.getElementById('saveProfileBtn').onclick = () => saveProfile().catch((e) => setStatus(e.message));
+    document.getElementById('postBtn').onclick = () => postMessage().catch((e) => setStatus(e.message));
+    document.getElementById('kaixuBtn').onclick = () => postWithKaixu().catch((e) => setStatus(e.message));
+    document.getElementById('loadBtn').onclick = () => loadFeed().catch((e) => setStatus(e.message));
+    document.getElementById('applyFilterBtn').onclick = () => loadFeed().catch((e) => setStatus(e.message));
+    document.getElementById('logoutBtn').onclick = () => logout().catch((e) => setStatus(e.message));
+
+    refreshMe().then(loadProfile).then(loadFeed).catch((e) => setStatus(e.message));
+  </script>
+</body>
+</html>

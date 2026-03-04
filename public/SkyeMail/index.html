@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SkyeMail Workspace</title>
+  <style>
+    :root {
+      --bg: #07060f;
+      --panel: #121026;
+      --panel2: #171332;
+      --border: rgba(255,255,255,0.12);
+      --text: #f5f7ff;
+      --muted: #a7acc9;
+      --gold: #ffd700;
+      --purple: #8a4fff;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Inter, system-ui, sans-serif; color: var(--text); background: radial-gradient(circle at top right, rgba(138,79,255,0.22), transparent 45%), var(--bg); }
+    .shell { display: grid; grid-template-rows: 64px 1fr; min-height: 100vh; }
+    .top { display: flex; align-items: center; justify-content: space-between; padding: 0 16px; border-bottom: 1px solid var(--border); background: rgba(0,0,0,0.35); }
+    .brand { font-weight: 700; letter-spacing: .04em; }
+    .brand span { color: var(--gold); }
+    .top a, .top button { color: var(--text); background: transparent; border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; text-decoration: none; cursor: pointer; }
+    .main { display: grid; grid-template-columns: 340px 1fr; gap: 12px; padding: 12px; }
+    .card { background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02)); border: 1px solid var(--border); border-radius: 12px; padding: 12px; }
+    h2 { margin: 0 0 10px; font-size: 14px; text-transform: uppercase; color: var(--gold); letter-spacing: .06em; }
+    label { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); display: block; margin: 10px 0 5px; }
+    input, textarea { width: 100%; background: #0c0b19; color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 9px 10px; }
+    textarea { min-height: 110px; resize: vertical; }
+    .actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+    button { background: #1b1738; color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; cursor: pointer; }
+    button.primary { background: var(--purple); border-color: var(--purple); }
+    .inbox { display: flex; flex-direction: column; gap: 8px; max-height: 72vh; overflow: auto; }
+    .item { border: 1px solid var(--border); border-radius: 10px; padding: 10px; background: rgba(255,255,255,0.03); }
+    .meta { font-size: 12px; color: var(--muted); margin-top: 5px; }
+    .auth { display: grid; gap: 8px; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .status { font-size: 12px; color: var(--gold); margin-top: 8px; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header class="top">
+      <div class="brand">Skye<span>Mail</span> Workspace</div>
+      <div style="display:flex;gap:8px;">
+        <a href="/index.html">Back to IDE</a>
+        <button id="logoutBtn" type="button">Logout</button>
+      </div>
+    </header>
+
+    <main class="main">
+      <section class="card">
+        <h2>Account</h2>
+        <div class="auth">
+          <div class="row">
+            <input id="email" placeholder="email@company.com" />
+            <input id="orgName" placeholder="Organization" />
+          </div>
+          <input id="password" type="password" placeholder="Password" />
+          <div class="actions">
+            <button id="signupBtn" type="button">Create Account</button>
+            <button id="loginBtn" type="button">Login</button>
+            <button id="meBtn" type="button">Refresh Session</button>
+          </div>
+        </div>
+
+        <h2 style="margin-top:14px;">Mailbox Profile</h2>
+        <label>SkyeMail address local-part</label>
+        <input id="addressLocal" placeholder="yourname" />
+        <label>Display name</label>
+        <input id="displayName" placeholder="Your Name" />
+        <div class="actions">
+          <button id="saveProfileBtn" type="button">Save Mailbox Profile</button>
+        </div>
+
+        <h2 style="margin-top:14px;">Compose</h2>
+        <label>To</label>
+        <input id="to" placeholder="recipient@example.com" />
+        <label>Subject</label>
+        <input id="subject" placeholder="Subject" />
+        <label>Body</label>
+        <textarea id="body" placeholder="Message"></textarea>
+        <label>SkyeChat hook channel (optional)</label>
+        <input id="channel" placeholder="general" />
+        <div class="actions">
+          <button class="primary" id="sendBtn" type="button">Send Mail</button>
+          <button id="reloadBtn" type="button">Reload Inbox</button>
+        </div>
+        <div class="status" id="status"></div>
+      </section>
+
+      <section class="card">
+        <h2>Inbox Workspace</h2>
+        <label>Search</label>
+        <input id="search" placeholder="subject, recipient, body" />
+        <div class="actions">
+          <button id="searchBtn" type="button">Apply Search</button>
+        </div>
+        <div class="inbox" id="inbox"></div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const state = {
+      me: null,
+      cursor: null,
+      wsId: new URLSearchParams(window.location.search).get('ws_id') || 'primary-workspace',
+    };
+
+    const statusEl = document.getElementById('status');
+    const inboxEl = document.getElementById('inbox');
+    const query = new URLSearchParams(window.location.search);
+
+    if (query.get('embed') === '1') {
+      document.querySelector('.top a').setAttribute('href', `/index.html?ws_id=${encodeURIComponent(state.wsId)}`);
+    }
+
+    function setStatus(text) {
+      statusEl.textContent = text || '';
+    }
+
+    async function call(path, options = {}) {
+      const res = await fetch(path, { credentials: 'include', ...options });
+      let data = {};
+      try { data = await res.json(); } catch {}
+      if (!res.ok) throw new Error(data?.error || `${path} failed (${res.status})`);
+      return data;
+    }
+
+    async function refreshMe() {
+      const me = await call('/api/auth-me');
+      state.me = me;
+      if (me?.email) {
+        setStatus(`Signed in as ${me.email}`);
+        document.getElementById('email').value = me.email;
+      } else {
+        setStatus('Not signed in. Create account or login to use SkyeMail workspace.');
+      }
+    }
+
+    async function saveProfile() {
+      const local = document.getElementById('addressLocal').value.trim().toLowerCase();
+      const displayName = document.getElementById('displayName').value.trim();
+      if (!local) throw new Error('Address local-part is required.');
+      const profile = {
+        mailbox_address: `${local}@skymail.local`,
+        display_name: displayName || local,
+        workspace_id: state.wsId,
+      };
+      await call('/api/app-profile-set', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ app: 'SkyeMail', title: profile.mailbox_address, profile }),
+      });
+      setStatus(`Mailbox profile saved: ${profile.mailbox_address}`);
+    }
+
+    async function loadProfile() {
+      const data = await call('/api/app-profile-get?app=SkyeMail');
+      const profile = data?.profile?.payload || {};
+      if (profile?.mailbox_address) {
+        const local = String(profile.mailbox_address).split('@')[0] || '';
+        document.getElementById('addressLocal').value = local;
+        const search = document.getElementById('search');
+        if (search && !search.value.trim()) search.value = profile.mailbox_address;
+      }
+      if (profile?.display_name) {
+        document.getElementById('displayName').value = profile.display_name;
+      }
+    }
+
+    async function sendMail() {
+      const to = document.getElementById('to').value.trim();
+      const subject = document.getElementById('subject').value.trim();
+      const text = document.getElementById('body').value.trim();
+      const channel = document.getElementById('channel').value.trim();
+      const local = document.getElementById('addressLocal').value.trim().toLowerCase();
+      const fromAlias = local ? `${local}@skymail.local` : '';
+      const data = await call('/api/skymail-send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to, subject, text, channel, from_alias: fromAlias, ws_id: state.wsId }),
+      });
+      setStatus(`Mail sent via ${data?.provider || 'provider'} (record=${data?.mail_record_id || 'n/a'})`);
+      await loadInbox();
+    }
+
+    async function loadInbox(append = false) {
+      const q = document.getElementById('search').value.trim();
+      const mailbox = q.includes('@') ? q.toLowerCase() : '';
+      const qs = new URLSearchParams();
+      qs.set('limit', '50');
+      if (q && !mailbox) qs.set('q', q);
+      if (mailbox) qs.set('mailbox', mailbox);
+      if (append && state.cursor) qs.set('before', state.cursor);
+      const data = await call(`/api/skymail-list?${qs.toString()}`);
+      const records = Array.isArray(data?.records) ? data.records : [];
+      state.cursor = data?.page?.next_before || null;
+
+      const items = records.map((record) => {
+        const payload = record?.payload || {};
+        const to = payload?.to || 'unknown';
+        const fromAlias = payload?.from_alias || 'noreply@skymail.local';
+        const subject = payload?.subject || record?.title || '(no subject)';
+        const body = payload?.text || '';
+        return `<div class="item"><strong>${subject}</strong><div class="meta">from ${fromAlias} to ${to}</div><div class="meta">${body}</div></div>`;
+      }).join('');
+
+      if (!append) inboxEl.innerHTML = items || '<div class="meta">No mail records found.</div>';
+      else inboxEl.insertAdjacentHTML('beforeend', items);
+    }
+
+    async function signup() {
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const orgName = document.getElementById('orgName').value.trim() || 'SkyeMail Org';
+      await call('/api/auth-signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, orgName }),
+      });
+      await refreshMe();
+      await loadProfile();
+      await loadInbox();
+    }
+
+    async function login() {
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      await call('/api/auth-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      await refreshMe();
+      await loadProfile();
+      await loadInbox();
+    }
+
+    async function logout() {
+      await call('/api/auth-logout', { method: 'POST' });
+      setStatus('Logged out.');
+      inboxEl.innerHTML = '';
+    }
+
+    document.getElementById('signupBtn').onclick = () => signup().catch((e) => setStatus(e.message));
+    document.getElementById('loginBtn').onclick = () => login().catch((e) => setStatus(e.message));
+    document.getElementById('meBtn').onclick = () => refreshMe().then(loadProfile).catch((e) => setStatus(e.message));
+    document.getElementById('sendBtn').onclick = () => sendMail().catch((e) => setStatus(e.message));
+    document.getElementById('reloadBtn').onclick = () => loadInbox(false).catch((e) => setStatus(e.message));
+    document.getElementById('searchBtn').onclick = () => loadInbox(false).catch((e) => setStatus(e.message));
+    document.getElementById('saveProfileBtn').onclick = () => saveProfile().catch((e) => setStatus(e.message));
+    document.getElementById('logoutBtn').onclick = () => logout().catch((e) => setStatus(e.message));
+
+    refreshMe().then(loadProfile).then(() => loadInbox(false)).catch((e) => setStatus(e.message));
+  </script>
+</body>
+</html>

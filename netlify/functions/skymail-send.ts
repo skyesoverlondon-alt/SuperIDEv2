@@ -20,6 +20,8 @@ export const handler = async (event: any) => {
   const subject = String(body.subject || "").trim();
   const text = String(body.text || "").trim();
   const channel = String(body.channel || "").trim();
+  const fromAlias = String(body.from_alias || "").trim().toLowerCase();
+  const wsId = String(body.ws_id || "").trim();
 
   if (!to || !subject || !text) {
     return json(400, { error: "Missing to, subject, or text." });
@@ -29,12 +31,13 @@ export const handler = async (event: any) => {
     const delivered = await sendMail({ to, subject, text });
 
     const saved = await q(
-      "insert into app_records(org_id, app, title, payload, created_by) values($1,$2,$3,$4::jsonb,$5) returning id, created_at",
+      "insert into app_records(org_id, ws_id, app, title, payload, created_by) values($1,$2,$3,$4,$5::jsonb,$6) returning id, created_at",
       [
         u.org_id,
+        wsId || null,
         "SkyeMail",
         subject,
-        JSON.stringify({ to, subject, text, provider: delivered.provider, provider_id: delivered.id }),
+        JSON.stringify({ to, from_alias: fromAlias || null, subject, text, provider: delivered.provider, provider_id: delivered.id }),
         u.user_id,
       ]
     );
@@ -47,7 +50,7 @@ export const handler = async (event: any) => {
           u.org_id,
           "SkyeChat",
           `Mail sent: ${subject}`,
-          JSON.stringify({ channel, message: `Mail delivered to ${to}: ${subject}`, source: "SkyeMail" }),
+          JSON.stringify({ channel, message: `Mail delivered to ${to}: ${subject}`, source: `SkyeMail${fromAlias ? ` (${fromAlias})` : ""}` }),
           u.user_id,
         ]
       );

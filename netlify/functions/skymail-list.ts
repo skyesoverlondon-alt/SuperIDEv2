@@ -16,6 +16,7 @@ export const handler = async (event: any) => {
   const params = event?.queryStringParameters || {};
   const limit = parseLimit(params.limit);
   const before = String(params.before || "").trim();
+  const mailbox = String(params.mailbox || "").trim().toLowerCase();
   const search = String(params.q || "").trim().toLowerCase();
   const searchLike = search ? `%${search}%` : "";
 
@@ -25,16 +26,17 @@ export const handler = async (event: any) => {
      where org_id=$1
        and app='SkyeMail'
        and ($2::timestamptz is null or updated_at < $2::timestamptz)
+       and ($3::text = '' or lower(coalesce(payload->>'to','')) = $3)
        and (
-         $3::text = ''
-         or lower(title) like $4
-         or lower(coalesce(payload->>'to','')) like $4
-         or lower(coalesce(payload->>'subject','')) like $4
-         or lower(coalesce(payload->>'text','')) like $4
+         $4::text = ''
+         or lower(title) like $5
+         or lower(coalesce(payload->>'to','')) like $5
+         or lower(coalesce(payload->>'subject','')) like $5
+         or lower(coalesce(payload->>'text','')) like $5
        )
      order by updated_at desc
-     limit $5`,
-    [u.org_id, before || null, search, searchLike, limit]
+     limit $6`,
+    [u.org_id, before || null, mailbox, search, searchLike, limit]
   );
 
   const nextBefore = rows.rows.length ? rows.rows[rows.rows.length - 1]?.updated_at || null : null;

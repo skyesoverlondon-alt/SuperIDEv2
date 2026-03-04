@@ -2416,91 +2416,43 @@ export function App() {
 
     if (selectedSkyeApp === "SkyeMail") {
       return (
-        <section className="app-module">
-          <header><h2>SkyeMail</h2><p>Live provider-backed send flow (Resend adapter).</p></header>
-          <label>To</label>
-          <input value={mailTo} onChange={(e) => setMailTo(e.target.value)} />
-          <label>Subject</label>
-          <input value={mailSubject} onChange={(e) => setMailSubject(e.target.value)} />
-          <label>Body</label>
-          <textarea value={mailText} onChange={(e) => setMailText(e.target.value)} rows={6} />
-          <label>SkyeChat hook channel (optional)</label>
-          <input value={mailChannelHook} onChange={(e) => setMailChannelHook(e.target.value)} />
-          <div className="tool-actions left">
-            <button className="ghost" type="button" onClick={() => void sendSkyeMail()} disabled={isSendingMail}>
-              {isSendingMail ? "Sending..." : "Send Mail"}
-            </button>
-            <button className="ghost" type="button" onClick={() => void loadSkyeMailHistory()} disabled={isLoadingMailHistory}>
-              {isLoadingMailHistory ? "Refreshing..." : "Refresh History"}
-            </button>
+        <section className="app-module platform-shell" style={{ minHeight: "84vh" }}>
+          <header>
+            <h2>SkyeMail Platform</h2>
+            <p>Dedicated standalone mail workspace integrated into IDE. Users can create accounts, set mailbox profile, send mail, and work from inbox surface.</p>
+          </header>
+          <div className="tool-actions left" style={{ marginBottom: 10 }}>
+            <a className="ghost" href={`/SkyeMail/index.html?ws_id=${encodeURIComponent(workspaceId)}`} target="_blank" rel="noreferrer">Open SkyeMail Standalone</a>
+            <button className="ghost" type="button" onClick={() => setSelectedSkyeApp("SkyeChat")}>Go To SkyeChat</button>
+            <button className="ghost" type="button" onClick={() => setSelectedSkyeApp("SkyeDocs")}>Return To IDE Workspace</button>
           </div>
-          <label>History search</label>
-          <input value={mailHistoryQuery} onChange={(e) => setMailHistoryQuery(e.target.value)} placeholder="Search recipient, subject, or body" />
-          <div className="tool-actions left">
-            <button className="ghost" type="button" onClick={() => void loadSkyeMailHistory()} disabled={isLoadingMailHistory}>
-              Apply Filter
-            </button>
-          </div>
-          {mailSendResult && <p className="muted-copy">{mailSendResult}</p>}
-          {isLoadingMailHistory && <p className="muted-copy">Loading mail history...</p>}
-          <div className="list-stack">
-            {mailItems.map((item, index) => <div key={`mail-${index}`} className="list-item">{item}</div>)}
-          </div>
-          {mailHasMore && (
-            <div className="tool-actions left">
-              <button className="ghost" type="button" onClick={() => void loadSkyeMailHistory({ append: true })} disabled={isLoadingMailHistory}>
-                {isLoadingMailHistory ? "Loading..." : "Load More"}
-              </button>
-            </div>
-          )}
+          <iframe
+            title="SkyeMail Workspace"
+            src={`/SkyeMail/index.html?embed=1&ws_id=${encodeURIComponent(workspaceId)}`}
+            className="platform-frame"
+          />
         </section>
       );
     }
 
     if (selectedSkyeApp === "SkyeChat") {
       return (
-        <section className="app-module">
-          <header><h2>SkyeChat</h2><p>Notification feed with backend persistence.</p></header>
-          <div className="tool-row split">
+        <section className="app-module platform-shell" style={{ minHeight: "84vh" }}>
+          <header>
+            <h2>SkyeChat Platform</h2>
+            <p>Dedicated standalone chat workspace integrated into IDE with room feed, identity profile, and kAIxU threaded responses.</p>
+          </header>
+          <div className="tool-actions left" style={{ marginBottom: 10 }}>
             <button className="ghost" type="button" onClick={applyNeuralRoomDefaultsToChat}>Use Neural Room Defaults</button>
             <button className="ghost" type="button" onClick={() => setAppMode("neural")}>Open Neural Space Pro</button>
+            <a className="ghost" href={`/SkyeChat/index.html?ws_id=${encodeURIComponent(workspaceId)}`} target="_blank" rel="noreferrer">Open SkyeChat Standalone</a>
+            <button className="ghost" type="button" onClick={() => setSelectedSkyeApp("SkyeDocs")}>Return To IDE Workspace</button>
           </div>
-          <label>Channel</label>
-          <input value={chatChannelInput} onChange={(e) => setChatChannelInput(e.target.value)} />
-          <label>Message</label>
-          <textarea value={chatMessageInput} onChange={(e) => setChatMessageInput(e.target.value)} rows={4} />
-          <div className="tool-actions left">
-            <button className="ghost" type="button" onClick={() => void notifySkyeChat()} disabled={isNotifyingChat}>
-              {isNotifyingChat ? "Notifying..." : "Notify Channel"}
-            </button>
-            <button className="ghost" type="button" onClick={() => void notifySkyeChatWithKaixu()} disabled={isAskingKaixuInChat}>
-              {isAskingKaixuInChat ? "Asking kAIxU..." : "Send + Ask kAIxU"}
-            </button>
-            <button className="ghost" type="button" onClick={() => void loadSkyeChatHistory()} disabled={isLoadingChatHistory}>
-              {isLoadingChatHistory ? "Refreshing..." : "Refresh History"}
-            </button>
-          </div>
-          <label>History channel filter</label>
-          <input value={chatHistoryChannel} onChange={(e) => setChatHistoryChannel(e.target.value)} placeholder="General" />
-          <label>History search</label>
-          <input value={chatHistoryQuery} onChange={(e) => setChatHistoryQuery(e.target.value)} placeholder="Search message or source" />
-          <div className="tool-actions left">
-            <button className="ghost" type="button" onClick={() => void loadSkyeChatHistory()} disabled={isLoadingChatHistory}>
-              Apply Filter
-            </button>
-          </div>
-          {chatNotifyResult && <p className="muted-copy">{chatNotifyResult}</p>}
-          {isLoadingChatHistory && <p className="muted-copy">Loading chat history...</p>}
-          <div className="list-stack">
-            {chatMessages.map((item, index) => <div key={`chat-${index}`} className="list-item">{item}</div>)}
-          </div>
-          {chatHasMore && (
-            <div className="tool-actions left">
-              <button className="ghost" type="button" onClick={() => void loadSkyeChatHistory({ append: true })} disabled={isLoadingChatHistory}>
-                {isLoadingChatHistory ? "Loading..." : "Load More"}
-              </button>
-            </div>
-          )}
+          <iframe
+            title="SkyeChat Workspace"
+            src={`/SkyeChat/index.html?embed=1&ws_id=${encodeURIComponent(workspaceId)}&channel=${encodeURIComponent(chatHistoryChannel || chatChannelInput || "general")}`}
+            className="platform-frame"
+          />
         </section>
       );
     }

@@ -356,6 +356,19 @@ body {
   box-shadow: inset 0 0 0 1px rgba(138, 79, 255, 0.2);
 }
 
+.platform-shell {
+  min-height: calc(100vh - 140px);
+}
+
+.platform-frame {
+  width: 100%;
+  min-height: 74vh;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  background: #05040a;
+  box-shadow: inset 0 0 0 1px rgba(255, 215, 0, 0.18);
+}
+
 .neural-room-bridge {
   border: 1px solid var(--border);
   border-radius: 12px;
