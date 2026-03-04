@@ -645,6 +645,10 @@ export function App() {
   const [chatHistoryChannel, setChatHistoryChannel] = useState("");
   const [chatHistoryCursor, setChatHistoryCursor] = useState<string | null>(null);
   const [chatHasMore, setChatHasMore] = useState(false);
+  const [neuralRoomChannel, setNeuralRoomChannel] = useState("neural-space");
+  const [neuralRoomMessage, setNeuralRoomMessage] = useState("Neural Space Pro session online and synchronized with IDE workspace.");
+  const [isPublishingNeuralRoom, setIsPublishingNeuralRoom] = useState(false);
+  const [isPublishingNeuralKaixu, setIsPublishingNeuralKaixu] = useState(false);
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([
     {
       id: "cal-1",
@@ -1397,7 +1401,7 @@ export function App() {
         body: JSON.stringify({
           channel: chatChannelInput,
           message: chatMessageInput,
-          source: "SkyeChat UI",
+          source: appMode === "neural" ? "Neural Space Pro / SkyeChat" : "SkyeChat UI",
         }),
       });
       const data = await res.json();
@@ -1438,6 +1442,73 @@ export function App() {
       setChatNotifyResult(error?.message || "kAIxU chat failed");
     } finally {
       setIsAskingKaixuInChat(false);
+    }
+  }
+
+  function openNeuralRoomInSkyeChat() {
+    const channel = neuralRoomChannel.trim() || "neural-space";
+    const message = neuralRoomMessage.trim();
+    setAppMode("skyeide");
+    setSelectedSkyeApp("SkyeChat");
+    setChatChannelInput(channel);
+    setChatHistoryChannel(channel);
+    if (message) {
+      setChatMessageInput(`[Neural Space Pro] ${message}`);
+    }
+    void loadSkyeChatHistory();
+  }
+
+  async function publishNeuralRoomUpdate(options: { askKaixu?: boolean } = {}) {
+    const askKaixu = Boolean(options.askKaixu);
+    const channel = neuralRoomChannel.trim() || "neural-space";
+    const message = neuralRoomMessage.trim() || "Neural Space Pro update";
+    const taggedMessage = `[Neural Space Pro][ws:${workspaceId}] ${message}`;
+
+    if (askKaixu) {
+      setIsPublishingNeuralKaixu(true);
+    } else {
+      setIsPublishingNeuralRoom(true);
+    }
+    setChatNotifyResult("");
+
+    try {
+      const res = await fetch(askKaixu ? "/api/skychat-kaixu" : "/api/skychat-notify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(
+          askKaixu
+            ? {
+                channel,
+                message: taggedMessage,
+                ws_id: workspaceId,
+              }
+            : {
+                channel,
+                message: taggedMessage,
+                source: "Neural Space Pro",
+              }
+        ),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setChatNotifyResult(data?.error || `${askKaixu ? "Neural kAIxU room" : "Neural room publish"} failed (${res.status})`);
+        return;
+      }
+
+      setChatNotifyResult(
+        askKaixu
+          ? `Neural Space Pro update + kAIxU reply sent to #${channel}`
+          : `Neural Space Pro update sent to #${channel}`
+      );
+      setChatChannelInput(channel);
+      setChatHistoryChannel(channel);
+      await loadSkyeChatHistory();
+    } catch (error: any) {
+      setChatNotifyResult(error?.message || `${askKaixu ? "Neural kAIxU room" : "Neural room publish"} failed`);
+    } finally {
+      setIsPublishingNeuralRoom(false);
+      setIsPublishingNeuralKaixu(false);
     }
   }
 
@@ -2995,6 +3066,29 @@ export function App() {
               <div className="tool-actions left neural-actions">
                 <a className="ghost" href="/Neural-Space-Pro/index.html" target="_blank" rel="noreferrer">Open Standalone</a>
                 <button className="ghost" type="button" onClick={() => setAppMode("skyeide")}>Back to SkyeIDE</button>
+              </div>
+              <div className="neural-room-bridge">
+                <h3>Neural Room Bridge</h3>
+                <p className="muted-copy">Publish Neural Space Pro session updates directly into SkyeChat rooms.</p>
+                <label>SkyeChat room</label>
+                <input value={neuralRoomChannel} onChange={(event) => setNeuralRoomChannel(event.target.value)} placeholder="neural-space" />
+                <label>Neural update message</label>
+                <textarea
+                  value={neuralRoomMessage}
+                  onChange={(event) => setNeuralRoomMessage(event.target.value)}
+                  rows={3}
+                  placeholder="Summarize current Neural session state"
+                />
+                <div className="tool-actions left">
+                  <button className="ghost" type="button" onClick={() => void publishNeuralRoomUpdate()} disabled={isPublishingNeuralRoom}>
+                    {isPublishingNeuralRoom ? "Publishing..." : "Publish to Room"}
+                  </button>
+                  <button className="ghost" type="button" onClick={() => void publishNeuralRoomUpdate({ askKaixu: true })} disabled={isPublishingNeuralKaixu}>
+                    {isPublishingNeuralKaixu ? "Asking kAIxU..." : "Publish + Ask kAIxU"}
+                  </button>
+                  <button className="ghost" type="button" onClick={openNeuralRoomInSkyeChat}>Open Room in SkyeChat</button>
+                </div>
+                {chatNotifyResult && <p className="muted-copy">{chatNotifyResult}</p>}
               </div>
               <iframe
                 title="Neural Space Pro"
