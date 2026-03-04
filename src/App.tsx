@@ -375,7 +375,8 @@ function formatSkyeChatRecord(record: AppRecord): string {
   const payload = asObject(record.payload);
   const channel = String(payload.channel || "general");
   const message = String(payload.message || record.title || "(no message)");
-  return `#${channel}: ${message}`;
+  const source = String(payload.source || "").trim();
+  return source ? `#${channel} [${source}]: ${message}` : `#${channel}: ${message}`;
 }
 
 async function sha256Hex(input: string): Promise<string> {
@@ -1445,16 +1446,18 @@ export function App() {
     }
   }
 
-  function openNeuralRoomInSkyeChat() {
+  function applyNeuralRoomDefaultsToChat() {
     const channel = neuralRoomChannel.trim() || "neural-space";
     const message = neuralRoomMessage.trim();
-    setAppMode("skyeide");
-    setSelectedSkyeApp("SkyeChat");
     setChatChannelInput(channel);
     setChatHistoryChannel(channel);
-    if (message) {
-      setChatMessageInput(`[Neural Space Pro] ${message}`);
-    }
+    if (message) setChatMessageInput(`[Neural Space Pro] ${message}`);
+  }
+
+  function openNeuralRoomInSkyeChat() {
+    setAppMode("skyeide");
+    setSelectedSkyeApp("SkyeChat");
+    applyNeuralRoomDefaultsToChat();
     void loadSkyeChatHistory();
   }
 
@@ -1501,8 +1504,7 @@ export function App() {
           ? `Neural Space Pro update + kAIxU reply sent to #${channel}`
           : `Neural Space Pro update sent to #${channel}`
       );
-      setChatChannelInput(channel);
-      setChatHistoryChannel(channel);
+      applyNeuralRoomDefaultsToChat();
       await loadSkyeChatHistory();
     } catch (error: any) {
       setChatNotifyResult(error?.message || `${askKaixu ? "Neural kAIxU room" : "Neural room publish"} failed`);
@@ -2459,6 +2461,10 @@ export function App() {
       return (
         <section className="app-module">
           <header><h2>SkyeChat</h2><p>Notification feed with backend persistence.</p></header>
+          <div className="tool-row split">
+            <button className="ghost" type="button" onClick={applyNeuralRoomDefaultsToChat}>Use Neural Room Defaults</button>
+            <button className="ghost" type="button" onClick={() => setAppMode("neural")}>Open Neural Space Pro</button>
+          </div>
           <label>Channel</label>
           <input value={chatChannelInput} onChange={(e) => setChatChannelInput(e.target.value)} />
           <label>Message</label>
