@@ -2789,8 +2789,7 @@
                     }
                 }
 
-                const finalHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${doc.title}</title><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Merriweather:wght@400;700&display=swap" rel="stylesheet"><style>body{background:#e5e5e5;font-family:'Inter',sans-serif;display:flex;justify-content:center;padding:40px;}.page{background:white;padding:1in;width:8.5in;min-height:11in;box-shadow:0 4px 15px rgba(0,0,0,0.1);font-family:'Merriweather',serif;line-height:1.8;color:#1a1a1a;}img{max-width:100%;display:block;margin:1em auto;}h1,h2,h3{font-family:'Inter',sans-serif;}</style></head><body><div class="page">${htmlDoc.body.innerHTML}</div>  <script src="/js/partials.js"></script>
-</body></html>`;
+                const finalHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${doc.title}</title><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Merriweather:wght@400;700&display=swap" rel="stylesheet"><style>body{background:#e5e5e5;font-family:'Inter',sans-serif;display:flex;justify-content:center;padding:40px;}.page{background:white;padding:1in;width:8.5in;min-height:11in;box-shadow:0 4px 15px rgba(0,0,0,0.1);font-family:'Merriweather',serif;line-height:1.8;color:#1a1a1a;}img{max-width:100%;display:block;margin:1em auto;}h1,h2,h3{font-family:'Inter',sans-serif;}</style></head><body><div class="page">${htmlDoc.body.innerHTML}</div></body></html>`;
                 
                 zip.file(`${filename}.html`, finalHtml);
                 const contentBlob = await zip.generateAsync({ type: "blob" });
