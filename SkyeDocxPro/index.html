@@ -1127,7 +1127,7 @@
 
             <label style="display:flex; align-items:center; gap:8px; font-size:12px; color:var(--text-muted); margin-top:-8px; margin-bottom:8px;">
                 <input type="checkbox" id="save-as-encrypt-skye" style="margin:0; width:14px; height:14px;">
-                Encrypt .skye package with passphrase (AES-GCM)
+                Encrypt .skye package with passphrase (AES-GCM) — required for .skye export
             </label>
 
             <label class="modal-label">Passphrase hint (optional)</label>
@@ -2540,7 +2540,7 @@
                 const doc = await DB.get(STORE_DOCS, this.activeDocId);
                 
                 document.getElementById('save-as-filename').value = doc.title;
-                document.getElementById('save-as-encrypt-skye').checked = false;
+                document.getElementById('save-as-encrypt-skye').checked = true;
                 document.getElementById('save-as-enable-failsafe').checked = false;
                 document.getElementById('save-as-passphrase-hint').value = (doc?.meta?.passphrase_hint || '');
                 document.getElementById('save-as-modal').style.display = 'flex';
@@ -2558,6 +2558,12 @@
                 const passphraseHint = String(document.getElementById('save-as-passphrase-hint').value || '').trim();
                 
                 document.getElementById('save-as-modal').style.display = 'none';
+
+                if (format === 'skye' && !encryptSkye) {
+                    this.showToast('Secure .skye export requires passphrase encryption. Enable encryption to continue.');
+                    this.setStatus('saved');
+                    return;
+                }
                 
                 const doc = await DB.get(STORE_DOCS, this.activeDocId);
                 
@@ -2579,6 +2585,13 @@
                             refreshLucideIcons();
                             if (!entered || entered.trim().length < 6) {
                                 this.showToast('Encryption requires a passphrase of at least 6 characters.');
+                                this.setStatus('saved');
+                                return;
+                            }
+                            const confirm = await this.customPrompt('<i data-lucide="shield-check"></i> Confirm passphrase:');
+                            refreshLucideIcons();
+                            if (!confirm || confirm.trim() !== entered.trim()) {
+                                this.showToast('Passphrase confirmation did not match. Save canceled.');
                                 this.setStatus('saved');
                                 return;
                             }
@@ -2672,13 +2685,113 @@
                 return new TextDecoder().decode(plaintext);
             },
 
+            buildSkyeSecureEnvelope(encryptedPayload, passphraseHint = '') {
+                return {
+                    format: 'skye-secure-v1',
+                    encrypted: true,
+                    alg: 'AES-256-GCM',
+                    kdf: 'PBKDF2-SHA256',
+                    iterations: 120000,
+                    exportedAt: new Date().toISOString(),
+                    hint: passphraseHint || '',
+                    payload: encryptedPayload,
+                };
+            },
+
+            isValidEncryptedBlock(block) {
+                return Boolean(
+                    block &&
+                    typeof block === 'object' &&
+                    typeof block.cipher === 'string' && block.cipher.length > 0 &&
+                    typeof block.iv === 'string' && block.iv.length > 0 &&
+                    typeof block.salt === 'string' && block.salt.length > 0
+                );
+            },
+
+            isSkyeSecureEnvelope(envelope) {
+                if (!envelope || typeof envelope !== 'object') return false;
+                if (envelope.format !== 'skye-secure-v1') return false;
+                if (envelope.encrypted !== true) return false;
+                if (envelope.alg !== 'AES-256-GCM') return false;
+                if (envelope.kdf !== 'PBKDF2-SHA256') return false;
+                if (Number(envelope.iterations) !== 120000) return false;
+                const payload = envelope.payload || {};
+                const primary = payload.primary || payload;
+                if (payload.failsafe && !this.isValidEncryptedBlock(payload.failsafe)) return false;
+                return this.isValidEncryptedBlock(primary);
+            },
+
+            encodeSkyeSecureEnvelope(envelope) {
+                const marker = new TextEncoder().encode('SKYESEC1');
+                const payload = new TextEncoder().encode(JSON.stringify(envelope));
+                return new Blob([marker, new Uint8Array([0]), payload], { type: 'application/octet-stream' });
+            },
+
+            async tryReadSkyeSecureEnvelope(file) {
+                try {
+                    const bytes = new Uint8Array(await file.arrayBuffer());
+                    const marker = new TextEncoder().encode('SKYESEC1');
+
+                    let raw = '';
+                    const hasBinaryMarker =
+                        bytes.length > marker.length + 1 &&
+                        marker.every((value, index) => bytes[index] === value) &&
+                        bytes[marker.length] === 0;
+
+                    if (hasBinaryMarker) {
+                        raw = new TextDecoder().decode(bytes.slice(marker.length + 1));
+                    } else {
+                        const text = new TextDecoder().decode(bytes);
+                        const legacyMarker = 'SKYESEC1\n';
+                        raw = text.startsWith(legacyMarker) ? text.slice(legacyMarker.length) : text;
+                    }
+
+                    const parsed = JSON.parse(raw);
+                    if (!this.isSkyeSecureEnvelope(parsed)) return null;
+                    return parsed;
+                } catch {
+                    return null;
+                }
+            },
+
+            async importEncryptedPayloadToDb(payload, encryptedHint = '') {
+                if (!payload || !payload.meta || typeof payload.content !== 'string') {
+                    throw new Error('Encrypted payload is invalid or missing document content.');
+                }
+
+                for (let asset of payload.assets || []) {
+                    const blob = this.base64ToBlob(asset.data, asset.type);
+                    await DB.put(STORE_ASSETS, { id: asset.id, name: asset.name, type: asset.type, blob });
+                }
+
+                await DB.put(STORE_DOCS, {
+                    id: payload.meta.id,
+                    title: payload.meta.title,
+                    content: payload.content,
+                    folderId: payload.meta.folderId || null,
+                    comments: payload.meta.comments || [],
+                    suggestions: payload.meta.suggestions || [],
+                    versions: payload.meta.versions || [],
+                    meta: {
+                        ...(payload.meta.metaFields || {}),
+                        passphrase_hint: payload.meta.passphrase_hint || encryptedHint || '',
+                    },
+                    updatedAt: Date.now()
+                });
+
+                await this.loadDocList();
+                await this.openDoc(payload.meta.id);
+                this.showToast(`Successfully opened encrypted ${payload.meta.title}`);
+            },
+
             async exportSkyeFormat(doc, filename, encryptionOptions = null) {
                 this.showToast("Packaging .skye document...");
-                const zip = new JSZip(); 
-                const assetsFolder = zip.folder("assets");
+                const passphrase = encryptionOptions?.passphrase || null;
+                if (!passphrase) {
+                    throw new Error('Secure .skye export requires passphrase encryption.');
+                }
 
                 this.ensureDocCollections(doc);
-                const passphrase = encryptionOptions?.passphrase || null;
                 const passphraseHint = encryptionOptions?.passphraseHint || '';
                 const enableFailsafe = Boolean(encryptionOptions?.enableFailsafe);
                 
@@ -2692,81 +2805,58 @@
                         const assetId = src.replace('asset://', '');
                         const assetData = await DB.get(STORE_ASSETS, assetId);
                         if (assetData && assetData.blob) {
-                            if (passphrase) {
-                                serializedAssets.push({
-                                    id: assetData.id,
-                                    name: assetData.name,
-                                    type: assetData.type,
-                                    data: await this.blobToBase64(assetData.blob),
-                                });
-                            } else {
-                                assetsFolder.file(assetData.name, assetData.blob);
-                                zip.file(`assets/${assetData.name}.meta.json`, JSON.stringify({ id: assetData.id, name: assetData.name, type: assetData.type }));
-                            }
+                            serializedAssets.push({
+                                id: assetData.id,
+                                name: assetData.name,
+                                type: assetData.type,
+                                data: await this.blobToBase64(assetData.blob),
+                            });
                         }
                     }
                 }
 
-                if (passphrase) {
-                    const recoveryCode = enableFailsafe ? this.buildRecoveryCode() : null;
-                    const payload = {
-                        meta: {
-                            title: doc.title,
-                            id: doc.id,
-                            updatedAt: doc.updatedAt,
-                            folderId: doc.folderId,
-                            passphrase_hint: passphraseHint,
-                            comments: doc.comments || [],
-                            suggestions: doc.suggestions || [],
-                            versions: doc.versions || [],
-                            metaFields: doc.meta || {},
-                        },
-                        content: doc.content,
-                        assets: serializedAssets,
-                    };
-                    const primary = await this.encryptString(JSON.stringify(payload), passphrase);
-                    let failsafe = null;
-                    if (recoveryCode) failsafe = await this.encryptString(JSON.stringify(payload), recoveryCode);
-                    zip.file('encrypted.json', JSON.stringify({
-                        v: 3,
-                        encrypted: true,
-                        hint: passphraseHint,
-                        primary,
-                        failsafe,
-                    }));
-                    if (recoveryCode) {
-                        this.pendingRecoveryKit = {
-                            version: 'skye-recovery-v1',
-                            fileType: 'skye-encrypted',
-                            title: doc.title,
-                            docId: doc.id,
-                            generatedAt: new Date().toISOString(),
-                            hint: passphraseHint,
-                            recoveryCode,
-                            filenameBase: filename,
-                        };
-                        const area = document.getElementById('recovery-kit-code');
-                        if (area) {
-                            area.value = `Recovery Code: ${recoveryCode}\nTitle: ${doc.title}\nGenerated: ${this.pendingRecoveryKit.generatedAt}\nHint: ${passphraseHint || '(none)'}`;
-                        }
-                        document.getElementById('recovery-kit-modal').style.display = 'flex';
-                    }
-                } else {
-                    zip.file("meta.json", JSON.stringify({
+                const recoveryCode = enableFailsafe ? this.buildRecoveryCode() : null;
+                const payload = {
+                    meta: {
                         title: doc.title,
                         id: doc.id,
                         updatedAt: doc.updatedAt,
                         folderId: doc.folderId,
+                        passphrase_hint: passphraseHint,
                         comments: doc.comments || [],
                         suggestions: doc.suggestions || [],
                         versions: doc.versions || [],
                         metaFields: doc.meta || {},
-                    }));
-                    zip.file("content.html", doc.content);
-                }
-
-                const contentBlob = await zip.generateAsync({ type: "blob" });
+                    },
+                    content: doc.content,
+                    assets: serializedAssets,
+                };
+                const primary = await this.encryptString(JSON.stringify(payload), passphrase);
+                let failsafe = null;
+                if (recoveryCode) failsafe = await this.encryptString(JSON.stringify(payload), recoveryCode);
+                const envelope = this.buildSkyeSecureEnvelope({
+                    primary,
+                    failsafe,
+                }, passphraseHint);
+                const contentBlob = this.encodeSkyeSecureEnvelope(envelope);
                 this.downloadBlob(contentBlob, `${filename.replace(/\s+/g, '_')}.skye`);
+                if (recoveryCode) {
+                    this.pendingRecoveryKit = {
+                        version: 'skye-recovery-v1',
+                        fileType: 'skye-encrypted',
+                        title: doc.title,
+                        docId: doc.id,
+                        generatedAt: new Date().toISOString(),
+                        hint: passphraseHint,
+                        recoveryCode,
+                        filenameBase: filename,
+                    };
+                    const area = document.getElementById('recovery-kit-code');
+                    if (area) {
+                        area.value = `Recovery Code: ${recoveryCode}\nTitle: ${doc.title}\nGenerated: ${this.pendingRecoveryKit.generatedAt}\nHint: ${passphraseHint || '(none)'}`;
+                    }
+                    document.getElementById('recovery-kit-modal').style.display = 'flex';
+                }
             },
 
             async exportHTMLZipFormat(doc, filename) {
@@ -2828,6 +2918,19 @@
                 this.setStatus('saving');
 
                 try {
+                    const lowerName = String(file.name || '').toLowerCase();
+                    const secureEnvelope = await this.tryReadSkyeSecureEnvelope(file);
+                    if (secureEnvelope) {
+                        const decrypted = await this.tryDecryptWithPrompt(secureEnvelope.payload);
+                        const payload = JSON.parse(decrypted);
+                        await this.importEncryptedPayloadToDb(payload, secureEnvelope.hint || '');
+                        return;
+                    }
+
+                    if (lowerName.endsWith('.skye')) {
+                        throw new Error('Insecure or unsupported .skye package. Only encrypted secure .skye files can be opened.');
+                    }
+
                     const zip = await JSZip.loadAsync(file);
                     const encryptedFile = zip.file('encrypted.json');
 
@@ -2835,30 +2938,7 @@
                         const encrypted = JSON.parse(await encryptedFile.async('string'));
                         const decrypted = await this.tryDecryptWithPrompt(encrypted);
                         const payload = JSON.parse(decrypted);
-
-                        for (let asset of payload.assets || []) {
-                            const blob = this.base64ToBlob(asset.data, asset.type);
-                            await DB.put(STORE_ASSETS, { id: asset.id, name: asset.name, type: asset.type, blob });
-                        }
-
-                        await DB.put(STORE_DOCS, {
-                            id: payload.meta.id,
-                            title: payload.meta.title,
-                            content: payload.content,
-                            folderId: payload.meta.folderId || null,
-                            comments: payload.meta.comments || [],
-                            suggestions: payload.meta.suggestions || [],
-                            versions: payload.meta.versions || [],
-                            meta: {
-                                ...(payload.meta.metaFields || {}),
-                                passphrase_hint: payload.meta.passphrase_hint || encrypted.hint || '',
-                            },
-                            updatedAt: Date.now()
-                        });
-
-                        await this.loadDocList();
-                        await this.openDoc(payload.meta.id);
-                        this.showToast(`Successfully opened encrypted ${payload.meta.title}`);
+                        await this.importEncryptedPayloadToDb(payload, encrypted.hint || '');
                         return;
                     }
 
