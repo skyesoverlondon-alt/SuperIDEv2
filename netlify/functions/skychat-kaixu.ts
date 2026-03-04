@@ -45,6 +45,7 @@ export const handler = async (event: any) => {
   ].join("\n");
 
   let aiReply = "";
+  let degraded = false;
   try {
     const payload = {
       model: "kAIxU-Prime6.7",
@@ -78,12 +79,22 @@ export const handler = async (event: any) => {
     }
 
     if (!res.ok) {
-      return json(500, { error: "kAIxU gateway failed for chat." });
+      degraded = true;
+      aiReply = [
+        "kAIxU gateway is temporarily unavailable.",
+        "Captured your message and queued a fallback assistant response so channel workflow is not blocked.",
+        `Action: retry shortly with context: ${message.slice(0, 180)}`,
+      ].join(" ");
+    } else {
+      aiReply = String(data?.text || data?.output || data?.choices?.[0]?.message?.content || text || "").trim();
     }
-
-    aiReply = String(data?.text || data?.output || data?.choices?.[0]?.message?.content || text || "").trim();
   } catch (e: any) {
-    return json(500, { error: e?.message || "kAIxU chat request failed." });
+    degraded = true;
+    aiReply = [
+      "kAIxU chat request failed at the gateway boundary.",
+      "Your message was still recorded.",
+      "Action: retry once gateway connectivity is restored.",
+    ].join(" ");
   }
 
   const aiRow = await q(
@@ -98,14 +109,16 @@ export const handler = async (event: any) => {
     ]
   );
 
-  await audit(u.email, u.org_id, wsId || null, "skychat.kaixu.ok", {
+  await audit(u.email, u.org_id, wsId || null, degraded ? "skychat.kaixu.degraded" : "skychat.kaixu.ok", {
     channel,
     user_record_id: userRow.rows[0]?.id || null,
     ai_record_id: aiRow.rows[0]?.id || null,
+    degraded,
   });
 
   return json(200, {
     ok: true,
+    degraded,
     user_record_id: userRow.rows[0]?.id || null,
     ai_record_id: aiRow.rows[0]?.id || null,
     ai_message: aiReply,
