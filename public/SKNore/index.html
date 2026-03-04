@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SKNore Policy Console</title>
+  <style>
+    :root {
+      --bg: #07060f;
+      --panel: #141126;
+      --border: rgba(255,255,255,0.12);
+      --text: #f5f7ff;
+      --muted: #a7acc9;
+      --gold: #ffd700;
+      --purple: #8a4fff;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Inter, system-ui, sans-serif; color: var(--text); background: radial-gradient(circle at top right, rgba(138,79,255,0.22), transparent 45%), var(--bg); }
+    .shell { display: grid; grid-template-rows: 64px 1fr; min-height: 100vh; }
+    .top { display: flex; align-items: center; justify-content: space-between; padding: 0 16px; border-bottom: 1px solid var(--border); background: rgba(0,0,0,0.35); }
+    .brand { font-weight: 700; letter-spacing: .04em; }
+    .brand span { color: var(--gold); }
+    .top a, .top button { color: var(--text); background: transparent; border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; text-decoration: none; cursor: pointer; }
+    .main { display: grid; grid-template-columns: 360px 1fr; gap: 12px; padding: 12px; }
+    .card { background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02)); border: 1px solid var(--border); border-radius: 12px; padding: 12px; }
+    h2 { margin: 0 0 10px; font-size: 14px; text-transform: uppercase; color: var(--gold); letter-spacing: .06em; }
+    label { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); display: block; margin: 10px 0 5px; }
+    input, textarea, select { width: 100%; background: #0c0b19; color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 9px 10px; }
+    textarea { min-height: 140px; resize: vertical; }
+    .actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+    button { background: #1b1738; color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; cursor: pointer; }
+    button.primary { background: var(--purple); border-color: var(--purple); }
+    .status { font-size: 12px; color: var(--gold); margin-top: 8px; white-space: pre-wrap; }
+    .list { display: flex; flex-direction: column; gap: 8px; max-height: 74vh; overflow: auto; }
+    .item { border: 1px solid var(--border); border-radius: 10px; padding: 10px; background: rgba(255,255,255,0.03); }
+    .meta { font-size: 12px; color: var(--muted); margin-top: 5px; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header class="top">
+      <div class="brand">SK<span>Nore</span> Policy Console</div>
+      <div style="display:flex;gap:8px;">
+        <a href="/index.html">Back to IDE</a>
+        <button id="logoutBtn" type="button">Logout</button>
+      </div>
+    </header>
+    <main class="main">
+      <section class="card">
+        <h2>Identity</h2>
+        <div class="row">
+          <input id="email" placeholder="email@company.com" />
+          <input id="orgName" placeholder="Organization" />
+        </div>
+        <input id="password" type="password" placeholder="Password" style="margin-top:8px;" />
+        <div class="actions">
+          <button id="signupBtn" type="button">Create Account</button>
+          <button id="loginBtn" type="button">Login</button>
+          <button id="meBtn" type="button">Refresh Session</button>
+        </div>
+
+        <h2 style="margin-top:14px;">Policy</h2>
+        <label>Scope</label>
+        <select id="scope">
+          <option value="org">Organization</option>
+          <option value="workspace">Workspace</option>
+        </select>
+        <label>Workspace ID (required for workspace scope)</label>
+        <input id="wsId" value="primary-workspace" />
+        <label>Patterns (one glob per line)</label>
+        <textarea id="patterns">.env
+.env.*
+secrets/**
+**/*.pem
+**/*.key</textarea>
+        <div class="actions">
+          <button id="loadBtn" type="button">Load Policy</button>
+          <button id="saveBtn" class="primary" type="button">Save Policy</button>
+        </div>
+
+        <h2 style="margin-top:14px;">Path Test</h2>
+        <label>File path</label>
+        <input id="pathTest" placeholder="src/secrets/key.pem" />
+        <div class="actions">
+          <button id="testBtn" type="button">Test Match</button>
+        </div>
+
+        <h2 style="margin-top:14px;">Release Info</h2>
+        <div class="meta">Product: SKNore standalone</div>
+        <div class="meta">Version: 1.0.0</div>
+        <div class="meta">Deploy: Netlify static + Functions API</div>
+
+        <div class="status" id="status"></div>
+      </section>
+
+      <section class="card">
+        <h2>Blocked Event Stream</h2>
+        <label>Events workspace filter (optional)</label>
+        <input id="eventsWs" placeholder="workspace id" />
+        <div class="actions">
+          <button id="eventsBtn" type="button">Reload Events</button>
+        </div>
+        <div class="list" id="eventsList"></div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const statusEl = document.getElementById('status');
+    const eventsEl = document.getElementById('eventsList');
+
+    function setStatus(text) { statusEl.textContent = text || ''; }
+
+    async function call(path, options = {}) {
+      const res = await fetch(path, { credentials: 'include', ...options });
+      let data = {};
+      try { data = await res.json(); } catch {}
+      if (!res.ok) throw new Error(data?.error || `${path} failed (${res.status})`);
+      return data;
+    }
+
+    function normalizePatterns(text) {
+      return Array.from(new Set(String(text || '').split('\n').map((x) => x.trim()).filter(Boolean).map((x) => x.replace(/^\/+/, ''))));
+    }
+
+    function escapeRegex(value) {
+      return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    function globToRegex(glob) {
+      const normalized = String(glob || '').trim().replace(/^\/+/, '');
+      const escaped = escapeRegex(normalized).replace(/\\\*\\\*/g, '.*').replace(/\\\*/g, '[^/]*');
+      return new RegExp(`^${escaped}$`, 'i');
+    }
+
+    function isProtected(path, patterns) {
+      const target = String(path || '').replace(/^\/+/, '');
+      return patterns.some((pattern) => globToRegex(pattern).test(target));
+    }
+
+    async function refreshMe() {
+      const me = await call('/api/auth-me');
+      if (me?.email) {
+        document.getElementById('email').value = me.email;
+        setStatus(`Signed in as ${me.email}`);
+      } else {
+        setStatus('Not signed in. Login to manage SKNore policy.');
+      }
+    }
+
+    async function signup() {
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const orgName = document.getElementById('orgName').value.trim() || 'SKNore Org';
+      await call('/api/auth-signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, orgName }),
+      });
+      await refreshMe();
+      await loadPolicy();
+      await loadEvents();
+    }
+
+    async function login() {
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      await call('/api/auth-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      await refreshMe();
+      await loadPolicy();
+      await loadEvents();
+    }
+
+    async function logout() {
+      await call('/api/auth-logout', { method: 'POST' });
+      setStatus('Logged out.');
+      eventsEl.innerHTML = '';
+    }
+
+    async function loadPolicy() {
+      const scope = document.getElementById('scope').value;
+      const wsId = document.getElementById('wsId').value.trim();
+      const qs = new URLSearchParams();
+      if (scope === 'workspace' && wsId) qs.set('ws_id', wsId);
+      const data = await call(`/api/sknore-policy-get?${qs.toString()}`);
+      const patterns = Array.isArray(data?.patterns) ? data.patterns : [];
+      document.getElementById('patterns').value = patterns.join('\n');
+      setStatus(`Loaded ${patterns.length} SKNore patterns (${data.scope || scope} scope).`);
+    }
+
+    async function savePolicy() {
+      const scope = document.getElementById('scope').value;
+      const wsId = document.getElementById('wsId').value.trim();
+      const patterns = normalizePatterns(document.getElementById('patterns').value);
+      await call('/api/sknore-policy-set', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scope, ws_id: wsId, patterns }),
+      });
+      setStatus(`Saved ${patterns.length} SKNore patterns (${scope} scope).`);
+    }
+
+    async function loadEvents() {
+      const ws = document.getElementById('eventsWs').value.trim();
+      const qs = new URLSearchParams();
+      qs.set('limit', '100');
+      if (ws) qs.set('ws_id', ws);
+      const data = await call(`/api/sknore-events?${qs.toString()}`);
+      const events = Array.isArray(data?.events) ? data.events : [];
+      eventsEl.innerHTML = events.map((evt) => {
+        const meta = evt?.meta || {};
+        return `<div class="item"><strong>${evt.type}</strong><div class="meta">${evt.at || ''} · actor=${evt.actor || 'n/a'}</div><div class="meta">meta=${JSON.stringify(meta)}</div></div>`;
+      }).join('') || '<div class="meta">No blocked SKNore events found.</div>';
+    }
+
+    function runPathTest() {
+      const patterns = normalizePatterns(document.getElementById('patterns').value);
+      const path = document.getElementById('pathTest').value.trim();
+      if (!path) return setStatus('Enter a file path to test.');
+      const blocked = isProtected(path, patterns);
+      setStatus(blocked ? `BLOCKED by SKNore: ${path}` : `ALLOWED by SKNore: ${path}`);
+    }
+
+    document.getElementById('signupBtn').onclick = () => signup().catch((e) => setStatus(e.message));
+    document.getElementById('loginBtn').onclick = () => login().catch((e) => setStatus(e.message));
+    document.getElementById('meBtn').onclick = () => refreshMe().catch((e) => setStatus(e.message));
+    document.getElementById('logoutBtn').onclick = () => logout().catch((e) => setStatus(e.message));
+    document.getElementById('loadBtn').onclick = () => loadPolicy().catch((e) => setStatus(e.message));
+    document.getElementById('saveBtn').onclick = () => savePolicy().catch((e) => setStatus(e.message));
+    document.getElementById('eventsBtn').onclick = () => loadEvents().catch((e) => setStatus(e.message));
+    document.getElementById('testBtn').onclick = () => runPathTest();
+
+    refreshMe().then(loadPolicy).then(loadEvents).catch((e) => setStatus(e.message));
+  </script>
+</body>
+</html>

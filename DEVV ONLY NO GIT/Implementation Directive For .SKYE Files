@@ -1,0 +1,188 @@
+# Implementation Directive For .SKYE Files
+
+## 1) Mission
+`.skye` is a first-class, company-owned file type for portable app state, encrypted exchange, offline resilience, and cross-app ecosystem continuity.
+
+Every app in the Skye ecosystem must be able to:
+1. Export its state as `.skye`.
+2. Import `.skye` produced by itself (required).
+3. Optionally import compatible `.skye` from other Skye apps (recommended).
+4. Enforce passphrase encryption when policy requires secure handoff.
+
+This directive is the wiring contract for any new app team.
+
+## 2) Current Baseline In This Repo
+Two `.skye` implementations currently exist:
+1. IDE envelope path in `src/App.tsx` (`skye-v2`) for app snapshot export/import.
+2. DocxPro secure path in `SkyeDocxPro/index.html` (`skye-secure-v1` with `SKYESEC1` marker).
+
+Directive requirement: all new apps should standardize on one common secure contract while supporting legacy read as needed.
+
+## 3) Canonical File Contract (Required)
+Use this as the canonical secure container for all new app work:
+
+### 3.1 Binary container
+1. Prefix bytes: ASCII marker `SKYESEC1`.
+2. Delimiter byte: `0x00`.
+3. Payload bytes: UTF-8 JSON envelope.
+
+### 3.2 Secure envelope schema
+```json
+{
+	"format": "skye-secure-v1",
+	"encrypted": true,
+	"alg": "AES-256-GCM",
+	"kdf": "PBKDF2-SHA256",
+	"iterations": 120000,
+	"exportedAt": "2026-03-04T00:00:00.000Z",
+	"hint": "optional non-secret hint",
+	"payload": {
+		"primary": { "cipher": "...", "iv": "...", "salt": "..." },
+		"failsafe": { "cipher": "...", "iv": "...", "salt": "..." }
+	}
+}
+```
+
+### 3.3 Encrypted plaintext payload schema
+```json
+{
+	"meta": {
+		"app_id": "SkyeMail",
+		"app_version": "1.0.0",
+		"workspace_id": "primary-workspace",
+		"document_id": "optional",
+		"title": "Human title",
+		"owner": "user@org.com",
+		"created_at": "ISO-8601",
+		"updated_at": "ISO-8601",
+		"tags": ["optional", "labels"],
+		"schema_version": 1
+	},
+	"state": {
+		"...": "app-specific JSON state"
+	},
+	"assets": [
+		{
+			"id": "asset-id",
+			"name": "file.png",
+			"mime": "image/png",
+			"data_base64": "..."
+		}
+	]
+}
+```
+
+## 4) Security Rules (Required)
+1. `.skye` export must require passphrase for secure mode.
+2. Reject malformed envelopes: wrong marker, wrong `format`, wrong `alg`, wrong `kdf`, wrong `iterations`, missing crypto fields.
+3. Never store plaintext passphrase.
+4. Hint must never include sensitive passphrase text.
+5. If failsafe recovery is enabled, use separate recovery secret and separate encrypted block.
+
+## 5) App Integration Checklist (Required)
+Every app team must implement these functions.
+
+### 5.1 Export pipeline
+1. `collectAppState()` -> return normalized JSON state.
+2. `collectAssets()` -> return binary assets as base64 entries.
+3. Build plaintext payload (`meta + state + assets`).
+4. Encrypt payload with passphrase (AES-GCM, PBKDF2 salt+iv).
+5. Build secure envelope.
+6. Serialize to binary `SKYESEC1 + 0x00 + json`.
+7. Download as `<name>.skye`.
+
+### 5.2 Import pipeline
+1. Read file bytes.
+2. Validate marker.
+3. Parse envelope JSON.
+4. Validate secure schema.
+5. Prompt passphrase (or failsafe code).
+6. Decrypt plaintext payload.
+7. Validate `meta.app_id` compatibility.
+8. Hydrate app state and assets.
+9. Persist to app data store.
+
+## 6) Reference TypeScript Interface (Drop-in)
+```ts
+export type SkyeEncryptedBlock = {
+	cipher: string;
+	iv: string;
+	salt: string;
+};
+
+export type SkyeSecureEnvelope = {
+	format: "skye-secure-v1";
+	encrypted: true;
+	alg: "AES-256-GCM";
+	kdf: "PBKDF2-SHA256";
+	iterations: 120000;
+	exportedAt: string;
+	hint?: string;
+	payload: {
+		primary: SkyeEncryptedBlock;
+		failsafe?: SkyeEncryptedBlock | null;
+	};
+};
+
+export type SkyePlainPayload = {
+	meta: {
+		app_id: string;
+		app_version: string;
+		workspace_id?: string;
+		document_id?: string;
+		title?: string;
+		owner?: string;
+		created_at?: string;
+		updated_at?: string;
+		tags?: string[];
+		schema_version: number;
+	};
+	state: Record<string, unknown>;
+	assets?: Array<{ id: string; name: string; mime: string; data_base64: string }>;
+};
+```
+
+## 7) How To Integrate Any New App In 1 Day
+1. Add `.skye` export/import buttons to app toolbar.
+2. Implement `collectAppState()` and `hydrateAppState()`.
+3. Add shared `skyeSecure.ts` utility module (crypto + marker + validation).
+4. Wire passphrase prompt UX.
+5. Add import validation and user-safe error messages.
+6. Add test vectors:
+	 - valid passphrase import
+	 - invalid passphrase rejection
+	 - tampered envelope rejection
+	 - wrong app_id compatibility handling
+
+## 8) Backend/Platform Wiring Expectations
+If app has backend persistence:
+1. Store imported state under app-specific records.
+2. Keep a `schema_version` map for migration.
+3. Audit export/import events for enterprise traceability.
+
+Recommended API patterns:
+1. `POST /api/<app>-skye-import`
+2. `POST /api/<app>-skye-export` (optional server-side packaging)
+3. `GET /api/<app>-skye-schema`
+
+## 9) Compatibility Policy
+1. New apps: must write `skye-secure-v1`.
+2. Existing apps: may support legacy read (`skye-v2`) short-term.
+3. Legacy write should be removed once all consumers migrate.
+
+## 10) Enterprise Release Gate For .SKYE
+No app is release-ready until these pass:
+1. Export/import roundtrip retains state and assets.
+2. Passphrase enforcement is mandatory for secure mode.
+3. File cannot be opened as plaintext by external tools.
+4. Validation rejects malformed/tampered envelope.
+5. Recovery flow works only when recovery is explicitly enabled.
+
+## 11) Implementation Notes For This Repo
+Immediate repo follow-up for full ecosystem standardization:
+1. Extract shared crypto utilities from `src/App.tsx` and `SkyeDocxPro/index.html` into reusable module(s).
+2. Update all app surfaces (Mail, Chat, Sheets, Slides, Tasks, etc.) to use the canonical `skye-secure-v1` contract.
+3. Add a single docs page under `docs/` with test vectors and golden files.
+4. Add CI check to parse and validate generated `.skye` files.
+
+This is the official handoff contract for any engineer wiring `.skye` into a new Skye app.

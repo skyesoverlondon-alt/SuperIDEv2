@@ -74,6 +74,17 @@
           <button id="saveProfileBtn" type="button">Save Mailbox Profile</button>
         </div>
 
+        <h2 style="margin-top:14px;">.skye Package</h2>
+        <label>Passphrase (required for secure .skye)</label>
+        <input id="skyePassphrase" type="password" placeholder="Enter passphrase" />
+        <label>Passphrase hint (optional)</label>
+        <input id="skyeHint" placeholder="Never include the real passphrase" />
+        <div class="actions">
+          <button id="exportSkyeBtn" type="button">Export .skye</button>
+          <button id="importSkyeBtn" type="button">Import .skye</button>
+        </div>
+        <input id="importSkyeInput" type="file" accept=".skye" style="display:none;" />
+
         <h2 style="margin-top:14px;">Compose</h2>
         <label>To</label>
         <input id="to" placeholder="recipient@example.com" />
@@ -107,6 +118,7 @@
       me: null,
       cursor: null,
       wsId: new URLSearchParams(window.location.search).get('ws_id') || 'primary-workspace',
+      inboxRecords: [],
     };
 
     const statusEl = document.getElementById('status');
@@ -127,6 +139,154 @@
       try { data = await res.json(); } catch {}
       if (!res.ok) throw new Error(data?.error || `${path} failed (${res.status})`);
       return data;
+    }
+
+    function bytesToBase64(bytes) {
+      let bin = '';
+      for (let i = 0; i < bytes.length; i += 1) bin += String.fromCharCode(bytes[i]);
+      return btoa(bin);
+    }
+
+    function base64ToBytes(value) {
+      const bin = atob(value);
+      const out = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i += 1) out[i] = bin.charCodeAt(i);
+      return out;
+    }
+
+    async function deriveKey(passphrase, saltBytes) {
+      const material = await crypto.subtle.importKey('raw', new TextEncoder().encode(passphrase), 'PBKDF2', false, ['deriveKey']);
+      return crypto.subtle.deriveKey(
+        { name: 'PBKDF2', salt: saltBytes, iterations: 120000, hash: 'SHA-256' },
+        material,
+        { name: 'AES-GCM', length: 256 },
+        false,
+        ['encrypt', 'decrypt']
+      );
+    }
+
+    async function encryptSkye(plainText, passphrase) {
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const salt = crypto.getRandomValues(new Uint8Array(16));
+      const key = await deriveKey(passphrase, salt);
+      const cipherBuf = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(plainText));
+      return {
+        cipher: bytesToBase64(new Uint8Array(cipherBuf)),
+        iv: bytesToBase64(iv),
+        salt: bytesToBase64(salt),
+      };
+    }
+
+    async function decryptSkye(block, passphrase) {
+      const key = await deriveKey(passphrase, base64ToBytes(block.salt));
+      const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: base64ToBytes(block.iv) }, key, base64ToBytes(block.cipher));
+      return new TextDecoder().decode(plain);
+    }
+
+    function buildSecureEnvelope(primary, hint) {
+      return {
+        format: 'skye-secure-v1',
+        encrypted: true,
+        alg: 'AES-256-GCM',
+        kdf: 'PBKDF2-SHA256',
+        iterations: 120000,
+        exportedAt: new Date().toISOString(),
+        hint: hint || '',
+        payload: { primary },
+      };
+    }
+
+    function encodeSecureEnvelope(envelope) {
+      const marker = new TextEncoder().encode('SKYESEC1');
+      const payload = new TextEncoder().encode(JSON.stringify(envelope));
+      return new Blob([marker, new Uint8Array([0]), payload], { type: 'application/octet-stream' });
+    }
+
+    async function readSecureEnvelope(file) {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const marker = new TextEncoder().encode('SKYESEC1');
+      const hasMarker = bytes.length > marker.length + 1 && marker.every((v, i) => bytes[i] === v) && bytes[marker.length] === 0;
+      if (!hasMarker) throw new Error('Invalid .skye file marker.');
+      const raw = new TextDecoder().decode(bytes.slice(marker.length + 1));
+      const envelope = JSON.parse(raw);
+      if (!envelope || envelope.format !== 'skye-secure-v1' || envelope.encrypted !== true) throw new Error('Unsupported .skye envelope.');
+      if (envelope.alg !== 'AES-256-GCM' || envelope.kdf !== 'PBKDF2-SHA256' || Number(envelope.iterations) !== 120000) {
+        throw new Error('Invalid .skye encryption metadata.');
+      }
+      if (!envelope.payload || !envelope.payload.primary) throw new Error('Missing encrypted payload.');
+      return envelope;
+    }
+
+    function collectSkyeState() {
+      return {
+        meta: {
+          app_id: 'SkyeMail',
+          app_version: '1.0.0',
+          workspace_id: state.wsId,
+          title: 'SkyeMail Workspace Snapshot',
+          owner: state.me?.email || null,
+          schema_version: 1,
+        },
+        state: {
+          profile: {
+            mailbox_address: `${document.getElementById('addressLocal').value.trim()}@skymail.local`,
+            display_name: document.getElementById('displayName').value.trim(),
+          },
+          compose: {
+            to: document.getElementById('to').value,
+            subject: document.getElementById('subject').value,
+            text: document.getElementById('body').value,
+            channel: document.getElementById('channel').value,
+          },
+          search: document.getElementById('search').value,
+          inbox_records: state.inboxRecords,
+        },
+        assets: [],
+      };
+    }
+
+    function applySkyeState(payload) {
+      if (!payload?.meta || payload.meta.app_id !== 'SkyeMail') throw new Error('This .skye file is not for SkyeMail.');
+      const s = payload.state || {};
+      const profile = s.profile || {};
+      const compose = s.compose || {};
+      if (typeof profile.mailbox_address === 'string' && profile.mailbox_address.includes('@')) {
+        document.getElementById('addressLocal').value = profile.mailbox_address.split('@')[0];
+      }
+      if (typeof profile.display_name === 'string') document.getElementById('displayName').value = profile.display_name;
+      if (typeof compose.to === 'string') document.getElementById('to').value = compose.to;
+      if (typeof compose.subject === 'string') document.getElementById('subject').value = compose.subject;
+      if (typeof compose.text === 'string') document.getElementById('body').value = compose.text;
+      if (typeof compose.channel === 'string') document.getElementById('channel').value = compose.channel;
+      if (typeof s.search === 'string') document.getElementById('search').value = s.search;
+      if (Array.isArray(s.inbox_records)) state.inboxRecords = s.inbox_records;
+    }
+
+    async function exportSkyeFile() {
+      const passphrase = document.getElementById('skyePassphrase').value.trim();
+      const hint = document.getElementById('skyeHint').value.trim();
+      if (passphrase.length < 6) throw new Error('Passphrase must be at least 6 characters.');
+      const payload = collectSkyeState();
+      const encrypted = await encryptSkye(JSON.stringify(payload), passphrase);
+      const envelope = buildSecureEnvelope(encrypted, hint);
+      const blob = encodeSecureEnvelope(envelope);
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `SkyeMail-${Date.now()}.skye`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      setStatus('Exported secure .skye package for SkyeMail.');
+    }
+
+    async function importSkyeFile(file) {
+      const envelope = await readSecureEnvelope(file);
+      const passphrase = prompt(`Enter passphrase to open .skye${envelope.hint ? ` (hint: ${envelope.hint})` : ''}`) || '';
+      if (!passphrase.trim()) throw new Error('Passphrase is required.');
+      const plain = await decryptSkye(envelope.payload.primary, passphrase.trim());
+      const payload = JSON.parse(plain);
+      applySkyeState(payload);
+      setStatus('Imported secure .skye package for SkyeMail.');
+      await loadInbox(false);
     }
 
     async function refreshMe() {
@@ -197,6 +357,7 @@
       if (append && state.cursor) qs.set('before', state.cursor);
       const data = await call(`/api/skymail-list?${qs.toString()}`);
       const records = Array.isArray(data?.records) ? data.records : [];
+      state.inboxRecords = records;
       state.cursor = data?.page?.next_before || null;
 
       const items = records.map((record) => {
@@ -253,6 +414,14 @@
     document.getElementById('searchBtn').onclick = () => loadInbox(false).catch((e) => setStatus(e.message));
     document.getElementById('saveProfileBtn').onclick = () => saveProfile().catch((e) => setStatus(e.message));
     document.getElementById('logoutBtn').onclick = () => logout().catch((e) => setStatus(e.message));
+    document.getElementById('exportSkyeBtn').onclick = () => exportSkyeFile().catch((e) => setStatus(e.message));
+    document.getElementById('importSkyeBtn').onclick = () => document.getElementById('importSkyeInput').click();
+    document.getElementById('importSkyeInput').addEventListener('change', (event) => {
+      const file = event.target.files?.[0];
+      event.target.value = '';
+      if (!file) return;
+      importSkyeFile(file).catch((e) => setStatus(e.message));
+    });
 
     refreshMe().then(loadProfile).then(() => loadInbox(false)).catch((e) => setStatus(e.message));
   </script>

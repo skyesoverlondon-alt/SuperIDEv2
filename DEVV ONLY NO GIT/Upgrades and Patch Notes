@@ -1,0 +1,130 @@
+# SuperIDEv2 Upgrades and Patch Notes
+
+Date: 2026-03-04
+
+## Executive Summary
+Today focused on hardening, real wiring, and removing UI-only behavior where backend execution was expected.
+
+## Completed Upgrades
+
+### 1) Neural Space Pro + SkyeChat Integration
+1. Added Neural room bridge controls in IDE Neural surface.
+2. Added publish-to-room and publish+ask-kAIxU actions.
+3. Added room handoff into SkyeChat with channel/message carry-over.
+4. Added Neural controls directly inside SkyeChat surface for cross-navigation.
+
+### 2) Mode Separation Hardening
+1. Enforced real mode separation between SkyeIDE and Neural Space Pro.
+2. Added dedicated Neural sidecard and shell rendering.
+3. Added mode badge and clearer visual boundaries.
+
+### 3) SkyeMail / SkyeChat Platform Surfaces
+1. Integrated standalone `public/SkyeMail/index.html` and `public/SkyeChat/index.html` as dedicated platform surfaces inside IDE (iframe workspaces).
+2. Added deep-link return routing so standalone apps can reopen exact app surface in IDE (`?app=SkyeMail`, `?app=SkyeChat`).
+3. Added profile persistence endpoints (`app-profile-get`, `app-profile-set`) and platform profile save/load wiring.
+4. Enhanced mail listing with mailbox filter support and persisted optional sender alias metadata.
+
+### 4) `.skye` Security Hardening (DocxPro)
+1. Enforced secure `.skye` export path in DocxPro to require passphrase encryption.
+2. Added strict envelope validation (`format`, `alg`, `kdf`, `iterations`, payload shape).
+3. Added secure marker binary envelope handling (`SKYESEC1` + delimiter + JSON payload).
+4. Enforced strict secure-open behavior for `.skye` imports.
+5. Added directive file for company-wide `.skye` integration standard:
+	- `DEVV ONLY NO GIT/Implementation Directive For .SKYE Files`
+
+### 5) UI-to-Backend Hardening Pass
+1. Added generic backend persistence endpoints for previously local-only modules:
+	- `netlify/functions/app-record-save.ts`
+	- `netlify/functions/app-record-list.ts`
+2. Wired backend load/autosave for:
+	- SkyeCalendar
+	- SkyeDrive
+	- SkyeVault
+	- SkyeForms
+	- SkyeNotes
+3. These surfaces now persist in backend app records by workspace, not UI memory only.
+
+### 6) Platform Visibility
+1. Added header button in main UI to open upgrade notes:
+	- Label: `Upgrade Notes`
+	- Link target: `/upgrade-notes.html`
+
+## Production Verification Notes
+
+### Live click-path test executed
+Sequence requested: Neural publish -> SkyeChat room history -> kAIxU room reply.
+
+Observed blocker on production auth bootstrap:
+1. `auth-signup` returned 500.
+2. Error indicates DB URL env/runtime mismatch with Neon HTTP invocation path.
+3. Because signup failed, authenticated actions returned 401 (notify/list/kaixu).
+
+### Root cause class
+Environment + DB transport mismatch at function runtime.
+
+### Hardening applied
+Updated DB helper to support both:
+1. `https://` SQL-over-HTTP endpoint style.
+2. `postgres://` connection-string style conversion path.
+
+## Current Known Gaps
+1. Production env still needs verification after DB URL/credentials correction in deployed environment.
+2. Full app-by-app `.skye` exporter/importer rollout beyond DocxPro remains in progress (directive completed; implementation expansion pending app-by-app rollout).
+
+## Recommended Next Deployment Checklist
+1. Verify production env vars for DB transport and credentials.
+2. Run live auth signup/login sanity.
+3. Re-run Neural -> SkyeChat -> kAIxU click-path live verification.
+4. Run smokehouse and record result.
+5. Start `.skye` rollout implementation for SkyeMail and SkyeChat first, then remaining apps.
+
+## Live Smoke Log (2026-03-04T22:58Z)
+
+### A) Focused SKNore Live Sequence
+Requested sequence: `policy-set -> blocked generate -> event appears`.
+
+Execution target:
+1. `https://kaixusuperidev2.netlify.app`
+
+Observed results:
+1. `POST /api/auth-signup` -> `500`
+2. `POST /api/ws-create` -> `401` (no authenticated session established)
+3. `POST /api/sknore-policy-set` -> `404`
+4. `POST /api/kaixu-generate` -> `401`
+5. `GET /api/sknore-events` -> `404`
+
+Focused sequence verdict:
+1. `policy-set` could not execute in production (`404`).
+2. `blocked generate` could not be validated end-to-end because auth bootstrap failed (`500` on signup).
+3. `event appears` could not be verified because SKNore events endpoint is not present on current production deploy (`404`).
+
+### B) Full Production Smoke Harness Re-run
+Harness:
+1. `/tmp/full_system_smoke_prod.sh https://kaixusuperidev2.netlify.app`
+
+Summary:
+1. `PASS=2`
+2. `FAIL=9`
+
+Passing checks:
+1. `GET /` -> `200`
+2. `GET /api/auth-me` -> `200` (empty session body)
+
+Failing checks:
+1. `GET /SkyeDocxPro/index.html` -> `301`
+2. `GET /SkyeMail/index.html` -> `404`
+3. `GET /SkyeChat/index.html` -> `404`
+4. `GET /upgrade-notes.html` -> `404`
+5. `POST /api/auth-signup` -> `500`
+6. Auth identity match failed (`{}` returned)
+7. `POST /api/ws-create` -> `401`
+8. Workspace ID parse failed (no ID due unauthorized response)
+9. `GET /api/ws-list` -> `401`
+
+### C) Env Key/Value Confirmation Status (Production)
+Verification status after rerun:
+1. Netlify runtime is still not corrected for DB transport value expected by deployed functions.
+2. Live error from `auth-signup` indicates `NEON_DATABASE_URL` is currently set as a raw `postgresql://...` value in a path that constructs an HTTP `Request`, which causes runtime failure:
+	`Request cannot be constructed from a URL that includes credentials: postgresql://...`
+3. SKNore endpoints (`sknore-policy-set`, `sknore-events`) returning `404` indicates current production deploy does not include those functions yet (or target site is not the deploy containing SKNore additions).
+

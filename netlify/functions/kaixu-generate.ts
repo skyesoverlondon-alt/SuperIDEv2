@@ -1,6 +1,7 @@
 import { json } from "./_shared/response";
 import { requireUser, forbid } from "./_shared/auth";
 import { must, opt } from "./_shared/env";
+import { filterSknoreFiles, isSknoreProtected, loadSknorePolicy } from "./_shared/sknore";
 import { audit } from "./_shared/audit";
 import { hasValidMasterSequence, readBearerToken, resolveApiToken, tokenHasScope } from "./_shared/api_tokens";
 
@@ -50,12 +51,33 @@ export const handler = async (event: any) => {
   if (!ws_id || !prompt) {
     return json(400, { error: "Missing ws_id or prompt." });
   }
+
+  const sknorePatterns = await loadSknorePolicy(actorOrg as string, ws_id || null);
+  if (activePath && isSknoreProtected(activePath, sknorePatterns)) {
+    await audit(actorEmail, actorOrg, ws_id, "sknore.blocked.active_path", {
+      activePath,
+      patterns_count: sknorePatterns.length,
+    });
+    return json(403, {
+      error: `SKNore policy blocks active file: ${activePath}`,
+      code: "SKNORE_BLOCKED_ACTIVE_PATH",
+    });
+  }
+
+  const safeFiles = filterSknoreFiles((files || []) as Array<{ path: string }>, sknorePatterns);
+  if ((files || []).length !== safeFiles.length) {
+    await audit(actorEmail, actorOrg, ws_id, "sknore.blocked.files", {
+      requested_files: (files || []).length,
+      allowed_files: safeFiles.length,
+      patterns_count: sknorePatterns.length,
+    });
+  }
   const endpoint = must("KAIXU_GATEWAY_ENDPOINT");
   const token = must("KAIXU_APP_TOKEN");
   // Emit audit before calling the model
   await audit(actorEmail, actorOrg, ws_id, "kaixu.generate.requested", {
     activePath: activePath || null,
-    filesLength: (files || []).length,
+    filesLength: safeFiles.length,
   });
   const payload = {
     model: "kAIxU-Prime6.7",
@@ -68,7 +90,7 @@ export const handler = async (event: any) => {
       {
         role: "user",
         content: `Active file: ${activePath || ""}\n\nUser prompt:\n${prompt}\n\nWorkspace snapshot:\n${JSON.stringify(
-          files || []
+          safeFiles || []
         ).slice(0, 120000)}`,
       },
     ],

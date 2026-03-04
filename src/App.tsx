@@ -198,7 +198,7 @@ type MergePreviewState = {
   serverUpdatedAt: string;
 };
 
-type SkyeEnvelope = {
+type LegacySkyeEnvelope = {
   format: "skye-v2";
   app: SkyeAppId;
   ws_id: string;
@@ -208,6 +208,27 @@ type SkyeEnvelope = {
   cipher?: string;
   iv?: string;
   salt?: string;
+};
+
+type SkyeEncryptedBlock = {
+  cipher: string;
+  iv: string;
+  salt: string;
+};
+
+type SkyeSecureEnvelope = {
+  format: "skye-secure-v1";
+  encrypted: true;
+  alg: "AES-256-GCM";
+  kdf: "PBKDF2-SHA256";
+  iterations: 150000;
+  app: SkyeAppId;
+  ws_id: string;
+  exported_at: string;
+  hint?: string;
+  payload: {
+    primary: SkyeEncryptedBlock;
+  };
 };
 
 const DEFAULT_WORKER_URL =
@@ -432,6 +453,54 @@ async function decryptSkyePayload(cipherB64: string, ivB64: string, saltB64: str
   const key = await deriveSkyeKey(passphrase, salt);
   const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv: toArrayBuffer(iv) }, key, toArrayBuffer(base64ToBytes(cipherB64)));
   return new TextDecoder().decode(plain);
+}
+
+function encodeSecureSkyeEnvelope(envelope: SkyeSecureEnvelope): Blob {
+  const marker = new TextEncoder().encode("SKYESEC1");
+  const payload = new TextEncoder().encode(JSON.stringify(envelope));
+  return new Blob([marker, new Uint8Array([0]), payload], { type: "application/octet-stream" });
+}
+
+function isValidEncryptedBlock(block: any): block is SkyeEncryptedBlock {
+  return Boolean(
+    block &&
+      typeof block.cipher === "string" &&
+      typeof block.iv === "string" &&
+      typeof block.salt === "string" &&
+      block.cipher.length > 0 &&
+      block.iv.length > 0 &&
+      block.salt.length > 0
+  );
+}
+
+function isSecureSkyeEnvelope(value: any): value is SkyeSecureEnvelope {
+  if (!value || typeof value !== "object") return false;
+  if (value.format !== "skye-secure-v1") return false;
+  if (value.encrypted !== true) return false;
+  if (value.alg !== "AES-256-GCM") return false;
+  if (value.kdf !== "PBKDF2-SHA256") return false;
+  if (Number(value.iterations) !== 150000) return false;
+  if (!value.app) return false;
+  if (!value.payload || !isValidEncryptedBlock(value.payload.primary)) return false;
+  return true;
+}
+
+async function tryReadSecureSkyeEnvelope(file: any): Promise<SkyeSecureEnvelope | null> {
+  try {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const marker = new TextEncoder().encode("SKYESEC1");
+    const hasMarker =
+      bytes.length > marker.length + 1 &&
+      marker.every((value, index) => bytes[index] === value) &&
+      bytes[marker.length] === 0;
+    if (!hasMarker) return null;
+    const raw = new TextDecoder().decode(bytes.slice(marker.length + 1));
+    const parsed = tryParseJson(raw);
+    if (!isSecureSkyeEnvelope(parsed)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
 }
 
 export function App() {
@@ -679,6 +748,7 @@ export function App() {
   const [calendarDraftTitle, setCalendarDraftTitle] = useState("");
   const [calendarDraftStart, setCalendarDraftStart] = useState("");
   const [calendarDraftEnd, setCalendarDraftEnd] = useState("");
+  const [calendarHydrated, setCalendarHydrated] = useState(false);
 
   const [driveAssets, setDriveAssets] = useState<DriveAsset[]>([
     { id: "drive-1", name: "pitch-deck-v3.pdf", kind: "slide", size_kb: 2480, owner: "founder@skye.local", version: 3, shared_with: "hp-team@partner.com" },
@@ -686,6 +756,7 @@ export function App() {
   ]);
   const [driveDraftName, setDriveDraftName] = useState("");
   const [driveDraftKind, setDriveDraftKind] = useState<DriveAsset["kind"]>("other");
+  const [driveHydrated, setDriveHydrated] = useState(false);
 
   const [vaultSecrets, setVaultSecrets] = useState<VaultSecret[]>([
     { id: "vault-1", label: "NETLIFY_TOKEN", scope: "deploy", owner: "ops@skye.local", last_rotated: "2026-02-21", status: "active", redacted_value: "****token" },
@@ -693,6 +764,7 @@ export function App() {
   ]);
   const [vaultDraftLabel, setVaultDraftLabel] = useState("");
   const [vaultDraftScope, setVaultDraftScope] = useState<VaultSecret["scope"]>("workspace");
+  const [vaultHydrated, setVaultHydrated] = useState(false);
 
   const [formQuestions, setFormQuestions] = useState<FormQuestion[]>([
     { id: "form-1", prompt: "How satisfied are you with onboarding?", type: "select", required: true, owner: "ops@skye.local" },
@@ -700,6 +772,7 @@ export function App() {
   ]);
   const [formDraftPrompt, setFormDraftPrompt] = useState("");
   const [formDraftType, setFormDraftType] = useState<FormQuestion["type"]>("short_text");
+  const [formsHydrated, setFormsHydrated] = useState(false);
 
   const [notesModel, setNotesModel] = useState<NoteItem[]>([
     { id: "note-1", title: "Investor prep notes", body: "Position product as secure launch-ready suite with failsafe workflows.", tags: "investor,hp,launch", owner: "founder@skye.local", updated_at: new Date().toISOString() },
@@ -707,6 +780,7 @@ export function App() {
   ]);
   const [noteDraftTitle, setNoteDraftTitle] = useState("");
   const [noteSearch, setNoteSearch] = useState("");
+  const [notesHydrated, setNotesHydrated] = useState(false);
 
   const [teamInviteEmail, setTeamInviteEmail] = useState("");
   const [teamInviteRole, setTeamInviteRole] = useState<AuthRole>("member");
@@ -848,6 +922,7 @@ export function App() {
 
   useEffect(() => {
     void loadSkyeSuiteModels();
+    void loadOpsWorkspaceModels();
   }, [workspaceId]);
 
   useEffect(() => {
@@ -897,6 +972,46 @@ export function App() {
     }, 700);
     return () => clearTimeout(timer);
   }, [tasksModel, workspaceId, tasksHydrated, tasksRecordId]);
+
+  useEffect(() => {
+    if (!calendarHydrated) return;
+    const timer = setTimeout(() => {
+      void saveOpsWorkspaceModel("SkyeCalendar", { events: calendarEvents }, "SkyeCalendar Events");
+    }, 700);
+    return () => clearTimeout(timer);
+  }, [calendarEvents, workspaceId, calendarHydrated]);
+
+  useEffect(() => {
+    if (!driveHydrated) return;
+    const timer = setTimeout(() => {
+      void saveOpsWorkspaceModel("SkyeDrive", { assets: driveAssets }, "SkyeDrive Assets");
+    }, 700);
+    return () => clearTimeout(timer);
+  }, [driveAssets, workspaceId, driveHydrated]);
+
+  useEffect(() => {
+    if (!vaultHydrated) return;
+    const timer = setTimeout(() => {
+      void saveOpsWorkspaceModel("SkyeVault", { secrets: vaultSecrets }, "SkyeVault Secrets");
+    }, 700);
+    return () => clearTimeout(timer);
+  }, [vaultSecrets, workspaceId, vaultHydrated]);
+
+  useEffect(() => {
+    if (!formsHydrated) return;
+    const timer = setTimeout(() => {
+      void saveOpsWorkspaceModel("SkyeForms", { questions: formQuestions }, "SkyeForms Questions");
+    }, 700);
+    return () => clearTimeout(timer);
+  }, [formQuestions, workspaceId, formsHydrated]);
+
+  useEffect(() => {
+    if (!notesHydrated) return;
+    const timer = setTimeout(() => {
+      void saveOpsWorkspaceModel("SkyeNotes", { notes: notesModel }, "SkyeNotes Workspace");
+    }, 700);
+    return () => clearTimeout(timer);
+  }, [notesModel, workspaceId, notesHydrated]);
 
   function updateActiveFileContent(content: string) {
     setFiles((old) => old.map((file) => (file.path === activeFile.path ? { ...file, content } : file)));
@@ -1992,23 +2107,32 @@ export function App() {
 
   async function exportSelectedAppAsSkye() {
     try {
+      if (!skyePassphrase.trim() || skyePassphrase.trim().length < 6) {
+        setSuiteSyncResult("Secure .skye export requires a passphrase with at least 6 characters.");
+        return;
+      }
+
       const envelopeBase = {
-        format: "skye-v2" as const,
+        format: "skye-secure-v1" as const,
+        encrypted: true as const,
+        alg: "AES-256-GCM" as const,
+        kdf: "PBKDF2-SHA256" as const,
+        iterations: 150000 as const,
         app: selectedSkyeApp,
         ws_id: workspaceId,
         exported_at: new Date().toISOString(),
       };
       const payloadString = JSON.stringify(currentAppPayload());
-      let envelope: SkyeEnvelope;
+      const encrypted = await encryptSkyePayload(payloadString, skyePassphrase.trim());
+      const envelope: SkyeSecureEnvelope = {
+        ...envelopeBase,
+        hint: "",
+        payload: {
+          primary: encrypted,
+        },
+      };
 
-      if (skyeEncrypt && skyePassphrase.trim()) {
-        const encrypted = await encryptSkyePayload(payloadString, skyePassphrase.trim());
-        envelope = { ...envelopeBase, encrypted: true, ...encrypted };
-      } else {
-        envelope = { ...envelopeBase, encrypted: false, payload: bytesToBase64(new TextEncoder().encode(payloadString)) };
-      }
-
-      const blob = new Blob([JSON.stringify(envelope, null, 2)], { type: "application/octet-stream" });
+      const blob = encodeSecureSkyeEnvelope(envelope);
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -2028,33 +2152,50 @@ export function App() {
 
     setIsImportingSkye(true);
     try {
-      const text = await file.text();
-      const envelope = tryParseJson(text) as SkyeEnvelope;
-      if (!envelope || envelope.format !== "skye-v2" || !envelope.app) {
-        setSuiteSyncResult("Invalid .skye package format.");
-        return;
-      }
-
       let payloadString = "";
-      if (envelope.encrypted) {
+      const secureEnvelope = await tryReadSecureSkyeEnvelope(file);
+      if (secureEnvelope) {
         if (!skyePassphrase.trim()) {
           setSuiteSyncResult("This .skye package is encrypted. Enter passphrase and import again.");
           return;
         }
         payloadString = await decryptSkyePayload(
-          String(envelope.cipher || ""),
-          String(envelope.iv || ""),
-          String(envelope.salt || ""),
+          String(secureEnvelope.payload.primary.cipher || ""),
+          String(secureEnvelope.payload.primary.iv || ""),
+          String(secureEnvelope.payload.primary.salt || ""),
           skyePassphrase.trim()
         );
+        const payload = tryParseJson(payloadString) as Record<string, any>;
+        applyImportedAppPayload(secureEnvelope.app, payload);
+        setSuiteSyncResult(`Imported .skye package for ${secureEnvelope.app}`);
+        setSelectedSkyeApp(secureEnvelope.app);
       } else {
-        payloadString = new TextDecoder().decode(base64ToBytes(String(envelope.payload || "")));
-      }
+        const text = await file.text();
+        const legacyEnvelope = tryParseJson(text) as LegacySkyeEnvelope;
+        if (!legacyEnvelope || legacyEnvelope.format !== "skye-v2" || !legacyEnvelope.app) {
+          setSuiteSyncResult("Invalid .skye package format.");
+          return;
+        }
+        if (legacyEnvelope.encrypted) {
+          if (!skyePassphrase.trim()) {
+            setSuiteSyncResult("This legacy .skye package is encrypted. Enter passphrase and import again.");
+            return;
+          }
+          payloadString = await decryptSkyePayload(
+            String(legacyEnvelope.cipher || ""),
+            String(legacyEnvelope.iv || ""),
+            String(legacyEnvelope.salt || ""),
+            skyePassphrase.trim()
+          );
+        } else {
+          payloadString = new TextDecoder().decode(base64ToBytes(String(legacyEnvelope.payload || "")));
+        }
 
-      const payload = tryParseJson(payloadString) as Record<string, any>;
-      applyImportedAppPayload(envelope.app, payload);
-      setSuiteSyncResult(`Imported .skye package for ${envelope.app}`);
-      setSelectedSkyeApp(envelope.app);
+        const payload = tryParseJson(payloadString) as Record<string, any>;
+        applyImportedAppPayload(legacyEnvelope.app, payload);
+        setSuiteSyncResult(`Imported legacy .skye package for ${legacyEnvelope.app}`);
+        setSelectedSkyeApp(legacyEnvelope.app);
+      }
     } catch (error: any) {
       setSuiteSyncResult(error?.message || "Skye import failed.");
     } finally {
@@ -2090,6 +2231,74 @@ export function App() {
       setShareResult(error?.message || "share failed");
     } finally {
       setIsSharingProject(false);
+    }
+  }
+
+  async function loadOpsWorkspaceModels() {
+    if (!workspaceId.trim()) return;
+    try {
+      const apps = ["SkyeCalendar", "SkyeDrive", "SkyeVault", "SkyeForms", "SkyeNotes"] as const;
+      const responses = await Promise.all(
+        apps.map((app) => {
+          const qs = new URLSearchParams();
+          qs.set("ws_id", workspaceId.trim());
+          qs.set("app", app);
+          qs.set("limit", "1");
+          return fetch(`/api/app-record-list?${qs.toString()}`, { method: "GET" });
+        })
+      );
+      const payloads = await Promise.all(responses.map((res) => res.json()));
+
+      const [calendarData, driveData, vaultData, formsData, notesData] = payloads;
+
+      if (responses[0].ok && Array.isArray(calendarData?.records) && calendarData.records.length) {
+        const payload = asObject(calendarData.records[0].payload);
+        if (Array.isArray(payload.events)) setCalendarEvents(payload.events as CalendarEvent[]);
+      }
+      if (responses[1].ok && Array.isArray(driveData?.records) && driveData.records.length) {
+        const payload = asObject(driveData.records[0].payload);
+        if (Array.isArray(payload.assets)) setDriveAssets(payload.assets as DriveAsset[]);
+      }
+      if (responses[2].ok && Array.isArray(vaultData?.records) && vaultData.records.length) {
+        const payload = asObject(vaultData.records[0].payload);
+        if (Array.isArray(payload.secrets)) setVaultSecrets(payload.secrets as VaultSecret[]);
+      }
+      if (responses[3].ok && Array.isArray(formsData?.records) && formsData.records.length) {
+        const payload = asObject(formsData.records[0].payload);
+        if (Array.isArray(payload.questions)) setFormQuestions(payload.questions as FormQuestion[]);
+      }
+      if (responses[4].ok && Array.isArray(notesData?.records) && notesData.records.length) {
+        const payload = asObject(notesData.records[0].payload);
+        if (Array.isArray(payload.notes)) setNotesModel(payload.notes as NoteItem[]);
+      }
+    } catch {
+    } finally {
+      setCalendarHydrated(true);
+      setDriveHydrated(true);
+      setVaultHydrated(true);
+      setFormsHydrated(true);
+      setNotesHydrated(true);
+    }
+  }
+
+  async function saveOpsWorkspaceModel(
+    app: "SkyeCalendar" | "SkyeDrive" | "SkyeVault" | "SkyeForms" | "SkyeNotes",
+    model: Record<string, unknown>,
+    title: string
+  ) {
+    if (!workspaceId.trim()) return;
+    try {
+      await fetch("/api/app-record-save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ws_id: workspaceId.trim(),
+          app,
+          title,
+          model,
+        }),
+      });
+    } catch {
     }
   }
 
@@ -2858,6 +3067,7 @@ export function App() {
           <p>Primary IDE workspace · Neural Space Pro companion app · Shared Auth active</p>
         </div>
         <div className="topbar-right">
+          <a className="ghost" href="/upgrade-notes.html" target="_blank" rel="noreferrer">Upgrade Notes</a>
           <input className="auth-user" value={authUser} onChange={(event) => setAuthUser(event.target.value)} aria-label="auth user" />
           <select value={authRole} onChange={(event) => setAuthRole(event.target.value as AuthRole)}>
             <option value="owner">owner</option>
@@ -2934,6 +3144,11 @@ export function App() {
                 placeholder="One glob pattern per line"
               />
               <div className="suite-progress">Protected files: {sknoreBlockedCount}</div>
+              <div className="tool-actions left">
+                <a className="ghost" href={`/SKNore/index.html?ws_id=${encodeURIComponent(workspaceId)}`} target="_blank" rel="noreferrer">
+                  Open SKNore Standalone
+                </a>
+              </div>
 
               <h3>Files</h3>
               <div className="file-list">
@@ -2964,13 +3179,9 @@ export function App() {
           {appMode === "skyeide" ? (
             <>
               <section className="app-module">
-                <header><h2>Secure .skye Package</h2><p>Export and import app state as a `.skye` package (optionally passphrase-encrypted).</p></header>
-                <label>Passphrase (optional, recommended)</label>
-                <input type="password" value={skyePassphrase} onChange={(event) => setSkyePassphrase(event.target.value)} placeholder="Enter passphrase for encrypted .skye" />
-                <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <input type="checkbox" checked={skyeEncrypt} onChange={(event) => setSkyeEncrypt(event.target.checked)} />
-                  Encrypt `.skye` package with AES-GCM
-                </label>
+                <header><h2>Secure .skye Package</h2><p>Export and import app state as encrypted `.skye` using the SKYESEC1 + skye-secure-v1 contract.</p></header>
+                <label>Passphrase (required)</label>
+                <input type="password" value={skyePassphrase} onChange={(event) => setSkyePassphrase(event.target.value)} placeholder="Enter passphrase for secure .skye" />
                 <div className="tool-actions left">
                   <button className="ghost" type="button" onClick={() => void exportSelectedAppAsSkye()}>
                     Export {selectedSkyeApp} as .skye
@@ -2980,7 +3191,7 @@ export function App() {
                   </button>
                 </div>
                 <input id="skye-import-input" type="file" accept=".skye" style={{ display: "none" }} onChange={onImportSkyeFile} />
-                <p className="muted-copy">Extension-only `.skye` is obscurity; encrypted `.skye` provides cryptographic protection.</p>
+                <p className="muted-copy">Secure `.skye` uses AES-GCM encryption and envelope validation before import.</p>
               </section>
               {inviteToken && (
                 <section className="app-module">

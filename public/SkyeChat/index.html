@@ -70,6 +70,17 @@
           <button id="saveProfileBtn" type="button">Save Profile</button>
         </div>
 
+        <h2 style="margin-top:14px;">.skye Package</h2>
+        <label>Passphrase (required for secure .skye)</label>
+        <input id="skyePassphrase" type="password" placeholder="Enter passphrase" />
+        <label>Passphrase hint (optional)</label>
+        <input id="skyeHint" placeholder="Never include the real passphrase" />
+        <div class="actions">
+          <button id="exportSkyeBtn" type="button">Export .skye</button>
+          <button id="importSkyeBtn" type="button">Import .skye</button>
+        </div>
+        <input id="importSkyeInput" type="file" accept=".skye" style="display:none;" />
+
         <h2 style="margin-top:14px;">Room Composer</h2>
         <label>Channel</label>
         <input id="channel" value="general" />
@@ -100,6 +111,7 @@
   <script>
     const statusEl = document.getElementById('status');
     const feedEl = document.getElementById('feed');
+    const chatState = { records: [] };
     const query = new URLSearchParams(window.location.search);
     const wsId = query.get('ws_id') || 'primary-workspace';
     const initialChannel = query.get('channel') || 'general';
@@ -119,6 +131,153 @@
       try { data = await res.json(); } catch {}
       if (!res.ok) throw new Error(data?.error || `${path} failed (${res.status})`);
       return data;
+    }
+
+    function bytesToBase64(bytes) {
+      let bin = '';
+      for (let i = 0; i < bytes.length; i += 1) bin += String.fromCharCode(bytes[i]);
+      return btoa(bin);
+    }
+
+    function base64ToBytes(value) {
+      const bin = atob(value);
+      const out = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i += 1) out[i] = bin.charCodeAt(i);
+      return out;
+    }
+
+    async function deriveKey(passphrase, saltBytes) {
+      const material = await crypto.subtle.importKey('raw', new TextEncoder().encode(passphrase), 'PBKDF2', false, ['deriveKey']);
+      return crypto.subtle.deriveKey(
+        { name: 'PBKDF2', salt: saltBytes, iterations: 120000, hash: 'SHA-256' },
+        material,
+        { name: 'AES-GCM', length: 256 },
+        false,
+        ['encrypt', 'decrypt']
+      );
+    }
+
+    async function encryptSkye(plainText, passphrase) {
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const salt = crypto.getRandomValues(new Uint8Array(16));
+      const key = await deriveKey(passphrase, salt);
+      const cipherBuf = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(plainText));
+      return {
+        cipher: bytesToBase64(new Uint8Array(cipherBuf)),
+        iv: bytesToBase64(iv),
+        salt: bytesToBase64(salt),
+      };
+    }
+
+    async function decryptSkye(block, passphrase) {
+      const key = await deriveKey(passphrase, base64ToBytes(block.salt));
+      const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: base64ToBytes(block.iv) }, key, base64ToBytes(block.cipher));
+      return new TextDecoder().decode(plain);
+    }
+
+    function buildSecureEnvelope(primary, hint) {
+      return {
+        format: 'skye-secure-v1',
+        encrypted: true,
+        alg: 'AES-256-GCM',
+        kdf: 'PBKDF2-SHA256',
+        iterations: 120000,
+        exportedAt: new Date().toISOString(),
+        hint: hint || '',
+        payload: { primary },
+      };
+    }
+
+    function encodeSecureEnvelope(envelope) {
+      const marker = new TextEncoder().encode('SKYESEC1');
+      const payload = new TextEncoder().encode(JSON.stringify(envelope));
+      return new Blob([marker, new Uint8Array([0]), payload], { type: 'application/octet-stream' });
+    }
+
+    async function readSecureEnvelope(file) {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const marker = new TextEncoder().encode('SKYESEC1');
+      const hasMarker = bytes.length > marker.length + 1 && marker.every((v, i) => bytes[i] === v) && bytes[marker.length] === 0;
+      if (!hasMarker) throw new Error('Invalid .skye file marker.');
+      const raw = new TextDecoder().decode(bytes.slice(marker.length + 1));
+      const envelope = JSON.parse(raw);
+      if (!envelope || envelope.format !== 'skye-secure-v1' || envelope.encrypted !== true) throw new Error('Unsupported .skye envelope.');
+      if (envelope.alg !== 'AES-256-GCM' || envelope.kdf !== 'PBKDF2-SHA256' || Number(envelope.iterations) !== 120000) {
+        throw new Error('Invalid .skye encryption metadata.');
+      }
+      if (!envelope.payload || !envelope.payload.primary) throw new Error('Missing encrypted payload.');
+      return envelope;
+    }
+
+    function collectSkyeState() {
+      return {
+        meta: {
+          app_id: 'SkyeChat',
+          app_version: '1.0.0',
+          workspace_id: wsId,
+          title: 'SkyeChat Workspace Snapshot',
+          owner: document.getElementById('email').value || null,
+          schema_version: 1,
+        },
+        state: {
+          profile: {
+            display_name: document.getElementById('displayName').value,
+            handle: document.getElementById('handle').value,
+          },
+          compose: {
+            channel: document.getElementById('channel').value,
+            message: document.getElementById('message').value,
+          },
+          filters: {
+            filter_channel: document.getElementById('filterChannel').value,
+            search: document.getElementById('search').value,
+          },
+          feed_records: chatState.records,
+        },
+        assets: [],
+      };
+    }
+
+    function applySkyeState(payload) {
+      if (!payload?.meta || payload.meta.app_id !== 'SkyeChat') throw new Error('This .skye file is not for SkyeChat.');
+      const s = payload.state || {};
+      const p = s.profile || {};
+      const compose = s.compose || {};
+      const filters = s.filters || {};
+      if (typeof p.display_name === 'string') document.getElementById('displayName').value = p.display_name;
+      if (typeof p.handle === 'string') document.getElementById('handle').value = p.handle;
+      if (typeof compose.channel === 'string') document.getElementById('channel').value = compose.channel;
+      if (typeof compose.message === 'string') document.getElementById('message').value = compose.message;
+      if (typeof filters.filter_channel === 'string') document.getElementById('filterChannel').value = filters.filter_channel;
+      if (typeof filters.search === 'string') document.getElementById('search').value = filters.search;
+      if (Array.isArray(s.feed_records)) chatState.records = s.feed_records;
+    }
+
+    async function exportSkyeFile() {
+      const passphrase = document.getElementById('skyePassphrase').value.trim();
+      const hint = document.getElementById('skyeHint').value.trim();
+      if (passphrase.length < 6) throw new Error('Passphrase must be at least 6 characters.');
+      const payload = collectSkyeState();
+      const encrypted = await encryptSkye(JSON.stringify(payload), passphrase);
+      const envelope = buildSecureEnvelope(encrypted, hint);
+      const blob = encodeSecureEnvelope(envelope);
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `SkyeChat-${Date.now()}.skye`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      setStatus('Exported secure .skye package for SkyeChat.');
+    }
+
+    async function importSkyeFile(file) {
+      const envelope = await readSecureEnvelope(file);
+      const passphrase = prompt(`Enter passphrase to open .skye${envelope.hint ? ` (hint: ${envelope.hint})` : ''}`) || '';
+      if (!passphrase.trim()) throw new Error('Passphrase is required.');
+      const plain = await decryptSkye(envelope.payload.primary, passphrase.trim());
+      const payload = JSON.parse(plain);
+      applySkyeState(payload);
+      setStatus('Imported secure .skye package for SkyeChat.');
+      await loadFeed();
     }
 
     async function refreshMe() {
@@ -216,6 +375,7 @@
       if (query) qs.set('q', query);
       const data = await call(`/api/skychat-list?${qs.toString()}`);
       const records = Array.isArray(data?.records) ? data.records : [];
+      chatState.records = records;
       feedEl.innerHTML = records.map((record) => {
         const payload = record?.payload || {};
         const c = payload?.channel || 'general';
@@ -234,6 +394,14 @@
     document.getElementById('loadBtn').onclick = () => loadFeed().catch((e) => setStatus(e.message));
     document.getElementById('applyFilterBtn').onclick = () => loadFeed().catch((e) => setStatus(e.message));
     document.getElementById('logoutBtn').onclick = () => logout().catch((e) => setStatus(e.message));
+    document.getElementById('exportSkyeBtn').onclick = () => exportSkyeFile().catch((e) => setStatus(e.message));
+    document.getElementById('importSkyeBtn').onclick = () => document.getElementById('importSkyeInput').click();
+    document.getElementById('importSkyeInput').addEventListener('change', (event) => {
+      const file = event.target.files?.[0];
+      event.target.value = '';
+      if (!file) return;
+      importSkyeFile(file).catch((e) => setStatus(e.message));
+    });
 
     refreshMe().then(loadProfile).then(loadFeed).catch((e) => setStatus(e.message));
   </script>

@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SuperIDEv2 Upgrade Notes</title>
+  <style>
+    :root {
+      --bg: #0a0912;
+      --panel: #141126;
+      --border: rgba(255,255,255,0.12);
+      --text: #f4f6ff;
+      --muted: #a7acc9;
+      --gold: #ffd700;
+      --purple: #8a4fff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Inter", system-ui, sans-serif;
+      background: radial-gradient(circle at top right, rgba(138,79,255,0.2), transparent 45%), var(--bg);
+      color: var(--text);
+    }
+    .wrap {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 22px;
+    }
+    .card {
+      border: 1px solid var(--border);
+      background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+      border-radius: 14px;
+      padding: 18px;
+      margin-bottom: 14px;
+    }
+    h1 { margin: 0 0 10px; font-size: 1.5rem; }
+    h2 { margin: 0 0 8px; font-size: 1rem; color: var(--gold); text-transform: uppercase; letter-spacing: 0.06em; }
+    p, li { color: var(--text); line-height: 1.45; }
+    ul { margin: 8px 0 0; padding-left: 18px; }
+    .meta { color: var(--muted); font-size: 0.9rem; }
+    a.btn {
+      display: inline-block;
+      margin-top: 10px;
+      text-decoration: none;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 12px;
+      background: rgba(138,79,255,0.15);
+    }
+    code { color: #fff1a3; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>SuperIDEv2 Upgrade Notes</h1>
+      <p class="meta">Updated: 2026-03-04</p>
+      <p>Hardening pass completed across mode separation, Neural-to-Chat integration, standalone app workspaces, secure .skye behavior, and backend wiring for previously local-only app modules.</p>
+      <a class="btn" href="/index.html">Back To IDE</a>
+    </div>
+
+    <div class="card">
+      <h2>Major Changes</h2>
+      <ul>
+        <li>Neural Space Pro now publishes to SkyeChat rooms with dedicated bridge actions.</li>
+        <li>SkyeMail and SkyeChat now run as dedicated integrated workspace surfaces, not simple widget sections.</li>
+        <li>SkyeCalendar, SkyeDrive, SkyeVault, SkyeForms, and SkyeNotes now persist via backend APIs.</li>
+        <li>DocxPro secure .skye encryption path hardened with strict passphrase and envelope validation.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>Live Verification Status</h2>
+      <ul>
+        <li>Production click-path run executed for Neural -> SkyeChat -> kAIxU sequence.</li>
+        <li>Authentication bootstrap failed on production due to DB transport/env mismatch, causing downstream 401s.</li>
+        <li>Database helper was hardened to accept both <code>https://</code> SQL endpoint and <code>postgres://</code> config styles.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>Source Log File</h2>
+      <p>Canonical full internal log is maintained at:</p>
+      <p><code>DEVV ONLY NO GIT/Upgrades and Patch Notes</code></p>
+    </div>
+  </div>
+</body>
+</html>
