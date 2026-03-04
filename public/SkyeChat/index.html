@@ -108,7 +108,7 @@
     document.getElementById('filterChannel').value = initialChannel;
 
     if (query.get('embed') === '1') {
-      document.querySelector('.top a').setAttribute('href', `/index.html?ws_id=${encodeURIComponent(wsId)}`);
+      document.querySelector('.top a').setAttribute('href', `/index.html?app=SkyeChat&ws_id=${encodeURIComponent(wsId)}`);
     }
 
     function setStatus(text) { statusEl.textContent = text || ''; }

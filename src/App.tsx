@@ -435,9 +435,15 @@ async function decryptSkyePayload(cipherB64: string, ivB64: string, saltB64: str
 }
 
 export function App() {
+  const initialParams = new URLSearchParams(window.location.search);
+  const initialApp = String(initialParams.get("app") || "").trim() as SkyeAppId;
+  const initialMode = String(initialParams.get("mode") || "").trim() as AppMode;
+
   const [appMode, setAppMode] = useState<AppMode>("skyeide");
   const [toolTab, setToolTab] = useState<ToolTab>("assistant");
-  const [selectedSkyeApp, setSelectedSkyeApp] = useState<SkyeAppId>("SkyeDocxPro");
+  const [selectedSkyeApp, setSelectedSkyeApp] = useState<SkyeAppId>(
+    SKYE_APPS.some((app) => app.id === initialApp) ? initialApp : "SkyeDocxPro"
+  );
 
   const [mvpChecks, setMvpChecks] = useState<Record<string, boolean>>(() => {
     const raw = localStorage.getItem("kx.skye.apps.mvp");
@@ -731,6 +737,12 @@ export function App() {
   const [skyePassphrase, setSkyePassphrase] = useState("");
   const [skyeEncrypt, setSkyeEncrypt] = useState(true);
   const [isImportingSkye, setIsImportingSkye] = useState(false);
+
+  useEffect(() => {
+    if (initialMode === "neural") {
+      setAppMode("neural");
+    }
+  }, [initialMode]);
 
   const healthUrl = useMemo(() => `${normalizeBaseUrl(workerUrl)}/health`, [workerUrl]);
   const activeFile = useMemo(() => files.find((file) => file.path === activePath) || files[0], [files, activePath]);

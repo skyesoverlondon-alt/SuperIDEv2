@@ -114,7 +114,7 @@
     const query = new URLSearchParams(window.location.search);
 
     if (query.get('embed') === '1') {
-      document.querySelector('.top a').setAttribute('href', `/index.html?ws_id=${encodeURIComponent(state.wsId)}`);
+      document.querySelector('.top a').setAttribute('href', `/index.html?app=SkyeMail&ws_id=${encodeURIComponent(state.wsId)}`);
     }
 
     function setStatus(text) {
