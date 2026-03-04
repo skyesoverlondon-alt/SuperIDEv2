@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>kAIxU / Skye · Executive One-Pager</title>
+    <style>
+      body { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 28px; color: #0f172a; }
+      h1 { margin: 0 0 8px; }
+      h2 { margin: 18px 0 8px; font-size: 1.05rem; }
+      p { margin: 6px 0; }
+      ul { margin: 6px 0 10px 20px; }
+      .kpi { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 12px 0; }
+      .card { border: 1px solid #cbd5e1; border-radius: 10px; padding: 10px; background: #f8fafc; }
+      .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.85rem; }
+      .tag { display: inline-block; border: 1px solid #94a3b8; border-radius: 999px; padding: 3px 8px; margin-right: 6px; font-size: 0.8rem; }
+      @media print { body { margin: 16px; } }
+    </style>
+  </head>
+  <body>
+    <h1>kAIxU / Skye Platform — Executive One-Pager</h1>
+    <p>AI-first enterprise console with policy-gated runtime, secure token controls, and auditable operations.</p>
+
+    <div>
+      <span class="tag">Policy Gate: Netlify Functions</span>
+      <span class="tag">Execution Brain: Cloudflare Worker</span>
+      <span class="tag">Data Plane: Neon + R2 + KV</span>
+    </div>
+
+    <div class="kpi">
+      <div class="card"><strong>Token Controls</strong><p>TTL presets + email lock + scoped permissions + master override.</p></div>
+      <div class="card"><strong>Operational Proof</strong><p>Supreme smoke runbook with acceptance gates and evidence pack model.</p></div>
+      <div class="card"><strong>Multi-App Ready</strong><p>SkyeIDE, SkyeMail, SkyeChat integrated through a shared secure gate.</p></div>
+    </div>
+
+    <h2>Current Production Endpoints</h2>
+    <ul>
+      <li class="mono">https://kaixusuperidev2.netlify.app</li>
+      <li class="mono">https://kaixusuperidev2.netlify.app/api/kaixu-generate</li>
+      <li class="mono">https://kaixusuperidev2.netlify.app/.netlify/functions/token-issue</li>
+      <li class="mono">https://kaixusuperidev2.netlify.app/.netlify/functions/skymail-send</li>
+      <li class="mono">https://kaixu-superide-runner.skyesoverlondon.workers.dev/health</li>
+    </ul>
+
+    <h2>Security Posture</h2>
+    <ul>
+      <li>Tokens default to issuer-email lock; mismatched calls are denied.</li>
+      <li>Privileged scope issuance requires <span class="mono">TOKEN_MASTER_SEQUENCE</span>.</li>
+      <li>SKNore blocks AI access to protected file groups.</li>
+      <li>Signed runner calls protect Netlify-to-Worker command path.</li>
+    </ul>
+
+    <h2>Enterprise Readiness</h2>
+    <ul>
+      <li>Documented hardening backlog: <span class="mono">docs/HARDENING_TODO.md</span></li>
+      <li>Operational smoke standard: <span class="mono">docs/SUPREME_SMOKE_RUNBOOK.md</span></li>
+      <li>Device/procurement baseline: <span class="mono">docs/ENTERPRISE_DEVICE_READINESS.md</span></li>
+    </ul>
+
+    <h2>How to Export This as PDF</h2>
+    <p>Open this file in browser and use Print → Save as PDF.</p>
+  </body>
+  </html>

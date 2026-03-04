@@ -16,6 +16,7 @@ import { buildZip } from "./zip";
 import { githubAppPushFromWorkspace } from "./github_app_push";
 import { netlifyDeployFromWorkspace } from "./netlify";
 import { makeSignedDownloadURL, verifySignedDownload } from "./r2_signed";
+import { verifyAccessJwt } from "./access";
 
 /**
  * Helper to return JSON responses.  Sets the Content-Type and
@@ -238,6 +239,12 @@ router.post("/v1/evidence/r2/export", async (req: Request, env: any) => {
 export default {
   async fetch(req: Request, env: any): Promise<Response> {
     try {
+      if (env.ACCESS_AUD && req.method !== "OPTIONS") {
+        const ok = await verifyAccessJwt(req, env);
+        if (!ok) {
+          return j({ error: "Unauthorized (Cloudflare Access JWT invalid)." }, 401, corsHeaders(env, req));
+        }
+      }
       return await router.fetch(req, env);
     } catch (e: any) {
       // On error, return JSON with the error message.  Do not

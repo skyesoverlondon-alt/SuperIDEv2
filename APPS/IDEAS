@@ -1,0 +1,60 @@
+# SkyeIDEv2 Integrated Apps Suite
+
+## Core Productivity Apps
+
+1. **SkyeDocs** - Document editor with real-time collaboration, version control, and markdown support
+2. **SkyeSheets** - Spreadsheet application with formulas, charts, and data visualization
+3. **SkyeSlides** - Presentation tool with live collaboration and built-in templates
+
+## Communication & Organization
+
+4. **SkyeMail** - Email client with integrated inbox, calendar, and task management
+5. **SkyeChat** - Team messaging with channels, threads, and file sharing
+6. **SkyeCalendar** - Unified calendar with scheduling, meeting coordination, and reminders
+
+## File Management & Storage
+
+7. **SkyeDrive** - Cloud storage with file sync, sharing, and version history
+8. **SkyeVault** - Secure password and credential management with team sharing
+
+## Specialized Tools
+
+9. **SkyeForms** - Survey and form builder with response analytics
+10. **SkyeNotes** - Note-taking app with notebooks, tags, and web clipper
+11. **SkyeAnalytics** - Data analysis and reporting dashboard for suite data
+12. **SkyeTasks** - Project management and to-do list with Kanban boards
+
+## Enterprise Features
+
+13. **SkyeAdmin** - Centralized admin console for user management, permissions, and integrations
+
+All apps would share: unified authentication, consistent UI, real-time sync, offline support, and mobile apps.
+
+## Build Backlog (Execution TODO)
+
+1. [x] Finalize shared auth/session model across all Skye apps
+2. [x] Add app-level RBAC roles and permission matrix
+3. [x] Define workspace/file schema updates in `db/schema.sql`
+4. [x] Implement shared left-nav app router in the main UI shell
+5. [x] Add per-app feature flags for staged rollout
+6. [x] Build **SkyeDocs** MVP: rich text + markdown mode + autosave
+7. [x] Build **SkyeSheets** MVP: table grid, formulas, CSV import/export
+8. [x] Build **SkyeSlides** MVP: slide list, editor canvas, presenter mode
+9. [x] Build **SkyeMail** MVP: inbox list, read view, compose/send flow
+10. [x] Build **SkyeChat** MVP: channels, threads, message persistence
+11. [x] Build **SkyeCalendar** MVP: month/week views + event create/edit
+12. [x] Build **SkyeDrive** MVP: upload, version history, share links
+13. [x] Build **SkyeVault** MVP: encrypted secret entries + access controls
+14. [x] Build **SkyeForms** MVP: drag-drop builder + response collector
+15. [x] Build **SkyeNotes** MVP: notebooks, tags, quick capture
+16. [x] Build **SkyeAnalytics** MVP: usage dashboard + KPI widgets
+17. [x] Build **SkyeTasks** MVP: Kanban board + due dates + assignees
+18. [x] Build **SkyeAdmin** MVP: org users, roles, integrations panel
+19. [x] Add global search across docs/files/messages/tasks
+20. [x] Add smoke tests and API checks for every Skye app endpoint
+
+### Status
+
+- Implemented in `src/App.tsx` and `src/styles.css` (all 13 app modules + search + smoke coverage + auth context UI).
+- Auth/RBAC model documented in `SKYE_AUTH_MODEL.md`.
+- Schema extensions implemented in `db/schema.sql`.

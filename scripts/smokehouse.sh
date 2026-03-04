@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SITE_BASE="${1:-${SITE_BASE_URL:-https://kaixusuperidev2.netlify.app}}"
+WORKER_URL="${2:-${WORKER_URL:-}}"
+WS_ID="${WS_ID:-primary-workspace}"
+
+SITE_BASE="${SITE_BASE%/}"
+if [[ -n "$WORKER_URL" ]]; then
+  WORKER_URL="${WORKER_URL%/}"
+fi
+
+echo "SMOKEHOUSE :: $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+echo "Site:   $SITE_BASE"
+echo "Worker: ${WORKER_URL:-<not-set>}"
+echo
+
+pass=0
+fail=0
+
+check() {
+  local name="$1"
+  local method="$2"
+  local url="$3"
+  local body="${4:-}"
+
+  local code
+  if [[ "$method" == "GET" ]]; then
+    code=$(curl -sS -o /tmp/smoke.out -w "%{http_code}" --max-time 30 "$url" || true)
+  else
+    code=$(curl -sS -o /tmp/smoke.out -w "%{http_code}" --max-time 30 -X "$method" -H "Content-Type: application/json" --data "$body" "$url" || true)
+  fi
+
+  if [[ "$code" =~ ^2[0-9][0-9]$ ]]; then
+    echo "PASS  $name :: $method $url -> $code"
+    pass=$((pass+1))
+  else
+    echo "FAIL  $name :: $method $url -> $code"
+    head -c 220 /tmp/smoke.out | tr '\n' ' '; echo
+    fail=$((fail+1))
+  fi
+}
+
+check "Site Root" "GET" "$SITE_BASE/"
+
+if [[ -n "$WORKER_URL" ]]; then
+  check "Worker Health" "GET" "$WORKER_URL/health"
+else
+  echo "SKIP  Worker Health :: WORKER_URL not provided"
+fi
+
+check "Generate API" "POST" "$SITE_BASE/api/kaixu-generate" "{\"ws_id\":\"$WS_ID\",\"prompt\":\"smokehouse ping\",\"activePath\":\"src/App.tsx\",\"files\":[]}"
+check "Auth Me API" "GET" "$SITE_BASE/api/auth-me"
+
+echo
+echo "Summary: PASS=$pass FAIL=$fail"
+if [[ $fail -gt 0 ]]; then
+  exit 1
+fi

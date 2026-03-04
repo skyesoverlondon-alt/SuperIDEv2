@@ -68,3 +68,84 @@ create table if not exists integrations (
   netlify_site_name text,
   updated_at timestamptz not null default now()
 );
+
+-- Shared auth + RBAC memberships across all Skye apps
+create table if not exists org_memberships (
+  id uuid primary key default gen_random_uuid(),
+  org_id uuid not null references orgs(id) on delete cascade,
+  user_id uuid not null references users(id) on delete cascade,
+  role text not null check (role in ('owner','admin','member','viewer')),
+  created_at timestamptz not null default now(),
+  unique (org_id, user_id)
+);
+
+create index if not exists idx_org_memberships_org on org_memberships(org_id);
+
+-- Generic app records to back SkyeDocs/Sheets/Slides/Mail/etc.
+create table if not exists app_records (
+  id uuid primary key default gen_random_uuid(),
+  org_id uuid not null references orgs(id) on delete cascade,
+  ws_id uuid references workspaces(id) on delete cascade,
+  app text not null,
+  title text not null,
+  payload jsonb not null default '{}'::jsonb,
+  created_by uuid references users(id),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists idx_app_records_org_app on app_records(org_id, app, updated_at desc);
+
+-- SkyeTasks board entities
+create table if not exists skye_tasks (
+  id uuid primary key default gen_random_uuid(),
+  org_id uuid not null references orgs(id) on delete cascade,
+  ws_id uuid references workspaces(id) on delete cascade,
+  title text not null,
+  description text,
+  status text not null default 'backlog' check (status in ('backlog','doing','done')),
+  assignee_user_id uuid references users(id),
+  due_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists idx_skye_tasks_org_status on skye_tasks(org_id, status, updated_at desc);
+
+-- Per-app smoke run evidence
+create table if not exists app_smoke_runs (
+  id uuid primary key default gen_random_uuid(),
+  org_id uuid references orgs(id) on delete cascade,
+  app text not null,
+  source text not null default 'manual' check (source in ('manual','auto')),
+  status text not null check (status in ('pass','fail')),
+  detail jsonb not null default '{}'::jsonb,
+  at timestamptz not null default now()
+);
+
+create index if not exists idx_app_smoke_runs_app_at on app_smoke_runs(app, at desc);
+
+-- Machine/API token issuance for automation and external tools.
+create table if not exists api_tokens (
+  id uuid primary key default gen_random_uuid(),
+  org_id uuid not null references orgs(id) on delete cascade,
+  issued_by uuid references users(id),
+  label text,
+  token_hash text not null unique,
+  prefix text not null,
+  locked_email text,
+  scopes_json jsonb not null default '["generate"]'::jsonb,
+  status text not null default 'active' check (status in ('active','revoked')),
+  expires_at timestamptz,
+  last_used_at timestamptz,
+  revoked_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+alter table if exists api_tokens add column if not exists locked_email text;
+alter table if exists api_tokens add column if not exists scopes_json jsonb not null default '["generate"]'::jsonb;
+
+create index if not exists idx_api_tokens_org_created on api_tokens(org_id, created_at desc);
+create index if not exists idx_api_tokens_status on api_tokens(status, expires_at);
+create index if not exists idx_api_tokens_locked_email on api_tokens(locked_email);
+create index if not exists idx_api_tokens_scopes on api_tokens using gin (scopes_json);

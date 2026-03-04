@@ -10,19 +10,26 @@ import crypto from "crypto";
 export async function runnerCall<T>(path: string, payload: any): Promise<T> {
   const base = must("WORKER_RUNNER_URL").replace(/\/+$|\/+/g, "");
   const secret = must("RUNNER_SHARED_SECRET");
+  const accessClientId = process.env.CF_ACCESS_CLIENT_ID || "";
+  const accessClientSecret = process.env.CF_ACCESS_CLIENT_SECRET || "";
   const ts = Date.now().toString();
   const body = JSON.stringify(payload ?? {});
   const canonical = `${ts}\n${path}\n${body}`;
   const hmac = crypto.createHmac("sha256", secret);
   hmac.update(canonical);
   const sig = hmac.digest("base64url");
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    "X-KX-TS": ts,
+    "X-KX-SIG": sig,
+  };
+  if (accessClientId && accessClientSecret) {
+    headers["CF-Access-Client-Id"] = accessClientId;
+    headers["CF-Access-Client-Secret"] = accessClientSecret;
+  }
   const res = await fetch(`${base}${path}`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-KX-TS": ts,
-      "X-KX-SIG": sig,
-    },
+    headers,
     body,
   });
   const text = await res.text();

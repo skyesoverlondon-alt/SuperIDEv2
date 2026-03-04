@@ -20,3 +20,6 @@ r2_buckets = [
 # any origin (not recommended for production).  Replace this
 # value with your actual Netlify site origin.
 ALLOW_ORIGINS = "*"
+ACCESS_AUD = "b1f0c52b5b0c5fa607b02465296c32d1d467aaebe19c68c7b6ac5cd5ac286846"
+ACCESS_JWKS_URL = "https://skyesoverlondon.cloudflareaccess.com/cdn-cgi/access/certs"
+ACCESS_ISSUER = "https://skyesoverlondon.cloudflareaccess.com"

@@ -53,6 +53,8 @@ Set the following environment variables in your Netlify site settings:
 | `KAIXU_APP_TOKEN` | Server token used to call the Kaixu Gateway. |
 | `WORKER_RUNNER_URL` | The URL of your deployed Cloudflare Worker (e.g. `https://kaixu-superide-runner.example.workers.dev`). |
 | `RUNNER_SHARED_SECRET` | A shared secret used to sign and verify calls between Netlify and the Worker. |
+| `CF_ACCESS_CLIENT_ID` | (optional, required when Worker domain is protected by Cloudflare Access service token policy) Access service token client ID. |
+| `CF_ACCESS_CLIENT_SECRET` | (optional, required when Worker domain is protected by Cloudflare Access service token policy) Access service token secret. |
 | `VITE_GITHUB_APP_INSTALL_URL` | (build time) The URL that users will visit to install your GitHub App.  Provided via the frontend build. |
 
 ### Cloudflare Worker secrets
@@ -74,6 +76,21 @@ The Worker also requires two bindings defined in `wrangler.toml`:
 * **KV namespace**: `kaixu-secrets` – used to store encrypted provider tokens.
 * **R2 bucket**: `kaixu-evidence` – used to store evidence ZIP files.
 
+### Cloudflare Access hardening
+
+If you protect the Worker domain with Cloudflare Access, the Worker now validates Access JWTs when `ACCESS_AUD` is configured in Worker vars.
+
+Required Worker vars:
+
+* `ACCESS_AUD`
+* `ACCESS_JWKS_URL`
+* `ACCESS_ISSUER`
+
+For machine-to-machine Netlify Function calls to the protected Worker, configure a Cloudflare Access service token and set these Netlify env vars:
+
+* `CF_ACCESS_CLIENT_ID`
+* `CF_ACCESS_CLIENT_SECRET`
+
 ## Running locally
 
 To run the frontend locally:
@@ -90,3 +107,239 @@ Netlify Functions and the Cloudflare Worker cannot be run directly via `npm run
 * The GitHub push flow expects that the user has installed your GitHub App on the target repository.  The user copies the `installation_id` from the GitHub installation page into the **Connect GitHub** modal.
 * Evidence exports no longer return base64 blobs.  Instead a signed URL pointing at the R2 object is returned.  The frontend opens this URL in a new tab.
 * There are no placeholder strings in this repository.  All configuration values are provided via environment variables and the Worker binding names (`kaixu-secrets`, `kaixu-evidence`).
+
+## Smokehouse & API Playground
+
+The frontend now includes:
+
+* **Smokehouse** panel (in-app) for multi-endpoint health verification.
+* **API Playground** panel (in-app) for manual endpoint/method/header/body testing.
+
+Terminal smoke runner:
+
+```bash
+cd /workspaces/SuperIDEv2
+./scripts/smokehouse.sh https://kaixusuperidev2.netlify.app
+```
+
+To include Worker health in the same run:
+
+```bash
+WORKER_URL="https://<your-worker-domain>.workers.dev" ./scripts/smokehouse.sh https://kaixusuperidev2.netlify.app
+```
+
+See `SMOKEHOUSE.md` for latest recorded smoke output and interpretation.
+
+## SuperIDE + Neural Space Pro Integration
+
+Architecture priority is explicitly enforced:
+
+1. **SuperIDE (Primary app)**
+2. **Neural Space Pro (Secondary app)**
+
+Both app modes are hosted in the same frontend surface and both route AI generation through the same backend function path:
+
+* Frontend path: `/api/kaixu-generate`
+* Netlify function: `netlify/functions/kaixu-generate.ts`
+* Upstream model gateway: `KAIXU_GATEWAY_ENDPOINT`
+
+This means Neural Space Pro mirrors the same governed server-side AI call architecture as the rest of SuperIDE (no client-side provider secrets).
+
+## API Token Issuer (Bulk)
+
+The project now supports org-scoped API tokens for automation.
+
+- `POST /.netlify/functions/token-issue`
+  - Body: `{ "count": 50, "ttl_preset": "quarter", "label_prefix": "batch" }`
+  - Requires authenticated session cookie.
+  - Returns plaintext tokens once (store securely).
+- `GET /.netlify/functions/token-list`
+  - Returns token metadata only (no plaintext).
+- `POST /.netlify/functions/token-revoke`
+  - Body: `{ "id": "<token-id>" }`
+  - Marks token as revoked.
+
+`/.netlify/functions/kaixu-generate` accepts either session cookie auth or `Authorization: Bearer <issued-token>`.
+
+### Email Lock + Master Sequence
+
+- Issued tokens are email-locked by default to the issuer email.
+- Bearer-token calls should include `X-Token-Email: <locked-email>`.
+- `TOKEN_MASTER_SEQUENCE` can bypass email lock checks for emergency/admin flows.
+- To issue unlocked or custom-email-locked tokens, include `token_master_sequence` in the issue request body.
+
+### Token Scopes
+
+- Default scope is `generate`.
+- Supported scopes: `generate`, `deploy`, `export`, `admin`.
+- `kaixu-generate` requires `generate` (or `admin`).
+- Any scope beyond `generate` requires valid `token_master_sequence` at issue time.
+
+Example scoped token request:
+
+- `{ "count": 5, "ttl_preset": "day", "scopes": ["generate", "export"], "token_master_sequence": "<TOKEN_MASTER_SEQUENCE>" }`
+
+Example locked tester token (2 minutes, default lock to current user):
+
+- `{ "count": 1, "ttl_preset": "test_2m", "label_prefix": "tester" }`
+
+Example custom email lock (requires master sequence):
+
+- `{ "count": 1, "ttl_preset": "1h", "locked_email": "qa@yourorg.com", "token_master_sequence": "<TOKEN_MASTER_SEQUENCE>" }`
+
+Example unlocked token (requires master sequence):
+
+- `{ "count": 1, "ttl_preset": "day", "unlock_email_lock": true, "token_master_sequence": "<TOKEN_MASTER_SEQUENCE>" }`
+
+### TTL Presets
+
+`token-issue` now supports strict duration presets that start immediately at issue time.
+
+- `test_2m` (2 minutes)
+- `1h`
+- `5h`
+- `day`
+- `week`
+- `month`
+- `quarter` / `quarterly`
+- `year` / `annual`
+
+Examples:
+
+- 2-minute tester token:
+  - `{ "count": 1, "ttl_preset": "test_2m", "label_prefix": "tester" }`
+- One-hour batch:
+  - `{ "count": 25, "ttl_preset": "1h", "label_prefix": "demo" }`
+- Annual token batch:
+  - `{ "count": 100, "ttl_preset": "annual", "label_prefix": "prod" }`
+
+Optional fallback fields remain supported:
+
+- `ttl_minutes` (1..525600)
+- `ttl_days` (1..365)
+
+### Runtime smoke verification (2026-03-03)
+
+* Netlify endpoint check: `https://kaixu0s.netlify.app/v1/generate`
+  * Returned JSON and gateway/auth-layer error response (`502`) with kAIxU headers.
+  * Confirms route is deployed and handling requests.
+* Worker health check must use your actual deployed Worker URL.
+  * Placeholder/non-existent hostnames (for example `kaixu-superide-runner.workers.dev`) will fail DNS.
+  * Set `VITE_WORKER_RUNNER_URL` and Netlify `WORKER_RUNNER_URL` to the real Worker domain from `wrangler deploy` output.
+
+### Required env alignment
+
+To keep the architecture stable across both apps:
+
+* Netlify
+  * `WORKER_RUNNER_URL` -> exact deployed Worker URL
+  * `KAIXU_GATEWAY_ENDPOINT` -> shared AI gateway
+  * `KAIXU_APP_TOKEN` -> shared server token
+* Frontend build
+  * `VITE_WORKER_RUNNER_URL` -> same Worker URL for smoke panel default
+  * `VITE_DEFAULT_WS_ID` -> default workspace context used by chat UI
+
+## SkyeMail + SkyeChat Integration (Live)
+
+This repo now includes real backend endpoints for mail delivery and chat notifications:
+
+- `POST /.netlify/functions/skymail-send`
+  - Body: `{ "to": "user@example.com", "subject": "...", "text": "...", "channel": "general" }`
+  - Sends email via Resend provider adapter.
+  - Persists mail record in `app_records` with app=`SkyeMail`.
+  - Optional `channel` emits a `SkyeChat` hook record.
+
+- `POST /.netlify/functions/skychat-notify`
+  - Body: `{ "channel": "general", "message": "...", "source": "SkyeChat UI" }`
+  - Persists chat notification in `app_records` with app=`SkyeChat`.
+
+Required Netlify env vars for mail send:
+
+- `RESEND_API_KEY`
+- `SKYE_MAIL_FROM` (recommended; defaults to `SkyeMail <onboarding@resend.dev>`)
+
+SkyeAdmin/SkyeMail/SkyeChat UI in `src/App.tsx` now calls these endpoints directly.
+
+## Skye Standard
+
+Skye Standard is the canonical runtime contract for this repository.
+
+### 1) Runtime Topology
+
+- Client apps (SkyeIDE + additional apps) call Netlify Functions as the auth/policy gate.
+- Netlify Functions call the Cloudflare Worker runner for privileged execution.
+- Worker handles vault + execution + evidence workloads.
+
+### 2) URL Matrix (Canonical)
+
+- Netlify site (current): `https://kaixusuperidev2.netlify.app`
+- Worker health route pattern: `https://<worker-domain>/health`
+- Worker example from smoke docs: `https://kaixu-superide-runner.skyesoverlondon.workers.dev/health`
+- AI generate API from frontend: `/api/kaixu-generate`
+- Token APIs:
+  - `/.netlify/functions/token-issue`
+  - `/.netlify/functions/token-list`
+  - `/.netlify/functions/token-revoke`
+
+### 3) Auth & Token Gate
+
+- Session cookie auth (`kx_session`) is supported.
+- Bearer token auth is supported for automation.
+- Tokens are email-locked by default.
+- Email lock bypass or custom lock requires `TOKEN_MASTER_SEQUENCE`.
+- Scope beyond `generate` requires `TOKEN_MASTER_SEQUENCE`.
+
+### 4) Token TTL Standard
+
+- Supported presets: `test_2m`, `1h`, `5h`, `day`, `week`, `month`, `quarter|quarterly`, `year|annual`.
+- `starts_at` is immediate issue time; `expires_at` is hard stop.
+- Expired tokens are invalid forever unless reissued.
+
+### 5) Token Scope Standard
+
+- Supported scopes: `generate`, `deploy`, `export`, `admin`.
+- `kaixu-generate` requires `generate` or `admin`.
+
+### 6) Worker Standard
+
+- Worker is the hosted execution brain.
+- Netlify remains auth/policy gate.
+- Additional apps can reuse the same Worker if they pass through gate policy.
+
+### 7) SKNore Standard
+
+- SKNore patterns define AI-off-limits files.
+- Protected files are excluded from AI payloads.
+- Protected active file cannot be targeted for AI generation.
+- Architecture doc: `SKNore/ARCHITECTURE.md`.
+
+### 8) Environment Standard
+
+- Netlify envs (minimum):
+  - `NEON_DATABASE_URL`
+  - `KAIXU_GATEWAY_ENDPOINT`
+  - `KAIXU_APP_TOKEN`
+  - `WORKER_RUNNER_URL`
+  - `RUNNER_SHARED_SECRET`
+  - `TOKEN_MASTER_SEQUENCE`
+  - optional Access service-token vars when Worker is Access-protected
+- Worker envs/secrets include:
+  - `RUNNER_SHARED_SECRET`
+  - `NEON_DATABASE_URL`
+  - `EVIDENCE_SIGNING_KEY`
+  - `GITHUB_APP_ID`
+  - `GITHUB_APP_PRIVATE_KEY`
+  - `GITHUB_TOKEN_MASTER_KEY`
+  - `NETLIFY_TOKEN_MASTER_KEY`
+
+### 9) Database Standard
+
+- `api_tokens` includes `locked_email` and `scopes_json`.
+- Apply latest `db/schema.sql` before relying on token lock/scope features.
+
+## Readiness Docs
+
+- Hardening backlog: `docs/HARDENING_TODO.md`
+- Supreme smoke runbook: `docs/SUPREME_SMOKE_RUNBOOK.md`
+- Enterprise device/procurement readiness: `docs/ENTERPRISE_DEVICE_READINESS.md`
+
