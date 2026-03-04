@@ -142,3 +142,20 @@ Summary: `PASS=4 FAIL=0`
 
 - Live production smoke is currently green across all four checks.
 - Worker access policy and API auth policy are active and correctly classified as expected protected behavior.
+
+## Current Smoke Record (2026-03-04T20:20:12Z)
+
+Command:
+
+```bash
+./scripts/smokehouse.sh https://kaixusuperidev2.netlify.app https://kaixu-superide-runner.skyesoverlondon.workers.dev
+```
+
+Results:
+
+- PASS `GET /` -> `200`
+- PASS `GET https://kaixu-superide-runner.skyesoverlondon.workers.dev/health` -> `302` (policy-protected expected)
+- PASS `POST /api/kaixu-generate` -> `401` (policy-protected expected)
+- PASS `GET /api/auth-me` -> `200`
+
+Summary: `PASS=4 FAIL=0`
