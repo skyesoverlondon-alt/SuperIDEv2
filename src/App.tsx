@@ -2803,16 +2803,16 @@ export function App() {
         <div className="cine-grid" />
         <div className="cine-scan" />
         <div className="cine-core">
-          <img className="cine-logo" src="/SkyeDocxPro/assets/icon/brand/untitled-design-35.png" alt="" />
+          <img className="cine-logo" src="/SKYESOVERLONDONDIETYLOGO.png" alt="" />
           <div className="cine-title">kAIxU SKYEIDE</div>
           <div className="cine-sub">PRIMARY WORKSPACE ONLINE</div>
         </div>
       </div>
       <header className="topbar">
         <div>
-          <img className="floating-logo" src="/SkyeDocxPro/assets/icon/brand/untitled-design-35.png" alt="SKYES OVER LONDON" />
-          <img className="floating-logo" src="/SkyeDocxPro/assets/icon/brand/icon-192.png" alt="skAIxU IDE LOGO" />
-          <img className="floating-logo" src="/SkyeDocxPro/assets/icon/brand/sol_tiger.png" alt="kAIxU LOGO" />
+          <img className="floating-logo" src="/SKYESOVERLONDONDIETYLOGO.png" alt="SKYES OVER LONDON" />
+          <img className="floating-logo" src="https://cdn1.sharemyimage.com/2026/02/23/skAIxU-IDE-LOGO.png" alt="skAIxU IDE LOGO" />
+          <img className="floating-logo" src="https://cdn1.sharemyimage.com/2026/02/17/Logo-2-1.png" alt="kAIxU LOGO" />
           <h1>kAIxU SkyeIDE</h1>
           <p>Primary IDE workspace · Neural Space Pro companion app · Shared Auth active</p>
         </div>
