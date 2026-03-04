@@ -811,6 +811,7 @@ export function App() {
   const [skyePassphrase, setSkyePassphrase] = useState("");
   const [skyeEncrypt, setSkyeEncrypt] = useState(true);
   const [isImportingSkye, setIsImportingSkye] = useState(false);
+  const [showTutorialPanel, setShowTutorialPanel] = useState(false);
   const [newFilePath, setNewFilePath] = useState("src/new-file.ts");
   const [ideCommitMessage, setIdeCommitMessage] = useState("SuperIDE workspace update");
   const [ideOpsResult, setIdeOpsResult] = useState("");
@@ -3250,6 +3251,15 @@ export function App() {
 
           {appMode === "skyeide" ? (
             <>
+              <label htmlFor="workspace-id">Workspace ID</label>
+              <input id="workspace-id" value={workspaceId} onChange={(event) => setWorkspaceId(event.target.value)} placeholder="Workspace UUID" />
+
+              <label htmlFor="site-base">Site Base URL</label>
+              <input id="site-base" value={siteBaseUrl} onChange={(event) => setSiteBaseUrl(event.target.value)} placeholder="https://your-site.netlify.app" />
+
+              <label htmlFor="worker-url">Worker URL</label>
+              <input id="worker-url" value={workerUrl} onChange={(event) => setWorkerUrl(event.target.value)} placeholder="https://your-worker.workers.dev" />
+
               <h3>Skye Apps</h3>
               <input
                 value={appSearch}
@@ -3280,15 +3290,6 @@ export function App() {
               <div className="suite-progress">
                 Suite MVP Progress: {completeMvpItems}/{totalMvpItems}
               </div>
-
-              <label htmlFor="workspace-id">Workspace ID</label>
-              <input id="workspace-id" value={workspaceId} onChange={(event) => setWorkspaceId(event.target.value)} placeholder="Workspace UUID" />
-
-              <label htmlFor="site-base">Site Base URL</label>
-              <input id="site-base" value={siteBaseUrl} onChange={(event) => setSiteBaseUrl(event.target.value)} placeholder="https://your-site.netlify.app" />
-
-              <label htmlFor="worker-url">Worker URL</label>
-              <input id="worker-url" value={workerUrl} onChange={(event) => setWorkerUrl(event.target.value)} placeholder="https://your-worker.workers.dev" />
 
               <h3>SKNore (AI protected)</h3>
               <textarea
@@ -3334,6 +3335,11 @@ export function App() {
             <>
               <section className="app-module">
                 <header><h2>IDE Workspace</h2><p>Edit code, manage files, save workspace state, push to GitHub, and trigger Netlify deploys from inside SuperIDE.</p></header>
+                <div className="tool-actions left">
+                  <button className="ghost" type="button" onClick={() => setShowTutorialPanel((old) => !old)}>
+                    {showTutorialPanel ? "Hide Guided Checklist" : "Show Guided Checklist"}
+                  </button>
+                </div>
                 <div className="tool-row split">
                   <input value={newFilePath} onChange={(event) => setNewFilePath(event.target.value)} placeholder="src/new-file.ts" />
                   <div className="tool-actions left">
@@ -3399,7 +3405,7 @@ export function App() {
                   {inviteAcceptResult && <p className="muted-copy">{inviteAcceptResult}</p>}
                 </section>
               )}
-              {renderTutorialPanel(selectedSkyeApp)}
+              {showTutorialPanel && renderTutorialPanel(selectedSkyeApp)}
               <section className="app-module">
                 <header><h2>Project Share</h2><p>Send current workspace updates to teammates via app, chat, and mail.</p></header>
                 <label>Share mode</label>
