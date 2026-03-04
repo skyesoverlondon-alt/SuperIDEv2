@@ -318,6 +318,44 @@ body {
   gap: 8px;
 }
 
+.mode-badge {
+  border-radius: 10px;
+  border: 1px solid rgba(255, 215, 0, 0.42);
+  background: linear-gradient(90deg, rgba(138, 79, 255, 0.2), rgba(255, 215, 0, 0.16));
+  color: #fff3bf;
+  font-size: 0.76rem;
+  padding: 8px 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.neural-sidecard {
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.04);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.neural-shell {
+  min-height: calc(100vh - 140px);
+}
+
+.neural-actions {
+  margin-bottom: 4px;
+}
+
+.neural-frame {
+  width: 100%;
+  min-height: 74vh;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  background: #05040a;
+  box-shadow: inset 0 0 0 1px rgba(138, 79, 255, 0.2);
+}
+
 .switch-btn,
 .app-item,
 .file-item,

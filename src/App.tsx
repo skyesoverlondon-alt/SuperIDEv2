@@ -2839,127 +2839,170 @@ export function App() {
             <button type="button" className={`switch-btn ${appMode === "skyeide" ? "active" : ""}`} onClick={() => setAppMode("skyeide")}>SkyeIDE</button>
             <button type="button" className={`switch-btn ${appMode === "neural" ? "active" : ""}`} onClick={() => setAppMode("neural")}>Neural Space Pro</button>
           </div>
-
-          <h3>Skye Apps</h3>
-          <input
-            value={appSearch}
-            onChange={(event) => setAppSearch(event.target.value)}
-            placeholder="Search apps and modules..."
-            aria-label="search apps"
-          />
-          <div className="app-list">
-            {filteredApps.map((app) => {
-              const done = app.mvp.filter((item) => mvpChecks[makeMvpKey(app.id, item)]).length;
-              return (
-                <button
-                  key={app.id}
-                  type="button"
-                  className={`app-item ${selectedSkyeApp === app.id ? "active" : ""}`}
-                  onClick={() => setSelectedSkyeApp(app.id)}
-                >
-                  <span>{app.id}</span>
-                  <small>{done}/{app.mvp.length}</small>
-                </button>
-              );
-            })}
+          <div className="mode-badge">
+            {appMode === "skyeide" ? `SkyeIDE · ${selectedSkyeApp}` : "Neural Space Pro · Dedicated Workspace"}
           </div>
 
-          <div className="suite-progress">
-            Suite MVP Progress: {completeMvpItems}/{totalMvpItems}
-          </div>
+          {appMode === "skyeide" ? (
+            <>
+              <h3>Skye Apps</h3>
+              <input
+                value={appSearch}
+                onChange={(event) => setAppSearch(event.target.value)}
+                placeholder="Search apps and modules..."
+                aria-label="search apps"
+              />
+              <div className="app-list">
+                {filteredApps.map((app) => {
+                  const done = app.mvp.filter((item) => mvpChecks[makeMvpKey(app.id, item)]).length;
+                  return (
+                    <button
+                      key={app.id}
+                      type="button"
+                      className={`app-item ${selectedSkyeApp === app.id ? "active" : ""}`}
+                      onClick={() => {
+                        setSelectedSkyeApp(app.id);
+                        setAppMode("skyeide");
+                      }}
+                    >
+                      <span>{app.id}</span>
+                      <small>{done}/{app.mvp.length}</small>
+                    </button>
+                  );
+                })}
+              </div>
 
-          <label htmlFor="workspace-id">Workspace ID</label>
-          <input id="workspace-id" value={workspaceId} onChange={(event) => setWorkspaceId(event.target.value)} placeholder="Workspace UUID" />
+              <div className="suite-progress">
+                Suite MVP Progress: {completeMvpItems}/{totalMvpItems}
+              </div>
 
-          <label htmlFor="site-base">Site Base URL</label>
-          <input id="site-base" value={siteBaseUrl} onChange={(event) => setSiteBaseUrl(event.target.value)} placeholder="https://your-site.netlify.app" />
+              <label htmlFor="workspace-id">Workspace ID</label>
+              <input id="workspace-id" value={workspaceId} onChange={(event) => setWorkspaceId(event.target.value)} placeholder="Workspace UUID" />
 
-          <label htmlFor="worker-url">Worker URL</label>
-          <input id="worker-url" value={workerUrl} onChange={(event) => setWorkerUrl(event.target.value)} placeholder="https://your-worker.workers.dev" />
+              <label htmlFor="site-base">Site Base URL</label>
+              <input id="site-base" value={siteBaseUrl} onChange={(event) => setSiteBaseUrl(event.target.value)} placeholder="https://your-site.netlify.app" />
 
-          <h3>SKNore (AI protected)</h3>
-          <textarea
-            value={sknoreText}
-            onChange={(event) => setSknoreText(event.target.value)}
-            rows={6}
-            placeholder="One glob pattern per line"
-          />
-          <div className="suite-progress">Protected files: {sknoreBlockedCount}</div>
+              <label htmlFor="worker-url">Worker URL</label>
+              <input id="worker-url" value={workerUrl} onChange={(event) => setWorkerUrl(event.target.value)} placeholder="https://your-worker.workers.dev" />
 
-          <h3>Files</h3>
-          <div className="file-list">
-            {files.map((file) => (
-              <button key={file.path} type="button" className={`file-item ${file.path === activePath ? "active" : ""}`} onClick={() => setActivePath(file.path)}>
-                {file.path}
-              </button>
-            ))}
-          </div>
+              <h3>SKNore (AI protected)</h3>
+              <textarea
+                value={sknoreText}
+                onChange={(event) => setSknoreText(event.target.value)}
+                rows={6}
+                placeholder="One glob pattern per line"
+              />
+              <div className="suite-progress">Protected files: {sknoreBlockedCount}</div>
+
+              <h3>Files</h3>
+              <div className="file-list">
+                {files.map((file) => (
+                  <button key={file.path} type="button" className={`file-item ${file.path === activePath ? "active" : ""}`} onClick={() => setActivePath(file.path)}>
+                    {file.path}
+                  </button>
+                ))}
+              </div>
+            </>
+          ) : (
+            <section className="neural-sidecard">
+              <h3>Neural Space Pro</h3>
+              <p className="muted-copy">Dedicated cinematic copilot surface with isolated workspace context.</p>
+              <label htmlFor="workspace-id-neural">Workspace ID</label>
+              <input id="workspace-id-neural" value={workspaceId} onChange={(event) => setWorkspaceId(event.target.value)} placeholder="Workspace UUID" />
+              <label htmlFor="worker-url-neural">Worker URL</label>
+              <input id="worker-url-neural" value={workerUrl} onChange={(event) => setWorkerUrl(event.target.value)} placeholder="https://your-worker.workers.dev" />
+              <div className="tool-actions left">
+                <button type="button" className="ghost" onClick={() => setToolTab("assistant")}>Open Assistant</button>
+                <button type="button" className="ghost" onClick={() => setAppMode("skyeide")}>Return to SkyeIDE</button>
+              </div>
+            </section>
+          )}
         </aside>
 
         <main className="editor-pane">
-          <section className="app-module">
-            <header><h2>Secure .skye Package</h2><p>Export and import app state as a `.skye` package (optionally passphrase-encrypted).</p></header>
-            <label>Passphrase (optional, recommended)</label>
-            <input type="password" value={skyePassphrase} onChange={(event) => setSkyePassphrase(event.target.value)} placeholder="Enter passphrase for encrypted .skye" />
-            <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <input type="checkbox" checked={skyeEncrypt} onChange={(event) => setSkyeEncrypt(event.target.checked)} />
-              Encrypt `.skye` package with AES-GCM
-            </label>
-            <div className="tool-actions left">
-              <button className="ghost" type="button" onClick={() => void exportSelectedAppAsSkye()}>
-                Export {selectedSkyeApp} as .skye
-              </button>
-              <button className="ghost" type="button" onClick={() => document.getElementById("skye-import-input")?.click()} disabled={isImportingSkye}>
-                {isImportingSkye ? "Importing..." : "Import .skye"}
-              </button>
-            </div>
-            <input id="skye-import-input" type="file" accept=".skye" style={{ display: "none" }} onChange={onImportSkyeFile} />
-            <p className="muted-copy">Extension-only `.skye` is obscurity; encrypted `.skye` provides cryptographic protection.</p>
-          </section>
-          {inviteToken && (
-            <section className="app-module">
-              <header><h2>Accept Team Invite</h2><p>Create or link your account securely using the invite link.</p></header>
-              <label>Email</label>
-              <input value={inviteAcceptEmail} onChange={(event) => setInviteAcceptEmail(event.target.value)} placeholder="you@company.com" />
-              <label>Create password</label>
-              <input type="password" value={inviteAcceptPassword} onChange={(event) => setInviteAcceptPassword(event.target.value)} placeholder="set your password" />
-              <div className="tool-actions left">
-                <button className="ghost" type="button" onClick={() => void acceptInviteLink()} disabled={isAcceptingInvite}>
-                  {isAcceptingInvite ? "Accepting..." : "Accept Invite"}
-                </button>
+          {appMode === "skyeide" ? (
+            <>
+              <section className="app-module">
+                <header><h2>Secure .skye Package</h2><p>Export and import app state as a `.skye` package (optionally passphrase-encrypted).</p></header>
+                <label>Passphrase (optional, recommended)</label>
+                <input type="password" value={skyePassphrase} onChange={(event) => setSkyePassphrase(event.target.value)} placeholder="Enter passphrase for encrypted .skye" />
+                <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <input type="checkbox" checked={skyeEncrypt} onChange={(event) => setSkyeEncrypt(event.target.checked)} />
+                  Encrypt `.skye` package with AES-GCM
+                </label>
+                <div className="tool-actions left">
+                  <button className="ghost" type="button" onClick={() => void exportSelectedAppAsSkye()}>
+                    Export {selectedSkyeApp} as .skye
+                  </button>
+                  <button className="ghost" type="button" onClick={() => document.getElementById("skye-import-input")?.click()} disabled={isImportingSkye}>
+                    {isImportingSkye ? "Importing..." : "Import .skye"}
+                  </button>
+                </div>
+                <input id="skye-import-input" type="file" accept=".skye" style={{ display: "none" }} onChange={onImportSkyeFile} />
+                <p className="muted-copy">Extension-only `.skye` is obscurity; encrypted `.skye` provides cryptographic protection.</p>
+              </section>
+              {inviteToken && (
+                <section className="app-module">
+                  <header><h2>Accept Team Invite</h2><p>Create or link your account securely using the invite link.</p></header>
+                  <label>Email</label>
+                  <input value={inviteAcceptEmail} onChange={(event) => setInviteAcceptEmail(event.target.value)} placeholder="you@company.com" />
+                  <label>Create password</label>
+                  <input type="password" value={inviteAcceptPassword} onChange={(event) => setInviteAcceptPassword(event.target.value)} placeholder="set your password" />
+                  <div className="tool-actions left">
+                    <button className="ghost" type="button" onClick={() => void acceptInviteLink()} disabled={isAcceptingInvite}>
+                      {isAcceptingInvite ? "Accepting..." : "Accept Invite"}
+                    </button>
+                  </div>
+                  {inviteAcceptResult && <p className="muted-copy">{inviteAcceptResult}</p>}
+                </section>
+              )}
+              {renderTutorialPanel(selectedSkyeApp)}
+              <section className="app-module">
+                <header><h2>Project Share</h2><p>Send current workspace updates to teammates via app, chat, and mail.</p></header>
+                <label>Share mode</label>
+                <select value={shareMode} onChange={(event) => setShareMode(event.target.value as ShareMode)}>
+                  <option value="app">App record only</option>
+                  <option value="chat">SkyeChat</option>
+                  <option value="mail">SkyeMail</option>
+                  <option value="all">Mail + Chat + App</option>
+                </select>
+                <label>Recipient email (required for mail/all)</label>
+                <input value={shareRecipientEmail} onChange={(event) => setShareRecipientEmail(event.target.value)} placeholder="teammate@company.com" list="team-emails" />
+                <datalist id="team-emails">
+                  {adminUsers.map((member) => (
+                    <option key={`share-${member.email}`} value={member.email} />
+                  ))}
+                </datalist>
+                <label>Channel (used for chat/all)</label>
+                <input value={shareChannel} onChange={(event) => setShareChannel(event.target.value)} placeholder="general" />
+                <label>Share note</label>
+                <textarea value={shareNote} onChange={(event) => setShareNote(event.target.value)} rows={3} placeholder="What changed, and what your teammate should do next" />
+                <div className="tool-actions left">
+                  <button className="ghost" type="button" onClick={() => void shareProjectFromIDE()} disabled={isSharingProject}>
+                    {isSharingProject ? "Sharing..." : "Share Workspace Update"}
+                  </button>
+                </div>
+                {shareResult && <p className="muted-copy">{shareResult}</p>}
+              </section>
+              {renderAppModule()}
+            </>
+          ) : (
+            <section className="app-module neural-shell">
+              <header>
+                <h2>Neural Space Pro</h2>
+                <p>Secondary cinematic copilot app in a dedicated panel, fully separated from SkyeIDE module workflows.</p>
+              </header>
+              <div className="tool-actions left neural-actions">
+                <a className="ghost" href="/Neural-Space-Pro/index.html" target="_blank" rel="noreferrer">Open Standalone</a>
+                <button className="ghost" type="button" onClick={() => setAppMode("skyeide")}>Back to SkyeIDE</button>
               </div>
-              {inviteAcceptResult && <p className="muted-copy">{inviteAcceptResult}</p>}
+              <iframe
+                title="Neural Space Pro"
+                src="/Neural-Space-Pro/index.html"
+                className="neural-frame"
+              />
             </section>
           )}
-          {renderTutorialPanel(selectedSkyeApp)}
-          <section className="app-module">
-            <header><h2>Project Share</h2><p>Send current workspace updates to teammates via app, chat, and mail.</p></header>
-            <label>Share mode</label>
-            <select value={shareMode} onChange={(event) => setShareMode(event.target.value as ShareMode)}>
-              <option value="app">App record only</option>
-              <option value="chat">SkyeChat</option>
-              <option value="mail">SkyeMail</option>
-              <option value="all">Mail + Chat + App</option>
-            </select>
-            <label>Recipient email (required for mail/all)</label>
-            <input value={shareRecipientEmail} onChange={(event) => setShareRecipientEmail(event.target.value)} placeholder="teammate@company.com" list="team-emails" />
-            <datalist id="team-emails">
-              {adminUsers.map((member) => (
-                <option key={`share-${member.email}`} value={member.email} />
-              ))}
-            </datalist>
-            <label>Channel (used for chat/all)</label>
-            <input value={shareChannel} onChange={(event) => setShareChannel(event.target.value)} placeholder="general" />
-            <label>Share note</label>
-            <textarea value={shareNote} onChange={(event) => setShareNote(event.target.value)} rows={3} placeholder="What changed, and what your teammate should do next" />
-            <div className="tool-actions left">
-              <button className="ghost" type="button" onClick={() => void shareProjectFromIDE()} disabled={isSharingProject}>
-                {isSharingProject ? "Sharing..." : "Share Workspace Update"}
-              </button>
-            </div>
-            {shareResult && <p className="muted-copy">{shareResult}</p>}
-          </section>
-          {renderAppModule()}
         </main>
 
         <aside className="chat-pane">
