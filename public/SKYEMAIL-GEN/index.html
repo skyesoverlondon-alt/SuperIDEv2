@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SKYEMAIL GEN</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Three.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- jsPDF for PDF generation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+  <style>
+    :root {
+      --gold-primary: #D4AF37;
+      --gold-glow: rgba(212, 175, 55, 0.6);
+      --gold-dark: #B8860B;
+    }
+
+    @keyframes float-pulse-glow-blue {
+      0%, 100% {
+        transform: translateY(0) scale(1);
+        filter: drop-shadow(0 0 15px rgba(0, 243, 255, 0.5));
+      }
+      50% {
+        transform: translateY(-20px) scale(1.04);
+        filter: drop-shadow(0 0 35px rgba(0, 243, 255, 0.9));
+      }
+    }
+    
+    @keyframes float-pulse-glow-gold {
+      0%, 100% {
+        transform: translateY(0) scale(1);
+        filter: drop-shadow(0 0 15px rgba(212, 175, 55, 0.5));
+      }
+      50% {
+        transform: translateY(-10px) scale(1.04);
+        filter: drop-shadow(0 0 30px rgba(212, 175, 55, 1));
+      }
+    }
+
+    .neon-gold-border-app {
+      border: 4px solid var(--gold-primary);
+      box-shadow: inset 0 0 40px var(--gold-glow), 0 0 30px var(--gold-glow);
+    }
+
+    .neon-gold-text {
+      color: #fff;
+      text-shadow: 0 0 10px var(--gold-primary), 0 0 20px var(--gold-primary), 0 0 40px var(--gold-dark);
+    }
+
+    .neon-panel {
+      background: rgba(15, 15, 15, 0.85);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(212, 175, 55, 0.3);
+      box-shadow: 0 0 25px rgba(212, 175, 55, 0.15), inset 0 0 15px rgba(212, 175, 55, 0.08);
+    }
+
+    .neon-input-wrapper {
+      background: rgba(0, 0, 0, 0.6);
+      border: 1px solid rgba(212, 175, 55, 0.3);
+      transition: all 0.3s ease;
+    }
+    .neon-input-wrapper:focus-within {
+      border-color: var(--gold-primary);
+      box-shadow: 0 0 20px var(--gold-glow), inset 0 0 10px rgba(212, 175, 55, 0.2);
+    }
+
+    .neon-btn-primary {
+      background: linear-gradient(135deg, #D4AF37 0%, #B8860B 100%);
+      color: #000;
+      box-shadow: 0 0 15px rgba(212, 175, 55, 0.5);
+      transition: all 0.3s ease;
+      border: none;
+      cursor: pointer;
+    }
+    .neon-btn-primary:hover:not(:disabled) {
+      background: linear-gradient(135deg, #F4E27E 0%, #D4AF37 100%);
+      box-shadow: 0 0 30px rgba(212, 175, 55, 0.9);
+      transform: translateY(-2px);
+    }
+    .neon-btn-primary:disabled {
+      background: #222;
+      color: #555;
+      box-shadow: none;
+      border: 1px solid #333;
+      cursor: not-allowed;
+    }
+
+    .neon-btn-secondary {
+      background: rgba(0, 0, 0, 0.5);
+      border: 1px solid var(--gold-primary);
+      color: var(--gold-primary);
+      box-shadow: 0 0 10px rgba(212, 175, 55, 0.2);
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+    .neon-btn-secondary:hover:not(:disabled) {
+      background: rgba(212, 175, 55, 0.15);
+      box-shadow: 0 0 25px rgba(212, 175, 55, 0.6), inset 0 0 15px rgba(212, 175, 55, 0.3);
+      color: #fff;
+    }
+    .neon-btn-secondary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: rgba(0,0,0,0.3);
+      border-radius: 10px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: rgba(212, 175, 55, 0.4);
+      border-radius: 10px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: rgba(212, 175, 55, 0.8);
+    }
+
+    .lucide {
+      width: 1em;
+      height: 1em;
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-black text-slate-200 p-4 sm:p-6 lg:p-8 font-sans relative overflow-x-hidden neon-gold-border-app">
+  
+  <!-- 3D Background Container -->
+  <div id="canvas-container" class="fixed inset-0 z-0 pointer-events-none opacity-80 mix-blend-screen"></div>
+
+  <!-- Floating Founder Image -->
+  <img 
+    src="https://cdn1.sharemyimage.com/2026/03/03/Gemini_Generated_Image_5aft6s5aft6s5aft-1.png" 
+    alt="Founder" 
+    class="absolute right-[-10%] sm:right-[-5%] lg:right-[2%] xl:right-[5%] top-[-2%] sm:top-[0%] lg:top-[2%] xl:top-[4%] w-64 sm:w-80 lg:w-[450px] xl:w-[550px] 2xl:w-[650px] object-contain pointer-events-none select-none z-0 opacity-70 sm:opacity-90"
+    style="animation: float-pulse-glow-blue 4s ease-in-out infinite"
+  />
+
+  <!-- Main Container -->
+  <div class="flex flex-col min-h-[calc(100vh-4rem)] relative z-10">
+    
+    <div class="flex-1 w-full pt-4 lg:pt-12 px-2 sm:px-0 space-y-12">
+
+      <div class="w-full max-w-2xl mx-auto lg:mx-0 lg:ml-[5%] xl:ml-[12%] space-y-8 relative z-10">
+
+        <!-- Header -->
+        <div class="text-center lg:text-left space-y-3 flex flex-col items-center lg:items-start">
+          <img 
+            src="https://cdn1.sharemyimage.com/2026/02/16/logo1_transparent.png" 
+            alt="SKYEMAIL GEN Logo" 
+            class="w-32 h-32 sm:w-36 sm:h-36 object-contain pointer-events-none select-none mb-4"
+            style="animation: float-pulse-glow-gold 4s ease-in-out infinite"
+          />
+          <h1 class="text-4xl sm:text-5xl font-extrabold tracking-widest uppercase neon-gold-text">SKYEMAIL GEN</h1>
+          <p class="text-slate-400 max-w-md mx-auto lg:mx-0 drop-shadow-md">Generate random prefixes and customize your domain. Save your creations to the list below for easy copying.</p>
+        </div>
+
+        <!-- Generator Card -->
+        <div class="neon-panel rounded-3xl p-6 sm:p-8">
+          <div class="flex flex-col sm:flex-row items-stretch gap-4 mb-8">
+            <!-- Prefix Section (Now Editable) -->
+            <div class="flex-1 space-y-2">
+              <label class="text-sm font-bold text-[#D4AF37] uppercase tracking-wider drop-shadow-[0_0_5px_rgba(212,175,55,0.5)]">Prefix (Custom/Auto)</label>
+              <div class="flex items-center rounded-xl neon-input-wrapper">
+                <input 
+                  type="text" 
+                  id="prefix-input"
+                  placeholder="custom_prefix"
+                  class="w-full bg-transparent px-4 py-3 outline-none text-white font-medium"
+                />
+                <button 
+                  onclick="generatePrefix()"
+                  class="p-3 text-[#D4AF37] hover:text-white hover:drop-shadow-[0_0_10px_rgba(212,175,55,1)] transition-all rounded-r-xl"
+                  title="Generate random prefix"
+                >
+                  <i data-lucide="refresh-cw" style="width: 20px; height: 20px;"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- At Symbol -->
+            <div class="hidden sm:flex items-center pt-8 justify-center">
+              <span class="text-2xl font-light text-[#D4AF37] drop-shadow-[0_0_8px_rgba(212,175,55,0.8)]">@</span>
+            </div>
+
+            <!-- Domain Section -->
+            <div class="flex-1 space-y-2">
+              <label class="text-sm font-bold text-[#D4AF37] uppercase tracking-wider text-left sm:text-right flex justify-between drop-shadow-[0_0_5px_rgba(212,175,55,0.5)]">
+                <span>Domain (Custom)</span>
+                <span class="sm:hidden text-[#D4AF37] font-light">@</span>
+              </label>
+              <div class="flex items-center rounded-xl neon-input-wrapper">
+                <div class="pl-4 pr-1 text-[#D4AF37] sm:hidden">@</div>
+                <input 
+                  type="text" 
+                  id="domain-input"
+                  value="example.com"
+                  placeholder="example.com"
+                  class="w-full bg-transparent px-4 sm:pl-4 sm:pr-4 py-3 outline-none text-white font-medium placeholder-slate-600"
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- Result Display -->
+          <div class="bg-black/80 border border-[#D4AF37]/40 rounded-2xl p-6 flex flex-col sm:flex-row items-center justify-between gap-6 text-white shadow-[0_0_30px_rgba(0,0,0,0.8)_inset]">
+            <div class="flex-1 text-center sm:text-left overflow-hidden">
+              <p class="text-sm text-[#D4AF37] mb-2 font-medium tracking-wide uppercase">Current Address</p>
+              <p class="text-xl sm:text-2xl font-mono truncate w-full" id="current-email-title">
+                <span class="text-cyan-400 drop-shadow-[0_0_8px_rgba(0,243,255,0.8)]" id="display-prefix"></span>
+                <span class="text-[#D4AF37] mx-1">@</span>
+                <span class="text-white drop-shadow-[0_0_5px_rgba(255,255,255,0.5)]" id="display-domain">example.com</span>
+              </p>
+            </div>
+            
+            <div class="flex gap-3 w-full sm:w-auto">
+              <button id="copy-main-btn" class="neon-btn-secondary px-5 py-3 rounded-xl font-medium flex-1 sm:flex-none flex items-center justify-center gap-2">
+                <i data-lucide="copy" style="width: 18px; height: 18px;" id="copy-main-icon"></i>
+                <span id="copy-main-text">Copy</span>
+              </button>
+              <button id="save-btn" class="neon-btn-primary px-6 py-3 rounded-xl font-bold flex-1 sm:flex-none flex items-center justify-center gap-2">
+                <i data-lucide="save" style="width: 18px; height: 18px;"></i> Save
+              </button>
+            </div>
+          </div>
+
+          <!-- PDF Export Section -->
+          <div class="mt-6 pt-6 border-t border-[#D4AF37]/20 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-3 w-full sm:w-auto">
+              <input type="file" id="image-upload" accept="image/*" class="hidden" />
+              <button onclick="document.getElementById('image-upload').click()" class="neon-btn-secondary px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 w-full sm:w-auto justify-center">
+                <i data-lucide="image" style="width: 16px; height: 16px;"></i> Upload Photo for PDF
+              </button>
+              <span id="upload-status" class="text-xs text-green-400 font-bold opacity-0 transition-opacity flex items-center gap-1">
+                <i data-lucide="check-circle" style="width: 14px; height: 14px;"></i> Ready
+              </span>
+            </div>
+            <button id="generate-pdf-btn" disabled class="neon-btn-primary px-5 py-2 rounded-xl text-sm font-bold flex items-center gap-2 w-full sm:w-auto justify-center">
+              <i data-lucide="file-text" style="width: 16px; height: 16px;"></i> Download PDF
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Saved List -->
+      <div class="w-full max-w-3xl mx-auto space-y-4 relative z-10">
+        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 px-2">
+          <h2 class="text-xl font-bold flex items-center gap-2 text-[#D4AF37] drop-shadow-[0_0_8px_rgba(212,175,55,0.5)]">
+            <i data-lucide="chevron-right" class="text-[#D4AF37]" style="width: 20px; height: 20px;"></i>
+            Saved Addresses
+            <span id="saved-count" class="bg-[#D4AF37]/20 border border-[#D4AF37]/50 text-[#D4AF37] text-xs py-1 px-2.5 rounded-full ml-2 shadow-[0_0_10px_rgba(212,175,55,0.3)]">0</span>
+          </h2>
+          
+          <button id="export-btn" class="neon-btn-secondary px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all hover:scale-105 hidden">
+            <i data-lucide="download" style="width: 16px; height: 16px;"></i> Export to TXT
+          </button>
+        </div>
+        
+        <div id="empty-state" class="bg-transparent border-2 border-dashed border-[#D4AF37]/30 rounded-3xl p-12 text-center text-slate-500 flex flex-col items-center gap-3">
+          <i data-lucide="mail" class="text-[#D4AF37]/50" style="width: 40px; height: 40px; stroke-width: 1;"></i>
+          <p>Your saved email addresses will appear here.</p>
+        </div>
+
+        <div id="saved-list-container" class="neon-panel rounded-3xl overflow-hidden hidden">
+          <ul id="saved-list" class="divide-y divide-[#D4AF37]/20"></ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- BOTTOM SECTION: Full Screen Contact & Network Footer -->
+    <div class="w-full max-w-[1400px] mx-auto mt-16 space-y-8 pb-8 px-2 sm:px-0">
+      
+      <!-- Contact Information Banner -->
+      <div class="neon-panel rounded-3xl p-6 sm:p-8 flex flex-col lg:flex-row items-center justify-between gap-6 shadow-[0_0_20px_rgba(212,175,55,0.1)]">
+        <h3 class="text-xl font-bold text-[#D4AF37] uppercase tracking-wider drop-shadow-[0_0_5px_rgba(212,175,55,0.5)] flex items-center gap-3 shrink-0">
+          <i data-lucide="phone" class="text-[#D4AF37]" style="width: 24px; height: 24px;"></i> Contact Info
+        </h3>
+        <div class="flex flex-col md:flex-row items-center justify-center gap-6 lg:gap-10 text-sm w-full lg:w-auto">
+          <a href="tel:4804695416" class="flex items-center gap-3 text-slate-300 hover:text-white hover:drop-shadow-[0_0_5px_rgba(255,255,255,0.8)] transition-all group">
+            <div class="bg-[#D4AF37]/10 p-2.5 rounded-xl border border-[#D4AF37]/30 group-hover:border-[#D4AF37] group-hover:bg-[#D4AF37]/20 transition-all">
+              <i data-lucide="phone" class="text-cyan-400 drop-shadow-[0_0_5px_rgba(0,243,255,0.8)]" style="width: 18px; height: 18px;"></i>
+            </div>
+            <span class="font-mono text-base">(480) 469-5416</span>
+          </a>
+          <a href="mailto:SkyesOverLondonLC@SOLEnterprises.org" class="flex items-center gap-3 text-slate-300 hover:text-white hover:drop-shadow-[0_0_5px_rgba(255,255,255,0.8)] transition-all group">
+            <div class="bg-[#D4AF37]/10 p-2.5 rounded-xl border border-[#D4AF37]/30 group-hover:border-[#D4AF37] group-hover:bg-[#D4AF37]/20 transition-all shrink-0">
+              <i data-lucide="mail" class="text-cyan-400 drop-shadow-[0_0_5px_rgba(0,243,255,0.8)]" style="width: 18px; height: 18px;"></i>
+            </div>
+            <span class="text-sm sm:text-base leading-tight">SkyesOverLondonLC@SOLEnterprises.org</span>
+          </a>
+          <a href="mailto:SkyesOverLondon@gmail.com" class="flex items-center gap-3 text-slate-300 hover:text-white hover:drop-shadow-[0_0_5px_rgba(255,255,255,0.8)] transition-all group">
+            <div class="bg-[#D4AF37]/10 p-2.5 rounded-xl border border-[#D4AF37]/30 group-hover:border-[#D4AF37] group-hover:bg-[#D4AF37]/20 transition-all shrink-0">
+              <i data-lucide="mail" class="text-cyan-400 drop-shadow-[0_0_5px_rgba(0,243,255,0.8)]" style="width: 18px; height: 18px;"></i>
+            </div>
+            <span class="text-sm sm:text-base leading-tight">SkyesOverLondon@gmail.com</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- Network Links Full Width Grid -->
+      <div class="neon-panel rounded-3xl p-6 sm:p-8 w-full shadow-[0_0_20px_rgba(212,175,55,0.1)]">
+        <h3 class="text-xl font-bold text-[#D4AF37] uppercase tracking-wider drop-shadow-[0_0_5px_rgba(212,175,55,0.5)] flex items-center gap-3 border-b border-[#D4AF37]/20 pb-4 mb-6">
+          <i data-lucide="globe" class="text-[#D4AF37]" style="width: 24px; height: 24px;"></i> The Skye Network
+        </h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4" id="network-links-container">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <script>
+    // --- Application State ---
+    const adjectives = ['swift', 'cool', 'dark', 'light', 'super', 'mega', 'hyper', 'blue', 'red', 'green', 'sly', 'brave', 'clever', 'lucky', 'quiet', 'bold', 'fuzzy', 'wild', 'calm', 'neon'];
+    const nouns = ['fox', 'cat', 'dog', 'lion', 'tiger', 'bear', 'wolf', 'dragon', 'eagle', 'shark', 'falcon', 'viper', 'panda', 'koala', 'hawk', 'raven', 'owl', 'lynx', 'puma', 'byte'];
+    
+    const networkLinks = [
+      { name: "Skye Sol", url: "https://skyesol.netlify.app/" },
+      { name: "Skyeletix", url: "https://skyeletix.netlify.app" },
+      { name: "Northstar Office & Accounting", url: "https://northstarofficexaccounting.netlify.app" },
+      { name: "Sole Nexus", url: "https://sole-nexus.netlify.app" },
+      { name: "SOL Enterprises Nexus Connect", url: "https://solenterprisesnexusconnect.netlify.app/" },
+      { name: "Skye Family Hub", url: "https://skyefamilyhub.netlify.app/" },
+      { name: "Sentinel Web Authority", url: "https://sentinelwebauthority.netlify.app/" },
+      { name: "Solente AI Skyes", url: "https://solenteaiskyes.netlify.app/" },
+      { name: "Family Command", url: "https://familycommand.netlify.app/" },
+      { name: "SkyeCode Nexus", url: "https://skyecode-nexus.netlify.app/" },
+      { name: "Skyes Over London", url: "https://skyesoverlondon.netlify.app/" },
+      { name: "SOL Enterprises SkyeWeb", url: "https://solenterprises.org/pages/skyeweb" }
+    ];
+
+    let currentPrefix = '';
+    let currentDomain = 'example.com';
+    let savedEmails = [];
+    let copiedIndex = null;
+    let uploadedImageDataUrl = null;
+
+    // --- DOM Elements ---
+    const prefixInput = document.getElementById('prefix-input');
+    const domainInput = document.getElementById('domain-input');
+    const displayPrefix = document.getElementById('display-prefix');
+    const displayDomain = document.getElementById('display-domain');
+    const currentEmailTitle = document.getElementById('current-email-title');
+    const saveBtn = document.getElementById('save-btn');
+    const copyMainBtn = document.getElementById('copy-main-btn');
+    const copyMainIcon = document.getElementById('copy-main-icon');
+    const copyMainText = document.getElementById('copy-main-text');
+    
+    const imageUpload = document.getElementById('image-upload');
+    const generatePdfBtn = document.getElementById('generate-pdf-btn');
+    const uploadStatus = document.getElementById('upload-status');
+
+    const savedCount = document.getElementById('saved-count');
+    const emptyState = document.getElementById('empty-state');
+    const savedListContainer = document.getElementById('saved-list-container');
+    const savedList = document.getElementById('saved-list');
+    const exportBtn = document.getElementById('export-btn');
+
+    // --- IndexedDB Logic ---
+    const DB_NAME = 'SkyEmailGenDB';
+    const STORE_NAME = 'emails';
+
+    const initDB = () => {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, 1);
+        request.onupgradeneeded = (e) => {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains(STORE_NAME)) {
+            db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+          }
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+    };
+
+    const loadEmailsFromDB = async () => {
+      try {
+        const db = await initDB();
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction(STORE_NAME, 'readonly');
+          const store = tx.objectStore(STORE_NAME);
+          const request = store.getAll();
+          request.onsuccess = () => {
+            resolve(request.result.sort((a, b) => b.id - a.id));
+          };
+          request.onerror = () => reject(request.error);
+        });
+      } catch (err) {
+        console.warn('IndexedDB unavailable', err);
+        return [];
+      }
+    };
+
+    const saveEmailToDB = async (emailObj) => {
+      try {
+        const db = await initDB();
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        tx.objectStore(STORE_NAME).put(emailObj);
+      } catch (err) {
+        console.warn('IndexedDB unavailable', err);
+      }
+    };
+
+    const deleteEmailFromDB = async (id) => {
+      try {
+        const db = await initDB();
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        tx.objectStore(STORE_NAME).delete(id);
+      } catch (err) {
+        console.warn('IndexedDB unavailable', err);
+      }
+    };
+
+    // --- Core Functions ---
+    const generatePrefix = () => {
+      const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
+      const noun = nouns[Math.floor(Math.random() * nouns.length)];
+      const num = Math.floor(Math.random() * 900) + 100; 
+      const separator = Math.random() > 0.6 ? '_' : Math.random() > 0.5 ? '.' : '';
+      updatePrefix(`${adj}${separator}${noun}${num}`);
+    };
+
+    const updatePrefix = (newVal) => {
+      currentPrefix = newVal.replace(/\s+/g, ''); // Removes spaces
+      prefixInput.value = currentPrefix;
+      displayPrefix.textContent = currentPrefix || '...';
+      updateFullEmailTitle();
+      resetMainCopyButton();
+    };
+
+    const updateDomain = (e) => {
+      currentDomain = e.target.value.replace(/[^a-zA-Z0-9.-]/g, '');
+      domainInput.value = currentDomain;
+      displayDomain.textContent = currentDomain || '...';
+      saveBtn.disabled = !currentDomain;
+      updateFullEmailTitle();
+      resetMainCopyButton();
+    };
+
+    const updateFullEmailTitle = () => {
+      currentEmailTitle.title = `${currentPrefix}@${currentDomain}`;
+    };
+
+    const getFullCurrentEmail = () => `${currentPrefix}@${currentDomain}`;
+
+    const resetMainCopyButton = () => {
+      copyMainIcon.setAttribute('data-lucide', 'copy');
+      copyMainIcon.className = 'text-white';
+      copyMainText.textContent = 'Copy';
+      lucide.createIcons();
+    };
+
+    // --- Action Handlers ---
+    prefixInput.addEventListener('input', (e) => updatePrefix(e.target.value));
+    domainInput.addEventListener('input', updateDomain);
+
+    saveBtn.addEventListener('click', () => {
+      if (!currentDomain || !currentPrefix) return;
+      const fullEmail = getFullCurrentEmail();
+      if (!savedEmails.some(item => item.email === fullEmail)) {
+        const newItem = { email: fullEmail, id: Date.now() };
+        savedEmails.unshift(newItem); // Add to beginning
+        saveEmailToDB(newItem);
+        renderSavedList();
+      }
+    });
+
+    copyMainBtn.addEventListener('click', () => {
+      if(!currentPrefix) return;
+      copyToClipboard(getFullCurrentEmail());
+      copyMainIcon.setAttribute('data-lucide', 'check');
+      copyMainIcon.className = 'text-green-400 drop-shadow-[0_0_5px_rgba(74,222,128,0.8)]';
+      copyMainText.textContent = 'Copied';
+      lucide.createIcons();
+      setTimeout(resetMainCopyButton, 2000);
+    });
+
+    exportBtn.addEventListener('click', () => {
+      if (savedEmails.length === 0) return;
+      const content = savedEmails.map(item => item.email).join('\n');
+      const blob = new Blob([content], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'skyemail_export.txt';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    });
+
+    // --- PDF Image Upload Logic ---
+    imageUpload.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          uploadedImageDataUrl = event.target.result;
+          uploadStatus.style.opacity = '1';
+          generatePdfBtn.disabled = false;
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
+    // --- PDF Generation Logic ---
+    generatePdfBtn.addEventListener('click', async () => {
+      if (!uploadedImageDataUrl || !currentPrefix) return;
+      
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+      // Dark background to match neon theme
+      doc.setFillColor(15, 15, 15);
+      doc.rect(0, 0, 210, 297, 'F');
+
+      // Gold Border
+      doc.setDrawColor(212, 175, 55);
+      doc.setLineWidth(2);
+      doc.rect(10, 10, 190, 277);
+
+      // Title & Branding
+      doc.setTextColor(212, 175, 55);
+      doc.setFontSize(26);
+      doc.setFont('helvetica', 'bold');
+      doc.text("SKYEMAIL GEN IDENTITY", 105, 30, { align: "center" });
+      
+      doc.setFontSize(12);
+      doc.setTextColor(150, 150, 150);
+      doc.text("Official Verified Digital Configuration", 105, 40, { align: "center" });
+
+      // Add The Email (Cyan style)
+      doc.setTextColor(0, 243, 255);
+      doc.setFontSize(24);
+      doc.text(getFullCurrentEmail(), 105, 65, { align: "center" });
+
+      // Process & Draw Image centered
+      try {
+        const img = new Image();
+        img.src = uploadedImageDataUrl;
+        await new Promise(resolve => img.onload = resolve);
+        
+        const maxWidth = 120; // max width in mm
+        const maxHeight = 120; 
+        let imgWidth = img.width;
+        let imgHeight = img.height;
+        
+        // Scale to fit
+        const ratio = Math.min(maxWidth / imgWidth, maxHeight / imgHeight);
+        imgWidth = imgWidth * ratio;
+        imgHeight = imgHeight * ratio;
+        
+        const xPos = (210 - imgWidth) / 2;
+        const yPos = 90;
+
+        doc.addImage(uploadedImageDataUrl, 'JPEG', xPos, yPos, imgWidth, imgHeight);
+        
+        // Add a gold frame around the uploaded image
+        doc.setDrawColor(212, 175, 55);
+        doc.setLineWidth(1);
+        doc.rect(xPos - 3, yPos - 3, imgWidth + 6, imgHeight + 6);
+      } catch (e) {
+        console.error("Failed to add image to PDF", e);
+      }
+
+      // Footer
+      doc.setTextColor(80, 80, 80);
+      doc.setFontSize(10);
+      doc.text(`Certificate Generated: ${new Date().toLocaleString()}`, 105, 275, { align: "center" });
+
+      // Download
+      doc.save(`Skyemail_${currentPrefix}.pdf`);
+    });
+
+    // --- Utility ---
+    window.handleDelete = (id) => {
+      savedEmails = savedEmails.filter(item => item.id !== id);
+      deleteEmailFromDB(id);
+      renderSavedList();
+    };
+
+    window.handleCopyList = (email, id) => {
+      copyToClipboard(email);
+      copiedIndex = id;
+      renderSavedList();
+      setTimeout(() => {
+        copiedIndex = null;
+        renderSavedList();
+      }, 2000);
+    };
+
+    const copyToClipboard = (text) => {
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      textArea.style.top = "0";
+      textArea.style.left = "0";
+      textArea.style.position = "fixed";
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      try {
+        document.execCommand('copy');
+      } catch (err) {
+        console.error('Fallback: Oops, unable to copy', err);
+      }
+      document.body.removeChild(textArea);
+    };
+
+    // --- Rendering ---
+    const renderSavedList = () => {
+      savedCount.textContent = savedEmails.length;
+      
+      if (savedEmails.length === 0) {
+        emptyState.classList.remove('hidden');
+        savedListContainer.classList.add('hidden');
+        exportBtn.classList.add('hidden');
+      } else {
+        emptyState.classList.add('hidden');
+        savedListContainer.classList.remove('hidden');
+        exportBtn.classList.remove('hidden');
+        exportBtn.classList.add('flex');
+        
+        savedList.innerHTML = savedEmails.map(item => {
+          const isCopied = copiedIndex === item.id;
+          const btnClass = isCopied 
+            ? 'bg-green-500/20 text-green-400 border border-green-500 shadow-[0_0_15px_rgba(34,197,94,0.4)]' 
+            : 'neon-btn-secondary';
+          const iconName = isCopied ? 'check' : 'copy';
+          const btnText = isCopied ? 'Copied!' : 'Copy';
+
+          return `
+            <li class="group p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 hover:bg-[#D4AF37]/5 transition-colors">
+              <div class="font-mono text-slate-300 group-hover:text-white group-hover:drop-shadow-[0_0_5px_rgba(255,255,255,0.4)] transition-all truncate w-full sm:w-auto text-lg">
+                ${item.email}
+              </div>
+              <div class="flex items-center gap-3 w-full sm:w-auto">
+                <button
+                  onclick="handleCopyList('${item.email}', ${item.id})"
+                  class="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${btnClass}"
+                >
+                  <i data-lucide="${iconName}" style="width: 16px; height: 16px;"></i>
+                  ${btnText}
+                </button>
+                <button
+                  onclick="handleDelete(${item.id})"
+                  class="p-2 text-slate-500 hover:text-red-400 hover:bg-red-500/10 hover:shadow-[0_0_15px_rgba(248,113,113,0.4)] rounded-lg transition-all"
+                  title="Delete"
+                >
+                  <i data-lucide="trash-2" style="width: 18px; height: 18px;"></i>
+                </button>
+              </div>
+            </li>
+          `;
+        }).join('');
+      }
+      
+      lucide.createIcons();
+    };
+
+    const renderNetworkLinks = () => {
+      const container = document.getElementById('network-links-container');
+      container.innerHTML = networkLinks.map(link => `
+        <a 
+          href="${link.url}" 
+          target="_blank" 
+          rel="noopener noreferrer" 
+          class="group flex items-center justify-between p-4 rounded-xl bg-black/60 border border-[#D4AF37]/20 hover:border-[#D4AF37] hover:bg-[#D4AF37]/10 hover:shadow-[0_0_20px_rgba(212,175,55,0.3)] hover:-translate-y-1 transition-all duration-300"
+        >
+          <span class="text-[14px] sm:text-[15px] font-bold text-slate-300 group-hover:text-white truncate pr-3">${link.name}</span>
+          <i data-lucide="external-link" class="text-[#D4AF37] opacity-50 group-hover:opacity-100 group-hover:drop-shadow-[0_0_8px_rgba(212,175,55,0.8)] shrink-0 transition-all" style="width: 16px; height: 16px;"></i>
+        </a>
+      `).join('');
+    };
+
+    // --- Initialization ---
+    window.onload = async () => {
+      // 1. Initialize Icons
+      lucide.createIcons();
+
+      // 2. Load DB and setup UI
+      generatePrefix();
+      renderNetworkLinks();
+      
+      const loadedEmails = await loadEmailsFromDB();
+      if (loadedEmails && loadedEmails.length > 0) {
+        savedEmails = loadedEmails;
+        renderSavedList();
+      }
+
+      // 3. Initialize Three.js Background
+      initThreeJS();
+    };
+
+    // --- Three.js Implementation ---
+    const initThreeJS = () => {
+      if (!window.THREE) return;
+
+      const container = document.getElementById('canvas-container');
+      const scene = new THREE.Scene();
+      scene.fog = new THREE.FogExp2(0x000000, 0.025);
+
+      const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+      camera.position.z = 25;
+
+      const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      container.appendChild(renderer.domElement);
+
+      const geometries = [
+        new THREE.IcosahedronGeometry(1, 0),
+        new THREE.OctahedronGeometry(1, 0),
+        new THREE.TetrahedronGeometry(1, 0),
+        new THREE.TorusGeometry(1, 0.4, 8, 6)
+      ];
+      
+      const material = new THREE.MeshBasicMaterial({ 
+        color: 0xD4AF37, 
+        wireframe: true,
+        transparent: true,
+        opacity: 0.25
+      });
+
+      const objects = [];
+
+      for (let i = 0; i < 60; i++) {
+        const geo = geometries[Math.floor(Math.random() * geometries.length)];
+        const mesh = new THREE.Mesh(geo, material);
+        
+        mesh.position.x = (Math.random() - 0.5) * 60;
+        mesh.position.y = (Math.random() - 0.5) * 60;
+        mesh.position.z = (Math.random() - 0.5) * 30 - 10;
+        
+        mesh.rotation.x = Math.random() * Math.PI;
+        mesh.rotation.y = Math.random() * Math.PI;
+        
+        const scale = Math.random() * 2 + 0.5;
+        mesh.scale.set(scale, scale, scale);
+
+        mesh.userData = {
+          rotSpeedX: (Math.random() - 0.5) * 0.01,
+          rotSpeedY: (Math.random() - 0.5) * 0.01,
+          startY: mesh.position.y,
+          floatSpeed: Math.random() * 0.02 + 0.01,
+          floatOffset: Math.random() * Math.PI * 2
+        };
+
+        scene.add(mesh);
+        objects.push(mesh);
+      }
+
+      const animate = () => {
+        requestAnimationFrame(animate);
+        const time = Date.now() * 0.001;
+        
+        objects.forEach((mesh) => {
+          mesh.rotation.x += mesh.userData.rotSpeedX;
+          mesh.rotation.y += mesh.userData.rotSpeedY;
+          mesh.position.y = mesh.userData.startY + Math.sin(time * mesh.userData.floatSpeed * 50 + mesh.userData.floatOffset) * 2;
+        });
+
+        renderer.render(scene, camera);
+      };
+
+      animate();
+
+      window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+    };
+  </script>
+</body>
+</html>

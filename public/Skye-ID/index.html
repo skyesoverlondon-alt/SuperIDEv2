@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SKYE ID GEN</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Add Three.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Add jsPDF Library for PDF Generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        /* Ensuring basic font support */
+        body { font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+        
+        /* Custom Scrollbar for the history list */
+        .custom-scroll::-webkit-scrollbar { width: 6px; }
+        .custom-scroll::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 8px; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
+        .custom-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* Executive Pulsing Animation for Founder Image */
+        @keyframes pulse-glow {
+            0%, 100% { 
+                transform: scale(1) translateY(0); 
+                filter: drop-shadow(0 10px 25px rgba(234, 179, 8, 0.2)); 
+            }
+            50% { 
+                transform: scale(1.05) translateY(-10px); 
+                filter: drop-shadow(0 25px 45px rgba(234, 179, 8, 0.7)); 
+            }
+        }
+        .founder-pulse {
+            animation: pulse-glow 4s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-slate-950 flex flex-col lg:flex-row items-center justify-center p-4 gap-8 lg:gap-16 text-slate-800 overflow-x-hidden">
+
+    <!-- Screen Gold Border -->
+    <div class="fixed inset-0 border-[8px] border-yellow-500 pointer-events-none z-50 shadow-[inset_0_0_50px_rgba(234,179,8,0.3)]"></div>
+
+    <!-- ThreeJS Background Canvas -->
+    <canvas id="bg-canvas" class="fixed top-0 left-0 w-full h-full -z-20 pointer-events-none"></canvas>
+
+    <div class="max-w-md w-full bg-white rounded-2xl shadow-2xl border-4 border-yellow-500 overflow-hidden shrink-0 z-10 flex flex-col relative">
+        
+        <!-- Header -->
+        <div class="bg-indigo-900 bg-gradient-to-b from-indigo-800 to-indigo-950 p-8 text-white text-center flex flex-col items-center border-b border-indigo-700">
+            <!-- SKYE ID GEN Official Logo -->
+            <img src="https://cdn1.sharemyimage.com/2026/02/16/logo1_transparent.png" alt="SKYE ID GEN Logo" border="0" class="w-48 h-auto mb-4 object-contain">
+            <h1 class="text-3xl font-bold mb-2 tracking-wider text-yellow-500 drop-shadow-md">SKYE ID GEN</h1>
+            <p class="text-indigo-200 text-sm font-medium">Executive Identity Generation & Archival</p>
+        </div>
+
+        <!-- Content -->
+        <div class="p-6 space-y-5">
+            
+            <!-- Photo Upload Field -->
+            <div class="space-y-2">
+                <label class="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                    Profile Photo (Optional)
+                </label>
+                <div class="flex items-center gap-4">
+                    <img id="photo-preview" src="" class="hidden w-16 h-16 object-cover rounded-lg border-2 border-slate-200 shadow-sm" alt="Preview">
+                    <input type="file" id="photo-upload" accept="image/*" class="w-full text-sm text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 transition-colors cursor-pointer" />
+                </div>
+            </div>
+
+            <!-- Name Field -->
+            <div class="space-y-2">
+                <label class="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                    Full Name (Editable)
+                </label>
+                <div class="flex items-center gap-3">
+                    <input type="text" id="name-input" class="flex-1 bg-slate-50 p-4 rounded-xl text-lg font-medium text-slate-800 border border-slate-200 shadow-inner focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:bg-white transition-all w-full" placeholder="Enter full name...">
+                    <button id="btn-copy-name" class="p-4 bg-white hover:bg-slate-50 text-indigo-600 rounded-xl transition-colors border border-slate-200 shadow-sm shrink-0" title="Copy Name">
+                        <svg class="icon-copy" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                        <svg class="icon-check hidden text-green-600" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Number Field -->
+            <div class="space-y-2">
+                <label class="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="9" x2="20" y2="9"></line><line x1="4" y1="15" x2="20" y2="15"></line><line x1="10" y1="3" x2="8" y2="21"></line><line x1="16" y1="3" x2="14" y2="21"></line></svg>
+                    10-Digit Identifier (Editable)
+                </label>
+                <div class="flex items-center gap-3">
+                    <input type="text" id="number-input" class="flex-1 bg-slate-50 p-4 rounded-xl text-lg font-mono font-bold tracking-widest text-slate-800 border border-slate-200 shadow-inner focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:bg-white transition-all w-full" placeholder="Enter 10-digit number...">
+                    <button id="btn-copy-number" class="p-4 bg-white hover:bg-slate-50 text-indigo-600 rounded-xl transition-colors border border-slate-200 shadow-sm shrink-0" title="Copy Number">
+                        <svg class="icon-copy" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                        <svg class="icon-check hidden text-green-600" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    </button>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Footer / Actions -->
+        <div class="p-6 pt-0 space-y-3">
+            <button id="btn-generate" class="w-full py-4 px-6 bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-400 hover:to-yellow-500 text-slate-900 rounded-xl font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-lg shadow-yellow-500/30 disabled:opacity-70">
+                <svg id="generate-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>
+                Generate Random Identity
+            </button>
+
+            <button id="btn-export-pdf" class="w-full py-4 px-6 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-md">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                Export Branded PDF
+            </button>
+            
+            <button id="btn-toggle-db" class="w-full py-3 px-6 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold flex items-center justify-center gap-2 transition-colors border border-slate-200">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path></svg>
+                View Database & Export CSV
+            </button>
+        </div>
+
+        <!-- Database Overlay Modal -->
+        <div id="db-modal" class="absolute inset-0 bg-white z-20 transform translate-y-full transition-transform duration-300 flex flex-col">
+            <div class="bg-indigo-950 p-4 text-white flex justify-between items-center">
+                <h2 class="font-bold flex items-center gap-2 text-yellow-500">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                    Indexed Storage
+                </h2>
+                <button id="btn-close-db" class="text-indigo-200 hover:text-white transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+            
+            <!-- List Container -->
+            <div class="flex-1 overflow-y-auto p-4 bg-slate-50 custom-scroll space-y-2" id="db-list">
+                <!-- Items will be injected here via JS -->
+                <div class="text-center text-slate-400 text-sm mt-10">Database is empty.</div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="p-4 border-t border-slate-200 bg-white grid grid-cols-2 gap-3">
+                <button id="btn-clear-db" class="py-2 px-4 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg font-semibold text-sm transition-colors border border-red-200">
+                    Clear Data
+                </button>
+                <button id="btn-export-csv" class="py-2 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold text-sm transition-colors shadow-md">
+                    Export CSV
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Founder Image -->
+    <img src="https://cdn1.sharemyimage.com/2026/03/03/Gemini_Generated_Image_5aft6s5aft6s5aft-1.png" alt="Founder Image" border="0" class="w-72 md:w-96 lg:w-[30rem] relative right-4 lg:right-12 object-contain z-10 drop-shadow-2xl founder-pulse">
+
+    <!-- High-Velocity Droplet Splatter (Targeted Box Location & Smaller) -->
+    <div class="fixed bottom-[20%] right-[30%] lg:bottom-[25%] lg:right-[38%] w-16 md:w-20 lg:w-24 z-20 pointer-events-none mix-blend-multiply opacity-90" style="filter: drop-shadow(0 2px 4px rgba(94, 0, 0, 0.4)); transform: rotate(15deg);">
+        <svg viewBox="0 0 100 100" class="w-full h-full fill-[#5e0000]">
+            <g>
+                <circle cx="60" cy="45" r="3" />
+                <circle cx="58" cy="48" r="4" />
+                <circle cx="63" cy="46" r="2.5" />
+                <path d="M60,45 Q50,30 45,20 Q55,30 63,46 Z" />
+                <path d="M58,48 Q40,55 30,65 Q45,55 60,45 Z" />
+                <path d="M63,46 Q80,50 90,55 Q75,52 60,48 Z" />
+                <path d="M60,45 Q65,25 70,15 Q68,28 62,45 Z" />
+                <circle cx="45" cy="20" r="1.5" /><circle cx="40" cy="15" r="1" /><circle cx="50" cy="10" r="0.8" />
+                <circle cx="35" cy="25" r="1.2" /><circle cx="30" cy="65" r="2" /><circle cx="20" cy="70" r="1.5" />
+                <circle cx="25" cy="80" r="1" /><circle cx="15" cy="60" r="0.8" /><circle cx="90" cy="55" r="1.8" />
+                <circle cx="95" cy="60" r="1" /><circle cx="85" cy="65" r="0.5" /><circle cx="70" cy="15" r="2" />
+                <circle cx="75" cy="5" r="1" /><circle cx="80" cy="20" r="0.5" />
+                <circle cx="40" cy="40" r="2.5" />
+                <path d="M40,40 Q35,35 30,30 Q38,36 40,40 Z" />
+                <circle cx="70" cy="70" r="3.5" />
+                <path d="M70,70 Q75,85 80,95 Q72,80 70,70 Z" />
+                <circle cx="80" cy="95" r="1.5" /><circle cx="85" cy="100" r="1" />
+                <path d="M60,48 Q62,60 58,75 Q55,60 58,48 Z" /><circle cx="58" cy="78" r="1.5" />
+                <path d="M40,40 Q42,50 38,60 Q36,50 40,40 Z" /><circle cx="38" cy="63" r="1" />
+                <path d="M70,70 Q72,80 69,90 Q67,80 70,70 Z" /><circle cx="69" cy="93" r="1.2" />
+                <circle cx="50" cy="50" r="0.6"/><circle cx="55" cy="55" r="0.4"/><circle cx="45" cy="45" r="0.5"/>
+                <circle cx="65" cy="35" r="0.4"/><circle cx="70" cy="40" r="0.6"/><circle cx="50" cy="35" r="0.5"/>
+                <circle cx="40" cy="50" r="0.5"/><circle cx="35" cy="45" r="0.4"/><circle cx="45" cy="55" r="0.6"/>
+                <circle cx="65" cy="55" r="0.5"/><circle cx="70" cy="50" r="0.4"/><circle cx="55" cy="65" r="0.5"/>
+                <circle cx="75" cy="60" r="0.5"/><circle cx="80" cy="45" r="0.6"/><circle cx="85" cy="50" r="0.4"/>
+                <circle cx="30" cy="35" r="0.4"/><circle cx="25" cy="40" r="0.6"/><circle cx="30" cy="50" r="0.5"/>
+            </g>
+        </svg>
+    </div>
+
+    <!-- Discreet Network & Contact Overlay -->
+    <div class="fixed right-6 bottom-6 lg:top-1/2 lg:-translate-y-1/2 lg:bottom-auto flex flex-col items-end gap-1 text-[9px] md:text-[10px] font-mono text-slate-500/20 hover:text-slate-400 transition-all duration-700 z-30 text-right uppercase tracking-widest">
+        <div class="text-yellow-600/40 font-bold mb-1">Skye Network Ecosystem</div>
+        <a href="https://skyesol.netlify.app/" target="_blank" class="hover:text-yellow-500 transition-colors">SkyeSol</a>
+        <a href="https://skyeletix.netlify.app" target="_blank" class="hover:text-yellow-500 transition-colors">Skyeletix</a>
+        <a href="https://northstarofficexaccounting.netlify.app" target="_blank" class="hover:text-yellow-500 transition-colors">Northstar Accounting</a>
+        <a href="https://sole-nexus.netlify.app" target="_blank" class="hover:text-yellow-500 transition-colors">Sole Nexus</a>
+        <a href="https://solenterprisesnexusconnect.netlify.app/" target="_blank" class="hover:text-yellow-500 transition-colors">Nexus Connect</a>
+        <a href="https://skyefamilyhub.netlify.app/" target="_blank" class="hover:text-yellow-500 transition-colors">Skye Family Hub</a>
+        <a href="https://sentinelwebauthority.netlify.app/" target="_blank" class="hover:text-yellow-500 transition-colors">Sentinel Web Auth</a>
+        <a href="https://solenteaiskyes.netlify.app/" target="_blank" class="hover:text-yellow-500 transition-colors">Solente AI Skyes</a>
+        <a href="https://familycommand.netlify.app/" target="_blank" class="hover:text-yellow-500 transition-colors">Family Command</a>
+        <a href="https://skyecode-nexus.netlify.app/" target="_blank" class="hover:text-yellow-500 transition-colors">SkyeCode Nexus</a>
+        <a href="https://skyesoverlondon.netlify.app/" target="_blank" class="hover:text-yellow-500 transition-colors">Skyes Over London</a>
+        <a href="https://solenterprises.org/pages/skyeweb" target="_blank" class="hover:text-yellow-500 transition-colors">SOL Ent. SkyeWeb</a>
+        
+        <div class="text-yellow-600/40 font-bold mt-3 mb-1">Direct Comms</div>
+        <a href="tel:4804695416" class="hover:text-yellow-500 transition-colors">PH: (480) 469-5416</a>
+        <a href="mailto:SkyesOverLondonLC@SOLEnterprises.org" class="hover:text-yellow-500 transition-colors normal-case">SkyesOverLondonLC@SOLEnterprises.org</a>
+        <a href="mailto:SkyesOverLondon@gmail.com" class="hover:text-yellow-500 transition-colors normal-case">SkyesOverLondon@gmail.com</a>
+    </div>
+
+    <script>
+        // Data arrays for generation
+        const firstNames = [
+            "James", "Mary", "Robert", "Patricia", "John", "Jennifer", "Michael", "Linda", 
+            "David", "Elizabeth", "William", "Barbara", "Richard", "Susan", "Joseph", "Jessica", 
+            "Thomas", "Sarah", "Christopher", "Karen", "Charles", "Lisa", "Daniel", "Nancy", 
+            "Matthew", "Betty", "Anthony", "Margaret", "Mark", "Sandra", "Donald", "Ashley",
+            "Elena", "Mateo", "Sofia", "Lucas", "Aria", "Jackson", "Mia", "Oliver",
+            "Alexander", "Isabella", "Ethan", "Sophia", "Marcus", "Victoria", "Julian", "Grace"
+        ];
+
+        const lastNames = [
+            "Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis", 
+            "Rodriguez", "Martinez", "Hernandez", "Lopez", "Gonzalez", "Wilson", "Anderson", 
+            "Thomas", "Taylor", "Moore", "Jackson", "Martin", "Lee", "Perez", "Thompson", 
+            "White", "Harris", "Sanchez", "Clark", "Ramirez", "Lewis", "Robinson", "Walker",
+            "Chen", "Patel", "Nguyen", "Kim", "Singh", "Ali", "Wong", "Cohen", "Silva",
+            "Sterling", "Lancaster", "Dupont", "Rothschild", "Kensington", "Sinclair", "Vance"
+        ];
+
+        let db; // IndexedDB instance
+        let uploadedPhotoBase64 = null; // Store base64 of uploaded photo
+
+        // DOM Elements
+        const nameInput = document.getElementById('name-input');
+        const numberInput = document.getElementById('number-input');
+        const btnGenerate = document.getElementById('btn-generate');
+        const btnExportPdf = document.getElementById('btn-export-pdf');
+        const generateIcon = document.getElementById('generate-icon');
+        const btnCopyName = document.getElementById('btn-copy-name');
+        const btnCopyNumber = document.getElementById('btn-copy-number');
+        
+        // Upload Elements
+        const photoUpload = document.getElementById('photo-upload');
+        const photoPreview = document.getElementById('photo-preview');
+
+        // Modal Elements
+        const dbModal = document.getElementById('db-modal');
+        const btnToggleDb = document.getElementById('btn-toggle-db');
+        const btnCloseDb = document.getElementById('btn-close-db');
+        const dbList = document.getElementById('db-list');
+        const btnClearDb = document.getElementById('btn-clear-db');
+        const btnExportCsv = document.getElementById('btn-export-csv');
+
+        // --- PHOTO UPLOAD LOGIC ---
+        photoUpload.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if(file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    uploadedPhotoBase64 = e.target.result;
+                    photoPreview.src = uploadedPhotoBase64;
+                    photoPreview.classList.remove('hidden');
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // --- INDEXED DB LOGIC ---
+        const initDB = () => {
+            const request = indexedDB.open("SkyeIDGenDatabase", 1);
+
+            request.onupgradeneeded = (event) => {
+                db = event.target.result;
+                const objectStore = db.createObjectStore("identities", { keyPath: "id", autoIncrement: true });
+                objectStore.createIndex("timestamp", "timestamp", { unique: false });
+            };
+
+            request.onsuccess = (event) => {
+                db = event.target.result;
+                loadHistoryUI();
+            };
+
+            request.onerror = (event) => {
+                console.error("IndexedDB Error:", event.target.errorCode);
+            };
+        };
+
+        const saveToDB = () => {
+            if(!db) return;
+            const currentName = nameInput.value.trim();
+            const currentNum = numberInput.value.trim();
+            
+            if(!currentName || !currentNum) return; // don't save empty fields
+            
+            const transaction = db.transaction(["identities"], "readwrite");
+            const store = transaction.objectStore("identities");
+            
+            // Format number roughly if it's 10 digits
+            let formattedNumber = currentNum;
+            if (currentNum.length === 10 && !isNaN(currentNum)) {
+                formattedNumber = `${currentNum.slice(0,3)}-${currentNum.slice(3,6)}-${currentNum.slice(6)}`;
+            }
+
+            const entry = {
+                name: currentName,
+                number: currentNum,
+                formattedNumber: formattedNumber,
+                timestamp: new Date().toISOString()
+            };
+            store.add(entry);
+            
+            transaction.oncomplete = () => {
+                loadHistoryUI();
+            };
+        };
+
+        const loadHistoryUI = () => {
+            if(!db) return;
+            const transaction = db.transaction(["identities"], "readonly");
+            const store = transaction.objectStore("identities");
+            const request = store.getAll();
+
+            request.onsuccess = (event) => {
+                const data = event.target.result;
+                
+                if(data.length === 0) {
+                    dbList.innerHTML = '<div class="text-center text-slate-400 text-sm mt-10">Database is empty. Generate or type an ID.</div>';
+                    return;
+                }
+
+                data.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                
+                dbList.innerHTML = '';
+                data.forEach(item => {
+                    const dateObj = new Date(item.timestamp);
+                    const timeStr = dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                    const dateStr = dateObj.toLocaleDateString();
+
+                    const el = document.createElement('div');
+                    el.className = 'bg-white p-3 rounded-lg border border-slate-200 shadow-sm flex justify-between items-center';
+                    el.innerHTML = `
+                        <div>
+                            <div class="font-bold text-slate-800">${item.name}</div>
+                            <div class="font-mono text-sm text-indigo-600 font-medium">${item.formattedNumber}</div>
+                        </div>
+                        <div class="text-xs text-slate-400 text-right">
+                            <div>${dateStr}</div>
+                            <div>${timeStr}</div>
+                        </div>
+                    `;
+                    dbList.appendChild(el);
+                });
+            };
+        };
+
+        const clearDB = () => {
+            if(!db) return;
+            if(!confirm("Are you sure you want to permanently delete all saved identities?")) return;
+            
+            const transaction = db.transaction(["identities"], "readwrite");
+            const store = transaction.objectStore("identities");
+            store.clear();
+
+            transaction.oncomplete = () => loadHistoryUI();
+        };
+
+        const exportToCSV = () => {
+            if(!db) return;
+            const transaction = db.transaction(["identities"], "readonly");
+            const store = transaction.objectStore("identities");
+            const request = store.getAll();
+
+            request.onsuccess = (event) => {
+                const data = event.target.result;
+                if(data.length === 0) {
+                    alert("No data to export.");
+                    return;
+                }
+
+                let csvContent = "data:text/csv;charset=utf-8,ID,Full Name,10-Digit Number,Timestamp\n";
+                
+                data.forEach(row => {
+                    const name = `"${row.name}"`;
+                    const num = `"${row.formattedNumber}"`;
+                    const ts = `"${row.timestamp}"`;
+                    csvContent += `${row.id},${name},${num},${ts}\n`;
+                });
+
+                const encodedUri = encodeURI(csvContent);
+                const link = document.createElement("a");
+                link.setAttribute("href", encodedUri);
+                link.setAttribute("download", `SKYE_ID_EXPORT_${new Date().getTime()}.csv`);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            };
+        };
+
+        // --- PDF GENERATION LOGIC ---
+        const exportToPDF = () => {
+            // Get current values from the inputs
+            const currentName = nameInput.value.trim() || 'Unknown Entity';
+            const currentNum = numberInput.value.trim() || '0000000000';
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            // Header Branding block
+            doc.setFillColor(30, 27, 75); // Indigo-950
+            doc.rect(0, 0, 210, 45, 'F');
+            
+            // Logo / Title Text
+            doc.setTextColor(234, 179, 8); // Yellow-500
+            doc.setFontSize(26);
+            doc.setFont("helvetica", "bold");
+            doc.text("SKYE ID GEN", 105, 25, { align: "center" });
+            
+            doc.setTextColor(200, 200, 255);
+            doc.setFontSize(10);
+            doc.setFont("helvetica", "normal");
+            doc.text("EXECUTIVE IDENTITY ARCHIVAL RECORD", 105, 33, { align: "center" });
+
+            // Main Content Area
+            let startY = 65;
+            doc.setTextColor(15, 23, 42); // Slate-900
+            
+            if (uploadedPhotoBase64) {
+                // Add Photo
+                doc.addImage(uploadedPhotoBase64, 'JPEG', 20, 60, 45, 45);
+                
+                doc.setFontSize(20);
+                doc.setFont("helvetica", "bold");
+                doc.text("IDENTITY PROFILE", 75, 70);
+                
+                doc.setFontSize(14);
+                doc.setFont("helvetica", "normal");
+                doc.text(`Name:`, 75, 85);
+                doc.setFont("helvetica", "bold");
+                doc.text(currentName, 95, 85);
+
+                doc.setFont("helvetica", "normal");
+                doc.text(`Identifier:`, 75, 95);
+                doc.setFont("helvetica", "bold");
+                doc.text(currentNum, 105, 95);
+                
+                startY = 125;
+            } else {
+                doc.setFontSize(20);
+                doc.setFont("helvetica", "bold");
+                doc.text("IDENTITY PROFILE", 20, 65);
+                
+                doc.setFontSize(14);
+                doc.setFont("helvetica", "normal");
+                doc.text(`Name:`, 20, 80);
+                doc.setFont("helvetica", "bold");
+                doc.text(currentName, 40, 80);
+
+                doc.setFont("helvetica", "normal");
+                doc.text(`Identifier:`, 20, 90);
+                doc.setFont("helvetica", "bold");
+                doc.text(currentNum, 50, 90);
+
+                startY = 110;
+            }
+
+            // Separator Line
+            doc.setDrawColor(200, 200, 200);
+            doc.setLineWidth(0.5);
+            doc.line(20, startY, 190, startY);
+
+            // Footer / Contact Info Branding
+            doc.setFontSize(10);
+            doc.setTextColor(100, 100, 100);
+            doc.setFont("helvetica", "bold");
+            doc.text("SKYE NETWORK ECOSYSTEM - OFFICIAL COMMUNICATION", 105, startY + 12, { align: "center" });
+            
+            doc.setTextColor(30, 27, 75);
+            doc.setFontSize(11);
+            doc.text("Direct Comms:", 20, startY + 28);
+            
+            doc.setFontSize(10);
+            doc.setFont("helvetica", "normal");
+            doc.text("PH: (480) 469-5416", 20, startY + 36);
+            doc.text("Email: SkyesOverLondonLC@SOLEnterprises.org", 20, startY + 42);
+            doc.text("Email: SkyesOverLondon@gmail.com", 20, startY + 48);
+
+            // Trigger download
+            const safeName = currentName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+            doc.save(`SKYE_ID_${safeName || 'record'}.pdf`);
+            
+            // Save to DB on export as well
+            saveToDB(); 
+        };
+
+        // --- GENERATOR LOGIC ---
+        const getRandomElement = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+        const generateNumber = () => {
+            let num = '';
+            num += Math.floor(Math.random() * 9) + 1; // 1-9 for first digit
+            for (let i = 0; i < 9; i++) {
+                num += Math.floor(Math.random() * 10);
+            }
+            return num;
+        };
+
+        const generateNew = () => {
+            btnGenerate.disabled = true;
+            generateIcon.classList.add('animate-spin');
+
+            setTimeout(() => {
+                const newName = `${getRandomElement(firstNames)} ${getRandomElement(lastNames)}`;
+                const newNumber = generateNumber();
+                
+                // Update Inputs
+                nameInput.value = newName;
+                numberInput.value = newNumber;
+
+                // Save to IndexedDB
+                saveToDB();
+
+                btnGenerate.disabled = false;
+                generateIcon.classList.remove('animate-spin');
+            }, 300); 
+        };
+
+        // --- CLIPBOARD LOGIC ---
+        const copyToClipboard = (text, buttonElement) => {
+            const fallbackCopy = () => {
+                const textArea = document.createElement("textarea");
+                textArea.value = text;
+                textArea.style.position = "fixed";
+                textArea.style.left = "-999999px";
+                document.body.appendChild(textArea);
+                textArea.select();
+                try {
+                    document.execCommand('copy');
+                    showCheckmark(buttonElement);
+                } catch (err) {}
+                textArea.remove();
+            };
+
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(text)
+                    .then(() => showCheckmark(buttonElement))
+                    .catch(() => fallbackCopy());
+            } else {
+                fallbackCopy();
+            }
+        };
+
+        const showCheckmark = (buttonElement) => {
+            const iconCopy = buttonElement.querySelector('.icon-copy');
+            const iconCheck = buttonElement.querySelector('.icon-check');
+            iconCopy.classList.add('hidden');
+            iconCheck.classList.remove('hidden');
+            setTimeout(() => {
+                iconCopy.classList.remove('hidden');
+                iconCheck.classList.add('hidden');
+            }, 2000);
+        };
+
+        // --- EVENT LISTENERS ---
+        btnGenerate.addEventListener('click', generateNew);
+        btnExportPdf.addEventListener('click', exportToPDF);
+        
+        btnCopyName.addEventListener('click', () => copyToClipboard(nameInput.value, btnCopyName));
+        btnCopyNumber.addEventListener('click', () => copyToClipboard(numberInput.value, btnCopyNumber));
+
+        // Modal Controls
+        btnToggleDb.addEventListener('click', () => {
+            dbModal.classList.remove('translate-y-full');
+            loadHistoryUI();
+        });
+        
+        btnCloseDb.addEventListener('click', () => {
+            dbModal.classList.add('translate-y-full');
+        });
+
+        btnClearDb.addEventListener('click', clearDB);
+        btnExportCsv.addEventListener('click', exportToCSV);
+
+        // --- THREE.JS EXECUTIVE BACKGROUND LOGIC ---
+        const initThreeJS = () => {
+            const canvas = document.getElementById('bg-canvas');
+            const scene = new THREE.Scene();
+            scene.fog = new THREE.FogExp2(0x020617, 0.0015);
+
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
+            camera.position.z = 50;
+
+            const renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true, antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+            const particlesGeometry = new THREE.BufferGeometry();
+            const particlesCount = 1200;
+            const posArray = new Float32Array(particlesCount * 3);
+            const colorsArray = new Float32Array(particlesCount * 3);
+
+            const colorGold = new THREE.Color('#eab308'); 
+            const colorSilver = new THREE.Color('#cbd5e1'); 
+
+            for(let i = 0; i < particlesCount * 3; i+=3) {
+                posArray[i] = (Math.random() - 0.5) * 200;
+                posArray[i+1] = (Math.random() - 0.5) * 200;
+                posArray[i+2] = (Math.random() - 0.5) * 200;
+
+                const mixedColor = Math.random() > 0.2 ? colorGold : colorSilver;
+                colorsArray[i] = mixedColor.r;
+                colorsArray[i+1] = mixedColor.g;
+                colorsArray[i+2] = mixedColor.b;
+            }
+
+            particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+            particlesGeometry.setAttribute('color', new THREE.BufferAttribute(colorsArray, 3));
+
+            const material = new THREE.PointsMaterial({
+                size: 0.25,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.7,
+            });
+
+            const particlesMesh = new THREE.Points(particlesGeometry, material);
+            scene.add(particlesMesh);
+
+            let mouseX = 0;
+            let mouseY = 0;
+            document.addEventListener('mousemove', (event) => {
+                mouseX = (event.clientX / window.innerWidth - 0.5) * 2;
+                mouseY = (event.clientY / window.innerHeight - 0.5) * 2;
+            });
+
+            const clock = new THREE.Clock();
+            const animate = () => {
+                requestAnimationFrame(animate);
+                const elapsedTime = clock.getElapsedTime();
+
+                particlesMesh.rotation.y = elapsedTime * 0.03;
+                particlesMesh.rotation.x = elapsedTime * 0.015;
+
+                camera.position.x += (mouseX * 3 - camera.position.x) * 0.02;
+                camera.position.y += (-mouseY * 3 - camera.position.y) * 0.02;
+
+                renderer.render(scene, camera);
+            };
+            
+            animate();
+
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        };
+
+        // Initialize App
+        window.addEventListener('load', () => {
+            initDB();
+            generateNew();
+            initThreeJS();
+        });
+    </script>
+</body>
+</html>

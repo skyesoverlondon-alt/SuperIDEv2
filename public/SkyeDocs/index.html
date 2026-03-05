@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SkyeDocs Standalone</title>
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Space+Grotesk:wght@400;500;600&display=swap");
+    :root {
+      --bg0: #050b10;
+      --bg1: #0b1b24;
+      --line: rgba(44, 230, 255, 0.34);
+      --line-soft: rgba(191, 238, 255, 0.2);
+      --text: #f6fbff;
+      --muted: #9ab6c4;
+      --gold: #ffcb47;
+      --cyan: #2ce6ff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--text);
+      font-family: "Space Grotesk", sans-serif;
+      background:
+        radial-gradient(circle at 8% 10%, rgba(44, 230, 255, 0.18), transparent 35%),
+        radial-gradient(circle at 84% 0%, rgba(255, 203, 71, 0.15), transparent 40%),
+        linear-gradient(155deg, var(--bg0), var(--bg1));
+      min-height: 100vh;
+    }
+    .shell { max-width: 1150px; margin: 0 auto; padding: 16px; display: grid; gap: 12px; }
+    .topbar {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px 14px;
+      background: rgba(7, 15, 21, 0.88);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .brand { font-family: "Orbitron", sans-serif; letter-spacing: .09em; text-transform: uppercase; }
+    .meta { color: var(--muted); font-size: .82rem; }
+    .panel {
+      border: 1px solid var(--line-soft);
+      border-radius: 14px;
+      background: rgba(7, 14, 20, 0.9);
+      padding: 12px;
+      display: grid;
+      gap: 10px;
+    }
+    .toolbar { display: flex; gap: 8px; flex-wrap: wrap; }
+    input, textarea, button {
+      border-radius: 10px;
+      border: 1px solid var(--line-soft);
+      background: rgba(0, 0, 0, 0.34);
+      color: var(--text);
+      padding: 10px;
+      font: inherit;
+    }
+    textarea { min-height: 62vh; resize: vertical; }
+    button {
+      cursor: pointer;
+      border-color: var(--line);
+      background: rgba(44, 230, 255, 0.12);
+      color: #ddf8ff;
+      min-width: 120px;
+    }
+    button.primary {
+      background: linear-gradient(135deg, rgba(255, 203, 71, 0.9), rgba(44, 230, 255, 0.78));
+      color: #03131a;
+      font-weight: 700;
+      border-color: rgba(255, 203, 71, 0.55);
+    }
+    .status { color: var(--muted); font-size: .82rem; }
+    .tag {
+      border: 1px solid rgba(255, 203, 71, 0.42);
+      color: #ffe6a5;
+      background: rgba(255, 203, 71, 0.08);
+      border-radius: 999px;
+      padding: 5px 10px;
+      font-size: .73rem;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div>
+        <div class="brand">SkyeDocs Command Surface</div>
+        <div class="meta">Standalone document cockpit with autosave + export</div>
+      </div>
+      <div id="meta" class="tag">ws_id=default</div>
+    </header>
+
+    <section class="panel">
+      <input id="title" placeholder="Document title" />
+      <textarea id="body" placeholder="Write your document..."></textarea>
+      <div class="toolbar">
+        <button class="primary" id="save">Save</button>
+        <button id="export">Export .txt</button>
+      </div>
+      <div class="status" id="status"></div>
+    </section>
+  </div>
+
+  <script>
+    const qs = new URLSearchParams(location.search);
+    const ws = qs.get("ws_id") || "default";
+    const key = `skye.docs.${ws}`;
+    const titleEl = document.getElementById("title");
+    const bodyEl = document.getElementById("body");
+    const statusEl = document.getElementById("status");
+    document.getElementById("meta").textContent = `ws_id=${ws}`;
+
+    const saved = JSON.parse(localStorage.getItem(key) || '{"title":"","body":""}');
+    titleEl.value = saved.title || "";
+    bodyEl.value = saved.body || "";
+
+    function saveDoc() {
+      localStorage.setItem(key, JSON.stringify({ title: titleEl.value, body: bodyEl.value, at: new Date().toISOString() }));
+      statusEl.textContent = `Saved ${new Date().toLocaleString()}`;
+    }
+
+    document.getElementById("save").onclick = saveDoc;
+    document.getElementById("export").onclick = () => {
+      const blob = new Blob([bodyEl.value], { type: "text/plain" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `${(titleEl.value || "skye-doc").replace(/\s+/g, "-")}.txt`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    };
+
+    setInterval(saveDoc, 10000);
+  </script>
+</body>
+</html>

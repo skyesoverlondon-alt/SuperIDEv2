@@ -50,6 +50,9 @@ type ToolTab = "assistant" | "smokehouse" | "playground";
 type SkyeAppId =
   | "SkyeDocs"
   | "SkyeDocxPro"
+  | "REACT2HTML"
+  | "SKYEMAIL-GEN"
+  | "Skye-ID"
   | "SkyeSheets"
   | "SkyeSlides"
   | "SkyeMail"
@@ -198,6 +201,18 @@ type MergePreviewState = {
   serverUpdatedAt: string;
 };
 
+type TokenInventoryItem = {
+  id: string;
+  label: string;
+  prefix: string;
+  locked_email: string | null;
+  scopes_json?: string[];
+  status: string;
+  created_at: string;
+  expires_at: string | null;
+  last_used_at: string | null;
+};
+
 type LegacySkyeEnvelope = {
   format: "skye-v2";
   app: SkyeAppId;
@@ -241,6 +256,9 @@ const HISTORY_PAGE_SIZE = 50;
 const SKYE_APPS: SkyeAppDefinition[] = [
   { id: "SkyeDocs", summary: "Collaborative document workspace.", mvp: ["Rich text", "Markdown mode", "Autosave"] },
   { id: "SkyeDocxPro", summary: "Full document production suite integrated into SuperIDE.", mvp: ["Advanced editor", "Offline-ready workflows", "Production-grade exports"] },
+  { id: "REACT2HTML", summary: "Convert React snippets into standalone HTML outputs.", mvp: ["kAIxU conversion", "Live preview", "Copy output"] },
+  { id: "SKYEMAIL-GEN", summary: "Generate branded SKYEMAIL identities and exports.", mvp: ["Email generator", "Persistence", "PDF export"] },
+  { id: "Skye-ID", summary: "Generate and archive identity cards with export workflows.", mvp: ["ID generator", "IndexedDB archive", "CSV/PDF export"] },
   { id: "SkyeSheets", summary: "Grid and formula workbook app.", mvp: ["Editable grid", "Formula parser", "CSV import/export"] },
   { id: "SkyeSlides", summary: "Deck builder and presenter mode.", mvp: ["Slide list", "Template blocks", "Presenter view"] },
   { id: "SkyeMail", summary: "Inbox and compose workflows.", mvp: ["Inbox list", "Read thread", "Compose/send"] },
@@ -254,6 +272,35 @@ const SKYE_APPS: SkyeAppDefinition[] = [
   { id: "SkyeTasks", summary: "Kanban and assignment tracking.", mvp: ["Board columns", "Assignees", "Due dates"] },
   { id: "SkyeAdmin", summary: "Org roles and integration controls.", mvp: ["User roles", "SSO/integrations", "Audit console"] },
 ];
+
+const APP_SURFACE_PATHS: Partial<Record<SkyeAppId, string>> = {
+  SkyeDocxPro: "/SkyeDocxPro/index.html",
+  "REACT2HTML": "/REACT2HTML/index.html",
+  "SKYEMAIL-GEN": "/SKYEMAIL-GEN/index.html",
+  "Skye-ID": "/Skye-ID/index.html",
+  SkyeSheets: "/SkyeSheets/index.html",
+  SkyeSlides: "/SkyeSlides/index.html",
+  SkyeMail: "/SkyeMail/index.html",
+  SkyeChat: "/SkyeChat/index.html",
+  SkyeCalendar: "/SkyeCalendar/index.html",
+  SkyeDrive: "/SkyeDrive/index.html",
+  SkyeVault: "/SkyeVault/index.html",
+  SkyeForms: "/SkyeForms/index.html",
+  SkyeNotes: "/SkyeNotes/index.html",
+  SkyeAnalytics: "/SkyeAnalytics/index.html",
+  SkyeTasks: "/SkyeTasks/index.html",
+  SkyeAdmin: "/",
+};
+
+function buildAppSurfaceUrl(appId: SkyeAppId, wsId: string): string | null {
+  const basePath = APP_SURFACE_PATHS[appId];
+  if (!basePath) return null;
+  const qs = new URLSearchParams();
+  qs.set("embed", "1");
+  qs.set("ws_id", wsId || DEFAULT_WS_ID);
+  const query = qs.toString();
+  return query ? `${basePath}?${query}` : basePath;
+}
 
 const APP_TUTORIALS: Record<SkyeAppId, string[]> = {
   SkyeDocs: [
@@ -271,6 +318,21 @@ const APP_TUTORIALS: Record<SkyeAppId, string[]> = {
     "Store recovery kit separately from passphrase vault and perform one recovery import drill.",
     "Run full export flow (PDF/TXT/HTML ZIP/.skye) and verify artifact integrity.",
     "Share resulting workspace update to team via Project Share.",
+  ],
+  "REACT2HTML": [
+    "Paste React component code into the input panel.",
+    "Run conversion through kAIxU backend only.",
+    "Validate preview and copy final HTML output.",
+  ],
+  "SKYEMAIL-GEN": [
+    "Generate custom or random SKYEMAIL identities.",
+    "Store high-value addresses to persistent list.",
+    "Export TXT or PDF artifacts for handoff workflows.",
+  ],
+  "Skye-ID": [
+    "Generate identity record pairs (name + identifier).",
+    "Review IndexedDB history and export CSV snapshots.",
+    "Export branded PDF for operations delivery.",
   ],
   SkyeSheets: [
     "Add or edit sheet cells for sprint planning.",
@@ -333,6 +395,8 @@ const APP_TUTORIALS: Record<SkyeAppId, string[]> = {
     "Issue scoped test tokens for controlled validation.",
   ],
 };
+
+const FEATURED_APP_IDS: SkyeAppId[] = ["REACT2HTML", "SKYEMAIL-GEN", "Skye-ID"];
 
 const DEFAULT_FILES: WorkspaceFile[] = [
   {
@@ -579,6 +643,8 @@ export function App() {
     }
   });
   const [previewDevice, setPreviewDevice] = useState<"desktop" | "mobile">("desktop");
+  const [previewPane, setPreviewPane] = useState<"split" | "code" | "preview">("split");
+  const [assistantAuthStatus, setAssistantAuthStatus] = useState<"unknown" | "ok" | "token" | "unauthorized">("unknown");
 
   const [files, setFiles] = useState<WorkspaceFile[]>(() => {
     const raw = localStorage.getItem("kx.workspace.files");
@@ -742,6 +808,14 @@ export function App() {
   const [testerToken, setTesterToken] = useState("");
   const [testerTokenMeta, setTesterTokenMeta] = useState("");
   const [isIssuingTesterToken, setIsIssuingTesterToken] = useState(false);
+  const [apiAccessToken, setApiAccessToken] = useState(() => localStorage.getItem("kx.api.accessToken") || "");
+  const [apiTokenEmail, setApiTokenEmail] = useState(() => localStorage.getItem("kx.api.tokenEmail") || "");
+  const [tokenLabelPrefix, setTokenLabelPrefix] = useState("ide-key");
+  const [tokenTtlPreset, setTokenTtlPreset] = useState("day");
+  const [tokenInventory, setTokenInventory] = useState<TokenInventoryItem[]>([]);
+  const [isLoadingTokenInventory, setIsLoadingTokenInventory] = useState(false);
+  const [tokenOpsResult, setTokenOpsResult] = useState("");
+  const [revokingTokenId, setRevokingTokenId] = useState("");
   const [sknoreText, setSknoreText] = useState(() => localStorage.getItem("kx.sknore.patterns") || ".env\n.env.*\nsecrets/**\n**/*.pem\n**/*.key");
   const [mailTo, setMailTo] = useState("qa@skye.local");
   const [mailSubject, setMailSubject] = useState("SkyeMail test");
@@ -871,6 +945,7 @@ export function App() {
   const healthUrl = useMemo(() => `${normalizeBaseUrl(workerUrl)}/health`, [workerUrl]);
   const activeFile = useMemo(() => files.find((file) => file.path === activePath) || files[0], [files, activePath]);
   const previewDocument = useMemo(() => buildPreviewDocument(activeFile), [activeFile]);
+  const livePreviewUrl = useMemo(() => buildAppSurfaceUrl(selectedSkyeApp, workspaceId), [selectedSkyeApp, workspaceId]);
   const sknorePatterns = useMemo(() => normalizeSknorePatterns(sknoreText.split("\n")), [sknoreText]);
   const sknoreBlockedCount = useMemo(
     () => files.filter((file) => isSknoreProtected(file.path, sknorePatterns)).length,
@@ -965,6 +1040,17 @@ export function App() {
   }, [authUser, authRole]);
 
   useEffect(() => {
+    localStorage.setItem("kx.api.accessToken", apiAccessToken);
+    localStorage.setItem("kx.api.tokenEmail", apiTokenEmail);
+  }, [apiAccessToken, apiTokenEmail]);
+
+  useEffect(() => {
+    if (!apiTokenEmail.trim()) {
+      setApiTokenEmail(authUser.trim().toLowerCase());
+    }
+  }, [authUser, apiTokenEmail]);
+
+  useEffect(() => {
     localStorage.setItem("kx.skye.sheets.model", JSON.stringify(sheetsModel));
   }, [sheetsModel]);
 
@@ -1000,6 +1086,7 @@ export function App() {
     if (selectedSkyeApp === "SkyeAdmin") {
       void loadTeamMembers();
       void loadWorkspaceMembers();
+      void loadTokenInventory();
     }
   }, [selectedSkyeApp]);
 
@@ -1282,13 +1369,22 @@ export function App() {
   );
 
   const filteredApps = useMemo(() => {
+    const featured = new Set(FEATURED_APP_IDS);
+    const prioritizeFeatured = (apps: SkyeAppDefinition[]) =>
+      [...apps].sort((a, b) => {
+        const af = featured.has(a.id) ? 1 : 0;
+        const bf = featured.has(b.id) ? 1 : 0;
+        return bf - af;
+      });
+
     const q = appSearch.trim().toLowerCase();
-    if (!q) return SKYE_APPS;
-    return SKYE_APPS.filter((app) => {
+    if (!q) return prioritizeFeatured(SKYE_APPS);
+    const filtered = SKYE_APPS.filter((app) => {
       if (app.id.toLowerCase().includes(q)) return true;
       if (app.summary.toLowerCase().includes(q)) return true;
       return app.mvp.some((item) => item.toLowerCase().includes(q));
     });
+    return prioritizeFeatured(filtered);
   }, [appSearch]);
 
   const totalMvpItems = useMemo(() => SKYE_APPS.reduce((sum, app) => sum + app.mvp.length, 0), []);
@@ -1327,6 +1423,14 @@ export function App() {
   }
 
   async function runGenerate(prompt: string) {
+    const authOk = await checkAssistantAuth();
+    if (!authOk) {
+      return {
+        ok: false,
+        text: "Unauthorized. Sign in first in this browser session, then run again.",
+      };
+    }
+
     const active = activeFile?.path || "/src/App.tsx";
     if (isSknoreProtected(active, sknorePatterns)) {
       return {
@@ -1336,10 +1440,13 @@ export function App() {
     }
 
     const safeFiles = filterSknoreFiles(files, sknorePatterns);
+    const authHeaders = getAccessAuthHeaders();
+
     try {
       const response = await fetch("/api/kaixu-generate", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders },
+        credentials: "include",
         body: JSON.stringify({
           ws_id: workspaceId || DEFAULT_WS_ID,
           activePath: active,
@@ -1417,6 +1524,7 @@ export function App() {
     setIsSmokeChecking(true);
     const base = normalizeBaseUrl(siteBaseUrl);
     const safeFiles = filterSknoreFiles(files, sknorePatterns);
+    const authHeaders = getAccessAuthHeaders();
 
     const checks = [
       {
@@ -1452,23 +1560,15 @@ export function App() {
 
     const out: SmokeResult[] = [];
 
-    for (const app of SKYE_APPS) {
-      const appReady = app.mvp.length > 0;
-      out.push({
-        name: `App MVP ${app.id}`,
-        method: "LOCAL",
-        url: `app://${app.id}`,
-        status: appReady ? 200 : 500,
-        ok: appReady,
-        summary: appReady ? `MVP checklist loaded (${app.mvp.length} items)` : "missing MVP metadata",
-      });
-    }
-
     for (const check of checks) {
       try {
         const res = await fetch(check.url, {
           method: check.method,
-          headers: check.body ? { "Content-Type": "application/json" } : undefined,
+          headers: {
+            ...(check.body ? { "Content-Type": "application/json" } : {}),
+            ...authHeaders,
+          },
+          credentials: "include",
           body: check.body ? JSON.stringify(check.body) : undefined,
         });
         const txt = await res.text();
@@ -1574,6 +1674,15 @@ export function App() {
     return lines.join("\n");
   }
 
+  function getAccessAuthHeaders(): Record<string, string> {
+    const token = apiAccessToken.trim();
+    if (!token) return {};
+    const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
+    const lockedEmail = apiTokenEmail.trim().toLowerCase();
+    if (lockedEmail) headers["X-Token-Email"] = lockedEmail;
+    return headers;
+  }
+
   async function onApiPlaygroundSend(event: FormEvent) {
     event.preventDefault();
     setPlayLoading(true);
@@ -1582,9 +1691,18 @@ export function App() {
 
     try {
       const headers = tryParseJson(playHeaders);
+      const baseHeaders = typeof headers === "object" && headers ? { ...(headers as Record<string, string>) } : { "Content-Type": "application/json" };
+      const authHeaders = getAccessAuthHeaders();
+      if (authHeaders.Authorization && !(baseHeaders.Authorization || baseHeaders.authorization)) {
+        baseHeaders.Authorization = authHeaders.Authorization;
+      }
+      if (authHeaders["X-Token-Email"] && !(baseHeaders["X-Token-Email"] || baseHeaders["x-token-email"])) {
+        baseHeaders["X-Token-Email"] = authHeaders["X-Token-Email"];
+      }
       const reqInit: RequestInit = {
         method: playMethod,
-        headers: typeof headers === "object" ? headers : { "Content-Type": "application/json" },
+        headers: baseHeaders,
+        credentials: "include",
       };
       if (!["GET", "HEAD"].includes(playMethod.toUpperCase()) && playBody.trim()) {
         reqInit.body = playBody;
@@ -1646,6 +1764,7 @@ export function App() {
         text: [
           `Mode: ${appMode === "skyeide" ? "SkyeIDE (Primary)" : "Neural Space Pro (Secondary)"}`,
           `Worker: ${runnerStatus.toUpperCase()}`,
+          `Auth: ${assistantAuthStatus.toUpperCase()}`,
           `AI: ${ai.text}`,
         ].join("\n\n"),
         at: new Date().toISOString(),
@@ -1676,6 +1795,8 @@ export function App() {
       }
       const issued = data?.issued?.[0];
       setTesterToken(issued?.token || "");
+      if (issued?.token) setApiAccessToken(String(issued.token));
+      if (issued?.locked_email) setApiTokenEmail(String(issued.locked_email));
       setTesterTokenMeta(
         `locked_email=${issued?.locked_email || "<none>"} · starts_at=${issued?.starts_at || "n/a"} · expires_at=${issued?.expires_at || "n/a"}`
       );
@@ -1683,6 +1804,89 @@ export function App() {
       setTesterTokenMeta(error?.message || "Issue failed.");
     } finally {
       setIsIssuingTesterToken(false);
+    }
+  }
+
+  async function issueAccessToken() {
+    setIsIssuingTesterToken(true);
+    setTesterToken("");
+    setTesterTokenMeta("");
+    setTokenOpsResult("");
+    try {
+      const res = await fetch("/api/token-issue", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          count: 1,
+          ttl_preset: tokenTtlPreset,
+          label_prefix: tokenLabelPrefix || "ide-key",
+          scopes: ["generate"],
+          locked_email: apiTokenEmail.trim().toLowerCase() || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setTokenOpsResult(data?.error || `Issue failed (${res.status})`);
+        return;
+      }
+      const issued = data?.issued?.[0];
+      const token = String(issued?.token || "");
+      setTesterToken(token);
+      setTesterTokenMeta(
+        `locked_email=${issued?.locked_email || "<none>"} · starts_at=${issued?.starts_at || "n/a"} · expires_at=${issued?.expires_at || "n/a"}`
+      );
+      if (token) setApiAccessToken(token);
+      if (issued?.locked_email) setApiTokenEmail(String(issued.locked_email));
+      setTokenOpsResult("Token issued and loaded into IDE API key input.");
+      await loadTokenInventory();
+    } catch (error: any) {
+      setTokenOpsResult(error?.message || "Issue failed.");
+    } finally {
+      setIsIssuingTesterToken(false);
+    }
+  }
+
+  async function loadTokenInventory() {
+    setIsLoadingTokenInventory(true);
+    setTokenOpsResult("");
+    try {
+      const res = await fetch("/api/token-list", { method: "GET", credentials: "include" });
+      const data = await res.json();
+      if (!res.ok) {
+        setTokenOpsResult(data?.error || `Token list failed (${res.status})`);
+        return;
+      }
+      setTokenInventory(Array.isArray(data?.tokens) ? data.tokens : []);
+    } catch (error: any) {
+      setTokenOpsResult(error?.message || "Token list failed.");
+    } finally {
+      setIsLoadingTokenInventory(false);
+    }
+  }
+
+  async function revokeToken(id: string) {
+    if (!id) return;
+    setRevokingTokenId(id);
+    setTokenOpsResult("");
+    try {
+      const res = await fetch("/api/token-revoke", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ id }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setTokenOpsResult(data?.error || `Revoke failed (${res.status})`);
+        return;
+      }
+      setTokenOpsResult(`Revoked token ${data?.token?.label || id}`);
+      await loadTokenInventory();
+    } catch (error: any) {
+      setTokenOpsResult(error?.message || "Revoke failed.");
+    } finally {
+      setRevokingTokenId("");
     }
   }
 
@@ -1753,6 +1957,7 @@ export function App() {
           subject: mailSubject,
           text: mailText,
           channel: mailChannelHook,
+          ws_id: workspaceId,
         }),
       });
       const data = await res.json();
@@ -1760,7 +1965,7 @@ export function App() {
         setMailSendResult(data?.error || `send failed (${res.status})`);
         return;
       }
-      setMailSendResult(`sent via ${data?.provider || "provider"} (mail_record_id=${data?.mail_record_id || "n/a"})`);
+      setMailSendResult(`sent (mail_record_id=${data?.mail_record_id || "n/a"})`);
       await loadSkyeMailHistory();
       if (data?.chat_hook_id) await loadSkyeChatHistory();
     } catch (error: any) {
@@ -1768,6 +1973,37 @@ export function App() {
     } finally {
       setIsSendingMail(false);
     }
+  }
+
+  async function checkAssistantAuth(): Promise<boolean> {
+    if (apiAccessToken.trim()) {
+      setAssistantAuthStatus("token");
+      return true;
+    }
+    try {
+      const res = await fetch("/api/auth-me", { method: "GET", credentials: "include" });
+      const ok = res.ok;
+      setAssistantAuthStatus(ok ? "ok" : "unauthorized");
+      return ok;
+    } catch {
+      setAssistantAuthStatus("unauthorized");
+      return false;
+    }
+  }
+
+  function openDetachedPreview() {
+    if (livePreviewUrl) {
+      window.open(livePreviewUrl, "_blank", "noopener,noreferrer");
+      return;
+    }
+    if (!previewDocument) {
+      setIdeOpsResult("Preview unavailable for this file type.");
+      return;
+    }
+    const blob = new Blob([previewDocument], { type: "text/html" });
+    const url = URL.createObjectURL(blob);
+    window.open(url, "_blank", "noopener,noreferrer");
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
   }
 
   async function notifySkyeChat() {
@@ -1781,6 +2017,7 @@ export function App() {
           channel: chatChannelInput,
           message: chatMessageInput,
           source: appMode === "neural" ? "Neural Space Pro / SkyeChat" : "SkyeChat UI",
+          ws_id: workspaceId,
         }),
       });
       const data = await res.json();
@@ -1838,6 +2075,14 @@ export function App() {
     applyNeuralRoomDefaultsToChat();
     void loadSkyeChatHistory();
   }
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [selectedSkyeApp, appMode]);
+
+  useEffect(() => {
+    void checkAssistantAuth();
+  }, []);
 
   async function publishNeuralRoomUpdate(options: { askKaixu?: boolean } = {}) {
     const askKaixu = Boolean(options.askKaixu);
@@ -2688,6 +2933,28 @@ export function App() {
       );
     }
 
+    if (selectedSkyeApp === "REACT2HTML" || selectedSkyeApp === "SKYEMAIL-GEN" || selectedSkyeApp === "Skye-ID") {
+      const surfacePath = APP_SURFACE_PATHS[selectedSkyeApp] || "/";
+      const surfaceHref = `${surfacePath}?ws_id=${encodeURIComponent(workspaceId)}`;
+      return (
+        <section className="app-module" style={{ minHeight: "84vh" }}>
+          <header>
+            <h2>{selectedSkyeApp}</h2>
+            <p>Featured utility surface with standalone deployment + embedded command deck access inside SuperIDE.</p>
+          </header>
+          <div className="tool-actions left" style={{ marginBottom: 10 }}>
+            <a className="ghost" href={surfaceHref} target="_blank" rel="noreferrer">Open Standalone</a>
+            <button className="ghost" type="button" onClick={() => setSelectedSkyeApp("SkyeAdmin")}>Open Key Control (SkyeAdmin)</button>
+          </div>
+          <iframe
+            title={selectedSkyeApp}
+            src={surfaceHref}
+            className="platform-frame"
+          />
+        </section>
+      );
+    }
+
     if (selectedSkyeApp === "SkyeSheets") {
       const filteredRows = sheetsModel.rows.filter((row) => {
         if (!sheetsSearch.trim()) return true;
@@ -2890,6 +3157,7 @@ export function App() {
           <header>
             <h2>SkyeMail Platform</h2>
             <p>Dedicated standalone mail workspace integrated into IDE. Users can create accounts, set mailbox profile, send mail, and work from inbox surface.</p>
+            <p className="muted-copy">Delivery path: outbound email is sent over public mail infrastructure, not limited to IDE-local records.</p>
           </header>
           <div className="tool-actions left" style={{ marginBottom: 10 }}>
             <a className="ghost" href={`/SkyeMail/index.html?ws_id=${encodeURIComponent(workspaceId)}`} target="_blank" rel="noreferrer">Open SkyeMail Standalone</a>
@@ -2923,6 +3191,11 @@ export function App() {
             src={`/SkyeChat/index.html?embed=1&ws_id=${encodeURIComponent(workspaceId)}&channel=${encodeURIComponent(chatHistoryChannel || chatChannelInput || "general")}`}
             className="platform-frame"
           />
+          <div className="neural-fusion-stack">
+            <h3>Neural Space Layer</h3>
+            <p className="muted-copy">Neural Space Pro is embedded directly in the SkyeChat workflow for parallel room collaboration + kAIxU context.</p>
+            <iframe title="Neural Space in SkyeChat" src="/Neural-Space-Pro/index.html" className="platform-frame" />
+          </div>
         </section>
       );
     }
@@ -3244,6 +3517,77 @@ export function App() {
       return (
         <section className="app-module">
           <header><h2>SkyeAdmin</h2><p>Org user and role controls.</p></header>
+
+          <label>kAIxU Access Key (Bearer)</label>
+          <textarea
+            className="report-box"
+            rows={3}
+            value={apiAccessToken}
+            onChange={(event) => setApiAccessToken(event.target.value)}
+            placeholder="kx_at_..."
+          />
+          <label>Token Locked Email (X-Token-Email)</label>
+          <input
+            value={apiTokenEmail}
+            onChange={(event) => setApiTokenEmail(event.target.value)}
+            placeholder="user@company.com"
+          />
+          <div className="tool-actions left">
+            <button className="ghost" type="button" onClick={() => void checkAssistantAuth()}>Validate Auth Path</button>
+            <button className="ghost" type="button" onClick={() => { setApiAccessToken(""); setAssistantAuthStatus("unknown"); }}>Clear Key</button>
+          </div>
+          <p className="muted-copy">Only kAIxU keys are supported here. Assistant and API Playground auto-apply this key and `X-Token-Email` when present.</p>
+
+          <label>Issue kAIxU Key Label Prefix</label>
+          <input value={tokenLabelPrefix} onChange={(event) => setTokenLabelPrefix(event.target.value)} placeholder="ide-key" />
+          <div className="tool-row split">
+            <div>
+              <label>TTL Preset</label>
+              <select value={tokenTtlPreset} onChange={(event) => setTokenTtlPreset(event.target.value)}>
+                <option value="test_2m">test_2m</option>
+                <option value="1h">1h</option>
+                <option value="5h">5h</option>
+                <option value="day">day</option>
+                <option value="week">week</option>
+                <option value="month">month</option>
+                <option value="quarter">quarter</option>
+                <option value="year">year</option>
+              </select>
+            </div>
+            <div>
+              <label>Scope</label>
+              <input value="generate (fixed)" readOnly />
+            </div>
+          </div>
+          <div className="tool-actions left">
+            <button className="ghost" type="button" onClick={() => void issueAccessToken()} disabled={isIssuingTesterToken}>
+              {isIssuingTesterToken ? "Issuing..." : "Issue kAIxU Key"}
+            </button>
+            <button className="ghost" type="button" onClick={() => void loadTokenInventory()} disabled={isLoadingTokenInventory}>
+              {isLoadingTokenInventory ? "Refreshing..." : "Refresh kAIxU Key Inventory"}
+            </button>
+          </div>
+          {tokenOpsResult && <p className="muted-copy">{tokenOpsResult}</p>}
+          <div className="list-stack">
+            {tokenInventory.map((token) => (
+              <div key={token.id} className="list-item">
+                <div className="admin-row">
+                  <strong>{token.label || token.prefix}</strong>
+                  <span>{token.status}</span>
+                </div>
+                <div className="muted-copy">id={token.id}</div>
+                <div className="muted-copy">prefix={token.prefix} · locked={token.locked_email || "<none>"}</div>
+                <div className="muted-copy">scopes={(Array.isArray(token.scopes_json) ? token.scopes_json : ["generate"]).join(", ")}</div>
+                <div className="muted-copy">expires={token.expires_at || "n/a"} · last_used={token.last_used_at || "never"}</div>
+                <div className="tool-actions left">
+                  <button className="ghost" type="button" onClick={() => void revokeToken(token.id)} disabled={revokingTokenId === token.id || token.status === "revoked"}>
+                    {revokingTokenId === token.id ? "Revoking..." : token.status === "revoked" ? "Revoked" : "Revoke"}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
           <label>Invite team member email</label>
           <input value={teamInviteEmail} onChange={(event) => setTeamInviteEmail(event.target.value)} placeholder="teammate@company.com" />
           <label>Role</label>
@@ -3360,22 +3704,40 @@ export function App() {
 
   return (
     <div className="ide-shell">
+      <div className="shell-atmo" aria-hidden="true">
+        <div className="atmo-grid" />
+        <div className="atmo-orb orb-a" />
+        <div className="atmo-orb orb-b" />
+      </div>
       <div className="cine-intro" aria-hidden="true">
         <div className="cine-grid" />
         <div className="cine-scan" />
+        <div className="cine-terminal">
+          &gt; BOOTING SKYEIDE COMMAND DECK v2.0<br />
+          &gt; MOUNTING WORKSPACE SURFACES<br />
+          &gt; CALIBRATING kAIxU EXECUTION CHANNEL<br />
+          &gt; LINKING NEURAL SPACE BRIDGE
+        </div>
+        <div className="cine-whiteout" />
         <div className="cine-core">
           <img className="cine-logo" src="/SKYESOVERLONDONDIETYLOGO.png" alt="" />
-          <div className="cine-title">kAIxU SKYEIDE</div>
-          <div className="cine-sub">PRIMARY WORKSPACE ONLINE</div>
+          <div className="cine-title">SKYE IDE</div>
+          <div className="cine-sub">Command Deck Online</div>
         </div>
       </div>
       <header className="topbar">
-        <div>
+        <div className="topbar-brand">
           <img className="floating-logo" src="/SKYESOVERLONDONDIETYLOGO.png" alt="SKYES OVER LONDON" />
-          <img className="floating-logo" src="https://cdn1.sharemyimage.com/2026/02/23/skAIxU-IDE-LOGO.png" alt="skAIxU IDE LOGO" />
-          <img className="floating-logo" src="https://cdn1.sharemyimage.com/2026/02/17/Logo-2-1.png" alt="kAIxU LOGO" />
-          <h1>kAIxU SkyeIDE</h1>
-          <p>Primary IDE workspace · Neural Space Pro companion app · Shared Auth active</p>
+          <div className="topbar-brand-copy">
+            <h1>SkyeIDE Command Deck</h1>
+            <p>DocxPro-grade workspace shell · live surfaces · detachable preview</p>
+          </div>
+          <div className="topbar-telemetry">
+            <span className="telemetry-chip">Surface: {selectedSkyeApp}</span>
+            <span className="telemetry-chip">Mode: {appMode === "skyeide" ? "SkyeIDE" : "Neural"}</span>
+            <span className="telemetry-chip">Preview: {previewPane}/{previewDevice}</span>
+            <span className="telemetry-chip">Assistant: {assistantAuthStatus}</span>
+          </div>
         </div>
         <div className="topbar-right">
           <a className="ghost" href="/upgrade-notes.html" target="_blank" rel="noreferrer">Upgrade Notes</a>
@@ -3396,7 +3758,7 @@ export function App() {
       </header>
 
       <section className="workspace-surface-bar">
-        <div className="workspace-surface-meta">Workspace Surface · {selectedSkyeApp}</div>
+        <div className="workspace-surface-meta">Active Surface · {selectedSkyeApp}</div>
         <label htmlFor="workspace-id-global">Workspace ID</label>
         <input
           id="workspace-id-global"
@@ -3445,6 +3807,27 @@ export function App() {
                 placeholder="Search apps and modules..."
                 aria-label="search apps"
               />
+              <h3>Featured Utilities</h3>
+              <div className="app-list" style={{ maxHeight: 132 }}>
+                {FEATURED_APP_IDS.map((appId) => {
+                  const app = SKYE_APPS.find((entry) => entry.id === appId);
+                  if (!app) return null;
+                  return (
+                    <button
+                      key={`featured-${app.id}`}
+                      type="button"
+                      className={`app-item ${selectedSkyeApp === app.id ? "active" : ""}`}
+                      onClick={() => {
+                        setSelectedSkyeApp(app.id);
+                        setAppMode("skyeide");
+                      }}
+                    >
+                      <span>{app.id}</span>
+                      <small>featured</small>
+                    </button>
+                  );
+                })}
+              </div>
               <div className="app-list">
                 {filteredApps.map((app) => {
                   const done = app.mvp.filter((item) => mvpChecks[makeMvpKey(app.id, item)]).length;
@@ -3508,14 +3891,9 @@ export function App() {
 
         <main className="editor-pane">
           {appMode === "skyeide" ? (
-            <>
-              <section className="app-module">
-                <header><h2>IDE Workspace</h2><p>Edit code, manage files, save workspace state, push to GitHub, and trigger Netlify deploys from inside SuperIDE.</p></header>
-                <div className="tool-actions left">
-                  <button className="ghost" type="button" onClick={() => setShowTutorialPanel((old) => !old)}>
-                    {showTutorialPanel ? "Hide Guided Checklist" : "Show Guided Checklist"}
-                  </button>
-                </div>
+            selectedSkyeApp === "SkyeDocs" ? (
+              <section className="app-module ide-module-focus">
+                <header><h2>IDE Workspace</h2><p>Real app-focused workspace with side-by-side code and live preview that can be detached.</p></header>
                 <div className="tool-row split">
                   <input value={newFilePath} onChange={(event) => setNewFilePath(event.target.value)} placeholder="src/new-file.ts" />
                   <div className="tool-actions left">
@@ -3539,108 +3917,63 @@ export function App() {
                   <button className="ghost" type="button" onClick={() => void deployWorkspaceNow()} disabled={isDeployingWorkspace}>
                     {isDeployingWorkspace ? "Deploying..." : "Deploy to Netlify"}
                   </button>
-                </div>
-                {ideOpsResult && <p className="muted-copy">{ideOpsResult}</p>}
-                <div className="editor-head">{activeFile?.path || "No file"}</div>
-                <Editor
-                  height="44vh"
-                  theme="vs-dark"
-                  path={activeFile?.path}
-                  value={activeFile?.content || ""}
-                  onChange={(value) => updateActiveFileContent(value || "")}
-                  options={{ minimap: { enabled: false }, fontSize: 13, wordWrap: "on", automaticLayout: true }}
-                />
-                <div className="preview-shell">
-                  <div className="preview-head">
-                    <strong>Live Preview</strong>
-                    <div className="tool-actions left">
-                      <button
-                        className="ghost"
-                        type="button"
-                        onClick={() => setPreviewDevice("desktop")}
-                        disabled={previewDevice === "desktop"}
-                      >
-                        Desktop
-                      </button>
-                      <button
-                        className="ghost"
-                        type="button"
-                        onClick={() => setPreviewDevice("mobile")}
-                        disabled={previewDevice === "mobile"}
-                      >
-                        Mobile
-                      </button>
-                    </div>
-                  </div>
-                  {previewDocument ? (
-                    <div className={`preview-frame-wrap ${previewDevice}`}>
-                      <iframe title="IDE Live Preview" className="preview-frame" srcDoc={previewDocument} sandbox="allow-same-origin" />
-                    </div>
-                  ) : (
-                    <p className="muted-copy">Preview supports `.html`, `.htm`, `.svg`, and `.md` files. Open one of those files to preview.</p>
-                  )}
-                </div>
-              </section>
-              <section className="app-module">
-                <header><h2>Secure .skye Package</h2><p>Export and import app state as encrypted `.skye` using the SKYESEC1 + skye-secure-v1 contract.</p></header>
-                <label>Passphrase (required)</label>
-                <input type="password" value={skyePassphrase} onChange={(event) => setSkyePassphrase(event.target.value)} placeholder="Enter passphrase for secure .skye" />
-                <div className="tool-actions left">
                   <button className="ghost" type="button" onClick={() => void exportSelectedAppAsSkye()}>
-                    Export {selectedSkyeApp} as .skye
+                    Export .skye
                   </button>
                   <button className="ghost" type="button" onClick={() => document.getElementById("skye-import-input")?.click()} disabled={isImportingSkye}>
                     {isImportingSkye ? "Importing..." : "Import .skye"}
                   </button>
                 </div>
                 <input id="skye-import-input" type="file" accept=".skye" style={{ display: "none" }} onChange={onImportSkyeFile} />
-                <p className="muted-copy">Secure `.skye` uses AES-GCM encryption and envelope validation before import.</p>
-              </section>
-              {inviteToken && (
-                <section className="app-module">
-                  <header><h2>Accept Team Invite</h2><p>Create or link your account securely using the invite link.</p></header>
-                  <label>Email</label>
-                  <input value={inviteAcceptEmail} onChange={(event) => setInviteAcceptEmail(event.target.value)} placeholder="you@company.com" />
-                  <label>Create password</label>
-                  <input type="password" value={inviteAcceptPassword} onChange={(event) => setInviteAcceptPassword(event.target.value)} placeholder="set your password" />
+                {ideOpsResult && <p className="muted-copy">{ideOpsResult}</p>}
+                <div className="preview-head">
+                  <strong>Code + Live Preview</strong>
                   <div className="tool-actions left">
-                    <button className="ghost" type="button" onClick={() => void acceptInviteLink()} disabled={isAcceptingInvite}>
-                      {isAcceptingInvite ? "Accepting..." : "Accept Invite"}
-                    </button>
+                    <button className="ghost" type="button" onClick={() => setPreviewPane("split")} disabled={previewPane === "split"}>Split</button>
+                    <button className="ghost" type="button" onClick={() => setPreviewPane("code")} disabled={previewPane === "code"}>Code</button>
+                    <button className="ghost" type="button" onClick={() => setPreviewPane("preview")} disabled={previewPane === "preview"}>Preview</button>
+                    <button className="ghost" type="button" onClick={() => setPreviewDevice("desktop")} disabled={previewDevice === "desktop"}>Desktop</button>
+                    <button className="ghost" type="button" onClick={() => setPreviewDevice("mobile")} disabled={previewDevice === "mobile"}>Mobile</button>
+                    <button className="ghost" type="button" onClick={openDetachedPreview}>Detach</button>
                   </div>
-                  {inviteAcceptResult && <p className="muted-copy">{inviteAcceptResult}</p>}
-                </section>
-              )}
-              {showTutorialPanel && renderTutorialPanel(selectedSkyeApp)}
-              <section className="app-module">
-                <header><h2>Project Share</h2><p>Send current workspace updates to teammates via app, chat, and mail.</p></header>
-                <label>Share mode</label>
-                <select value={shareMode} onChange={(event) => setShareMode(event.target.value as ShareMode)}>
-                  <option value="app">App record only</option>
-                  <option value="chat">SkyeChat</option>
-                  <option value="mail">SkyeMail</option>
-                  <option value="all">Mail + Chat + App</option>
-                </select>
-                <label>Recipient email (required for mail/all)</label>
-                <input value={shareRecipientEmail} onChange={(event) => setShareRecipientEmail(event.target.value)} placeholder="teammate@company.com" list="team-emails" />
-                <datalist id="team-emails">
-                  {adminUsers.map((member) => (
-                    <option key={`share-${member.email}`} value={member.email} />
-                  ))}
-                </datalist>
-                <label>Channel (used for chat/all)</label>
-                <input value={shareChannel} onChange={(event) => setShareChannel(event.target.value)} placeholder="general" />
-                <label>Share note</label>
-                <textarea value={shareNote} onChange={(event) => setShareNote(event.target.value)} rows={3} placeholder="What changed, and what your teammate should do next" />
-                <div className="tool-actions left">
-                  <button className="ghost" type="button" onClick={() => void shareProjectFromIDE()} disabled={isSharingProject}>
-                    {isSharingProject ? "Sharing..." : "Share Workspace Update"}
-                  </button>
                 </div>
-                {shareResult && <p className="muted-copy">{shareResult}</p>}
+                <div className={`ide-workbench ${previewPane}`}>
+                  {previewPane !== "preview" && (
+                    <div className="ide-code-col">
+                      <div className="editor-head">{activeFile?.path || "No file"}</div>
+                      <Editor
+                        height={previewPane === "split" ? "65vh" : "76vh"}
+                        theme="vs-dark"
+                        path={activeFile?.path}
+                        value={activeFile?.content || ""}
+                        onChange={(value) => updateActiveFileContent(value || "")}
+                        options={{ minimap: { enabled: false }, fontSize: 13, wordWrap: "on", automaticLayout: true }}
+                      />
+                    </div>
+                  )}
+                  {previewPane !== "code" && (
+                    <div className="preview-shell">
+                      {livePreviewUrl ? (
+                        <div className={`preview-frame-wrap ${previewDevice}`}>
+                          <iframe title="IDE Live Preview" className="preview-frame" src={livePreviewUrl} sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-downloads" />
+                        </div>
+                      ) : previewDocument ? (
+                        <div className={`preview-frame-wrap ${previewDevice}`}>
+                          <iframe title="IDE File Preview" className="preview-frame" srcDoc={previewDocument} sandbox="allow-same-origin" />
+                        </div>
+                      ) : (
+                        <p className="muted-copy">Preview supports live app surfaces and `.html`, `.htm`, `.svg`, `.md` file rendering.</p>
+                      )}
+                    </div>
+                  )}
+                </div>
               </section>
-              {renderAppModule()}
-            </>
+            ) : (
+              <>
+                {renderAppModule()}
+                {showTutorialPanel && renderTutorialPanel(selectedSkyeApp)}
+              </>
+            )
           ) : (
             <section className="app-module neural-shell">
               <header>
@@ -3683,7 +4016,9 @@ export function App() {
           )}
         </main>
 
-        <aside className="chat-pane">
+      </div>
+
+      <aside className="chat-pane chat-pane-bottom">
           <header>
             <div className="tool-tabs">
               <button type="button" className={`tool-tab ${toolTab === "assistant" ? "active" : ""}`} onClick={() => setToolTab("assistant")}>Assistant</button>
@@ -3796,8 +4131,7 @@ export function App() {
               <textarea className="report-box" readOnly value={playResponse} rows={10} />
             </form>
           )}
-        </aside>
-      </div>
+      </aside>
       {mergePreview && (
         <div className="merge-modal-overlay">
           <div className="merge-modal">

@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>React to HTML Converter (kAIxU)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    ::selection { background: rgba(99,102,241,.25); }
+    textarea { tab-size: 2; }
+  </style>
+</head>
+<body class="min-h-screen bg-slate-50 text-slate-900">
+  <div id="app" class="min-h-screen flex flex-col font-sans">
+    <header class="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between sticky top-0 z-10 shadow-sm">
+      <div class="flex items-center gap-3">
+        <div class="bg-indigo-600 p-2 rounded-lg shadow-inner">
+          <i data-lucide="code-2" class="w-6 h-6 text-white"></i>
+        </div>
+        <div>
+          <h1 class="text-xl font-bold text-slate-800 tracking-tight leading-tight">React to HTML Converter</h1>
+          <p class="text-xs text-slate-500 font-medium tracking-wide uppercase">kAIxU secured route only</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 text-xs">
+        <span class="px-3 py-1 rounded-full bg-indigo-100 text-indigo-700 border border-indigo-200">/api/kaixu-generate</span>
+        <span id="authBadge" class="px-3 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200">Auth unknown</span>
+      </div>
+    </header>
+
+    <div class="bg-indigo-50 border-b border-indigo-100 px-6 py-3 text-sm text-indigo-900/80">
+      <div class="max-w-[1600px] mx-auto flex items-start gap-3">
+        <i data-lucide="shield-check" class="w-5 h-5 mt-0.5"></i>
+        <div>
+          <p class="font-semibold">Provider Lock:</p>
+          <p class="text-indigo-900/70">This app is hardwired to kAIxU backend routing only. Direct provider endpoint calls are disabled.</p>
+        </div>
+      </div>
+    </div>
+
+    <main class="flex-1 flex flex-col lg:flex-row gap-6 p-6 max-w-[1600px] w-full mx-auto overflow-hidden">
+      <section class="flex-1 flex flex-col bg-white rounded-xl shadow border border-slate-200 overflow-hidden min-h-[520px]">
+        <div class="bg-slate-50 border-b border-slate-200 px-4 py-3 flex items-center gap-2">
+          <i data-lucide="code-2" class="w-5 h-5 text-indigo-500"></i>
+          <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wider">React Input</h2>
+        </div>
+        <textarea id="inputCode" class="flex-1 p-5 font-mono text-sm text-slate-800 bg-transparent resize-none focus:outline-none leading-relaxed" spellcheck="false"></textarea>
+        <div class="border-t border-slate-200 p-4">
+          <button id="convertBtn" class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white px-6 py-2.5 rounded-lg font-semibold shadow transition-all active:scale-95" disabled>
+            <i data-lucide="arrow-right" class="w-4 h-4"></i>
+            <span id="convertBtnText">Build HTML</span>
+          </button>
+        </div>
+      </section>
+
+      <section class="flex-1 flex flex-col bg-[#1e1e2e] rounded-xl shadow-lg border border-slate-800 overflow-hidden relative min-h-[520px]">
+        <div class="bg-[#181825] border-b border-slate-700/50 px-2 flex items-center justify-between">
+          <div class="flex items-center">
+            <button id="tabPreview" class="px-5 py-3.5 text-xs font-bold uppercase tracking-widest border-b-2 transition-all border-emerald-400 text-emerald-400 bg-slate-800/40">Live Preview</button>
+            <button id="tabCode" class="px-5 py-3.5 text-xs font-bold uppercase tracking-widest border-b-2 transition-all border-transparent text-slate-500 hover:text-slate-300">Code Output</button>
+          </div>
+          <button id="copyBtn" class="mr-3 p-2 text-indigo-300 hover:text-white transition-colors hidden" title="Copy HTML"><i data-lucide="copy" class="w-4 h-4"></i></button>
+        </div>
+
+        <div class="flex-1 bg-white relative">
+          <div id="loadingOverlay" class="absolute inset-0 bg-slate-900/95 flex flex-col items-center justify-center z-20 hidden">
+            <i data-lucide="loader-2" class="w-10 h-10 text-indigo-400 animate-spin mb-4"></i>
+            <p class="text-white font-bold animate-pulse">Transforming via kAIxU...</p>
+          </div>
+
+          <div id="errorOverlay" class="absolute inset-0 bg-[#1e1e2e] p-8 text-red-400 overflow-auto hidden">
+            <div class="flex items-start gap-4 p-4 rounded-lg bg-red-400/10 border border-red-400/20">
+              <i data-lucide="alert-circle" class="w-6 h-6 shrink-0"></i>
+              <div>
+                <h3 class="font-bold mb-2">Build Failed</h3>
+                <p id="errorText" class="text-sm font-mono whitespace-pre-wrap"></p>
+              </div>
+            </div>
+          </div>
+
+          <div id="emptyState" class="absolute inset-0 flex flex-col items-center justify-center bg-[#1e1e2e] text-slate-600">
+            <i data-lucide="play" class="w-12 h-12 mb-4 opacity-10"></i>
+            <p class="text-sm font-medium">Conversion result will appear here</p>
+          </div>
+
+          <iframe id="previewFrame" title="Live Preview" class="w-full h-full border-none hidden" sandbox="allow-scripts allow-forms allow-same-origin allow-modals"></iframe>
+          <div id="codePanel" class="h-full bg-[#1e1e2e] overflow-auto hidden"><pre class="p-5 font-mono text-sm text-slate-300 whitespace-pre-wrap"><code id="codeOutput"></code></pre></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      if (window.lucide?.createIcons) window.lucide.createIcons();
+
+      const qs = new URLSearchParams(location.search);
+      const wsId = qs.get('ws_id') || 'primary-workspace';
+      const convertBtn = document.getElementById('convertBtn');
+      const convertBtnText = document.getElementById('convertBtnText');
+      const inputCodeEl = document.getElementById('inputCode');
+      const authBadge = document.getElementById('authBadge');
+      const tabPreview = document.getElementById('tabPreview');
+      const tabCode = document.getElementById('tabCode');
+      const copyBtn = document.getElementById('copyBtn');
+      const loadingOverlay = document.getElementById('loadingOverlay');
+      const errorOverlay = document.getElementById('errorOverlay');
+      const errorText = document.getElementById('errorText');
+      const emptyState = document.getElementById('emptyState');
+      const previewFrame = document.getElementById('previewFrame');
+      const codePanel = document.getElementById('codePanel');
+      const codeOutput = document.getElementById('codeOutput');
+
+      let outputHtml = '';
+      let isLoading = false;
+      let activeTab = 'preview';
+
+      inputCodeEl.value = `import React, { useState } from 'react';\n\nexport default function Counter() {\n  const [count, setCount] = useState(0);\n\n  return (\n    <div className="p-4 bg-blue-50 rounded-lg text-center font-sans">\n      <h2 className="text-2xl font-bold mb-4 text-blue-800">React Counter</h2>\n      <p className="mb-4 text-lg text-gray-700">Current count: {count}</p>\n      <button\n        onClick={() => setCount(count + 1)}\n        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"\n      >\n        Increment\n      </button>\n    </div>\n  );\n}`;
+
+      function getAccessAuthHeaders() {
+        const token = (localStorage.getItem('kx.api.accessToken') || '').trim();
+        const email = (localStorage.getItem('kx.api.tokenEmail') || '').trim().toLowerCase();
+        const headers = {};
+        if (token) headers.Authorization = `Bearer ${token}`;
+        if (email) headers['X-Token-Email'] = email;
+        return headers;
+      }
+
+      async function refreshAuthBadge() {
+        const authHeaders = getAccessAuthHeaders();
+        if (authHeaders.Authorization) {
+          authBadge.textContent = 'Auth: kAIxU key loaded';
+          authBadge.className = 'px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200';
+          return;
+        }
+        try {
+          const res = await fetch('/api/auth-me', { method:'GET', credentials:'include' });
+          if (res.ok) {
+            authBadge.textContent = 'Auth: session cookie';
+            authBadge.className = 'px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200';
+          } else {
+            authBadge.textContent = 'Auth: missing';
+            authBadge.className = 'px-3 py-1 rounded-full bg-amber-100 text-amber-700 border border-amber-200';
+          }
+        } catch {
+          authBadge.textContent = 'Auth: missing';
+          authBadge.className = 'px-3 py-1 rounded-full bg-amber-100 text-amber-700 border border-amber-200';
+        }
+      }
+
+      function setLoading(v) {
+        isLoading = v;
+        loadingOverlay.classList.toggle('hidden', !v);
+        convertBtn.disabled = v || !inputCodeEl.value.trim();
+        convertBtnText.textContent = v ? 'Converting...' : 'Build HTML';
+        if (window.lucide?.createIcons) window.lucide.createIcons();
+      }
+
+      function showError(message) {
+        errorText.textContent = message || 'Unknown error.';
+        errorOverlay.classList.remove('hidden');
+        emptyState.classList.add('hidden');
+        previewFrame.classList.add('hidden');
+        codePanel.classList.add('hidden');
+      }
+
+      function clearError() {
+        errorOverlay.classList.add('hidden');
+        errorText.textContent = '';
+      }
+
+      function setActiveTab(tab) {
+        activeTab = tab;
+        const isPreview = tab === 'preview';
+        tabPreview.className = isPreview ? 'px-5 py-3.5 text-xs font-bold uppercase tracking-widest border-b-2 transition-all border-emerald-400 text-emerald-400 bg-slate-800/40' : 'px-5 py-3.5 text-xs font-bold uppercase tracking-widest border-b-2 transition-all border-transparent text-slate-500 hover:text-slate-300';
+        tabCode.className = !isPreview ? 'px-5 py-3.5 text-xs font-bold uppercase tracking-widest border-b-2 transition-all border-emerald-400 text-emerald-400 bg-slate-800/40' : 'px-5 py-3.5 text-xs font-bold uppercase tracking-widest border-b-2 transition-all border-transparent text-slate-500 hover:text-slate-300';
+
+        if (!outputHtml) {
+          emptyState.classList.remove('hidden');
+          previewFrame.classList.add('hidden');
+          codePanel.classList.add('hidden');
+          copyBtn.classList.add('hidden');
+          return;
+        }
+
+        emptyState.classList.add('hidden');
+        clearError();
+
+        if (isPreview) {
+          previewFrame.classList.remove('hidden');
+          codePanel.classList.add('hidden');
+          copyBtn.classList.add('hidden');
+        } else {
+          previewFrame.classList.add('hidden');
+          codePanel.classList.remove('hidden');
+          copyBtn.classList.remove('hidden');
+        }
+      }
+
+      function sanitizeModelOutputToHtml(text) {
+        if (!text) return '';
+        const b = '`';
+        const pattern = new RegExp(`${b}${b}${b}(?:html)?\\s*([\\s\\S]*?)${b}${b}${b}`, 'i');
+        const match = text.match(pattern);
+        let converted = text;
+
+        if (match && match[1]) {
+          converted = match[1].trim();
+        } else {
+          const tagStart = converted.search(/<!doctype html|<html/i);
+          if (tagStart !== -1) {
+            converted = converted.substring(tagStart).trim();
+            converted = converted.split(`${b}${b}${b}`)[0].trim();
+          }
+        }
+
+        if (!converted.trim().startsWith('<')) {
+          throw new Error('Invalid HTML generated (response did not start with a tag).');
+        }
+        return converted;
+      }
+
+      async function convertReactToHtml() {
+        const inputCode = inputCodeEl.value;
+        if (!inputCode.trim()) {
+          showError('Please paste some React code first.');
+          return;
+        }
+
+        setLoading(true);
+        clearError();
+        outputHtml = '';
+        codeOutput.textContent = '';
+        previewFrame.srcdoc = '';
+        setActiveTab('preview');
+
+        const prompt = `You are an expert web developer compiler. Convert the provided React code into a single, functional Vanilla HTML/JS file.\n\nCRITICAL RULES:\n1. OUTPUT ONLY RAW HTML. Do NOT include markdown backticks.\n2. Include <!DOCTYPE html>, <html>, <head>, and <body> tags.\n3. Include Tailwind CSS via CDN.\n4. Translate React state/event handlers into Vanilla JavaScript.\n5. Place ALL JavaScript in one <script> tag at the end of <body>.\n6. Wrap JavaScript in document.addEventListener('DOMContentLoaded', () => { ... });\n\nReact code:\n${inputCode}`;
+
+        try {
+          const authHeaders = getAccessAuthHeaders();
+          const res = await fetch('/api/kaixu-generate', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json', ...authHeaders },
+            body: JSON.stringify({ ws_id: wsId, activePath: '/REACT2HTML/input.tsx', files: [], prompt })
+          });
+
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(data?.error || `kAIxU generate failed (${res.status})`);
+
+          const raw = String(data?.text || data?.result || data?.output || '');
+          outputHtml = sanitizeModelOutputToHtml(raw);
+          codeOutput.textContent = outputHtml;
+          previewFrame.srcdoc = outputHtml;
+          setActiveTab(activeTab);
+        } catch (err) {
+          showError(`Conversion Failed: ${err?.message || String(err)}`);
+        } finally {
+          setLoading(false);
+        }
+      }
+
+      function updateConvertEnabled() {
+        const hasInput = !!inputCodeEl.value.trim();
+        convertBtn.disabled = isLoading || !hasInput;
+      }
+
+      async function copyHtml() {
+        if (!outputHtml) return;
+        try {
+          await navigator.clipboard.writeText(outputHtml);
+        } catch {
+          const ta = document.createElement('textarea');
+          ta.value = outputHtml;
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          document.body.removeChild(ta);
+        }
+
+        copyBtn.innerHTML = '<i data-lucide="check" class="w-4 h-4"></i>';
+        if (window.lucide?.createIcons) window.lucide.createIcons();
+        setTimeout(() => {
+          copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>';
+          if (window.lucide?.createIcons) window.lucide.createIcons();
+        }, 2000);
+      }
+
+      convertBtn.addEventListener('click', convertReactToHtml);
+      inputCodeEl.addEventListener('input', updateConvertEnabled);
+      tabPreview.addEventListener('click', () => setActiveTab('preview'));
+      tabCode.addEventListener('click', () => setActiveTab('code'));
+      copyBtn.addEventListener('click', copyHtml);
+
+      refreshAuthBadge();
+      updateConvertEnabled();
+      setActiveTab('preview');
+    });
+  </script>
+</body>
+</html>

@@ -5,34 +5,35 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SkyeMail Workspace</title>
   <style>
+    @import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Space+Grotesk:wght@400;500;600&display=swap");
     :root {
-      --bg: #07060f;
-      --panel: #121026;
-      --panel2: #171332;
-      --border: rgba(255,255,255,0.12);
-      --text: #f5f7ff;
-      --muted: #a7acc9;
-      --gold: #ffd700;
-      --purple: #8a4fff;
+      --bg: #060d13;
+      --panel: #09151d;
+      --panel2: #0e1b24;
+      --border: rgba(44,230,255,0.32);
+      --text: #eff9ff;
+      --muted: #9eb8c8;
+      --gold: #ffcb47;
+      --accent: #2ce6ff;
     }
     * { box-sizing: border-box; }
-    body { margin: 0; font-family: Inter, system-ui, sans-serif; color: var(--text); background: radial-gradient(circle at top right, rgba(138,79,255,0.22), transparent 45%), var(--bg); }
+    body { margin: 0; font-family: "Space Grotesk", sans-serif; color: var(--text); background: radial-gradient(circle at 8% 0, rgba(44,230,255,0.16), transparent 36%), radial-gradient(circle at 92% 2%, rgba(255,203,71,0.14), transparent 42%), linear-gradient(155deg, #060d13, #0d1d27); }
     .shell { display: grid; grid-template-rows: 64px 1fr; min-height: 100vh; }
-    .top { display: flex; align-items: center; justify-content: space-between; padding: 0 16px; border-bottom: 1px solid var(--border); background: rgba(0,0,0,0.35); }
-    .brand { font-weight: 700; letter-spacing: .04em; }
+    .top { display: flex; align-items: center; justify-content: space-between; padding: 0 16px; border-bottom: 1px solid var(--border); background: rgba(3,10,14,0.78); backdrop-filter: blur(10px); }
+    .brand { font-family: "Orbitron", sans-serif; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
     .brand span { color: var(--gold); }
-    .top a, .top button { color: var(--text); background: transparent; border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; text-decoration: none; cursor: pointer; }
+    .top a, .top button { color: var(--text); background: rgba(0,0,0,0.28); border: 1px solid rgba(191,238,255,0.24); border-radius: 8px; padding: 7px 10px; text-decoration: none; cursor: pointer; }
     .main { display: grid; grid-template-columns: 340px 1fr; gap: 12px; padding: 12px; }
-    .card { background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02)); border: 1px solid var(--border); border-radius: 12px; padding: 12px; }
+    .card { background: linear-gradient(180deg, rgba(8,18,24,0.94), rgba(7,14,20,0.9)); border: 1px solid var(--border); border-radius: 12px; padding: 12px; box-shadow: 0 10px 28px rgba(0,0,0,0.28); }
     h2 { margin: 0 0 10px; font-size: 14px; text-transform: uppercase; color: var(--gold); letter-spacing: .06em; }
     label { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); display: block; margin: 10px 0 5px; }
-    input, textarea { width: 100%; background: #0c0b19; color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 9px 10px; }
+    input, textarea { width: 100%; background: rgba(0,0,0,0.34); color: var(--text); border: 1px solid rgba(191,238,255,0.22); border-radius: 8px; padding: 9px 10px; }
     textarea { min-height: 110px; resize: vertical; }
     .actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
-    button { background: #1b1738; color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; cursor: pointer; }
-    button.primary { background: var(--purple); border-color: var(--purple); }
+    button { background: rgba(44,230,255,0.12); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; cursor: pointer; }
+    button.primary { background: linear-gradient(120deg, rgba(44,230,255,0.22), rgba(255,203,71,0.22)); border-color: rgba(44,230,255,0.42); }
     .inbox { display: flex; flex-direction: column; gap: 8px; max-height: 72vh; overflow: auto; }
-    .item { border: 1px solid var(--border); border-radius: 10px; padding: 10px; background: rgba(255,255,255,0.03); }
+    .item { border: 1px solid rgba(191,238,255,0.22); border-radius: 10px; padding: 10px; background: rgba(255,255,255,0.03); }
     .meta { font-size: 12px; color: var(--muted); margin-top: 5px; }
     .auth { display: grid; gap: 8px; }
     .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
@@ -377,11 +378,15 @@
       const email = document.getElementById('email').value.trim();
       const password = document.getElementById('password').value;
       const orgName = document.getElementById('orgName').value.trim() || 'SkyeMail Org';
-      await call('/api/auth-signup', {
+      const signup = await call('/api/auth-signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password, orgName }),
       });
+      if (signup?.kaixu_token?.token) {
+        localStorage.setItem('kx.api.accessToken', signup.kaixu_token.token);
+        localStorage.setItem('kx.api.tokenEmail', signup.kaixu_token.locked_email || email.toLowerCase());
+      }
       await refreshMe();
       await loadProfile();
       await loadInbox();

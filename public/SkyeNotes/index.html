@@ -1,34 +1,151 @@
 <!doctype html>
-<html lang="en"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>SkyeNotes Platform</title>
-<style>
-:root{--bg:#0a0c17;--panel:#141a32;--line:#33406a;--text:#edf1ff;--muted:#a5b4da}*{box-sizing:border-box}
-body{margin:0;font-family:Tahoma,sans-serif;background:radial-gradient(circle at 10% 0,#1e2959,#0a0c17 60%);color:var(--text)}
-.wrap{max-width:1100px;margin:0 auto;padding:14px;display:grid;gap:12px}.card{border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:12px}
-.row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}input,textarea,button{width:100%;border:1px solid var(--line);border-radius:10px;background:#0b1126;color:var(--text);padding:9px 10px}
-button{cursor:pointer;background:#1d2a62}.list{display:grid;gap:8px}.item{border:1px solid #46558b;border-radius:10px;padding:10px;background:#0f1737}.muted{color:var(--muted);font-size:.84rem}
-@media (max-width:900px){.row{grid-template-columns:1fr 1fr}}
-</style></head><body>
-<div class="wrap">
-<section class="card"><h1 style="margin:0">SkyeNotes Platform</h1><div class="muted">Standalone knowledge system with persistent workspace notes.</div><div style="margin-top:8px"><a href="/index.html?app=SkyeNotes">Return to IDE</a></div></section>
-<section class="card">
-<div class="row"><input id="email" placeholder="email"/><input id="password" type="password" placeholder="password"/><input id="org" value="SkyeNotes Org"/><button id="login">Login or Signup</button></div>
-<div class="row" style="margin-top:8px"><input id="ws" placeholder="workspace"/><input id="title" placeholder="Note title"/><input id="tags" placeholder="tags"/><button id="add">Add Note</button></div>
-<div class="row" style="margin-top:8px;grid-template-columns:1fr 1fr"><input id="search" placeholder="search notes"/><button id="sync">Load + Save</button></div>
-<div class="muted" id="status">Ready.</div>
-</section>
-<section class="card"><div class="list" id="list"></div></section>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SkyeNotes Platform</title>
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Space+Grotesk:wght@400;500;600&display=swap");
+    :root { --bg:#060d13; --bg2:#0d1d27; --line:rgba(44,230,255,.34); --line2:rgba(191,238,255,.2); --text:#f6fbff; --muted:#9ab6c4; --gold:#ffcb47; }
+    * { box-sizing:border-box; }
+    body { margin:0; color:var(--text); font-family:"Space Grotesk",sans-serif; background:radial-gradient(circle at 14% 0, rgba(44,230,255,.14), transparent 40%), linear-gradient(155deg,var(--bg),var(--bg2)); }
+    .shell { max-width:1150px; margin:0 auto; padding:16px; display:grid; gap:12px; }
+    .topbar,.card{border:1px solid var(--line); border-radius:14px; background:rgba(7,15,21,.9);} .topbar{padding:12px 14px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;}
+    .brand { font-family:"Orbitron",sans-serif; text-transform:uppercase; letter-spacing:.09em; }
+    .muted { color:var(--muted); font-size:.82rem; }
+    .chip { border:1px solid rgba(255,203,71,.42); border-radius:999px; padding:5px 10px; color:#ffe6a5; background:rgba(255,203,71,.08); font-size:.74rem; }
+    .card { padding:12px; display:grid; gap:10px; }
+    .row { display:grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap:8px; }
+    .row.two { grid-template-columns: 1fr 1fr; }
+    input,textarea,button { width:100%; border:1px solid var(--line2); border-radius:10px; background:rgba(0,0,0,.34); color:var(--text); padding:9px 10px; font:inherit; }
+    button { cursor:pointer; border-color:var(--line); background:rgba(44,230,255,.12); }
+    button.primary { background:linear-gradient(135deg, rgba(255,203,71,.9), rgba(44,230,255,.78)); color:#03131a; font-weight:700; border-color:rgba(255,203,71,.5); }
+    .list { display:grid; gap:8px; }
+    .item { border:1px solid var(--line2); border-radius:12px; padding:10px; background:rgba(255,255,255,.03); }
+    textarea { min-height:84px; resize:vertical; }
+    a { color:#d8f7ff; }
+    @media (max-width:900px){ .row{grid-template-columns:1fr 1fr;} .row.two{grid-template-columns:1fr;} }
+    @media (max-width:560px){ .row{grid-template-columns:1fr;} }
+  </style>
+</head>
+<body>
+<div class="shell">
+  <section class="topbar">
+    <div>
+      <div class="brand">SkyeNotes Command Surface</div>
+      <div class="muted">Knowledge workspace with tagged notes and persistent storage model.</div>
+      <div class="muted"><a href="/index.html?app=SkyeNotes">Return to IDE</a></div>
+    </div>
+    <div class="chip" id="meta">ws_id=primary-workspace</div>
+  </section>
+
+  <section class="card">
+    <div class="row">
+      <input id="email" placeholder="email" />
+      <input id="password" type="password" placeholder="password" />
+      <input id="org" value="SkyeNotes Org" />
+      <button id="login">Login or Signup</button>
+    </div>
+    <div class="row">
+      <input id="ws" placeholder="workspace" />
+      <input id="title" placeholder="Note title" />
+      <input id="tags" placeholder="tags" />
+      <button class="primary" id="add">Add Note</button>
+    </div>
+    <div class="row two">
+      <input id="search" placeholder="search notes" />
+      <button id="sync">Load + Save</button>
+    </div>
+    <div class="muted" id="status">Ready.</div>
+  </section>
+
+  <section class="card"><div class="list" id="list"></div></section>
 </div>
+
 <script>
-const qs=new URLSearchParams(location.search);document.getElementById('ws').value=qs.get('ws_id')||'primary-workspace';let notes=[];const status=document.getElementById('status');
-function setStatus(t){status.textContent=t}
-async function call(path,opt={}){const r=await fetch(path,{credentials:'include',...opt});const t=await r.text();let d={};try{d=t?JSON.parse(t):{}}catch{d={raw:t}}if(!r.ok)throw new Error(d.error||path+' failed ('+r.status+')');return d}
-async function auth(){const email=document.getElementById('email').value.trim();const password=document.getElementById('password').value;const org=document.getElementById('org').value.trim()||'SkyeNotes Org';if(!email||!password)throw new Error('email/password required');try{await call('/api/auth-login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})})}catch{await call('/api/auth-signup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password,orgName:org})})}}
-async function load(){await auth();const ws=document.getElementById('ws').value.trim();const d=await call('/api/app-record-list?ws_id='+encodeURIComponent(ws)+'&app=SkyeNotes&limit=1');notes=Array.isArray(d.records)&&d.records[0]&&d.records[0].payload&&Array.isArray(d.records[0].payload.notes)?d.records[0].payload.notes:[];render();setStatus('Loaded notes.')}
-async function save(){await auth();const ws=document.getElementById('ws').value.trim();await call('/api/app-record-save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ws_id:ws,app:'SkyeNotes',title:'SkyeNotes Workspace',model:{notes}})});setStatus('Saved notes.')}
-function add(){const title=document.getElementById('title').value.trim();if(!title)return setStatus('title required');notes.unshift({id:'note-'+Date.now(),title,body:'',tags:document.getElementById('tags').value.trim(),owner:'owner',updated_at:new Date().toISOString()});document.getElementById('title').value='';render()}
-function render(){const q=document.getElementById('search').value.trim().toLowerCase();const list=document.getElementById('list');list.innerHTML='';notes.filter(n=>(n.title+' '+n.body+' '+n.tags).toLowerCase().includes(q)).forEach(n=>{const item=document.createElement('div');item.className='item';item.innerHTML='<strong>'+n.title+'</strong><div class="muted">tags='+(n.tags||'')+'</div>';const ta=document.createElement('textarea');ta.rows=4;ta.value=n.body||'';ta.onchange=()=>{notes=notes.map(x=>x.id===n.id?{...x,body:ta.value,updated_at:new Date().toISOString()}:x)};const tg=document.createElement('input');tg.value=n.tags||'';tg.onchange=()=>{notes=notes.map(x=>x.id===n.id?{...x,tags:tg.value,updated_at:new Date().toISOString()}:x)};item.appendChild(ta);item.appendChild(tg);list.appendChild(item);})}
-document.getElementById('login').onclick=()=>auth().then(()=>setStatus('Session ready.')).catch(e=>setStatus(e.message));
-document.getElementById('add').onclick=add;document.getElementById('search').oninput=render;document.getElementById('sync').onclick=()=>load().then(save).catch(e=>setStatus(e.message));
+const qs = new URLSearchParams(location.search);
+document.getElementById('ws').value = qs.get('ws_id') || 'primary-workspace';
+document.getElementById('meta').textContent = `ws_id=${document.getElementById('ws').value}`;
+let notes = [];
+const status = document.getElementById('status');
+function setStatus(t){ status.textContent = t; }
+
+async function call(path, opt = {}) {
+  const res = await fetch(path, { credentials:'include', ...opt });
+  const txt = await res.text();
+  let data = {};
+  try { data = txt ? JSON.parse(txt) : {}; } catch { data = { raw: txt }; }
+  if (!res.ok) throw new Error(data.error || `${path} failed (${res.status})`);
+  return data;
+}
+
+async function auth() {
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  const org = document.getElementById('org').value.trim() || 'SkyeNotes Org';
+  if (!email || !password) throw new Error('email/password required');
+  try {
+    await call('/api/auth-login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ email, password }) });
+  } catch {
+    const signup = await call('/api/auth-signup', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ email, password, orgName: org }) });
+    if (signup?.kaixu_token?.token) {
+      localStorage.setItem('kx.api.accessToken', signup.kaixu_token.token);
+      localStorage.setItem('kx.api.tokenEmail', signup.kaixu_token.locked_email || email.toLowerCase());
+    }
+  }
+}
+
+async function load() {
+  await auth();
+  const ws = document.getElementById('ws').value.trim();
+  const d = await call('/api/app-record-list?ws_id=' + encodeURIComponent(ws) + '&app=SkyeNotes&limit=1');
+  notes = Array.isArray(d.records) && d.records[0]?.payload && Array.isArray(d.records[0].payload.notes) ? d.records[0].payload.notes : [];
+  render();
+  setStatus('Loaded notes.');
+}
+
+async function save() {
+  await auth();
+  const ws = document.getElementById('ws').value.trim();
+  await call('/api/app-record-save', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ ws_id:ws, app:'SkyeNotes', title:'SkyeNotes Workspace', model:{ notes } }) });
+  setStatus('Saved notes.');
+}
+
+function add() {
+  const title = document.getElementById('title').value.trim();
+  if (!title) return setStatus('title required');
+  notes.unshift({ id:'note-' + Date.now(), title, body:'', tags:document.getElementById('tags').value.trim(), owner:'owner', updated_at:new Date().toISOString() });
+  document.getElementById('title').value = '';
+  render();
+}
+
+function render() {
+  const q = document.getElementById('search').value.trim().toLowerCase();
+  const list = document.getElementById('list');
+  list.innerHTML = '';
+  notes
+    .filter(n => (`${n.title} ${n.body} ${n.tags}`).toLowerCase().includes(q))
+    .forEach(n => {
+      const item = document.createElement('div');
+      item.className = 'item';
+      item.innerHTML = `<strong>${n.title}</strong><div class="muted">tags=${n.tags || ''}</div>`;
+      const ta = document.createElement('textarea');
+      ta.value = n.body || '';
+      ta.onchange = () => { notes = notes.map(x => x.id === n.id ? { ...x, body: ta.value, updated_at:new Date().toISOString() } : x); };
+      const tg = document.createElement('input');
+      tg.value = n.tags || '';
+      tg.onchange = () => { notes = notes.map(x => x.id === n.id ? { ...x, tags: tg.value, updated_at:new Date().toISOString() } : x); };
+      item.appendChild(ta);
+      item.appendChild(tg);
+      list.appendChild(item);
+    });
+}
+
+document.getElementById('login').onclick = () => auth().then(() => setStatus('Session ready.')).catch(e => setStatus(e.message));
+document.getElementById('add').onclick = add;
+document.getElementById('search').oninput = render;
+document.getElementById('sync').onclick = () => load().then(save).catch(e => setStatus(e.message));
 render();
-</script></body></html>
+</script>
+</body>
+</html>

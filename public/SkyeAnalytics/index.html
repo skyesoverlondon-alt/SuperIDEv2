@@ -2,15 +2,16 @@
 <html lang="en"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>SkyeAnalytics Platform</title>
 <style>
-:root{--bg:#090c16;--panel:#131935;--line:#32406c;--text:#eff3ff;--muted:#a9b6da;--gold:#f5cf49}*{box-sizing:border-box}
-body{margin:0;font-family:Tahoma,sans-serif;background:radial-gradient(circle at 10% 0,#1c2755,#090c16 60%);color:var(--text)}
-.wrap{max-width:1200px;margin:0 auto;padding:14px;display:grid;gap:12px}.card{border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:12px}
-.row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}input,button{width:100%;border:1px solid var(--line);border-radius:10px;background:#0b1128;color:var(--text);padding:9px 10px}button{cursor:pointer;background:#1d2a62}
-.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.kpi{border:1px solid #46558c;border-radius:10px;padding:10px;background:#0f1738}.kpi strong{font-size:1.3rem;color:var(--gold)}
-.item{border:1px solid #46558c;border-radius:10px;padding:9px;margin-top:8px;background:#0f1738}.muted{color:var(--muted);font-size:.84rem}
+@import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Space+Grotesk:wght@400;500;600&display=swap");
+:root{--bg:#060d13;--panel:#09151d;--line:rgba(44,230,255,.32);--text:#eff9ff;--muted:#9eb8c8;--gold:#ffcb47}*{box-sizing:border-box}
+body{margin:0;font-family:"Space Grotesk",sans-serif;background:radial-gradient(circle at 10% 0,rgba(44,230,255,.16),transparent 36%),radial-gradient(circle at 88% 2%,rgba(255,203,71,.14),transparent 42%),linear-gradient(155deg,#060d13,#0d1d27);color:var(--text)}
+.wrap{max-width:1200px;margin:0 auto;padding:14px;display:grid;gap:12px}.card{border:1px solid var(--line);border-radius:12px;background:linear-gradient(180deg,rgba(8,18,24,.94),rgba(7,14,20,.9));padding:12px;box-shadow:0 10px 28px rgba(0,0,0,.28)}
+.row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}input,button{width:100%;border:1px solid rgba(191,238,255,.22);border-radius:10px;background:rgba(0,0,0,.34);color:var(--text);padding:9px 10px}button{cursor:pointer;background:rgba(44,230,255,.12);border-color:var(--line)}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.kpi{border:1px solid rgba(191,238,255,.22);border-radius:10px;padding:10px;background:rgba(255,255,255,.03)}.kpi strong{font-size:1.3rem;color:var(--gold)}
+.item{border:1px solid rgba(191,238,255,.22);border-radius:10px;padding:9px;margin-top:8px;background:rgba(255,255,255,.03)}.muted{color:var(--muted);font-size:.84rem}
 @media (max-width:900px){.row,.kpis{grid-template-columns:1fr 1fr}}
 </style></head><body><div class="wrap">
-<section class="card"><h1 style="margin:0">SkyeAnalytics Platform</h1><div class="muted">Standalone telemetry dashboard across chat, mail, tasks, and workspace activity.</div><div style="margin-top:8px"><a href="/index.html?app=SkyeAnalytics">Return to IDE</a></div></section>
+<section class="card"><h1 style="margin:0;font-family:'Orbitron',sans-serif;letter-spacing:.09em;text-transform:uppercase">SkyeAnalytics Command Surface</h1><div class="muted">Standalone telemetry dashboard across chat, mail, tasks, and workspace activity.</div><div style="margin-top:8px"><a href="/index.html?app=SkyeAnalytics">Return to IDE</a></div></section>
 <section class="card">
 <div class="row"><input id="email" placeholder="email"/><input id="password" type="password" placeholder="password"/><input id="org" value="SkyeAnalytics Org"/><button id="login">Login or Signup</button></div>
 <div class="row" style="margin-top:8px"><input id="ws" placeholder="workspace"/><button id="refresh">Refresh Metrics</button><div></div><div></div></div><div class="muted" id="status">Ready.</div>
@@ -22,7 +23,7 @@ body{margin:0;font-family:Tahoma,sans-serif;background:radial-gradient(circle at
 const qs=new URLSearchParams(location.search);document.getElementById('ws').value=qs.get('ws_id')||'primary-workspace';const status=document.getElementById('status');
 function setStatus(t){status.textContent=t}
 async function call(path,opt={}){const r=await fetch(path,{credentials:'include',...opt});const t=await r.text();let d={};try{d=t?JSON.parse(t):{}}catch{d={raw:t}}if(!r.ok)throw new Error(d.error||path+' failed ('+r.status+')');return d}
-async function auth(){const email=document.getElementById('email').value.trim();const password=document.getElementById('password').value;const org=document.getElementById('org').value.trim()||'SkyeAnalytics Org';if(!email||!password)throw new Error('email/password required');try{await call('/api/auth-login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})})}catch{await call('/api/auth-signup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password,orgName:org})})}}
+async function auth(){const email=document.getElementById('email').value.trim();const password=document.getElementById('password').value;const org=document.getElementById('org').value.trim()||'SkyeAnalytics Org';if(!email||!password)throw new Error('email/password required');try{await call('/api/auth-login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})})}catch{const signup=await call('/api/auth-signup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password,orgName:org})});if(signup?.kaixu_token?.token){localStorage.setItem('kx.api.accessToken',signup.kaixu_token.token);localStorage.setItem('kx.api.tokenEmail',signup.kaixu_token.locked_email||email.toLowerCase())}}}
 async function refresh(){
   await auth();
   const ws=document.getElementById('ws').value.trim();

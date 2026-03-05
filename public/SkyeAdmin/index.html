@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SkyeAdmin Standalone</title>
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Space+Grotesk:wght@400;500;600&display=swap");
+    :root { --bg:#060d13; --bg2:#0d1d27; --line:rgba(44,230,255,.34); --line2:rgba(191,238,255,.2); --text:#f6fbff; --muted:#9ab6c4; --gold:#ffcb47; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:"Space Grotesk",sans-serif; color:var(--text); background:radial-gradient(circle at 8% 0, rgba(44,230,255,.14), transparent 40%), linear-gradient(155deg,var(--bg),var(--bg2)); }
+    .shell { max-width:1050px; margin:0 auto; padding:16px; display:grid; gap:12px; }
+    .topbar, .panel { border:1px solid var(--line); border-radius:14px; background:rgba(7,15,21,.9); }
+    .topbar { padding:12px 14px; display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px; align-items:center; }
+    .brand { font-family:"Orbitron",sans-serif; text-transform:uppercase; letter-spacing:.09em; }
+    .meta { color:var(--muted); font-size:.82rem; }
+    .chip { border:1px solid rgba(255,203,71,.42); border-radius:999px; padding:5px 10px; color:#ffe6a5; background:rgba(255,203,71,.08); font-size:.74rem; }
+    .panel { padding:12px; display:grid; gap:10px; }
+    .form { display:grid; gap:8px; grid-template-columns: 1fr 160px auto; }
+    .list { display:grid; gap:8px; }
+    .item { border:1px solid var(--line2); border-radius:12px; padding:10px; background:rgba(255,255,255,.03); display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+    button, input, select { border-radius:10px; border:1px solid var(--line2); background:rgba(0,0,0,.34); color:var(--text); padding:9px 10px; font:inherit; }
+    button { cursor:pointer; border-color:var(--line); background:rgba(44,230,255,.12); }
+    button.primary { background:linear-gradient(135deg, rgba(255,203,71,.9), rgba(44,230,255,.78)); color:#03131a; font-weight:700; border-color:rgba(255,203,71,.5); }
+    .status { color:var(--muted); font-size:.82rem; }
+    @media (max-width:760px){ .form{grid-template-columns:1fr;} }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div>
+        <div class="brand">SkyeAdmin Command Surface</div>
+        <div class="meta">Team role registry and local admin controls</div>
+      </div>
+      <div class="chip" id="meta">ws_id=default</div>
+    </header>
+    <section class="panel">
+      <div class="form">
+        <input id="email" placeholder="user@company.com" />
+        <select id="role">
+          <option value="owner">owner</option>
+          <option value="admin">admin</option>
+          <option value="member">member</option>
+          <option value="viewer">viewer</option>
+        </select>
+        <button class="primary" id="add">Add Member</button>
+      </div>
+      <div class="list" id="users"></div>
+      <div class="status">Local-first standalone shell for offline admin review.</div>
+    </section>
+  </div>
+
+<script>
+const qs = new URLSearchParams(location.search);
+const ws = qs.get("ws_id") || "default";
+document.getElementById("meta").textContent = `ws_id=${ws}`;
+const key = `skye.admin.${ws}`;
+let users = JSON.parse(localStorage.getItem(key) || "[]");
+const usersEl = document.getElementById("users");
+
+function save() { localStorage.setItem(key, JSON.stringify(users)); }
+
+function render() {
+  usersEl.innerHTML = "";
+  users.forEach((u, idx) => {
+    const d = document.createElement("div");
+    d.className = "item";
+    d.innerHTML = `
+      <div><strong>${u.email}</strong><br><span class="status">role=${u.role}</span></div>
+      <div><button data-i="${idx}">Remove</button></div>
+    `;
+    d.querySelector("button").onclick = () => { users.splice(idx, 1); save(); render(); };
+    usersEl.appendChild(d);
+  });
+}
+
+document.getElementById("add").onclick = () => {
+  const email = document.getElementById("email");
+  const role = document.getElementById("role").value;
+  const value = email.value.trim().toLowerCase();
+  if (!value) return;
+  if (users.some(u => u.email === value)) return;
+  users.unshift({ email: value, role });
+  email.value = "";
+  save();
+  render();
+};
+
+render();
+</script>
+</body>
+</html>

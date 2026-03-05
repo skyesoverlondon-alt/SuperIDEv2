@@ -5,25 +5,27 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SkyeCalendar Platform</title>
   <style>
-    :root { --bg:#090a13; --panel:#12162a; --line:#2a3357; --text:#edf1ff; --muted:#9fb0d5; --gold:#f5cf49; }
+    @import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Space+Grotesk:wght@400;500;600&display=swap");
+    :root { --bg:#060d13; --panel:#09151d; --line:rgba(44,230,255,.32); --text:#edf7ff; --muted:#9bb8c7; --gold:#ffcb47; }
     * { box-sizing: border-box; }
-    body { margin:0; font-family: "Segoe UI", Tahoma, sans-serif; color:var(--text); background: radial-gradient(circle at 10% 10%, #1a2040, #090a13 55%); }
+    body { margin:0; font-family: "Space Grotesk", sans-serif; color:var(--text); background: radial-gradient(circle at 10% 10%, rgba(44,230,255,.16), transparent 36%), radial-gradient(circle at 90% 0, rgba(255,203,71,.14), transparent 42%), linear-gradient(155deg, #050a0f, #0c1b24); }
     .wrap { max-width: 1200px; margin: 0 auto; padding: 16px; display: grid; gap: 12px; }
-    .card { border:1px solid var(--line); background:var(--panel); border-radius:12px; padding:12px; }
+    .card { border:1px solid var(--line); background:linear-gradient(180deg, rgba(8,18,24,.94), rgba(7,14,20,.9)); border-radius:12px; padding:12px; box-shadow: 0 10px 28px rgba(0,0,0,.28); }
     .top { display:flex; justify-content:space-between; align-items:center; gap:10px; }
-    .title { margin:0; font-size:1.1rem; }
+    .title { margin:0; font-size:1.1rem; font-family: "Orbitron", sans-serif; letter-spacing: .09em; text-transform: uppercase; }
     .muted { color:var(--muted); font-size:0.85rem; }
     .row { display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap:8px; }
-    input, select, textarea, button { width:100%; border-radius:10px; border:1px solid var(--line); background:#0b1022; color:var(--text); padding:9px 10px; }
-    button { cursor:pointer; background:#1a2452; }
+    input, select, textarea, button { width:100%; border-radius:10px; border:1px solid rgba(191,238,255,.22); background:rgba(0,0,0,.34); color:var(--text); padding:9px 10px; }
+    button { cursor:pointer; background:rgba(44,230,255,.12); border-color: var(--line); }
     .actions { display:flex; gap:8px; flex-wrap:wrap; }
     .actions button, .actions a { width:auto; }
+    .actions a { border-radius:999px; border:1px solid rgba(255,203,71,.4); background: rgba(255,203,71,.08); color: #ffe8ae; padding: 6px 12px; text-decoration: none; }
     .grid { display:grid; grid-template-columns: repeat(7, minmax(0,1fr)); gap:8px; }
     .head { text-align:center; font-size:0.74rem; color:var(--muted); text-transform:uppercase; }
-    .day { min-height:110px; border:1px solid var(--line); border-radius:10px; padding:6px; display:flex; flex-direction:column; gap:4px; background:#0c1230; }
+    .day { min-height:110px; border:1px solid rgba(191,238,255,.2); border-radius:10px; padding:6px; display:flex; flex-direction:column; gap:4px; background:rgba(255,255,255,.03); }
     .blank { opacity:0.25; background:#0a0f23; }
     .n { color:var(--gold); font-size:0.8rem; }
-    .pill { border:1px solid #455186; border-radius:999px; padding:2px 7px; font-size:0.68rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .pill { border:1px solid rgba(191,238,255,.28); border-radius:999px; padding:2px 7px; font-size:0.68rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .done { border-color:#2f8c70; color:#b8ffe7; }
     .planned { border-color:#3f68b3; color:#ccdeff; }
     .confirmed { border-color:#b7932a; color:#ffe9a7; }
@@ -34,7 +36,7 @@
   <div class="wrap">
     <section class="card top">
       <div>
-        <h1 class="title">SkyeCalendar Platform</h1>
+        <h1 class="title">SkyeCalendar Command Surface</h1>
         <div class="muted">Real calendar surface synced with SkyeTasks due dates.</div>
       </div>
       <div class="actions">
@@ -98,7 +100,11 @@ async function ensureAuth(){
   try {
     await call('/api/auth-login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ email, password }) });
   } catch {
-    await call('/api/auth-signup', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ email, password, orgName: org }) });
+    const signup = await call('/api/auth-signup', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ email, password, orgName: org }) });
+    if (signup?.kaixu_token?.token) {
+      localStorage.setItem('kx.api.accessToken', signup.kaixu_token.token);
+      localStorage.setItem('kx.api.tokenEmail', signup.kaixu_token.locked_email || email.toLowerCase());
+    }
   }
 }
 
