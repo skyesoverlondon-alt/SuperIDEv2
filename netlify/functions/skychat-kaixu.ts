@@ -44,57 +44,70 @@ export const handler = async (event: any) => {
     "Respond as kAIxU assistant in concise team-chat style.",
   ].join("\n");
 
-  let aiReply = "";
-  let degraded = false;
-  try {
-    const payload = {
-      model: "kAIxU-Prime6.7",
-      messages: [
-        {
-          role: "system",
-          content: "You are kAIxU collaborating in SkyeChat. Keep responses concise, useful, and execution-oriented.",
-        },
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
-    };
-
-    const res = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
+  const payload = {
+    model: "kAIxU-Prime6.7",
+    messages: [
+      {
+        role: "system",
+        content: "You are kAIxU collaborating in SkyeChat. Keep responses concise, useful, and execution-oriented.",
       },
-      body: JSON.stringify(payload),
-    });
+      {
+        role: "user",
+        content: prompt,
+      },
+    ],
+  };
 
-    const text = await res.text();
-    let data: any = null;
+  let aiReply = "";
+  let lastStatus = 0;
+  let lastBody = "";
+  let lastErr = "";
+
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
     try {
-      data = text ? JSON.parse(text) : null;
-    } catch {
-      data = { raw: text };
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const text = await res.text();
+      lastStatus = res.status;
+      lastBody = text.slice(0, 2000);
+
+      let data: any = null;
+      try {
+        data = text ? JSON.parse(text) : null;
+      } catch {
+        data = { raw: text };
+      }
+
+      const candidate = String(data?.text || data?.output || data?.choices?.[0]?.message?.content || text || "").trim();
+      if (res.ok && candidate) {
+        aiReply = candidate;
+        break;
+      }
+    } catch (e: any) {
+      lastErr = e?.message || "Gateway call failed.";
     }
 
-    if (!res.ok) {
-      degraded = true;
-      aiReply = [
-        "kAIxU gateway is temporarily unavailable.",
-        "Captured your message and queued a fallback assistant response so channel workflow is not blocked.",
-        `Action: retry shortly with context: ${message.slice(0, 180)}`,
-      ].join(" ");
-    } else {
-      aiReply = String(data?.text || data?.output || data?.choices?.[0]?.message?.content || text || "").trim();
+    if (attempt < 2) {
+      await new Promise((resolve) => setTimeout(resolve, 250));
     }
-  } catch (e: any) {
-    degraded = true;
-    aiReply = [
-      "kAIxU chat request failed at the gateway boundary.",
-      "Your message was still recorded.",
-      "Action: retry once gateway connectivity is restored.",
-    ].join(" ");
+  }
+
+  if (!aiReply) {
+    await audit(u.email, u.org_id, wsId || null, "skychat.kaixu.failed", {
+      channel,
+      user_record_id: userRow.rows[0]?.id || null,
+      gateway_status: lastStatus || null,
+      gateway_error: lastErr || null,
+      gateway_body: lastBody || null,
+    });
+    return json(502, { error: "kAIxU gateway failed for chat." });
   }
 
   const aiRow = await q(
@@ -109,16 +122,14 @@ export const handler = async (event: any) => {
     ]
   );
 
-  await audit(u.email, u.org_id, wsId || null, degraded ? "skychat.kaixu.degraded" : "skychat.kaixu.ok", {
+  await audit(u.email, u.org_id, wsId || null, "skychat.kaixu.ok", {
     channel,
     user_record_id: userRow.rows[0]?.id || null,
     ai_record_id: aiRow.rows[0]?.id || null,
-    degraded,
   });
 
   return json(200, {
     ok: true,
-    degraded,
     user_record_id: userRow.rows[0]?.id || null,
     ai_record_id: aiRow.rows[0]?.id || null,
     ai_message: aiReply,
