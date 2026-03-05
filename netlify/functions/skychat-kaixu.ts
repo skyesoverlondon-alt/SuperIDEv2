@@ -120,6 +120,7 @@ export const handler = async (event: any) => {
     });
     return json(502, {
       error: "kAIxU gateway failed for chat.",
+      gateway_endpoint: endpoint,
       gateway_status: lastStatus || null,
       gateway_error: lastErr || null,
       gateway_detail: (lastBody || "").slice(0, 400) || null,

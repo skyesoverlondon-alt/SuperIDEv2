@@ -135,6 +135,7 @@ export const handler = async (event: any) => {
         "Gateway returned non-OK response.";
       return json(502, {
         error: "Kaixu gateway call failed.",
+        gateway_endpoint: endpoint,
         gateway_status: res.status,
         gateway_detail: String(gatewayMsg).slice(0, 400),
       });
@@ -150,6 +151,6 @@ export const handler = async (event: any) => {
     await audit(actorEmail, actorOrg, ws_id, "kaixu.generate.failed", {
       error: err,
     });
-    return json(502, { error: err });
+    return json(502, { error: err, gateway_endpoint: endpoint });
   }
 };
