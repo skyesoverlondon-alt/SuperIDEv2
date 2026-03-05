@@ -30,6 +30,13 @@ function j(body: any, status = 200, headers: Record<string, string> = {}): Respo
   });
 }
 
+// Cloudflare Workers don't guarantee Node's Buffer API.
+function bytesToBase64(bytes: Uint8Array): string {
+  let bin = "";
+  for (let i = 0; i < bytes.length; i += 1) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin);
+}
+
 /**
  * Read the request body into a string and parsed JSON.  Returns
  * an object with `text` and `json` properties.  If parsing
@@ -115,7 +122,7 @@ router.post("/v1/ws/export", async (req: Request, env: any) => {
   if (ws.rows[0].org_id !== org_id) return j({ error: "Forbidden." }, 403, corsHeaders(env, req));
   const files: { path: string; content: string }[] = ws.rows[0].files_json || [];
   const zipBytes = buildZip(Object.fromEntries(files.map(f => [f.path, f.content ?? ""])));
-  const b64 = Buffer.from(zipBytes).toString("base64");
+  const b64 = bytesToBase64(zipBytes);
   return j(
     {
       filename: `workspace-${ws_id.slice(0, 8)}.zip`,
@@ -231,6 +238,11 @@ router.post("/v1/evidence/r2/export", async (req: Request, env: any) => {
     200,
     corsHeaders(env, req)
   );
+});
+
+// Explicit fallback for unmatched routes.
+router.all("*", (req: Request, env: any) => {
+  return j({ error: "Not found." }, 404, corsHeaders(env, req));
 });
 
 // Default export: dispatch requests through the router and handle
