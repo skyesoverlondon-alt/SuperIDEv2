@@ -7,10 +7,6 @@ import { hasValidMasterSequence, readBearerToken, resolveApiToken, tokenHasScope
 
 function normalizeKaixuGatewayEndpoint(raw: string): string {
   const endpoint = String(raw || "").trim();
-  if (!endpoint) return endpoint;
-  if (/skyesol\.netlify\.app\/platforms-apps-infrastructure\/kaixugateway13\/v1\/generate\/?$/i.test(endpoint)) {
-    return "https://skyesol.netlify.app/.netlify/functions/gateway-chat";
-  }
   return endpoint;
 }
 
@@ -83,7 +79,7 @@ export const handler = async (event: any) => {
   }
   const endpoint = normalizeKaixuGatewayEndpoint(must("KAIXU_GATEWAY_ENDPOINT"));
   const token = must("KAIXU_APP_TOKEN");
-  const provider = opt("KAIXU_GATEWAY_PROVIDER", "openai");
+  const provider = opt("KAIXU_GATEWAY_PROVIDER", "Skyes Over London");
   // Emit audit before calling the model
   await audit(actorEmail, actorOrg, ws_id, "kaixu.generate.requested", {
     activePath: activePath || null,
