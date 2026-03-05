@@ -247,3 +247,30 @@ Passing checks:
 2. Neural Space Pro deployment surface fixed by syncing `Neural-Space-Pro/` into `public/` during `predev` and `prebuild`.
 3. Smoke client handling hardened for policy/CORS worker boundaries and production redirects.
 
+## Patch Update (2026-03-05)
+
+### A) Cloudflare Worker Warning Fix
+1. Patched CORS preflight response in `worker/src/index.ts`:
+2. Changed `new Response("", { status: 204, ... })` to `new Response(null, { status: 204, ... })`.
+3. This resolves Cloudflare warning class: null-body status (`204`) with non-null body.
+
+### B) Verification Coverage Executed
+1. Full root release validation run: `npm run release:checklist` -> PASS.
+2. Full smoke run: `bash scripts/smokehouse.sh` -> `PASS=13 FAIL=0`.
+3. Worker TS check run: `cd worker && npx tsc --noEmit -p tsconfig.json` -> found existing typing issues in crypto/github/netlify modules.
+
+### C) Documentation Added/Updated
+1. Added full engineering master brief:
+2. `DEVV ONLY NO GIT/What This Is`
+3. Updated client-facing upgrade page:
+4. `public/upgrade-notes.html`
+5. Updated smoke evidence log:
+6. `docs/SMOKE_REPORT_2026-03-05.md`
+
+### D) Follow-up Debt (Non-blocking For This Patch)
+1. Worker TypeScript BufferSource compatibility issues remain in:
+2. `worker/src/crypto.ts`
+3. `worker/src/github_app.ts`
+4. `worker/src/netlify.ts`
+5. Recommended next patch: normalize Uint8Array/ArrayBuffer conversions for strict TS WebCrypto typing.
+

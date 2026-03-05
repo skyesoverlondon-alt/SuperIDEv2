@@ -55,9 +55,19 @@
   <div class="wrap">
     <div class="card">
       <h1>SuperIDEv2 Upgrade Notes</h1>
-      <p class="meta">Updated: 2026-03-04</p>
+      <p class="meta">Updated: 2026-03-05</p>
       <p>Hardening pass completed across mode separation, Neural-to-Chat integration, standalone app workspaces, secure .skye behavior, and backend wiring for previously local-only app modules.</p>
       <a class="btn" href="/index.html">Back To IDE</a>
+    </div>
+
+    <div class="card">
+      <h2>Latest Patch (2026-03-05)</h2>
+      <ul>
+        <li>Cloudflare Worker CORS preflight fix shipped: null-body `204` response now uses `new Response(null, { status: 204 })` semantics.</li>
+        <li>Full smoke run executed: `PASS=13 FAIL=0` on production smokehouse contract routes.</li>
+        <li>Release checklist rerun passed with security, reliability, data integrity, and executive readiness gates all green.</li>
+        <li>Gateway-only call-path controls remain enforced through static checks and release gate scripts.</li>
+      </ul>
     </div>
 
     <div class="card">
@@ -83,6 +93,14 @@
       <h2>Source Log File</h2>
       <p>Canonical full internal log is maintained at:</p>
       <p><code>DEVV ONLY NO GIT/Upgrades and Patch Notes</code></p>
+    </div>
+
+    <div class="card">
+      <h2>Known Engineering Debt</h2>
+      <ul>
+        <li>Worker strict TypeScript check still reports BufferSource typing issues in a small set of crypto/netlify/github modules.</li>
+        <li>This does not block current production smoke/release checks, but remains queued for a dedicated hardening patch.</li>
+      </ul>
     </div>
   </div>
 </body>

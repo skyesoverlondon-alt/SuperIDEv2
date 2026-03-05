@@ -48,7 +48,7 @@ async function readBody(req: Request): Promise<{ text: string; json: any }> {
 
 // CORS preflight handler.  Always respond with 204 and CORS
 router.options("*", (req: Request, env: any) => {
-  return new Response("", { status: 204, headers: corsHeaders(env, req) });
+  return new Response(null, { status: 204, headers: corsHeaders(env, req) });
 });
 
 // Health check endpoint for monitoring

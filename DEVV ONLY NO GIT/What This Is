@@ -1,0 +1,143 @@
+SuperIDEv2: What This Is (Engineering Master Brief)
+Date: 2026-03-05
+
+1) What this project is
+- SuperIDEv2 is an enterprise web IDE and app platform with a shared auth/workspace model, integrated product surfaces, and controlled AI gateway routing.
+- It combines three runtime layers:
+- Frontend shell and standalone surfaces (Vite + React + static HTML surfaces).
+- Netlify Functions API layer (auth, workspace, app-record persistence, policy enforcement, telemetry, gateway proxy).
+- Cloudflare Worker runner layer (signed privileged operations, vault, GitHub push, Netlify deploy, evidence download).
+
+2) Core architecture
+- Frontend shell:
+- Main app lives in `src/App.tsx` and renders a command center with app switching, release cockpit, smokehouse, and proof flows.
+- Standalone app surfaces are served from `public/*/index.html` and are deep-linked back into IDE using `?app=<AppId>`.
+
+- API/Server layer (Netlify):
+- Primary function path: `netlify/functions/*`.
+- Handles auth, org/workspace membership, app profile storage, app-record save/list, policy events, token issuance/list/revoke, and gateway calls.
+- AI generation route is `netlify/functions/kaixu-generate.ts`, which uses server-side env secrets and emits audit events.
+
+- Runner layer (Cloudflare Worker):
+- Worker entrypoint: `worker/src/index.ts`.
+- Handles signed inter-service calls, token vaulting, evidence export and signed download, GitHub App pushes, and Netlify deploy triggers.
+- CORS and signature enforcement logic is centralized in `worker/src/router.ts`.
+
+3) Product surface inventory (developer-facing)
+- Core suite apps: SkyeDocs, SkyeDocxPro, SkyeBookx, SkyePlatinum, SkyeSheets, SkyeSlides, SkyeMail, SkyeChat, SkyeCalendar, SkyeTasks, SkyeDrive, SkyeVault, SkyeForms, SkyeNotes, SkyeAnalytics, SkyeAdmin, Skye-ID, SKYEMAIL-GEN, REACT2HTML.
+- kAIxu surfaces: kAIxU-Vision, kAixu-Nexus, kAIxU-Codex, kAIxu-Atmos, kAIxu-Quest, kAIxu-Forge, kAIxu-Atlas, kAixU-Chronos, kAIxu-Bestiary, kAIxu-Mythos, kAIxU-Faction, kAIxU-PrimeCommand.
+- Tools surfaces: API-Playground, Smokehouse standalone.
+- Canonical app IDs and surface paths are defined in `src/App.tsx` (`SKYE_APPS`, `APP_SURFACE_PATHS`).
+
+4) How routing through the gate works (critical for all devs)
+- Required principle:
+- Frontend surfaces must call `/api/kaixu-generate` instead of direct provider endpoints.
+
+- Request path:
+- UI surface -> `POST /api/kaixu-generate` on Netlify.
+- Netlify function `kaixu-generate.ts` validates auth/token scope and SKNore rules, constructs gateway payload, and calls configured gateway endpoint (`KAIXU_GATEWAY_ENDPOINT`) using server token (`KAIXU_APP_TOKEN`).
+- Response is normalized and returned as tolerant shape (`text|output|message`).
+
+- Guard rails:
+- `scripts/check-gateway-only.js`: verifies selected high-risk surfaces use `/api/kaixu-generate` and reject provider strings.
+- `scripts/check-external-ai-endpoints.js`: blocks direct provider endpoints across `public`, `src`, and `netlify/functions` sources.
+- `scripts/check-provider-strings.js`: blocks forbidden provider identifiers.
+- CI/release gate requires these checks to pass.
+
+5) Security and compliance controls
+- Auth + role controls:
+- Org/workspace role enforcement in shared auth/RBAC modules (Netlify functions).
+
+- Token controls:
+- API tokens have scopes and optional email lock; mismatches are rejected.
+
+- SKNore policy controls:
+- Prompt/file path blocks are enforced before gateway calls.
+
+- Cross-runtime trust:
+- Netlify -> Worker privileged calls require HMAC signatures via `RUNNER_SHARED_SECRET`.
+- Optional Cloudflare Access JWT verification supported in Worker (`ACCESS_AUD`, `ACCESS_JWKS_URL`, `ACCESS_ISSUER`).
+
+- Protected no-touch apps:
+- Protected manifest in `docs/protected-apps-manifest.json`.
+- Enforced by `scripts/check-protected-apps.js`.
+
+- Evidence and integrity:
+- Release checklist artifact: `artifacts/release-checklist.json`.
+- Release gates artifact: `artifacts/release-gates.json`.
+- Release metadata artifact: `artifacts/release-artifacts.json`.
+
+6) Repository layout (high signal)
+- `src/`: React IDE shell and integrated orchestration logic.
+- `public/`: standalone app surfaces and shared browser utilities.
+- `netlify/functions/`: backend API layer.
+- `worker/src/`: Cloudflare Worker runner and support modules.
+- `scripts/`: policy checks, smoke checks, release gating/checklist tooling.
+- `docs/`: runbooks, smoke snapshots, fixtures, enterprise packet docs.
+- `artifacts/`: generated release evidence outputs.
+- `db/schema.sql`: backend schema bootstrap.
+
+7) Release and verification runbook
+- Local dev:
+- `npm install`
+- `npm run dev`
+
+- Build:
+- `npm run build`
+
+- Full release validation:
+- `npm run release:checklist`
+
+- Smoke run (production target by default):
+- `bash scripts/smokehouse.sh`
+
+- Worker validation:
+- Typecheck command: `cd worker && npx tsc --noEmit -p tsconfig.json`
+
+8) Current full-scan status (2026-03-05)
+- Root release checklist: PASS.
+- Smokehouse latest: PASS=13, FAIL=0.
+- Worker warning fix implemented: CORS preflight now returns `new Response(null, { status: 204, ... })` in `worker/src/index.ts`.
+
+- Findings from worker typecheck:
+- `worker/src/crypto.ts`, `worker/src/github_app.ts`, `worker/src/netlify.ts` have BufferSource/ArrayBuffer typing issues under current TS/lib combination.
+- These are code-quality/type-compat findings; they did not block root release checklist and are not the same issue as the runtime 204 warning.
+
+9) Developer onboarding checklist
+- Confirm env vars for Netlify and Worker match README.
+- Verify gateway path is used for all AI calls.
+- Run `npm run release:checklist` before every release candidate push.
+- Run smokehouse against deploy URL and record output in smoke docs.
+- Treat protected app hash drift as release-blocking unless explicitly approved.
+
+10) 2026 valuation (detailed)
+- Important:
+- This is an analytical estimate for planning, not a licensed appraisal or investment advice.
+
+- As-of date:
+- 2026-03-05
+
+- Method A: Replacement-cost floor
+- Assumed fully loaded engineering cost: USD 185,000 per FTE-year.
+- Estimated effort represented in codebase and infra hardening: 20 to 24 FTE-years.
+- Cost range: USD 3.70M to USD 4.44M.
+- Add 15% integration/risk premium for gateway/security/release-control complexity: USD 4.26M to USD 5.11M.
+
+- Method B: Market multiple (early enterprise platform, pre-scale)
+- If near-term contracted or highly probable ARR is USD 0.60M to USD 1.00M, and comparable private multiple band is 3.0x to 5.0x for pre-scale, infra-heavy B2B software:
+- Indicative value: USD 1.80M to USD 5.00M.
+
+- Method C: Risk-adjusted strategic value
+- Security posture, release gates, no-touch controls, and deploy automation reduce enterprise onboarding friction.
+- Strategic premium over simple prototype tools estimated at USD 0.8M to USD 1.4M equivalent value.
+
+- Weighted synthesis (practical planning range)
+- Floor anchored by replacement cost and adjusted by market execution risk:
+- Estimated enterprise value range: USD 3.20M to USD 5.40M.
+- Working midpoint for board/procurement planning: USD 4.10M.
+
+- Why this range is defensible
+- Multi-runtime production architecture already implemented (frontend + Netlify API + Cloudflare runner).
+- Verified release/check/security gates and smoke evidence pipeline are present and operational.
+- Broad integrated app surface with centralized governance path (`/api/kaixu-generate`) and policy enforcement.
+- Remaining value discount comes from unresolved worker TS typing debt and dependence on clean production env hygiene for fully automated confidence.
