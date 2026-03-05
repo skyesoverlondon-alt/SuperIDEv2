@@ -16,6 +16,13 @@ function normalizeKaixuGatewayEndpoint(raw: string): string {
   return endpoint;
 }
 
+async function tokenFingerprint(token: string): Promise<string> {
+  const normalized = String(token || "").trim();
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(normalized));
+  const hex = Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, "0")).join("");
+  return `${normalized.slice(0, 4)}...len=${normalized.length} sha256=${hex.slice(0, 12)}`;
+}
+
 export const handler = async (event: any) => {
   const u = await requireUser(event);
   if (!u) return forbid();
@@ -49,6 +56,7 @@ export const handler = async (event: any) => {
 
   const endpoint = normalizeKaixuGatewayEndpoint(must("KAIXU_GATEWAY_ENDPOINT"));
   const token = must("KAIXU_APP_TOKEN");
+  const tokenFp = await tokenFingerprint(token);
   const provider = opt("KAIXU_GATEWAY_PROVIDER", "Skyes Over London");
   const prompt = [
     `Channel: #${channel}`,
@@ -76,6 +84,7 @@ export const handler = async (event: any) => {
   let lastStatus = 0;
   let lastBody = "";
   let lastErr = "";
+  let lastRequestId = "";
 
   for (let attempt = 1; attempt <= 2; attempt += 1) {
     try {
@@ -91,6 +100,7 @@ export const handler = async (event: any) => {
       const text = await res.text();
       lastStatus = res.status;
       lastBody = text.slice(0, 2000);
+      lastRequestId = String(res.headers.get("x-kaixu-request-id") || "").trim();
 
       let data: any = null;
       try {
@@ -120,12 +130,16 @@ export const handler = async (event: any) => {
       gateway_status: lastStatus || null,
       gateway_error: lastErr || null,
       gateway_body: lastBody || null,
+      gateway_request_id: lastRequestId || null,
+      token_fingerprint: tokenFp,
     });
     return json(502, {
       error: "kAIxU gateway failed for chat.",
       gateway_endpoint: endpoint,
       gateway_status: lastStatus || null,
       gateway_error: lastErr || null,
+      gateway_request_id: lastRequestId || null,
+      token_fingerprint: tokenFp,
       gateway_detail: (lastBody || "").slice(0, 400) || null,
     });
   }

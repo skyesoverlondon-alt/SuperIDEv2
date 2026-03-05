@@ -17,6 +17,13 @@ function normalizeKaixuGatewayEndpoint(raw: string): string {
   return endpoint;
 }
 
+async function tokenFingerprint(token: string): Promise<string> {
+  const normalized = String(token || "").trim();
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(normalized));
+  const hex = Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, "0")).join("");
+  return `${normalized.slice(0, 4)}...len=${normalized.length} sha256=${hex.slice(0, 12)}`;
+}
+
 /**
  * Call the Kaixu Gateway to generate a response for the given prompt.
  * The active file, full workspace snapshot and user prompt are
@@ -86,6 +93,7 @@ export const handler = async (event: any) => {
   }
   const endpoint = normalizeKaixuGatewayEndpoint(must("KAIXU_GATEWAY_ENDPOINT"));
   const token = must("KAIXU_APP_TOKEN");
+  const tokenFp = await tokenFingerprint(token);
   const provider = opt("KAIXU_GATEWAY_PROVIDER", "Skyes Over London");
   // Emit audit before calling the model
   await audit(actorEmail, actorOrg, ws_id, "kaixu.generate.requested", {
@@ -126,9 +134,12 @@ export const handler = async (event: any) => {
       data = { raw: text };
     }
     if (!res.ok) {
+      const gatewayRequestId = String(res.headers.get("x-kaixu-request-id") || "").trim() || null;
       await audit(actorEmail, actorOrg, ws_id, "kaixu.generate.failed", {
         status: res.status,
         body: text.slice(0, 2000),
+        gateway_request_id: gatewayRequestId,
+        token_fingerprint: tokenFp,
       });
       const gatewayMsg =
         (typeof data?.error === "string" && data.error) ||
@@ -140,6 +151,8 @@ export const handler = async (event: any) => {
         error: "Kaixu gateway call failed.",
         gateway_endpoint: endpoint,
         gateway_status: res.status,
+        gateway_request_id: gatewayRequestId,
+        token_fingerprint: tokenFp,
         gateway_detail: String(gatewayMsg).slice(0, 400),
       });
     }
