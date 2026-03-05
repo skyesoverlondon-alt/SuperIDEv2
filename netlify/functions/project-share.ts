@@ -3,6 +3,7 @@ import { requireUser, forbid } from "./_shared/auth";
 import { q } from "./_shared/neon";
 import { audit } from "./_shared/audit";
 import { sendMail } from "./_shared/mailer";
+import { canReadWorkspace } from "./_shared/rbac";
 
 type ShareMode = "mail" | "chat" | "app" | "all";
 
@@ -38,6 +39,8 @@ export const handler = async (event: any) => {
   );
   if (!ws.rows.length) return json(404, { error: "Workspace not found." });
   if (ws.rows[0].org_id !== u.org_id) return json(403, { error: "Forbidden." });
+  const canRead = await canReadWorkspace(u.org_id, u.user_id, wsId);
+  if (!canRead) return json(403, { error: "Workspace access denied." });
 
   const wsName = String(ws.rows[0].name || "workspace");
   const wsUpdated = String(ws.rows[0].updated_at || "");

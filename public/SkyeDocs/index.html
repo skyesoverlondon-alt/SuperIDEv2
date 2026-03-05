@@ -50,6 +50,15 @@
       gap: 10px;
     }
     .toolbar { display: flex; gap: 8px; flex-wrap: wrap; }
+    .row { display: grid; gap: 8px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .timeline { max-height: 160px; overflow: auto; border: 1px solid var(--line-soft); border-radius: 10px; padding: 8px; }
+    .timeline-item { padding: 6px 8px; border-bottom: 1px solid rgba(191, 238, 255, 0.12); font-size: .78rem; color: var(--muted); }
+    .timeline-item:last-child { border-bottom: none; }
+    .diff { border: 1px solid var(--line-soft); border-radius: 10px; padding: 8px; max-height: 180px; overflow: auto; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .74rem; background: rgba(0, 0, 0, 0.22); }
+    .add { color: #98ffd2; }
+    .del { color: #ffb3cb; }
+    .warn { color: #ffe39d; }
+    @media (max-width: 920px) { .row { grid-template-columns: 1fr 1fr; } }
     input, textarea, button {
       border-radius: 10px;
       border: 1px solid var(--line-soft);
@@ -96,12 +105,37 @@
     </header>
 
     <section class="panel">
+      <div class="row">
+        <select id="template">
+          <option value="blank">Template: Blank</option>
+          <option value="launch">Launch Readiness Memo</option>
+          <option value="incident">Incident Runbook</option>
+          <option value="handoff">Client Handoff Packet</option>
+        </select>
+        <input id="owner" placeholder="Owner" />
+        <select id="docStatus">
+          <option value="draft">Status: Draft</option>
+          <option value="review">Status: Review</option>
+          <option value="approved">Status: Approved</option>
+          <option value="published">Status: Published</option>
+        </select>
+        <input id="audience" placeholder="Audience" />
+      </div>
+      <div class="row">
+        <input id="handoffDate" type="date" />
+        <input id="tags" placeholder="Tags (comma-separated)" />
+        <div class="tag" id="autosaveBadge">Autosave idle</div>
+        <button id="runDiff">View Diff vs Last Save</button>
+      </div>
       <input id="title" placeholder="Document title" />
       <textarea id="body" placeholder="Write your document..."></textarea>
       <div class="toolbar">
         <button class="primary" id="save">Save</button>
         <button id="export">Export .txt</button>
+        <button id="applyTemplate">Apply Template</button>
       </div>
+      <div class="timeline" id="timeline"></div>
+      <div class="diff" id="diff">Diff output will appear here.</div>
       <div class="status" id="status"></div>
     </section>
   </div>
@@ -113,18 +147,120 @@
     const titleEl = document.getElementById("title");
     const bodyEl = document.getElementById("body");
     const statusEl = document.getElementById("status");
+    const ownerEl = document.getElementById("owner");
+    const docStatusEl = document.getElementById("docStatus");
+    const audienceEl = document.getElementById("audience");
+    const handoffDateEl = document.getElementById("handoffDate");
+    const tagsEl = document.getElementById("tags");
+    const templateEl = document.getElementById("template");
+    const timelineEl = document.getElementById("timeline");
+    const diffEl = document.getElementById("diff");
+    const autosaveBadge = document.getElementById("autosaveBadge");
     document.getElementById("meta").textContent = `ws_id=${ws}`;
+    const historyKey = `${key}.history`;
 
-    const saved = JSON.parse(localStorage.getItem(key) || '{"title":"","body":""}');
+    const templates = {
+      blank: { title: "", body: "" },
+      launch: {
+        title: "Launch Readiness Memo",
+        body: "# Launch Readiness\n\n## Objectives\n-\n\n## Risks\n-\n\n## Final Gate Decision\n-"
+      },
+      incident: {
+        title: "Incident Failsafe Runbook",
+        body: "# Incident Runbook\n\n## Trigger\n-\n\n## Immediate Actions\n1.\n2.\n\n## Recovery Validation\n-"
+      },
+      handoff: {
+        title: "Client Handoff Packet",
+        body: "# Client Handoff\n\n## Scope\n-\n\n## Deliverables\n-\n\n## Acceptance Criteria\n-"
+      }
+    };
+
+    const saved = JSON.parse(localStorage.getItem(key) || '{"title":"","body":"","meta":{}}');
     titleEl.value = saved.title || "";
     bodyEl.value = saved.body || "";
+    ownerEl.value = saved.meta?.owner || "";
+    docStatusEl.value = saved.meta?.status || "draft";
+    audienceEl.value = saved.meta?.audience || "";
+    handoffDateEl.value = saved.meta?.handoff_date || "";
+    tagsEl.value = Array.isArray(saved.meta?.tags) ? saved.meta.tags.join(", ") : "";
+
+    function readHistory() {
+      try { return JSON.parse(localStorage.getItem(historyKey) || "[]"); } catch { return []; }
+    }
+
+    function writeHistory(entry) {
+      const old = readHistory();
+      const next = [entry, ...old].slice(0, 25);
+      localStorage.setItem(historyKey, JSON.stringify(next));
+    }
+
+    function renderTimeline() {
+      const items = readHistory();
+      if (!items.length) {
+        timelineEl.innerHTML = '<div class="timeline-item">No save timeline yet.</div>';
+        return;
+      }
+      timelineEl.innerHTML = items.map((item, i) => (
+        '<div class="timeline-item">' +
+        '<strong>#' + (items.length - i) + '</strong> ' + new Date(item.at).toLocaleString() +
+        ' | title=' + (item.title || 'untitled') +
+        ' | words=' + item.words +
+        ' | status=' + (item.meta?.status || 'draft') +
+        '</div>'
+      )).join('');
+    }
+
+    function computeDiff(prev, curr) {
+      const a = String(prev || '').split('\n');
+      const b = String(curr || '').split('\n');
+      const max = Math.max(a.length, b.length);
+      const out = [];
+      for (let i = 0; i < max; i += 1) {
+        const left = a[i] || '';
+        const right = b[i] || '';
+        if (left === right) continue;
+        if (left) out.push('<div class="del">- ' + left.replace(/</g, '&lt;') + '</div>');
+        if (right) out.push('<div class="add">+ ' + right.replace(/</g, '&lt;') + '</div>');
+      }
+      return out.length ? out.join('') : '<div class="warn">No changes vs last save.</div>';
+    }
 
     function saveDoc() {
-      localStorage.setItem(key, JSON.stringify({ title: titleEl.value, body: bodyEl.value, at: new Date().toISOString() }));
+      const payload = {
+        schema_version: 1,
+        title: titleEl.value,
+        body: bodyEl.value,
+        meta: {
+          owner: ownerEl.value.trim(),
+          status: docStatusEl.value,
+          audience: audienceEl.value.trim(),
+          handoff_date: handoffDateEl.value,
+          tags: tagsEl.value.split(',').map((x) => x.trim()).filter(Boolean)
+        },
+        at: new Date().toISOString()
+      };
+      localStorage.setItem(key, JSON.stringify(payload));
+      writeHistory({ at: payload.at, title: payload.title, words: payload.body.trim().split(/\s+/).filter(Boolean).length, meta: payload.meta, body: payload.body });
+      autosaveBadge.textContent = 'Autosave healthy';
       statusEl.textContent = `Saved ${new Date().toLocaleString()}`;
+      renderTimeline();
+    }
+
+    function runDiff() {
+      const latest = readHistory()[0];
+      diffEl.innerHTML = computeDiff(latest?.body || '', bodyEl.value || '');
+    }
+
+    function applyTemplate() {
+      const chosen = templates[templateEl.value] || templates.blank;
+      titleEl.value = chosen.title;
+      bodyEl.value = chosen.body;
+      statusEl.textContent = 'Template applied. Review content before save.';
     }
 
     document.getElementById("save").onclick = saveDoc;
+    document.getElementById("runDiff").onclick = runDiff;
+    document.getElementById("applyTemplate").onclick = applyTemplate;
     document.getElementById("export").onclick = () => {
       const blob = new Blob([bodyEl.value], { type: "text/plain" });
       const a = document.createElement("a");
@@ -134,7 +270,24 @@
       URL.revokeObjectURL(a.href);
     };
 
-    setInterval(saveDoc, 10000);
+    setInterval(() => {
+      autosaveBadge.textContent = 'Autosave running';
+      saveDoc();
+    }, 10000);
+    renderTimeline();
   </script>
+<button id="skye-tutorial-fab" type="button" style="position:fixed;right:16px;bottom:16px;z-index:10000;padding:10px 14px;border-radius:999px;border:1px solid rgba(191,238,255,.42);background:rgba(44,230,255,.2);color:#eff9ff;font-weight:700;cursor:pointer;">Start Tutorial</button>
+<div id="skye-tutorial-modal" style="display:none;position:fixed;inset:0;z-index:10001;background:rgba(2,6,23,.72);"></div>
+<script>
+(function(){
+  const fab=document.getElementById('skye-tutorial-fab');
+  const modal=document.getElementById('skye-tutorial-modal');
+  if(!fab||!modal) return;
+  const app=(document.title||'App').replace(/Standalone|Workspace|Command Surface|Platform/gi,'').trim();
+  modal.innerHTML='<div style="max-width:520px;margin:10vh auto;background:#07131a;color:#eff9ff;border:1px solid rgba(191,238,255,.32);border-radius:14px;padding:18px"><h3 style="margin:0 0 8px">'+app+' Quick Start</h3><ol style="margin:0 0 12px 18px;line-height:1.5"><li>Review auth and active workspace context.</li><li>Run one core workflow action in this app.</li><li>Save/export/share output and verify completion state.</li></ol><div style="display:flex;justify-content:flex-end"><button id="skye-tutorial-close" type="button" style="padding:8px 12px;border-radius:10px;border:1px solid rgba(191,238,255,.32);background:rgba(0,0,0,.34);color:#eff9ff;cursor:pointer;">Close</button></div></div>';
+  fab.addEventListener('click',()=>{modal.style.display='block';});
+  modal.addEventListener('click',(e)=>{if(e.target===modal||e.target.id==='skye-tutorial-close') modal.style.display='none';});
+})();
+</script>
 </body>
 </html>

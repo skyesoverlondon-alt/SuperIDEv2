@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>kAIxu Cinematic - Technical Shot List Architect</title>
+    <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        window.fb = { initializeApp, getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged, getFirestore, doc, setDoc, onSnapshot };
+    </script>
+
+    <style>
+        /* PDF/PRINT ENGINE - FULLY WIRED */
+        @media print {
+            @page { margin: 0.5in; size: letter landscape; }
+            html, body { height: auto !important; overflow: visible !important; background: white !important; color: black !important; }
+            #navbar, #editor-container, #bg-canvas, .no-print, #toast-container, #tutorial-modal { display: none !important; visibility: hidden !important; }
+            #preview-container { display: block !important; position: absolute !important; top: 0 !important; left: 0 !important; width: 100% !important; padding: 0 !important; background: white !important; }
+            #preview-content { display: block !important; width: 100% !important; }
+            
+            .shot-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            .shot-table th, .shot-table td { border: 1px solid #000; padding: 8px; text-align: left; font-size: 10pt; }
+            .shot-table th { background: #f3f4f6 !important; -webkit-print-color-adjust: exact; }
+            
+            .print-header { border-bottom: 4px solid #000; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: flex-end; }
+            .print-header h1 { font-size: 28pt; font-weight: 900; margin: 0; }
+            
+            .shot-image-cell { width: 200px; height: 112px; overflow: hidden; }
+            .shot-image-cell img { width: 100%; height: 100%; object-fit: cover; }
+            
+            .page-break { page-break-after: always; }
+        }
+        
+        @keyframes floatPulse {
+            0%, 100% { transform: translateY(0) scale(1); opacity: 1; }
+            50% { transform: translateY(-5px) scale(1.02); opacity: 0.9; }
+        }
+        .animate-float-pulse { animation: floatPulse 4s ease-in-out infinite; }
+        
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.1); border-radius: 10px; }
+
+        #bg-canvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -1; background: #020617; pointer-events: none; }
+
+        .glass-sidebar { background: rgba(255, 255, 255, 0.95) !important; backdrop-filter: blur(12px); border-right: 1px solid rgba(0,0,0,0.1) !important; }
+        .glass-nav { background: rgba(255, 255, 255, 0.98) !important; backdrop-filter: blur(16px); border-bottom: 2px solid #e2e8f0 !important; }
+        .editor-card { background: white !important; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1); border: 1px solid #e2e8f0; }
+        
+        .nexus-link { @apply text-[10px] text-slate-500 hover:text-indigo-600 flex items-center gap-1.5 transition-colors py-0.5 font-bold uppercase tracking-tighter; }
+        #tutorial-modal { background: rgba(2, 6, 23, 0.9); backdrop-filter: blur(15px); }
+    </style>
+</head>
+<body class="text-slate-800 h-screen flex flex-col overflow-hidden font-sans">
+
+    <canvas id="bg-canvas"></canvas>
+    <div class="fixed inset-0 pointer-events-none border-[6px] border-yellow-400 shadow-[inset_0_0_30px_rgba(250,204,21,0.3)] z-[100] no-print"></div>
+
+    <!-- Navigation -->
+    <nav id="navbar" class="h-16 glass-nav flex items-center justify-between px-6 z-20 flex-shrink-0">
+        <div class="flex items-center gap-3">
+            <img src="https://cdn1.sharemyimage.com/2026/02/16/logo1_transparent.png" alt="Logo" class="h-10 w-auto animate-float-pulse">
+            <h1 class="text-xl font-bold text-slate-900 tracking-tight uppercase">kAIxu Cinematic</h1>
+        </div>
+
+        <div class="flex-1 max-w-xl mx-8 flex items-center gap-3">
+            <input type="text" id="proj-title-input" class="flex-1 text-center font-bold text-slate-800 bg-slate-100 border-none rounded-lg py-2 px-4 outline-none focus:ring-2 focus:ring-indigo-500 transition-all" placeholder="Shot List Name">
+            
+            <div class="flex items-center gap-2 no-print">
+                <button onclick="toggleTutorial(true)" class="bg-indigo-100 hover:bg-indigo-200 text-indigo-700 px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-all">
+                    <i class="fa-solid fa-circle-question"></i> Tutorial
+                </button>
+                <div class="relative flex items-center">
+                    <i class="fa-solid fa-key absolute left-3 text-slate-400 text-xs"></i>
+                    <input type="password" id="openai-key" placeholder="OpenAI API Key" class="w-44 pl-8 pr-3 py-2 text-xs bg-slate-100 text-slate-700 border border-slate-200 focus:border-indigo-500 rounded-lg outline-none transition-all">
+                </div>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-4">
+            <div id="sync-status" class="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
+                <i class="fa-solid fa-cloud text-indigo-400"></i> <span>Ready</span>
+            </div>
+            <div id="nav-actions"></div>
+        </div>
+    </nav>
+
+    <!-- Main Interface -->
+    <div id="editor-container" class="flex flex-1 overflow-hidden">
+        <div class="w-72 glass-sidebar flex flex-col z-10 flex-shrink-0 relative overflow-hidden">
+            <div class="p-4 border-b border-slate-100 relative z-10 flex flex-col gap-2 bg-white/50">
+                <button onclick="addShot()" class="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 px-4 rounded-xl font-bold text-sm shadow-lg shadow-indigo-100 transition-all active:scale-95">
+                    <i class="fa-solid fa-video"></i> New Shot
+                </button>
+                <button onclick="generateFromScratch()" class="w-full flex items-center justify-center gap-2 bg-slate-900 hover:bg-black text-white py-2 px-4 rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-md transition-all active:scale-95">
+                    <i class="fa-solid fa-bolt-lightning text-indigo-400"></i> Directed From Scratch
+                </button>
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="exportToDevice()" class="bg-slate-100 hover:bg-slate-200 text-slate-600 p-2 rounded-lg font-bold text-[10px] border border-slate-200 transition-all">
+                        <i class="fa-solid fa-download"></i> Save Project
+                    </button>
+                    <label class="bg-slate-100 hover:bg-slate-200 text-slate-600 p-2 rounded-lg font-bold text-[10px] border border-slate-200 cursor-pointer text-center transition-all">
+                        <i class="fa-solid fa-upload"></i> Load
+                        <input type="file" id="import-input" class="hidden" accept=".cinematic">
+                    </label>
+                </div>
+            </div>
+            
+            <div id="shot-list" class="flex-1 overflow-y-auto p-4 space-y-2 relative z-10"></div>
+            
+            <!-- Nexus Network -->
+            <div class="p-4 bg-slate-50/50 border-t border-slate-100 relative z-10 space-y-4">
+                <div>
+                    <h4 class="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-2">Nexus Network</h4>
+                    <div class="grid grid-cols-1 gap-0.5 max-h-24 overflow-y-auto pr-2">
+                        <a href="https://skyesol.netlify.app/" target="_blank" class="nexus-link"><i class="fa-solid fa-globe w-3 text-indigo-500"></i> SkyesSOL</a>
+                        <a href="https://skyeletix.netlify.app" target="_blank" class="nexus-link"><i class="fa-solid fa-bolt w-3 text-indigo-500"></i> Skyeletix</a>
+                        <a href="https://northstarofficexaccounting.netlify.app" target="_blank" class="nexus-link"><i class="fa-solid fa-star w-3 text-indigo-500"></i> NorthStar Accounting</a>
+                        <a href="https://sole-nexus.netlify.app" target="_blank" class="nexus-link"><i class="fa-solid fa-link w-3 text-indigo-500"></i> SOLE Nexus</a>
+                        <a href="https://solenteaiskyes.netlify.app/" target="_blank" class="nexus-link"><i class="fa-solid fa-microchip w-3 text-indigo-500"></i> SOL kAIxu Skyes</a>
+                        <a href="https://solenterprises.org/pages/skyeweb" target="_blank" class="nexus-link"><i class="fa-solid fa-building w-3 text-indigo-500"></i> SOL Enterprises</a>
+                    </div>
+                </div>
+                <div class="pt-2 border-t border-slate-200">
+                    <p class="text-[9px] font-bold text-slate-400 flex items-center gap-1.5"><i class="fa-solid fa-phone text-indigo-500"></i> (480) 469-5416</p>
+                </div>
+            </div>
+            
+            <!-- Founder Graphic -->
+            <div class="absolute bottom-0 left-0 w-full z-0 flex flex-col items-center pointer-events-none no-print pb-4">
+                <div class="mb-2 px-3 py-1 border-2 border-indigo-400 rounded-lg bg-white/90 backdrop-blur-md text-[9px] font-black text-indigo-900 tracking-widest uppercase shadow-xl">
+                    Skyes' The Limit
+                </div>
+                <img src="https://cdn1.sharemyimage.com/2026/03/03/Gemini_Generated_Image_5aft6s5aft6s5aft-1.png" alt="Founder" class="w-64 h-auto object-contain animate-float-pulse opacity-100 drop-shadow-2xl">
+            </div>
+        </div>
+
+        <div class="flex-1 flex flex-col relative bg-transparent overflow-y-auto" id="main-workspace">
+            <div class="max-w-5xl mx-auto w-full p-8 lg:p-12 space-y-8 relative z-10">
+                
+                <input type="text" id="shot-subject" class="w-full text-5xl font-black text-white bg-transparent border-none outline-none placeholder-white/20 focus:ring-0 drop-shadow-lg" placeholder="Shot Subject">
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <!-- Technical Details -->
+                    <div class="editor-card rounded-3xl overflow-hidden flex flex-col lg:col-span-2 relative">
+                        <div class="p-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+                            <span class="font-bold text-slate-800 text-xs uppercase tracking-tight">Technical Directives</span>
+                            <div class="flex gap-2">
+                                <button onclick="processAI('direct')" class="text-[10px] bg-white border px-3 py-1 rounded-lg font-bold hover:bg-slate-50 transition-colors uppercase">kAIxu Direct</button>
+                                <button onclick="processAI('sequence')" class="text-[10px] bg-slate-900 text-white px-3 py-1 rounded-lg font-bold hover:bg-black transition-colors uppercase">Next Shot</button>
+                            </div>
+                        </div>
+                        
+                        <div id="parsing-overlay" class="hidden absolute inset-0 bg-white/90 backdrop-blur-md z-10 flex flex-col items-center justify-center text-indigo-600">
+                             <i class="fa-solid fa-clapperboard text-5xl mb-4 animate-pulse text-indigo-500"></i>
+                             <p class="font-black text-xl uppercase tracking-widest" id="parsing-text">kAIxu Director Thinking...</p>
+                        </div>
+
+                        <textarea id="shot-content" class="w-full h-full min-h-[350px] p-8 text-sm leading-relaxed border-none outline-none resize-none font-mono text-slate-700 bg-white" placeholder="Describe the camera movement, actor blocking, and lens choices..."></textarea>
+                    </div>
+
+                    <!-- Shot Visual -->
+                    <div class="editor-card rounded-3xl overflow-hidden flex flex-col lg:col-span-1">
+                        <div class="p-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+                            <span class="font-bold text-slate-800 text-xs uppercase tracking-widest">Composition</span>
+                            <button onclick="generateVisual()" class="bg-indigo-600 text-white px-3 py-1 rounded-lg text-[10px] font-black hover:bg-indigo-700 transition-all uppercase">Render Still</button>
+                        </div>
+                        <div id="shot-image-area" class="bg-slate-100 aspect-video flex items-center justify-center relative group overflow-hidden">
+                            <p class="text-slate-300 font-bold uppercase text-[10px]">No Shot Rendered</p>
+                        </div>
+                        <div class="p-6 bg-white space-y-4">
+                            <div>
+                                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Lighting Setup</label>
+                                <input type="text" id="shot-lighting" class="w-full bg-slate-50 border-none rounded-lg p-3 text-xs outline-none mt-1 font-bold text-slate-700" placeholder="e.g. High Key, Rim Light">
+                            </div>
+                            <div>
+                                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Lens / focal</label>
+                                <input type="text" id="shot-lens" class="w-full bg-slate-50 border-none rounded-lg p-3 text-xs outline-none mt-1 font-bold text-slate-700" placeholder="e.g. 35mm Prime">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Attributes -->
+                <div class="editor-card rounded-2xl p-8 space-y-6">
+                    <h3 class="text-xs font-black uppercase text-slate-400 tracking-tighter">Production Specs</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                        <div>
+                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Angle</label>
+                            <select id="shot-angle" class="w-full bg-slate-50 border-none rounded-lg p-3 text-xs outline-none font-bold text-slate-700">
+                                <option>Eye Level</option>
+                                <option>Low Angle</option>
+                                <option>High Angle</option>
+                                <option>Dutch Angle</option>
+                                <option>Bird's Eye</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Movement</label>
+                            <select id="shot-move" class="w-full bg-slate-50 border-none rounded-lg p-3 text-xs outline-none font-bold text-slate-700">
+                                <option>Static</option>
+                                <option>Pan / Tilt</option>
+                                <option>Tracking / Dolly</option>
+                                <option>Handheld</option>
+                                <option>Crane / Jib</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Shot Size</label>
+                            <select id="shot-size" class="w-full bg-slate-50 border-none rounded-lg p-3 text-xs outline-none font-bold text-slate-700">
+                                <option>Extreme Wide</option>
+                                <option>Wide</option>
+                                <option>Medium</option>
+                                <option>Close Up</option>
+                                <option>Extreme Close Up</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Priority</label>
+                            <select id="shot-priority" class="w-full bg-slate-50 border-none rounded-lg p-3 text-xs outline-none font-bold text-slate-700">
+                                <option>Standard</option>
+                                <option>Must-Have</option>
+                                <option>Pickup</option>
+                                <option>VFX Heavy</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Tutorial Modal -->
+    <div id="tutorial-modal" class="fixed inset-0 z-[200] hidden flex items-center justify-center p-6">
+        <div class="bg-white rounded-3xl max-w-2xl w-full max-h-[85vh] overflow-y-auto shadow-2xl relative">
+            <button onclick="toggleTutorial(false)" class="absolute top-6 right-6 text-slate-400 hover:text-slate-900">
+                <i class="fa-solid fa-circle-xmark text-2xl"></i>
+            </button>
+            <div class="p-12 space-y-8">
+                <div class="text-center">
+                    <div class="w-20 h-20 bg-indigo-100 text-indigo-600 rounded-3xl flex items-center justify-center mx-auto mb-6">
+                        <i class="fa-solid fa-video text-4xl"></i>
+                    </div>
+                    <h2 class="text-4xl font-black text-slate-900 tracking-tighter uppercase">kAIxu Cinematic Guide</h2>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div class="space-y-2">
+                        <h4 class="font-bold text-indigo-600 flex items-center gap-2"><i class="fa-solid fa-bolt"></i> Directed From Scratch</h4>
+                        <p class="text-xs text-slate-500 leading-relaxed">Instantly architect a cinematic shot. kAIxu generates technical movement, lens choice, and composition metadata from zero.</p>
+                    </div>
+                    <div class="space-y-2">
+                        <h4 class="font-bold text-indigo-600 flex items-center gap-2"><i class="fa-solid fa-camera-movie"></i> Render Stills</h4>
+                        <p class="text-xs text-slate-500 leading-relaxed">Visualize your shot with high-fidelity production stills. It uses technical specs to render accurate lighting and angles.</p>
+                    </div>
+                    <div class="space-y-2">
+                        <h4 class="font-bold text-indigo-600 flex items-center gap-2"><i class="fa-solid fa-file-pdf"></i> Wired Export</h4>
+                        <p class="text-xs text-slate-500 leading-relaxed">Switch to 'Compile' and Export PDF. The engine formats a professional, production-ready horizontal shot list instantly.</p>
+                    </div>
+                    <div class="space-y-2">
+                        <h4 class="font-bold text-indigo-600 flex items-center gap-2"><i class="fa-solid fa-cloud"></i> Real-time Sync</h4>
+                        <p class="text-xs text-slate-500 leading-relaxed">Your director's bible is synced to the kAIxu cloud and can be backed up as a local .cinematic file anytime.</p>
+                    </div>
+                </div>
+
+                <button onclick="toggleTutorial(false)" class="w-full bg-slate-900 text-white py-5 rounded-2xl font-black uppercase tracking-widest hover:bg-black transition-all">Start Directing</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Preview Container (Wired for window.print) -->
+    <div id="preview-container" class="hidden flex-1 overflow-y-auto bg-slate-950 p-12 print:p-0">
+        <div id="preview-content" class="max-w-[11in] mx-auto bg-white p-12 shadow-2xl print:shadow-none"></div>
+    </div>
+
+    <div id="toast-container" class="fixed bottom-6 right-6 z-[110] flex flex-col gap-3 pointer-events-none"></div>
+
+    <script type="module">
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'kaixu-cinematic-studio-wired';
+        
+        let state = {
+            title: "Project Cinema One",
+            shots: [{ id: 's-1', subject: "The Encounter", content: "Tight close-up on the eyes. Slight camera shake to indicate tension. Key light from the left.", lighting: "High Contrast / Noir", lens: "50mm Prime", angle: "Eye Level", move: "Handheld", size: "Close Up", priority: "Must-Have", image: null }],
+            activeShotId: 's-1',
+            viewMode: "editor",
+            openaiKey: ""
+        };
+        let user = null, isSaving = false, saveTimeout = null;
+
+        const { initializeApp, getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged, getFirestore, doc, setDoc, onSnapshot } = window.fb;
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // --- Three.js Cinematic Grid ---
+        function initThreeJS() {
+            const canvas = document.getElementById('bg-canvas');
+            if(!canvas) return;
+            const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 10;
+            const l1 = new THREE.PointLight(0x6366f1, 5, 100); l1.position.set(10, 10, 10); scene.add(l1);
+            const l2 = new THREE.PointLight(0x06b6d4, 5, 100); l2.position.set(-10, -10, 10); scene.add(l2);
+            const geo = new THREE.PlaneGeometry(30, 20, 40, 40);
+            const mat = new THREE.MeshPhongMaterial({ color: 0x6366f1, emissive: 0x1e1b4b, wireframe: true, transparent: true, opacity: 0.15 });
+            const grid = new THREE.Mesh(geo, mat);
+            grid.rotation.x = -Math.PI / 3;
+            scene.add(grid);
+            function animate(time) {
+                requestAnimationFrame(animate);
+                grid.position.z = Math.sin(time * 0.001) * 0.5;
+                renderer.render(scene, camera);
+            }
+            animate(0);
+            window.addEventListener('resize', () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
+        }
+
+        async function init() {
+            initThreeJS();
+            document.getElementById('proj-title-input').addEventListener('input', e => { state.title = e.target.value; debouncedSave(); });
+            document.getElementById('openai-key').addEventListener('input', e => { state.openaiKey = e.target.value; debouncedSave(); });
+            
+            const inputs = ['shot-subject', 'shot-content', 'shot-lighting', 'shot-lens', 'shot-angle', 'shot-move', 'shot-size', 'shot-priority'];
+            inputs.forEach(id => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                const field = id.split('-')[1];
+                el.addEventListener('input', e => { 
+                    const s = state.shots.find(x => x.id === state.activeShotId);
+                    if(s) { s[field] = e.target.value; if(field==='subject') renderSidebar(); debouncedSave(); }
+                });
+                if(el.tagName === 'SELECT') el.addEventListener('change', e => {
+                    const s = state.shots.find(x => x.id === state.activeShotId);
+                    if(s) { s[field] = e.target.value; debouncedSave(); }
+                });
+            });
+            document.getElementById('import-input').addEventListener('change', handleImport);
+
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token);
+                else await signInAnonymously(auth);
+            } catch (err) { console.error("Auth Error", err); }
+
+            onAuthStateChanged(auth, u => { 
+                user = u; 
+                if(user) syncCloud();
+            });
+            renderNav();
+        }
+
+        async function syncCloud() {
+            if(!user) return;
+            const docRef = doc(db, 'artifacts', appId, 'users', user.uid, 'cinema', 'current');
+            onSnapshot(docRef, snap => {
+                if (snap.exists() && !isSaving) {
+                    const data = snap.data();
+                    if (data.shots && typeof data.shots === 'string') {
+                        try { data.shots = JSON.parse(data.shots); } catch(e) {}
+                    }
+                    state = { ...state, ...data };
+                    refreshUI();
+                }
+            });
+        }
+
+        function debouncedSave() { clearTimeout(saveTimeout); saveTimeout = setTimeout(saveToCloud, 2000); }
+
+        async function saveToCloud() {
+            if (!user) return;
+            isSaving = true;
+            document.getElementById('sync-status').innerHTML = '<i class="fa-solid fa-circle-notch fa-spin text-indigo-500"></i> <span>Syncing...</span>';
+            try {
+                const jsonShots = JSON.stringify(state.shots);
+                if (jsonShots.length > 1000000) { statusEl.innerHTML = '<span class="text-amber-500">Local Only</span>'; return; }
+                const docRef = doc(db, 'artifacts', appId, 'users', user.uid, 'cinema', 'current');
+                await setDoc(docRef, { ...state, shots: jsonShots }, { merge: true });
+                document.getElementById('sync-status').innerHTML = '<i class="fa-solid fa-cloud text-indigo-400"></i> <span>Synced</span>';
+            } catch (err) { document.getElementById('sync-status').innerHTML = '<span>Error</span>'; }
+            finally { setTimeout(() => isSaving = false, 500); }
+        }
+
+        window.exportToDevice = () => {
+            const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `${state.title.replace(/\s+/g, '_')}.cinematic`;
+            link.click();
+            showToast("Archive Saved!", "success");
+        };
+
+        function handleImport(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = e => {
+                try {
+                    state = { ...state, ...JSON.parse(e.target.result) };
+                    refreshUI(); debouncedSave();
+                    showToast("Archive Loaded!", "success");
+                } catch (err) { showToast("Invalid file", "error"); }
+            };
+            reader.readAsText(file);
+        }
+
+        function refreshUI() {
+            document.getElementById('proj-title-input').value = state.title;
+            document.getElementById('openai-key').value = state.openaiKey || "";
+            const s = state.shots.find(x => x.id === state.activeShotId) || state.shots[0];
+            if (!s) return;
+            document.getElementById('shot-subject').value = s.subject;
+            document.getElementById('shot-content').value = s.content;
+            document.getElementById('shot-lighting').value = s.lighting;
+            document.getElementById('shot-lens').value = s.lens;
+            document.getElementById('shot-angle').value = s.angle;
+            document.getElementById('shot-move').value = s.move;
+            document.getElementById('shot-size').value = s.size;
+            document.getElementById('shot-priority').value = s.priority;
+            renderSidebar(); renderImageArea(s);
+        }
+
+        function renderSidebar() {
+            const list = document.getElementById('shot-list');
+            list.innerHTML = state.shots.map((s, idx) => `
+                <div onclick="window.selectShot('${s.id}')" class="group p-3.5 rounded-xl cursor-pointer transition-all border ${state.activeShotId === s.id ? 'bg-indigo-600 border-indigo-600 text-white shadow-xl' : 'bg-white border-slate-100 hover:border-indigo-300 text-slate-600'}">
+                    <div class="flex items-center justify-between gap-2">
+                        <div class="flex items-center gap-2 overflow-hidden">
+                            <span class="text-[9px] font-black w-5 h-5 rounded flex items-center justify-center shrink-0 ${state.activeShotId === s.id ? 'bg-white text-indigo-600' : 'bg-slate-100 text-slate-400'}">${idx+1}</span>
+                            <span class="truncate text-xs font-bold uppercase block">${s.subject || 'Untitled Shot'}</span>
+                        </div>
+                        <button onclick="window.deleteShot('${s.id}', event)" class="opacity-0 group-hover:opacity-100 text-red-500"><i class="fa-solid fa-trash-can text-xs"></i></button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderImageArea(shot) {
+            const area = document.getElementById('shot-image-area');
+            if (shot.image) {
+                area.innerHTML = `<img src="${shot.image}" class="w-full h-full object-cover">
+                <button onclick="window.removeImage()" class="absolute opacity-0 group-hover:opacity-100 bg-black/60 text-white p-2 rounded-lg text-[10px] backdrop-blur-md">Remove</button>`;
+            } else {
+                area.innerHTML = `<p class="text-slate-300 font-black uppercase text-[10px] tracking-widest text-center">kAIxu Production Queue</p>`;
+            }
+        }
+
+        function renderNav() {
+            const actions = document.getElementById('nav-actions');
+            if (state.viewMode === 'editor') {
+                actions.innerHTML = `<button onclick="window.setViewMode('preview')" class="bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 px-6 rounded-xl font-black text-xs uppercase tracking-widest shadow-xl transition-all">Compile Sequence</button>`;
+            } else {
+                actions.innerHTML = `
+                    <div class="flex gap-2">
+                        <button onclick="window.setViewMode('editor')" class="bg-white border-2 border-slate-200 text-slate-700 py-2.5 px-6 rounded-xl font-black text-xs uppercase tracking-widest">Editor</button>
+                        <button onclick="window.generatePDF()" class="bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 px-6 rounded-xl font-black text-xs uppercase tracking-widest shadow-xl">Export PDF</button>
+                    </div>`;
+            }
+        }
+
+        window.generatePDF = () => { window.focus(); window.print(); };
+
+        // --- OPENAI EXCLUSIVE WIRED LOGIC ---
+        async function fetchOpenAI(prompt, system) {
+            const key = state.openaiKey || document.getElementById('openai-key').value;
+            if(!key) throw new Error("OpenAI API Key required.");
+            const res = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
+                body: JSON.stringify({ model: "gpt-4o", messages: [{ role: "system", content: system }, { role: "user", content: prompt }] })
+            });
+            if (!res.ok) throw new Error("API Failure");
+            const data = await res.json();
+            return data.choices[0].message.content;
+        }
+
+        window.generateFromScratch = async () => {
+            const overlay = document.getElementById('parsing-overlay');
+            overlay.classList.remove('hidden');
+            const txtEl = document.getElementById('parsing-text');
+            txtEl.innerText = "kAIxu Directing Sequence...";
+            try {
+                const prompt = "Generate a professional cinematic shot technical setup. Return a JSON object with: subject, content, lighting, lens, angle (select from Eye Level, Low Angle, High Angle, Dutch Angle), move (select from Static, Pan / Tilt, Tracking / Dolly, Handheld), size (select from Extreme Wide, Wide, Medium, Close Up), priority (select from Standard, Must-Have). No markdown.";
+                const result = await fetchOpenAI(prompt, "You are a master film director. JSON only.");
+                const cleanResult = result.replace(/```json|```/g, "").trim();
+                const parsed = JSON.parse(cleanResult);
+                const id = 's-' + Date.now();
+                state.shots.push({ id, ...parsed, image: null });
+                state.activeShotId = id;
+                refreshUI(); debouncedSave();
+                showToast("Shot Directed Successfully!", "success");
+            } catch (err) { showToast("Generation failed", "error"); }
+            finally { overlay.classList.add('hidden'); txtEl.innerText = "kAIxu Thinking..."; }
+        };
+
+        window.processAI = async (type) => {
+            const s = state.shots.find(x => x.id === state.activeShotId);
+            const overlay = document.getElementById('parsing-overlay');
+            overlay.classList.remove('hidden');
+            try {
+                const prompt = `Expand the cinematic ${type} for this shot setup. Name: ${s.subject}. Current Records: ${s.content}. Angle: ${s.angle}. Size: ${s.size}. Format as professional director's blocking notes.`;
+                const result = await fetchOpenAI(prompt, "You are an expert film director and DP.");
+                s.content += "\n\n" + result;
+                refreshUI(); debouncedSave();
+                showToast("Directives expanded!", "success");
+            } catch (err) { showToast("AI failed", "error"); }
+            finally { overlay.classList.add('hidden'); }
+        };
+
+        window.generateVisual = async () => {
+            const s = state.shots.find(x => x.id === state.activeShotId);
+            const key = state.openaiKey || document.getElementById('openai-key').value;
+            if(!key) return showToast("API Key required!", "error");
+            const overlay = document.getElementById('parsing-overlay');
+            overlay.classList.remove('hidden');
+            const txtEl = document.getElementById('parsing-text');
+            txtEl.innerText = "kAIxu Rendering Still...";
+            try {
+                const prompt = `Professional cinematic production still, cinematic film look, 16:9 aspect ratio, lighting setup ${s.lighting}, camera angle ${s.angle}, shot size ${s.size}. Subject: ${s.subject}. Context: ${s.content.slice(0,300)}`;
+                const res = await fetch('https://api.openai.com/v1/images/generations', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
+                    body: JSON.stringify({ model: "dall-e-3", prompt, n: 1, response_format: "b64_json" })
+                });
+                const data = await res.json();
+                s.image = `data:image/png;base64,${data.data[0].b64_json}`;
+                refreshUI(); debouncedSave();
+                showToast("Still Rendered!", "success");
+            } catch (err) { showToast("Render failed", "error"); }
+            finally { overlay.classList.add('hidden'); txtEl.innerText = "kAIxu Thinking..."; }
+        };
+
+        // --- Utils ---
+        window.addShot = () => {
+            const id = 's-' + Date.now();
+            state.shots.push({ id, subject: "NEW SHOT", content: "", lighting: "", lens: "", angle: "Eye Level", move: "Static", size: "Medium", priority: "Standard", image: null });
+            state.activeShotId = id; refreshUI(); debouncedSave();
+        };
+        window.selectShot = (id) => { state.activeShotId = id; refreshUI(); };
+        window.deleteShot = (id, e) => { e.stopPropagation(); if(state.shots.length <= 1) return; state.shots = state.shots.filter(x => x.id !== id); if(state.activeShotId === id) state.activeShotId = state.shots[0].id; refreshUI(); debouncedSave(); };
+        window.removeImage = () => { const s = state.shots.find(x => x.id === state.activeShotId); if(s) s.image = null; refreshUI(); debouncedSave(); };
+        window.setViewMode = (mode) => { 
+            state.viewMode = mode; 
+            if(mode === 'preview') { document.getElementById('editor-container').classList.add('hidden'); document.getElementById('preview-container').classList.remove('hidden'); compilePreview(); } 
+            else { document.getElementById('editor-container').classList.remove('hidden'); document.getElementById('preview-container').classList.add('hidden'); } renderNav(); 
+        };
+
+        function compilePreview() {
+            const cont = document.getElementById('preview-content');
+            let html = `
+            <div class="print-header">
+                <div>
+                    <h1 class="uppercase tracking-tighter">${state.title}</h1>
+                    <p class="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Technical Director's Shot List | kAIxu Cinematic</p>
+                </div>
+                <div class="text-right">
+                    <p class="text-[10px] font-black uppercase">Archive Code: ${state.shots.length} SHOTS</p>
+                </div>
+            </div>
+            <table class="shot-table">
+                <thead>
+                    <tr>
+                        <th style="width: 40px">#</th>
+                        <th>Shot Visual</th>
+                        <th>Subject & Technical Notes</th>
+                        <th style="width: 150px">Specs</th>
+                        <th style="width: 100px">Priority</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+            
+            state.shots.forEach((s, idx) => {
+                html += `
+                <tr>
+                    <td style="font-weight: 900; text-align: center;">${idx+1}</td>
+                    <td class="shot-image-cell">${s.image ? `<img src="${s.image}">` : '<div style="text-align:center;color:#ccc;font-size:8px">NO RENDER</div>'}</td>
+                    <td>
+                        <div style="font-weight: 900; text-transform: uppercase; margin-bottom: 4px;">${s.subject}</div>
+                        <div style="font-size: 8pt; line-height: 1.4; color: #444;">${s.content.slice(0, 400)}</div>
+                    </td>
+                    <td>
+                        <div style="font-size: 8pt"><b>ANGLE:</b> ${s.angle}</div>
+                        <div style="font-size: 8pt"><b>MOVE:</b> ${s.move}</div>
+                        <div style="font-size: 8pt"><b>SIZE:</b> ${s.size}</div>
+                        <div style="font-size: 8pt"><b>LENS:</b> ${s.lens}</div>
+                    </td>
+                    <td style="font-weight: 800; color: ${s.priority === 'Must-Have' ? '#dc2626' : '#000'}; font-size: 8pt;">${s.priority.toUpperCase()}</td>
+                </tr>`;
+            });
+
+            html += `</tbody></table>`;
+            cont.innerHTML = html;
+        }
+
+        window.toggleTutorial = (show) => document.getElementById('tutorial-modal').classList.toggle('hidden', !show);
+
+        function showToast(msg, type) {
+            const container = document.getElementById('toast-container');
+            const t = document.createElement('div');
+            t.className = `flex items-center gap-3 px-8 py-4 rounded-2xl shadow-2xl font-black text-xs uppercase tracking-widest transition-all animate-bounce ${type === 'error' ? 'bg-red-600' : 'bg-indigo-600'} text-white z-[200]`;
+            t.innerHTML = `<i class="fa-solid ${type === 'error' ? 'fa-triangle-exclamation' : 'fa-circle-check'}"></i> ${msg}`;
+            container.appendChild(t);
+            setTimeout(() => { t.classList.add('opacity-0', 'translate-x-full'); setTimeout(() => t.remove(), 500); }, 3000);
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>

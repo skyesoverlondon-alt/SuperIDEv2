@@ -29,6 +29,15 @@
     .done { border-color:#2f8c70; color:#b8ffe7; }
     .planned { border-color:#3f68b3; color:#ccdeff; }
     .confirmed { border-color:#b7932a; color:#ffe9a7; }
+    .risk { border-color:#9c335d; color:#ffc2d8; }
+    .conflict-list { display:grid; gap:6px; margin-top:8px; }
+    .conflict-item { border:1px solid rgba(255,123,163,.5); background:rgba(116,24,56,.22); border-radius:10px; padding:8px; font-size:0.8rem; }
+    .panel-grid { display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px; }
+    .mini-card { border:1px solid rgba(191,238,255,.2); border-radius:10px; padding:8px; background:rgba(255,255,255,.03); min-height:120px; }
+    .mini-card h3 { margin:0 0 6px 0; font-size:0.78rem; text-transform:uppercase; color:var(--gold); letter-spacing:.06em; }
+    .heat-row { display:grid; grid-template-columns: 110px 1fr 50px; gap:8px; align-items:center; font-size:0.75rem; margin-bottom:6px; }
+    .heat-bar { height:8px; border-radius:999px; background:rgba(44,230,255,.16); overflow:hidden; }
+    .heat-bar span { display:block; height:100%; background:linear-gradient(90deg, rgba(44,230,255,.88), rgba(255,203,71,.9)); }
     @media (max-width: 900px) { .row { grid-template-columns: 1fr 1fr; } .grid { grid-template-columns: repeat(2, minmax(0,1fr)); } .head { display:none; } }
   </style>
 </head>
@@ -61,16 +70,82 @@
         <input id="end" type="date" />
         <button id="add">Add Event</button>
       </div>
-      <div class="row" style="margin-top:8px; grid-template-columns: 1fr 200px 200px 200px;">
+      <div class="row" style="margin-top:8px; grid-template-columns: 1fr 180px 160px 220px;">
+        <select id="recurrence">
+          <option value="none">recurrence: none</option>
+          <option value="daily">daily</option>
+          <option value="weekly">weekly</option>
+          <option value="monthly">monthly</option>
+        </select>
+        <input id="recurCount" type="number" min="1" max="30" value="1" />
+        <button id="exportIcs">Export ICS</button>
+        <div class="muted">Recurring copies generated on add.</div>
+      </div>
+      <div class="row" style="margin-top:8px; grid-template-columns: 1fr 1fr;">
+        <select id="timezone">
+          <option value="UTC">timezone: UTC</option>
+          <option value="America/Los_Angeles">America/Los_Angeles</option>
+          <option value="America/New_York">America/New_York</option>
+          <option value="Europe/London">Europe/London</option>
+          <option value="Asia/Tokyo">Asia/Tokyo</option>
+        </select>
+        <select id="reminderDays">
+          <option value="0">reminder: none</option>
+          <option value="1">reminder: 1 day before</option>
+          <option value="2">reminder: 2 days before</option>
+          <option value="7">reminder: 7 days before</option>
+        </select>
+      </div>
+      <div class="row" style="margin-top:8px; grid-template-columns: 1fr 1fr 1fr;">
+        <input id="owner" placeholder="Owner" value="owner" />
+        <input id="team" placeholder="Team" value="core" />
+        <input id="dependsOn" placeholder="Depends on event id (optional)" />
+      </div>
+      <div class="row" style="margin-top:8px; grid-template-columns: 1fr 160px 160px 160px 160px;">
         <input id="ws" placeholder="Workspace ID" />
         <input id="month" type="month" />
+        <select id="viewMode">
+          <option value="month">month</option>
+          <option value="week">week</option>
+          <option value="agenda">agenda</option>
+        </select>
         <button id="load">Load</button>
         <button id="save">Save</button>
       </div>
+      <div class="row" style="margin-top:8px; grid-template-columns: 1fr 280px;">
+        <div class="muted" id="conflictSummary">No conflict scan yet.</div>
+        <label class="muted" style="display:flex;align-items:center;gap:8px;justify-content:flex-end;">
+          <input id="allowConflictSave" type="checkbox" style="width:auto;" />
+          Allow save when conflicts exist
+        </label>
+      </div>
+      <div class="row" style="margin-top:8px; grid-template-columns: 1fr 1fr auto;">
+        <input id="reminderChannel" placeholder="Reminder channel" value="calendar-reminders" />
+        <input id="reminderEmail" placeholder="Reminder email (optional)" />
+        <button id="dispatchReminders">Dispatch Reminders</button>
+      </div>
+      <div id="conflictList" class="conflict-list"></div>
     </section>
 
     <section class="card">
       <div class="grid" id="calendar"></div>
+    </section>
+
+    <section class="card">
+      <div class="panel-grid">
+        <div class="mini-card">
+          <h3>Dependency Timeline</h3>
+          <div id="dependencyPanel" class="muted">No dependency links yet.</div>
+        </div>
+        <div class="mini-card">
+          <h3>Workload Heatmap</h3>
+          <div id="workloadPanel" class="muted">No workload data yet.</div>
+        </div>
+        <div class="mini-card">
+          <h3>Reminder Audit Trail</h3>
+          <div id="reminderAudit" class="muted">No reminder dispatches yet.</div>
+        </div>
+      </div>
     </section>
   </div>
 
@@ -82,6 +157,8 @@ const month = document.getElementById('month');
 month.value = new Date().toISOString().slice(0, 7);
 const statusEl = document.getElementById('status');
 let events = [];
+let conflicts = [];
+let reminderAuditLog = [];
 
 function setStatus(t){ statusEl.textContent = t; }
 async function call(path, options = {}) {
@@ -122,6 +199,8 @@ async function load(){
     start_date: x.due_at,
     end_date: x.due_at,
     owner: x.assignee || 'task-owner',
+    team: 'tasks',
+    depends_on: '',
     status: x.status === 'done' ? 'done' : x.status === 'doing' ? 'confirmed' : 'planned',
     notes: 'priority=' + (x.priority || 'n/a')
   }));
@@ -132,6 +211,11 @@ async function load(){
 
 async function save(){
   await ensureAuth();
+  const found = detectConflicts(events);
+  if (found.length && !document.getElementById('allowConflictSave').checked) {
+    renderConflictPanel(found);
+    throw new Error('Conflict gate blocked save. Resolve overlaps or enable override.');
+  }
   const w = ws.value.trim();
   await call('/api/app-record-save', {
     method:'POST',
@@ -141,7 +225,287 @@ async function save(){
   setStatus('Saved SkyeCalendar model.');
 }
 
+async function dispatchReminders() {
+  await ensureAuth();
+  const days = Number(document.getElementById('reminderDays').value || 0);
+  if (days <= 0) throw new Error('Set reminder days before dispatching.');
+  const target = new Date();
+  target.setDate(target.getDate() + days);
+  const targetIso = target.toISOString().slice(0, 10);
+  const due = events.filter((evt) => evt.start_date === targetIso && Number(evt.reminder_days || 0) > 0);
+  if (!due.length) {
+    reminderAuditLog.unshift({
+      at: new Date().toISOString(),
+      target: targetIso,
+      status: 'no_due',
+      channel: '',
+      email: '',
+      count: 0,
+      titles: []
+    });
+    reminderAuditLog = reminderAuditLog.slice(0, 40);
+    renderReminderAudit();
+    setStatus('No reminders due for selected offset.');
+    return;
+  }
+  const channel = document.getElementById('reminderChannel').value.trim() || 'calendar-reminders';
+  const reminderEmail = document.getElementById('reminderEmail').value.trim();
+  const message = 'Calendar reminders due: ' + due.map((evt) => `${evt.title} (${evt.start_date})`).join(' | ');
+  await call('/api/skychat-notify', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ws_id: ws.value.trim(), channel, message, source: 'SkyeCalendar Reminder Hook' }),
+  });
+  if (reminderEmail) {
+    await call('/api/skymail-send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ws_id: ws.value.trim(), to: reminderEmail, subject: 'SkyeCalendar reminders', text: message }),
+    });
+  }
+  reminderAuditLog.unshift({
+    at: new Date().toISOString(),
+    target: targetIso,
+    status: 'sent',
+    channel,
+    email: reminderEmail,
+    count: due.length,
+    titles: due.map((evt) => evt.title)
+  });
+  reminderAuditLog = reminderAuditLog.slice(0, 40);
+  renderReminderAudit();
+  setStatus(`Dispatched ${due.length} reminder(s) to #${channel}${reminderEmail ? ` and ${reminderEmail}` : ''}.`);
+}
+
+function rangesOverlap(aStart, aEnd, bStart, bEnd) {
+  return aStart <= bEnd && bStart <= aEnd;
+}
+
+function detectConflicts(inputEvents) {
+  const scoped = (inputEvents || []).filter((evt) => !String(evt.id || '').startsWith('taskcal-'));
+  const next = [];
+  for (let i = 0; i < scoped.length; i += 1) {
+    for (let j = i + 1; j < scoped.length; j += 1) {
+      const a = scoped[i];
+      const b = scoped[j];
+      const aStart = String(a.start_date || '');
+      const aEnd = String(a.end_date || a.start_date || '');
+      const bStart = String(b.start_date || '');
+      const bEnd = String(b.end_date || b.start_date || '');
+      if (!aStart || !bStart) continue;
+      if (rangesOverlap(aStart, aEnd, bStart, bEnd)) {
+        next.push({
+          a,
+          b,
+          key: String(a.id || i) + '::' + String(b.id || j),
+          window: aStart + ' to ' + aEnd + ' vs ' + bStart + ' to ' + bEnd
+        });
+      }
+    }
+  }
+  return next;
+}
+
+function renderConflictPanel(found) {
+  conflicts = found;
+  const summary = document.getElementById('conflictSummary');
+  const list = document.getElementById('conflictList');
+  if (!summary || !list) return;
+  if (!found.length) {
+    summary.textContent = 'No conflicts detected.';
+    list.innerHTML = '';
+    return;
+  }
+  summary.textContent = found.length + ' scheduling conflict(s) detected.';
+  list.innerHTML = found.slice(0, 12).map((item) => (
+    '<div class="conflict-item">' +
+    '<div><strong>' + item.a.title + '</strong> overlaps <strong>' + item.b.title + '</strong></div>' +
+    '<div class="muted">window: ' + item.window + '</div>' +
+    '</div>'
+  )).join('');
+}
+
+function addIsoDays(iso, days) {
+  const d = new Date(iso + 'T00:00:00');
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+function eventDurationDays(evt) {
+  const start = new Date(String(evt.start_date || '') + 'T00:00:00');
+  const end = new Date(String(evt.end_date || evt.start_date || '') + 'T00:00:00');
+  const diff = Math.round((end - start) / 86400000);
+  return Number.isFinite(diff) ? Math.max(0, diff) : 0;
+}
+
+function hasConflictWithOthers(candidate, others) {
+  const startA = String(candidate.start_date || '');
+  const endA = String(candidate.end_date || candidate.start_date || '');
+  return others.some((evt) => {
+    const startB = String(evt.start_date || '');
+    const endB = String(evt.end_date || evt.start_date || '');
+    if (!startA || !startB) return false;
+    return rangesOverlap(startA, endA, startB, endB);
+  });
+}
+
+function suggestNextAvailableDate(baseEvent, others, maxDays = 45) {
+  const duration = eventDurationDays(baseEvent);
+  for (let offset = 0; offset <= maxDays; offset += 1) {
+    const nextStart = addIsoDays(baseEvent.start_date, offset);
+    const nextEnd = addIsoDays(nextStart, duration);
+    const probe = { ...baseEvent, start_date: nextStart, end_date: nextEnd };
+    if (!hasConflictWithOthers(probe, others)) return probe;
+  }
+  return null;
+}
+
+function makeEventPill(evt) {
+  const p = document.createElement('div');
+  p.className = 'pill ' + (evt.status || 'planned');
+  p.textContent = evt.title;
+  if (!String(evt.id || '').startsWith('taskcal-')) {
+    p.draggable = true;
+    p.dataset.eventId = String(evt.id || '');
+    p.title = 'Drag to reschedule';
+    p.addEventListener('dragstart', (event) => {
+      event.dataTransfer.setData('text/plain', String(evt.id || ''));
+      event.dataTransfer.effectAllowed = 'move';
+    });
+  }
+  return p;
+}
+
+function attachDropZone(cell, targetIso) {
+  cell.addEventListener('dragover', (event) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+  });
+  cell.addEventListener('drop', (event) => {
+    event.preventDefault();
+    const eventId = event.dataTransfer.getData('text/plain');
+    if (eventId) moveEventToDate(eventId, targetIso);
+  });
+}
+
+function moveEventToDate(eventId, targetIso) {
+  const idx = events.findIndex((evt) => String(evt.id || '') === String(eventId));
+  if (idx < 0) return;
+  const base = events[idx];
+  if (String(base.id || '').startsWith('taskcal-')) {
+    setStatus('Task-derived events are read-only in calendar drag mode.');
+    return;
+  }
+  const duration = eventDurationDays(base);
+  const proposed = { ...base, start_date: targetIso, end_date: addIsoDays(targetIso, duration) };
+  const others = events.filter((_, i) => i !== idx && !String(events[i].id || '').startsWith('taskcal-'));
+  let finalMove = proposed;
+  if (hasConflictWithOthers(proposed, others)) {
+    const suggestion = suggestNextAvailableDate(proposed, others);
+    if (!suggestion) {
+      setStatus('No conflict-free slot found for dragged event within 45 days.');
+      return;
+    }
+    finalMove = suggestion;
+    setStatus('Conflict detected. Auto-scheduled to ' + finalMove.start_date + '.');
+  } else {
+    setStatus('Rescheduled event to ' + targetIso + '.');
+  }
+  events = events.map((evt, i) => (i === idx ? finalMove : evt));
+  render();
+}
+
+function renderDependencyTimeline() {
+  const host = document.getElementById('dependencyPanel');
+  if (!host) return;
+  const rows = events
+    .filter((evt) => evt.depends_on)
+    .map((evt) => {
+      const parent = events.find((p) => String(p.id || '') === String(evt.depends_on));
+      if (!parent) return null;
+      const parentEnd = new Date(String(parent.end_date || parent.start_date || '') + 'T00:00:00');
+      const childStart = new Date(String(evt.start_date || '') + 'T00:00:00');
+      const delta = Math.round((childStart - parentEnd) / 86400000);
+      return {
+        child: evt,
+        parent,
+        delta,
+        impact: delta < 0 ? Math.abs(delta) : 0
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.impact - a.impact);
+
+  if (!rows.length) {
+    host.className = 'muted';
+    host.textContent = 'No dependency links yet.';
+    return;
+  }
+
+  host.className = '';
+  host.innerHTML = rows.slice(0, 8).map((row) => (
+    '<div style="font-size:0.75rem; margin-bottom:6px;">' +
+    '<strong>' + row.child.title + '</strong> <= ' + row.parent.title + '<br />' +
+    '<span class="muted">Gap: ' + row.delta + 'd' + (row.impact ? ' | Slip impact: ' + row.impact + 'd' : ' | On-track') + '</span>' +
+    '</div>'
+  )).join('');
+}
+
+function renderWorkloadHeatmap() {
+  const host = document.getElementById('workloadPanel');
+  if (!host) return;
+  const scoped = events.filter((evt) => !String(evt.id || '').startsWith('taskcal-'));
+  if (!scoped.length) {
+    host.className = 'muted';
+    host.textContent = 'No workload data yet.';
+    return;
+  }
+  const buckets = new Map();
+  scoped.forEach((evt) => {
+    const owner = String(evt.owner || 'unassigned').trim() || 'unassigned';
+    const team = String(evt.team || 'general').trim() || 'general';
+    const key = owner + ' @ ' + team;
+    buckets.set(key, (buckets.get(key) || 0) + 1);
+  });
+  const rows = Array.from(buckets.entries()).sort((a, b) => b[1] - a[1]);
+  const max = rows[0][1] || 1;
+  host.className = '';
+  host.innerHTML = rows.slice(0, 8).map(([label, count]) => (
+    '<div class="heat-row">' +
+    '<span>' + label + '</span>' +
+    '<div class="heat-bar"><span style="width:' + Math.max(8, Math.round((count / max) * 100)) + '%"></span></div>' +
+    '<strong>' + count + '</strong>' +
+    '</div>'
+  )).join('');
+}
+
+function renderReminderAudit() {
+  const host = document.getElementById('reminderAudit');
+  if (!host) return;
+  if (!reminderAuditLog.length) {
+    host.className = 'muted';
+    host.textContent = 'No reminder dispatches yet.';
+    return;
+  }
+  host.className = '';
+  host.innerHTML = reminderAuditLog.slice(0, 8).map((entry) => (
+    '<div style="font-size:0.74rem; margin-bottom:6px;">' +
+    '<strong>' + entry.status + '</strong> @ ' + String(entry.at || '').slice(0, 16).replace('T', ' ') + '<br />' +
+    '<span class="muted">target=' + entry.target + ' count=' + entry.count +
+    (entry.channel ? ' channel=#' + entry.channel : '') +
+    (entry.email ? ' email=' + entry.email : '') + '</span>' +
+    '</div>'
+  )).join('');
+}
+
+function renderInsightPanels() {
+  renderDependencyTimeline();
+  renderWorkloadHeatmap();
+  renderReminderAudit();
+}
+
 function render(){
+  const viewMode = document.getElementById('viewMode').value;
   const [y,m] = month.value.split('-').map(Number);
   const first = new Date(y, m - 1, 1);
   const start = first.getDay();
@@ -156,6 +520,82 @@ function render(){
   }
   const cal = document.getElementById('calendar');
   cal.innerHTML = '';
+  renderInsightPanels();
+
+  if (viewMode === 'agenda') {
+    const monthItems = events
+      .filter((evt) => {
+        const dt = new Date(evt.start_date + 'T00:00:00');
+        return dt.getFullYear() === y && dt.getMonth() === m - 1;
+      })
+      .sort((a, b) => String(a.start_date).localeCompare(String(b.start_date)));
+
+    cal.style.gridTemplateColumns = '1fr';
+    if (!monthItems.length) {
+      const empty = document.createElement('div');
+      empty.className = 'muted';
+      empty.textContent = 'No events in this month agenda.';
+      cal.appendChild(empty);
+      return;
+    }
+
+    monthItems.forEach((evt) => {
+      const row = document.createElement('div');
+      row.className = 'day';
+      row.innerHTML = '<div class="n">' + evt.start_date + '</div>' +
+        '<div class="muted">owner=' + (evt.owner || 'n/a') + ' | end=' + (evt.end_date || evt.start_date) + '</div>' +
+        '<div class="muted">team=' + (evt.team || 'general') + ' | tz=' + (evt.timezone || 'UTC') + ' | reminder=' + (evt.reminder_days || 0) + 'd</div>';
+      row.appendChild(makeEventPill(evt));
+      cal.appendChild(row);
+    });
+    renderConflictPanel(detectConflicts(events));
+    return;
+  }
+
+  if (viewMode === 'week') {
+    cal.style.gridTemplateColumns = 'repeat(7, minmax(0,1fr))';
+    const weekStart = new Date(first);
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+    const headers = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    headers.forEach((d) => {
+      const h = document.createElement('div');
+      h.className = 'head';
+      h.textContent = d;
+      cal.appendChild(h);
+    });
+
+    for (let i = 0; i < 7; i += 1) {
+      const dt = new Date(weekStart);
+      dt.setDate(weekStart.getDate() + i);
+      const day = dt.getDate();
+      const dayMonth = dt.getMonth() + 1;
+      const dayYear = dt.getFullYear();
+      const iso = dayYear + '-' + String(dayMonth).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+      const c = document.createElement('div');
+      c.className = 'day';
+      const n = document.createElement('div');
+      n.className = 'n';
+      n.textContent = String(day);
+      c.appendChild(n);
+      attachDropZone(c, iso);
+      const list = events.filter((evt) => evt.start_date === iso);
+      list.slice(0, 5).forEach((evt) => {
+        const p = makeEventPill(evt);
+        c.appendChild(p);
+      });
+      if (list.length > 5) {
+        const more = document.createElement('div');
+        more.className = 'muted';
+        more.textContent = '+' + (list.length - 5) + ' more';
+        c.appendChild(more);
+      }
+      cal.appendChild(c);
+    }
+    renderConflictPanel(detectConflicts(events));
+    return;
+  }
+
+  cal.style.gridTemplateColumns = 'repeat(7, minmax(0,1fr))';
   ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(d => {
     const h = document.createElement('div'); h.className = 'head'; h.textContent = d; cal.appendChild(h);
   });
@@ -163,27 +603,128 @@ function render(){
   for(let day=1; day<=count; day++){
     const c=document.createElement('div'); c.className='day';
     const n=document.createElement('div'); n.className='n'; n.textContent=String(day); c.appendChild(n);
+    const iso = y + '-' + String(m).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+    attachDropZone(c, iso);
     const list = map.get(day) || [];
-    list.slice(0,4).forEach(e => { const p=document.createElement('div'); p.className='pill ' + (e.status||'planned'); p.textContent=e.title; c.appendChild(p); });
+    list.slice(0,4).forEach(e => { c.appendChild(makeEventPill(e)); });
     if (list.length > 4){ const more=document.createElement('div'); more.className='muted'; more.textContent='+' + (list.length - 4) + ' more'; c.appendChild(more); }
     cal.appendChild(c);
   }
+  renderConflictPanel(detectConflicts(events));
+}
+
+function shiftDate(iso, recurrence, step) {
+  const d = new Date(iso + 'T00:00:00');
+  if (recurrence === 'daily') d.setDate(d.getDate() + step);
+  if (recurrence === 'weekly') d.setDate(d.getDate() + (7 * step));
+  if (recurrence === 'monthly') d.setMonth(d.getMonth() + step);
+  return d.toISOString().slice(0, 10);
+}
+
+function toIcsDate(iso) {
+  return String(iso || '').replace(/-/g, '');
+}
+
+function exportIcs() {
+  const lines = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//SkyeCalendar//SuperIDEv2//EN'
+  ];
+  events.forEach((evt) => {
+    const uid = (evt.id || ('evt-' + Math.random().toString(36).slice(2))) + '@superidev2';
+    const dtStart = toIcsDate(evt.start_date);
+    const dtEnd = toIcsDate(evt.end_date || evt.start_date);
+    lines.push('BEGIN:VEVENT');
+    lines.push('UID:' + uid);
+    lines.push('DTSTAMP:' + new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z'));
+    lines.push('DTSTART;VALUE=DATE:' + dtStart);
+    lines.push('DTEND;VALUE=DATE:' + dtEnd);
+    lines.push('SUMMARY:' + String(evt.title || 'Skye Event').replace(/\n/g, ' '));
+    lines.push('DESCRIPTION:' + String(evt.notes || '').replace(/\n/g, ' '));
+    if (Number(evt.reminder_days || 0) > 0) {
+      lines.push('BEGIN:VALARM');
+      lines.push('ACTION:DISPLAY');
+      lines.push('DESCRIPTION:' + String(evt.title || 'Skye Event Reminder').replace(/\n/g, ' '));
+      lines.push('TRIGGER:-P' + Number(evt.reminder_days) + 'D');
+      lines.push('END:VALARM');
+    }
+    lines.push('END:VEVENT');
+  });
+  lines.push('END:VCALENDAR');
+  const blob = new Blob([lines.join('\r\n')], { type: 'text/calendar' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'skyecalendar-' + (month.value || new Date().toISOString().slice(0, 7)) + '.ics';
+  a.click();
+  URL.revokeObjectURL(url);
+  setStatus('Exported ICS file.');
 }
 
 document.getElementById('login').onclick = () => ensureAuth().then(() => setStatus('Session ready.')).catch(e => setStatus(e.message));
 document.getElementById('load').onclick = () => load().catch(e => setStatus(e.message));
 document.getElementById('save').onclick = () => save().catch(e => setStatus(e.message));
 document.getElementById('month').onchange = render;
+document.getElementById('viewMode').onchange = render;
+document.getElementById('exportIcs').onclick = exportIcs;
+document.getElementById('dispatchReminders').onclick = () => dispatchReminders().catch(e => setStatus(e.message));
 document.getElementById('add').onclick = () => {
   const t = document.getElementById('title').value.trim();
   const s = document.getElementById('start').value;
   const e = document.getElementById('end').value || s;
+  const owner = document.getElementById('owner').value.trim() || 'owner';
+  const team = document.getElementById('team').value.trim() || 'general';
+  const dependsOn = document.getElementById('dependsOn').value.trim();
+  const recurrence = document.getElementById('recurrence').value;
+  const recurCount = Math.max(1, Number(document.getElementById('recurCount').value || 1));
+  const timezone = document.getElementById('timezone').value || 'UTC';
+  const reminderDays = Math.max(0, Number(document.getElementById('reminderDays').value || 0));
   if (!t || !s) return setStatus('title/start required');
-  events.unshift({ id:'cal-' + Date.now(), title:t, start_date:s, end_date:e, owner:'owner', status:'planned', notes:'' });
+  const next = [];
+  for (let i = 0; i < recurCount; i += 1) {
+    const startDate = recurrence === 'none' ? s : shiftDate(s, recurrence, i);
+    const endDate = recurrence === 'none' ? e : shiftDate(e, recurrence, i);
+    next.push({ id:'cal-' + Date.now() + '-' + i, title:t, start_date:startDate, end_date:endDate, owner, team, depends_on: dependsOn, status:'planned', notes:'', timezone, reminder_days: reminderDays });
+    if (recurrence === 'none') break;
+  }
+  const proposed = [...next, ...events];
+  const found = detectConflicts(proposed);
+  if (found.length) {
+    if (next.length === 1) {
+      const movable = suggestNextAvailableDate(next[0], events.filter((evt) => !String(evt.id || '').startsWith('taskcal-')));
+      if (movable) {
+        next[0] = movable;
+        events = [next[0], ...events];
+        document.getElementById('title').value=''; document.getElementById('start').value=''; document.getElementById('end').value='';
+        render();
+        setStatus('Conflict detected. Auto-suggested and scheduled for ' + movable.start_date + '.');
+        return;
+      }
+    }
+    renderConflictPanel(found);
+    setStatus('Conflict gate: new event overlaps existing schedule.');
+    return;
+  }
+  events = proposed;
   document.getElementById('title').value=''; document.getElementById('start').value=''; document.getElementById('end').value='';
   render();
+  setStatus('Added ' + next.length + ' event(s).');
 };
 render();
+</script>
+<button id="skye-tutorial-fab" type="button" style="position:fixed;right:16px;bottom:16px;z-index:10000;padding:10px 14px;border-radius:999px;border:1px solid rgba(191,238,255,.42);background:rgba(44,230,255,.2);color:#eff9ff;font-weight:700;cursor:pointer;">Start Tutorial</button>
+<div id="skye-tutorial-modal" style="display:none;position:fixed;inset:0;z-index:10001;background:rgba(2,6,23,.72);"></div>
+<script>
+(function(){
+  const fab=document.getElementById('skye-tutorial-fab');
+  const modal=document.getElementById('skye-tutorial-modal');
+  if(!fab||!modal) return;
+  const app=(document.title||'App').replace(/Standalone|Workspace|Command Surface|Platform/gi,'').trim();
+  modal.innerHTML='<div style="max-width:520px;margin:10vh auto;background:#07131a;color:#eff9ff;border:1px solid rgba(191,238,255,.32);border-radius:14px;padding:18px"><h3 style="margin:0 0 8px">'+app+' Quick Start</h3><ol style="margin:0 0 12px 18px;line-height:1.5"><li>Review auth and active workspace context.</li><li>Run one core workflow action in this app.</li><li>Save/export/share output and verify completion state.</li></ol><div style="display:flex;justify-content:flex-end"><button id="skye-tutorial-close" type="button" style="padding:8px 12px;border-radius:10px;border:1px solid rgba(191,238,255,.32);background:rgba(0,0,0,.34);color:#eff9ff;cursor:pointer;">Close</button></div></div>';
+  fab.addEventListener('click',()=>{modal.style.display='block';});
+  modal.addEventListener('click',(e)=>{if(e.target===modal||e.target.id==='skye-tutorial-close') modal.style.display='none';});
+})();
 </script>
 </body>
 </html>

@@ -202,6 +202,7 @@
             const [kaixuAccessKey, setKaixuAccessKey] = useState("");
             const [aiInsight, setAiInsight] = useState("");
             const [aiDirectives, setAiDirectives] = useState([]);
+            const [directiveWorkflow, setDirectiveWorkflow] = useState([]);
             const [isGeneratingAi, setIsGeneratingAi] = useState(false);
 
             const [searchTerm, setSearchTerm] = useState("");
@@ -211,6 +212,7 @@
             const [showAddTransaction, setShowAddTransaction] = useState(false);
             const [showSettings, setShowSettings] = useState(false);
             const [isImporting, setIsImporting] = useState(false);
+            const [operatorRole, setOperatorRole] = useState(() => localStorage.getItem('skye.platinum.role') || 'member');
             
             const [clientForm, setClientForm] = useState({ name: '', entityType: 'Corporation', status: 'Active' });
             const [txForm, setTxForm] = useState({ clientId: '', amount: '', type: 'Credit', description: '' });
@@ -305,10 +307,113 @@
                 return { totalRevenue, history, composition };
             }, [ledger, clients]);
 
+            const anomalyTrend = useMemo(() => {
+                const sorted = [...ledger].sort((a, b) => (a.timestamp?.seconds || 0) - (b.timestamp?.seconds || 0));
+                const movements = sorted.map((tx) => ({
+                    ...tx,
+                    movement: tx.type === 'Credit' ? Number(tx.amount || 0) : -Number(tx.amount || 0),
+                }));
+                if (!movements.length) return [];
+
+                return movements.map((row, idx) => {
+                    const windowRows = movements.slice(Math.max(0, idx - 8), idx + 1);
+                    const mean = windowRows.reduce((sum, item) => sum + item.movement, 0) / Math.max(1, windowRows.length);
+                    const variance = windowRows.reduce((sum, item) => sum + Math.pow(item.movement - mean, 2), 0) / Math.max(1, windowRows.length);
+                    const std = Math.sqrt(variance) || 1;
+                    const z = Math.abs((row.movement - mean) / std);
+                    const isAnomaly = z >= 2.1 || Math.abs(row.movement) >= 25000;
+                    const confidence = Math.min(99, Math.max(51, Math.round(50 + z * 14)));
+                    return {
+                        id: row.id,
+                        movement: row.movement,
+                        clientName: row.clientName,
+                        description: row.description,
+                        timestamp: row.timestamp,
+                        isAnomaly,
+                        confidence,
+                    };
+                });
+            }, [ledger]);
+
+            const topAnomalies = useMemo(
+                () => anomalyTrend.filter((a) => a.isAnomaly).sort((a, b) => b.confidence - a.confidence).slice(0, 6),
+                [anomalyTrend]
+            );
+
+            const isHighRiskLedgerAction = useMemo(() => {
+                const amt = Number(txForm.amount || 0);
+                const highRiskText = /wire|override|sweep|manual|urgent|external/i.test(String(txForm.description || ''));
+                return txForm.type === 'Debit' && (amt >= 10000 || highRiskText);
+            }, [txForm]);
+
+            const canExecuteHighRisk = operatorRole === 'owner' || operatorRole === 'admin';
+
+            useEffect(() => {
+                localStorage.setItem('skye.platinum.role', operatorRole);
+            }, [operatorRole]);
+
             const notify = (msg) => {
                 const id = Date.now();
                 setNotifications(prev => [...prev, { id, msg }]);
                 setTimeout(() => setNotifications(prev => prev.filter(n => n.id !== id)), 4000);
+            };
+
+            const updateDirectiveState = (id, patch) => {
+                setDirectiveWorkflow((old) => old.map((item) => (item.id === id ? { ...item, ...patch } : item)));
+            };
+
+            const exportExecutiveReport = () => {
+                const payload = {
+                    generated_at: new Date().toISOString(),
+                    app: 'SkyePlatinum',
+                    executive_role: operatorRole,
+                    summary: {
+                        aggregate_protocol_value: analytics.totalRevenue,
+                        entity_count: clients.length,
+                        ledger_rows: ledger.length,
+                        anomaly_count: topAnomalies.length,
+                    },
+                    insight: aiInsight,
+                    directives: directiveWorkflow.map((d) => ({
+                        id: d.id,
+                        text: d.text,
+                        status: d.status,
+                        assignee: d.assignee,
+                        source_reference: 'kAIxU Neural Link',
+                    })),
+                    anomaly_trend: topAnomalies.map((a) => ({
+                        transaction_id: a.id,
+                        confidence: a.confidence,
+                        movement: a.movement,
+                        client: a.clientName,
+                        description: a.description,
+                        source_reference: `ledger/${a.id}`,
+                    })),
+                    source_references: [
+                        ...ledger.slice(0, 20).map((tx) => ({
+                            kind: 'ledger',
+                            id: tx.id,
+                            amount: tx.amount,
+                            type: tx.type,
+                            client: tx.clientName,
+                        })),
+                        ...clients.slice(0, 20).map((c) => ({
+                            kind: 'client',
+                            id: c.id,
+                            name: c.name,
+                            entity_type: c.entityType,
+                        })),
+                    ],
+                };
+
+                const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+                const href = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = href;
+                a.download = `skye-platinum-executive-report-${Date.now()}.json`;
+                a.click();
+                URL.revokeObjectURL(href);
+                notify('Executive report exported with source references');
             };
 
             const gatewayFetch = (window.SkyeGateway && window.SkyeGateway.fetchWithRetry) || fetch;
@@ -345,7 +450,14 @@
                     const content = data.output || data.text || data.result || data.response || "";
                     const parts = content.split('\n').filter(p => p.trim());
                     setAiInsight(parts.slice(0, 2).join(' '));
-                    setAiDirectives(parts.slice(2, 5).map(d => d.replace(/^\d\.?\s?/, '').trim()));
+                    const nextDirectives = parts.slice(2, 5).map(d => d.replace(/^\d\.?\s?/, '').trim()).filter(Boolean);
+                    setAiDirectives(nextDirectives);
+                    setDirectiveWorkflow(nextDirectives.map((text, idx) => ({
+                        id: `dir-${Date.now()}-${idx}`,
+                        text,
+                        status: 'new',
+                        assignee: '',
+                    })));
                     await telemetryEmit({
                         app: 'SkyePlatinum',
                         action: 'generate_kaixu_insight',
@@ -406,6 +518,11 @@
                 const db = getFirestore();
                 const client = clients.find(c => c.id === txForm.clientId);
                 if (!client) return;
+
+                if (isHighRiskLedgerAction && !canExecuteHighRisk) {
+                    notify(`High-risk ledger action locked for role=${operatorRole.toUpperCase()}`);
+                    return;
+                }
 
                 try {
                     await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'ledger'), {
@@ -507,18 +624,72 @@
                                             </p>
                                             {aiDirectives.length > 0 && (
                                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-6 border-t border-white/5">
-                                                    {aiDirectives.map((d, i) => (
-                                                        <div key={i} className="flex gap-3 items-start p-4 rounded-2xl bg-yellow-500/5 border border-yellow-500/10 text-[10px] uppercase font-bold tracking-wider text-yellow-200/60 leading-tight">
-                                                            <span className="text-yellow-500">D0{i+1}</span> {d}
+                                                    {directiveWorkflow.map((d, i) => (
+                                                        <div key={d.id} className="p-4 rounded-2xl bg-yellow-500/5 border border-yellow-500/10 text-[10px] uppercase font-bold tracking-wider text-yellow-200/60 leading-tight space-y-3">
+                                                            <div className="flex gap-3 items-start">
+                                                                <span className="text-yellow-500">D0{i+1}</span> {d.text}
+                                                            </div>
+                                                            <div className="grid grid-cols-2 gap-2">
+                                                                <select value={d.status} onChange={(event) => updateDirectiveState(d.id, { status: event.target.value })} className="bg-black/40 border border-white/10 rounded-lg px-2 py-1 text-[9px] uppercase">
+                                                                    <option value="new">new</option>
+                                                                    <option value="accepted">accepted</option>
+                                                                    <option value="delegated">delegated</option>
+                                                                    <option value="completed">completed</option>
+                                                                </select>
+                                                                <input value={d.assignee} onChange={(event) => updateDirectiveState(d.id, { assignee: event.target.value })} placeholder="assignee" className="bg-black/40 border border-white/10 rounded-lg px-2 py-1 text-[9px] uppercase" />
+                                                            </div>
                                                         </div>
                                                     ))}
                                                 </div>
                                             )}
                                         </div>
                                     </div>
-                                    <button onClick={generatekAIxUInsight} disabled={isGeneratingAi || !kaixuAccessKey} className="px-12 py-6 rounded-full bg-yellow-500 text-black font-black uppercase text-xs hover:scale-105 active:scale-95 transition-all shadow-[0_0_40px_rgba(255,215,0,0.3)] disabled:opacity-20 flex items-center gap-3 shrink-0">
-                                        {isGeneratingAi ? <Icon name="refresh" className="animate-spin" size={14} /> : <Icon name="zap" size={14} />} Initiate Pulse
-                                    </button>
+                                    <div className="flex flex-col gap-3 shrink-0">
+                                        <button onClick={generatekAIxUInsight} disabled={isGeneratingAi || !kaixuAccessKey} className="px-12 py-6 rounded-full bg-yellow-500 text-black font-black uppercase text-xs hover:scale-105 active:scale-95 transition-all shadow-[0_0_40px_rgba(255,215,0,0.3)] disabled:opacity-20 flex items-center gap-3">
+                                            {isGeneratingAi ? <Icon name="refresh" className="animate-spin" size={14} /> : <Icon name="zap" size={14} />} Initiate Pulse
+                                        </button>
+                                        <button onClick={exportExecutiveReport} className="px-8 py-4 rounded-full bg-white/5 border border-yellow-500/30 text-yellow-400 font-black uppercase text-[10px] tracking-widest hover:bg-yellow-500/10 transition-all">
+                                            Export Executive Report
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {activeTab === 'analytics' && (
+                            <div className="max-w-7xl mx-auto space-y-8">
+                                <h2 className="text-4xl font-black uppercase tracking-tighter">Anomaly Trend Intelligence</h2>
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                    <div className="p-10 rounded-[45px] bg-black/60 border border-white/5 space-y-5">
+                                        <h3 className="text-yellow-500 text-[10px] uppercase tracking-[0.4em] font-black">Financial Anomaly Trend</h3>
+                                        <div className="space-y-3">
+                                            {anomalyTrend.slice(-10).map((row, idx) => (
+                                                <div key={`${row.id}-${idx}`} className={`p-4 rounded-2xl border ${row.isAnomaly ? 'border-red-500/40 bg-red-500/10' : 'border-white/10 bg-white/[0.02]'} flex justify-between items-center`}>
+                                                    <div>
+                                                        <p className="text-sm font-bold">{row.clientName || 'Unknown Client'}</p>
+                                                        <p className="text-[10px] uppercase text-gray-500">{row.description || 'No description'}</p>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <p className={`font-mono text-lg font-bold ${row.movement >= 0 ? 'text-yellow-500' : 'text-red-400'}`}>{row.movement >= 0 ? '+' : ''}{row.movement.toLocaleString()}</p>
+                                                        <p className="text-[9px] uppercase text-white/60">confidence {row.confidence}%</p>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div className="p-10 rounded-[45px] bg-black/60 border border-white/5 space-y-5">
+                                        <h3 className="text-yellow-500 text-[10px] uppercase tracking-[0.4em] font-black">High Confidence Flags</h3>
+                                        <div className="space-y-3">
+                                            {topAnomalies.length === 0 && <p className="text-gray-500 text-sm">No anomaly spikes detected in current ledger window.</p>}
+                                            {topAnomalies.map((flag) => (
+                                                <div key={flag.id} className="p-4 rounded-2xl border border-yellow-500/20 bg-yellow-500/5">
+                                                    <p className="text-sm font-bold">{flag.clientName || 'Unknown Client'} <span className="text-yellow-400">({flag.confidence}%)</span></p>
+                                                    <p className="text-[10px] uppercase text-gray-500">Source: ledger/{flag.id}</p>
+                                                    <p className="text-xs text-white/80 mt-2">{flag.description || 'No detail provided'}</p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         )}
@@ -545,7 +716,15 @@
 
                         {activeTab === 'ledger' && (
                             <div className="max-w-5xl mx-auto space-y-8">
-                                <h2 className="text-4xl font-black uppercase tracking-tighter">Command Ledger</h2>
+                                <div className="flex flex-col md:flex-row justify-between items-center gap-6">
+                                    <h2 className="text-4xl font-black uppercase tracking-tighter">Command Ledger</h2>
+                                    <button onClick={() => setShowAddTransaction(true)} className="px-8 py-4 bg-yellow-500 text-black font-black uppercase text-[10px] rounded-full hover:brightness-110 flex items-center gap-2">
+                                        <Icon name="plus" size={16} /> Add Ledger Update
+                                    </button>
+                                </div>
+                                <div className="p-4 rounded-2xl border border-yellow-500/20 bg-yellow-500/5 text-[10px] font-black uppercase tracking-widest text-yellow-200/80">
+                                    Role lock profile: {operatorRole.toUpperCase()} • High-risk debit updates require OWNER or ADMIN.
+                                </div>
                                 <div className="space-y-4">
                                     {ledger.map(tx => (
                                         <div key={tx.id} className="p-8 rounded-[40px] bg-black/60 border border-white/5 flex justify-between items-center backdrop-blur-xl group hover:border-yellow-500/20 transition-all">
@@ -574,6 +753,19 @@
                                 </div>
                                 
                                 <div className="space-y-10">
+                                    <div className="space-y-4">
+                                        <label className="text-[10px] uppercase font-black text-gray-500 tracking-widest flex items-center gap-2">
+                                            <Icon name="shield" size={14} /> Operator Role Lock Profile
+                                        </label>
+                                        <select value={operatorRole} onChange={(event) => setOperatorRole(event.target.value)} className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl outline-none focus:border-yellow-500 font-mono text-sm">
+                                            <option value="owner">owner</option>
+                                            <option value="admin">admin</option>
+                                            <option value="member">member</option>
+                                            <option value="viewer">viewer</option>
+                                        </select>
+                                        <p className="text-[10px] uppercase text-yellow-500/70 font-black tracking-wider">High-risk ledger debits are locked unless role is owner/admin.</p>
+                                    </div>
+
                                     <div className="space-y-4">
                                         <label className="text-[10px] uppercase font-black text-gray-500 tracking-widest flex items-center gap-2">
                                             <Icon name="settings" size={14} /> kAIxU Gateway Key
@@ -614,6 +806,41 @@
                                     </div>
                                 </div>
                             </div>
+                        </div>
+                    )}
+
+                    {showAddTransaction && (
+                        <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-3xl flex items-center justify-center p-6">
+                            <form onSubmit={handleAddTransaction} className="max-w-2xl w-full p-10 bg-[#08080c] border border-yellow-500/20 rounded-[40px] space-y-8 shadow-2xl">
+                                <div className="flex justify-between items-center">
+                                    <h3 className="text-2xl font-black uppercase tracking-tighter text-yellow-500">Ledger Update</h3>
+                                    <button type="button" onClick={() => setShowAddTransaction(false)} className="p-3 bg-white/5 rounded-full"><Icon name="plus" className="rotate-45" size={18} /></button>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <select required value={txForm.clientId} onChange={(event) => setTxForm((old) => ({ ...old, clientId: event.target.value }))} className="bg-white/5 border border-white/10 p-4 rounded-2xl text-sm">
+                                        <option value="">Select client</option>
+                                        {clients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}
+                                    </select>
+                                    <select required value={txForm.type} onChange={(event) => setTxForm((old) => ({ ...old, type: event.target.value }))} className="bg-white/5 border border-white/10 p-4 rounded-2xl text-sm">
+                                        <option value="Credit">Credit</option>
+                                        <option value="Debit">Debit</option>
+                                    </select>
+                                    <input required value={txForm.amount} onChange={(event) => setTxForm((old) => ({ ...old, amount: event.target.value }))} type="number" min="0" step="0.01" placeholder="Amount" className="bg-white/5 border border-white/10 p-4 rounded-2xl text-sm" />
+                                    <input required value={txForm.description} onChange={(event) => setTxForm((old) => ({ ...old, description: event.target.value }))} placeholder="Description" className="bg-white/5 border border-white/10 p-4 rounded-2xl text-sm" />
+                                </div>
+
+                                {isHighRiskLedgerAction && !canExecuteHighRisk && (
+                                    <div className="p-4 rounded-2xl border border-red-500/40 bg-red-500/10 text-red-300 text-[10px] font-black uppercase tracking-widest">
+                                        Blocked: role={operatorRole.toUpperCase()} cannot submit high-risk ledger updates.
+                                    </div>
+                                )}
+
+                                <div className="flex justify-end gap-3">
+                                    <button type="button" onClick={() => setShowAddTransaction(false)} className="px-6 py-3 rounded-2xl bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-widest">Cancel</button>
+                                    <button type="submit" className="px-8 py-3 rounded-2xl bg-yellow-500 text-black text-[10px] font-black uppercase tracking-widest">Commit Ledger Update</button>
+                                </div>
+                            </form>
                         </div>
                     )}
 

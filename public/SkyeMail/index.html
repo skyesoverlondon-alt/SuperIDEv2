@@ -40,6 +40,8 @@
     .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     .status { font-size: 12px; color: var(--gold); margin-top: 8px; white-space: pre-wrap; }
     .diag { font-size: 11px; color: var(--muted); border: 1px solid rgba(191,238,255,0.2); border-radius: 8px; padding: 8px; margin-top: 8px; }
+    .warn { color: #ffb6b6; }
+    .ok { color: #bff0c8; }
   </style>
 </head>
 <body>
@@ -99,6 +101,13 @@
         <h2 style="margin-top:14px;">Compose</h2>
         <label>To</label>
         <input id="to" placeholder="recipient@example.com" />
+        <div class="row" style="margin-top:8px;">
+          <select id="templateSelect">
+            <option value="">Template: none</option>
+          </select>
+          <button id="applyTemplateBtn" type="button">Apply Template</button>
+        </div>
+        <div class="diag" id="templateTagPanel">Template approval tag: none</div>
         <label>Subject</label>
         <input id="subject" placeholder="Subject" />
         <label>Body</label>
@@ -106,9 +115,24 @@
         <label>SkyeChat hook channel (optional)</label>
         <input id="channel" placeholder="general" />
         <div class="actions">
+          <button id="preflightBtn" type="button">Run Preflight</button>
+          <label style="display:flex;align-items:center;gap:6px;margin:0;text-transform:none;font-size:12px;color:var(--muted);">
+            <input id="allowRiskSend" type="checkbox" style="width:auto;" /> Allow risky send override
+          </label>
+        </div>
+        <div class="diag" id="preflightPanel">Send preflight: pending.</div>
+        <div class="actions">
           <button class="primary" id="sendBtn" type="button">Send Mail</button>
           <button id="retryFailedBtn" type="button">Retry Failed</button>
           <button id="reloadBtn" type="button">Reload Inbox</button>
+        </div>
+        <div class="row" style="margin-top:8px;">
+          <input id="retryBaseSec" type="number" min="5" value="20" />
+          <input id="retryMaxAttempts" type="number" min="1" max="8" value="4" />
+        </div>
+        <div class="actions">
+          <button id="processRetryQueueBtn" type="button">Process Retry Queue</button>
+          <button id="exportAuditBtn" type="button">Export Audit JSON</button>
         </div>
         <div class="diag" id="deliveryPanel">Delivery lifecycle: no records yet.</div>
         <div class="status" id="status"></div>
@@ -150,11 +174,19 @@
       wsId: new URLSearchParams(window.location.search).get('ws_id') || 'primary-workspace',
       inboxRecords: [],
       deliveryRecords: JSON.parse(localStorage.getItem('skymail.delivery.records') || '[]'),
+      outboundAudit: JSON.parse(localStorage.getItem('skymail.outbound.audit') || '[]'),
     };
+    const MAIL_TEMPLATES = [
+      { id: 'exec-update', name: 'Executive Update', subject: '[Exec] Weekly Status Update', body: 'Team,\n\nHere is this week\'s status summary:\n- Wins:\n- Risks:\n- Next actions:\n', approvalTag: 'approved:comms-lead' },
+      { id: 'customer-followup', name: 'Customer Follow-up', subject: 'Follow-up on your request', body: 'Hello,\n\nThanks for your request. We are tracking progress and will share an update by EOD.\n\nRegards,', approvalTag: 'approved:support-manager' },
+      { id: 'incident-brief', name: 'Incident Brief', subject: '[Incident] Active update', body: 'Current incident status:\n- Scope:\n- Impact:\n- Mitigation:\n- ETA:\n', approvalTag: 'approved:incident-commander' }
+    ];
 
     const statusEl = document.getElementById('status');
     const inboxEl = document.getElementById('inbox');
     const deliveryPanel = document.getElementById('deliveryPanel');
+    const preflightPanel = document.getElementById('preflightPanel');
+    const templateTagPanel = document.getElementById('templateTagPanel');
     const query = new URLSearchParams(window.location.search);
 
     if (query.get('embed') === '1') {
@@ -163,6 +195,10 @@
 
     function persistDeliveryRecords() {
       localStorage.setItem('skymail.delivery.records', JSON.stringify(state.deliveryRecords.slice(0, 80)));
+    }
+
+    function persistOutboundAudit() {
+      localStorage.setItem('skymail.outbound.audit', JSON.stringify(state.outboundAudit.slice(0, 200)));
     }
 
     function renderDeliveryPanel() {
@@ -175,7 +211,8 @@
         acc[row.status] = (acc[row.status] || 0) + 1;
         return acc;
       }, {});
-      deliveryPanel.textContent = `Delivery lifecycle: queued=${counts.queued || 0}, sent=${counts.sent || 0}, failed=${counts.failed || 0} | recent=${rows.map((r) => r.subject + ':' + r.status).join(' | ')}`;
+      const pendingRetry = state.deliveryRecords.filter((row) => row.status === 'failed' && Number(row.attempts || 1) < Number(document.getElementById('retryMaxAttempts')?.value || 4)).length;
+      deliveryPanel.textContent = `Delivery lifecycle: queued=${counts.queued || 0}, sent=${counts.sent || 0}, failed=${counts.failed || 0}, retry_pending=${pendingRetry} | recent=${rows.map((r) => r.subject + ':' + r.status).join(' | ')}`;
     }
 
     function setStatus(text) {
@@ -438,29 +475,126 @@
       }
     }
 
-    async function sendMail() {
-      const to = document.getElementById('to').value.trim();
+    function initTemplates() {
+      const sel = document.getElementById('templateSelect');
+      MAIL_TEMPLATES.forEach((tpl) => {
+        const o = document.createElement('option');
+        o.value = tpl.id;
+        o.textContent = `${tpl.name}`;
+        sel.appendChild(o);
+      });
+    }
+
+    function applyTemplate() {
+      const selected = document.getElementById('templateSelect').value;
+      const tpl = MAIL_TEMPLATES.find((item) => item.id === selected);
+      if (!tpl) {
+        templateTagPanel.textContent = 'Template approval tag: none';
+        return;
+      }
+      document.getElementById('subject').value = tpl.subject;
+      document.getElementById('body').value = tpl.body;
+      templateTagPanel.textContent = `Template approval tag: ${tpl.approvalTag}`;
+    }
+
+    function runSendPreflight() {
+      const to = document.getElementById('to').value.trim().toLowerCase();
       const subject = document.getElementById('subject').value.trim();
       const text = document.getElementById('body').value.trim();
-      const channel = document.getElementById('channel').value.trim();
+      const warnings = [];
+      let block = false;
+
+      if (!to || !subject || !text) {
+        warnings.push('Missing required send fields (to/subject/body).');
+        block = true;
+      }
+      if (to && !to.includes('@')) {
+        warnings.push('Recipient format risk: missing @ domain.');
+        block = true;
+      }
+      if (to && !to.endsWith('@company.com') && !to.endsWith('@skymail.local')) {
+        warnings.push('Recipient risk: external destination domain.');
+      }
+      if (subject.length < 4) warnings.push('Subject quality risk: subject is too short.');
+      if (/password|secret|private key|ssn|credit card/i.test(text)) {
+        warnings.push('Content class warning: sensitive terms detected in message body.');
+      }
+
+      if (!warnings.length) {
+        preflightPanel.className = 'diag ok';
+        preflightPanel.textContent = 'Send preflight: PASS (no policy warnings).';
+      } else {
+        preflightPanel.className = 'diag warn';
+        preflightPanel.textContent = 'Send preflight: ' + warnings.join(' | ');
+      }
+      return { warnings, block };
+    }
+
+    function computeBackoffSeconds(attempt) {
+      const base = Math.max(5, Number(document.getElementById('retryBaseSec').value || 20));
+      return base * Math.pow(2, Math.max(0, attempt - 1));
+    }
+
+    function exportOutboundAudit() {
+      const blob = new Blob([JSON.stringify({
+        exported_at: new Date().toISOString(),
+        ws_id: state.wsId,
+        records: state.outboundAudit,
+      }, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `skymail-outbound-audit-${Date.now()}.json`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      setStatus('Exported outbound audit JSON with correlation IDs.');
+    }
+
+    async function sendMail(existingRecord = null) {
+      const to = (existingRecord?.to || document.getElementById('to').value.trim());
+      const subject = (existingRecord?.subject || document.getElementById('subject').value.trim());
+      const text = (existingRecord?.text || document.getElementById('body').value.trim());
+      const channel = (existingRecord?.channel || document.getElementById('channel').value.trim());
+      const preflight = runSendPreflight();
+      if (preflight.block && !document.getElementById('allowRiskSend').checked) {
+        throw new Error('Preflight blocked send. Fix required fields or enable risky-send override.');
+      }
       const local = document.getElementById('addressLocal').value.trim().toLowerCase();
       const fromAlias = local ? `${local}@skymail.local` : '';
       const idempotencyKey = buildIdempotencyKey('skymail-send', [state.wsId, to, subject, text, channel, fromAlias]);
-      const eventId = 'mail-' + Date.now();
-      state.deliveryRecords.unshift({ id: eventId, subject, to, status: 'queued', at: new Date().toISOString(), channel: channel || '' });
+      const correlationId = window.SkyeCorrelation && window.SkyeCorrelation.next ? window.SkyeCorrelation.next('skymail-outbound') : ('corr-' + Date.now());
+      const eventId = existingRecord?.id || ('mail-' + Date.now());
+      const attempts = Number(existingRecord?.attempts || 0) + 1;
+      if (existingRecord) {
+        state.deliveryRecords = state.deliveryRecords.map((row) => row.id === existingRecord.id ? { ...row, status: 'queued', attempts } : row);
+      } else {
+        state.deliveryRecords.unshift({ id: eventId, subject, to, text, status: 'queued', at: new Date().toISOString(), channel: channel || '', attempts, next_retry_at: null, last_error: '' });
+      }
       persistDeliveryRecords();
       renderDeliveryPanel();
-      const data = await call('/api/skymail-send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to, subject, text, channel, from_alias: fromAlias, ws_id: state.wsId, idempotency_key: idempotencyKey }),
-      });
-      const delivered = data?.ok !== false;
-      state.deliveryRecords = state.deliveryRecords.map((row) => row.id === eventId ? { ...row, status: delivered ? 'sent' : 'failed' } : row);
-      persistDeliveryRecords();
-      renderDeliveryPanel();
-      setStatus(`Mail sent via ${data?.provider || 'provider'} (record=${data?.mail_record_id || 'n/a'})`);
-      await loadInbox();
+      try {
+        const data = await call('/api/skymail-send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Correlation-Id': correlationId },
+          body: JSON.stringify({ to, subject, text, channel, from_alias: fromAlias, ws_id: state.wsId, idempotency_key: idempotencyKey }),
+        });
+        const delivered = data?.ok !== false;
+        state.deliveryRecords = state.deliveryRecords.map((row) => row.id === eventId ? { ...row, status: delivered ? 'sent' : 'failed', next_retry_at: null, last_error: delivered ? '' : 'provider returned ok=false' } : row);
+        state.outboundAudit.unshift({ id: eventId, at: new Date().toISOString(), to, subject, status: delivered ? 'sent' : 'failed', provider: data?.provider || 'provider', correlation_id: correlationId, idempotency_key: idempotencyKey, attempts });
+        persistOutboundAudit();
+        persistDeliveryRecords();
+        renderDeliveryPanel();
+        setStatus(`Mail sent via ${data?.provider || 'provider'} (record=${data?.mail_record_id || 'n/a'})`);
+        await loadInbox();
+      } catch (error) {
+        const backoffSec = computeBackoffSeconds(attempts);
+        const nextRetry = new Date(Date.now() + (backoffSec * 1000)).toISOString();
+        state.deliveryRecords = state.deliveryRecords.map((row) => row.id === eventId ? { ...row, status: 'failed', next_retry_at: nextRetry, attempts, last_error: String(error.message || error) } : row);
+        state.outboundAudit.unshift({ id: eventId, at: new Date().toISOString(), to, subject, status: 'failed', provider: 'n/a', correlation_id: correlationId, idempotency_key: idempotencyKey, attempts, error: String(error.message || error) });
+        persistOutboundAudit();
+        persistDeliveryRecords();
+        renderDeliveryPanel();
+        throw error;
+      }
     }
 
     async function retryFailed() {
@@ -471,8 +605,27 @@
       }
       document.getElementById('to').value = failed.to || '';
       document.getElementById('subject').value = failed.subject || '';
-      document.getElementById('body').value = document.getElementById('body').value || 'Retry delivery triggered from lifecycle queue.';
-      await sendMail();
+      document.getElementById('body').value = failed.text || document.getElementById('body').value || 'Retry delivery triggered from lifecycle queue.';
+      await sendMail(failed);
+    }
+
+    async function processRetryQueue() {
+      const maxAttempts = Math.max(1, Number(document.getElementById('retryMaxAttempts').value || 4));
+      const now = new Date().toISOString();
+      const queued = state.deliveryRecords.filter((row) => row.status === 'failed' && Number(row.attempts || 1) < maxAttempts && (!row.next_retry_at || row.next_retry_at <= now));
+      if (!queued.length) {
+        setStatus('Retry queue has no ready items.');
+        return;
+      }
+      for (const row of queued.slice(0, 5)) {
+        try {
+          await sendMail(row);
+        } catch {
+          // Retry failures are already logged in sendMail.
+        }
+      }
+      renderDeliveryPanel();
+      setStatus(`Processed retry queue items: ${Math.min(5, queued.length)}.`);
     }
 
     async function loadInbox(append = false) {
@@ -575,6 +728,10 @@
     document.getElementById('clearKeyBtn').onclick = () => clearAuthInputs();
     document.getElementById('sendBtn').onclick = () => sendMail().catch((e) => setStatus(e.message));
     document.getElementById('retryFailedBtn').onclick = () => retryFailed().catch((e) => setStatus(e.message));
+    document.getElementById('processRetryQueueBtn').onclick = () => processRetryQueue().catch((e) => setStatus(e.message));
+    document.getElementById('preflightBtn').onclick = () => { runSendPreflight(); };
+    document.getElementById('applyTemplateBtn').onclick = () => applyTemplate();
+    document.getElementById('exportAuditBtn').onclick = () => exportOutboundAudit();
     document.getElementById('reloadBtn').onclick = () => loadInbox(false).catch((e) => setStatus(e.message));
     document.getElementById('searchBtn').onclick = () => loadInbox(false).catch((e) => setStatus(e.message));
     document.getElementById('saveProfileBtn').onclick = () => saveProfile().catch((e) => setStatus(e.message));
@@ -588,7 +745,9 @@
       importSkyeFile(file).catch((e) => setStatus(e.message));
     });
 
+    initTemplates();
     renderDeliveryPanel();
+    runSendPreflight();
     refreshMe().then(loadProfile).then(() => loadInbox(false)).catch((e) => setStatus(e.message));
   </script>
 <button id="skye-tutorial-fab" type="button" style="position:fixed;right:16px;bottom:16px;z-index:10000;padding:10px 14px;border-radius:999px;border:1px solid rgba(191,238,255,.42);background:rgba(44,230,255,.2);color:#eff9ff;font-weight:700;cursor:pointer;">Start Tutorial</button>

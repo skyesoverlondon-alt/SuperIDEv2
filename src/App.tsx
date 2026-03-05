@@ -67,7 +67,21 @@ type SkyeAppId =
   | "SkyeNotes"
   | "SkyeAnalytics"
   | "SkyeTasks"
-  | "SkyeAdmin";
+  | "SkyeAdmin"
+  | "kAIxU-Vision"
+  | "kAixu-Nexus"
+  | "kAIxU-Codex"
+  | "kAIxu-Atmos"
+  | "kAIxu-Quest"
+  | "kAIxu-Forge"
+  | "kAIxu-Atlas"
+  | "kAixU-Chronos"
+  | "kAIxu-Bestiary"
+  | "kAIxu-Mythos"
+  | "kAIxU-Faction"
+  | "kAIxU-PrimeCommand"
+  | "API-Playground"
+  | "Smokehouse-Standalone";
 
 type SkyeAppDefinition = {
   id: SkyeAppId;
@@ -93,6 +107,15 @@ type SmokeRun = {
   results: SmokeResult[];
   prev_hash: string;
   hash: string;
+};
+
+type AppProofRun = {
+  id: string;
+  at: string;
+  appId: SkyeAppId;
+  smoke_failures: number;
+  runner_status: "unknown" | "ok" | "fail";
+  auth_status: "unknown" | "ok" | "token" | "unauthorized";
 };
 
 type Timeframe = "all" | "today" | "7d" | "30d" | "custom";
@@ -276,6 +299,20 @@ const SKYE_APPS: SkyeAppDefinition[] = [
   { id: "SkyeAnalytics", summary: "Usage and KPI dashboards.", mvp: ["KPI cards", "Trend charts", "Export CSV"] },
   { id: "SkyeTasks", summary: "Kanban and assignment tracking.", mvp: ["Board columns", "Assignees", "Due dates"] },
   { id: "SkyeAdmin", summary: "Org roles and integration controls.", mvp: ["User roles", "SSO/integrations", "Audit console"] },
+  { id: "kAIxU-Vision", summary: "Visual concept studio with gateway-only AI scene drafting.", mvp: ["Vision ideation", "Gateway generation", "Poster export"] },
+  { id: "kAixu-Nexus", summary: "SOLE project minting command surface via kAIxU gateway.", mvp: ["Prompt minting", "Inspection logs", "Asset export"] },
+  { id: "kAIxU-Codex", summary: "World-building codex editor using secured gateway inference.", mvp: ["Entry authoring", "Lore generation", "PDF export"] },
+  { id: "kAIxu-Atmos", summary: "Atmospheric script and playback workstation with gateway text synthesis.", mvp: ["Script drafting", "Ambient pass", "Playback preview"] },
+  { id: "kAIxu-Quest", summary: "Quest blueprint generator routed through gate-safe AI flows.", mvp: ["Quest generation", "Lore expansion", "Visual poster"] },
+  { id: "kAIxu-Forge", summary: "Item blueprint forge with gateway-only creative assist.", mvp: ["Item generation", "Spec expansion", "Visual poster"] },
+  { id: "kAIxu-Atlas", summary: "Cartography workstation with secure world map generation.", mvp: ["Location design", "Geo expansion", "Atlas export"] },
+  { id: "kAixU-Chronos", summary: "Historical timeline authoring with gated AI expansion.", mvp: ["Event generation", "Timeline expansion", "Chronicle export"] },
+  { id: "kAIxu-Bestiary", summary: "Creature dossier creator secured through gateway-only calls.", mvp: ["Lifeform generation", "Trait expansion", "Visual poster"] },
+  { id: "kAIxu-Mythos", summary: "Mythology and pantheon design surface with gate-routed intelligence.", mvp: ["Deity generation", "Lore expansion", "Visual poster"] },
+  { id: "kAIxU-Faction", summary: "Faction intelligence desk with secure policy-compliant AI ops.", mvp: ["Faction generation", "Intel expansion", "Sigil poster"] },
+  { id: "kAIxU-PrimeCommand", summary: "Franchise command bible with gateway-only strategic drafting.", mvp: ["Node generation", "Strategy expansion", "Key art poster"] },
+  { id: "API-Playground", summary: "Standalone API test bench with hash-chained persistent logs.", mvp: ["Custom payloads", "Request replay", "Hash ledger export"] },
+  { id: "Smokehouse-Standalone", summary: "Standalone smoke runner with tamper-evident run history.", mvp: ["Contract checks", "Hash chain", "Runbook export"] },
 ];
 
 const APP_SURFACE_PATHS: Partial<Record<SkyeAppId, string>> = {
@@ -297,6 +334,20 @@ const APP_SURFACE_PATHS: Partial<Record<SkyeAppId, string>> = {
   SkyeAnalytics: "/SkyeAnalytics/index.html",
   SkyeTasks: "/SkyeTasks/index.html",
   SkyeAdmin: "/",
+  "kAIxU-Vision": "/kAIxU-Vision/index.html",
+  "kAixu-Nexus": "/kAixu-Nexus/index.html",
+  "kAIxU-Codex": "/kAIxU-Codex/index.html",
+  "kAIxu-Atmos": "/kAIxu-Atmos/index.html",
+  "kAIxu-Quest": "/kAIxu-Quest/index.html",
+  "kAIxu-Forge": "/kAIxu-Forge/index.html",
+  "kAIxu-Atlas": "/kAIxu-Atlas/index.html",
+  "kAixU-Chronos": "/kAixU-Chronos/index.html",
+  "kAIxu-Bestiary": "/kAIxu-Bestiary/index.html",
+  "kAIxu-Mythos": "/kAIxu-Mythos/index.html",
+  "kAIxU-Faction": "/kAIxU-Faction/index.html",
+  "kAIxU-PrimeCommand": "/kAIxU-PrimeCommand/index.html",
+  "API-Playground": "/API-Playground/index.html",
+  "Smokehouse-Standalone": "/Smokehouse/index.html",
 };
 
 function buildAppSurfaceUrl(appId: SkyeAppId, wsId: string): string | null {
@@ -410,6 +461,76 @@ const APP_TUTORIALS: Record<SkyeAppId, string[]> = {
     "Invite teammates with role assignment.",
     "Review org membership roster.",
     "Issue scoped test tokens for controlled validation.",
+  ],
+  "kAIxU-Vision": [
+    "Open Vision and confirm gateway route controls are active.",
+    "Generate one scene text output through /api/kaixu-generate.",
+    "Render a visual poster and export your session artifact.",
+  ],
+  "kAixu-Nexus": [
+    "Load an architecture prompt and mint output through gateway.",
+    "Review inspection logs for pass/fail staging.",
+    "Export minted asset and verify local history persistence.",
+  ],
+  "kAIxU-Codex": [
+    "Create a codex entry and run lore expansion.",
+    "Generate a gateway visual poster for the active entry.",
+    "Compile preview and export PDF packet.",
+  ],
+  "kAIxu-Atmos": [
+    "Draft an audio log script with gateway text synthesis.",
+    "Run ambient augmentation for the active log.",
+    "Play output in browser and export PDF archive.",
+  ],
+  "kAIxu-Quest": [
+    "Generate a quest seed from scratch.",
+    "Expand mission lore through gateway inference.",
+    "Render poster output and include in exported packet.",
+  ],
+  "kAIxu-Forge": [
+    "Generate a new item blueprint.",
+    "Expand engineering details through gateway calls.",
+    "Render poster visual and export the handbook.",
+  ],
+  "kAIxu-Atlas": [
+    "Create a location map seed.",
+    "Expand geography notes through gateway synthesis.",
+    "Render visual poster and export atlas PDF.",
+  ],
+  "kAixU-Chronos": [
+    "Create a historical event seed.",
+    "Expand historical records through gateway inference.",
+    "Render timeline poster and export chronicle PDF.",
+  ],
+  "kAIxu-Bestiary": [
+    "Generate a creature dossier seed.",
+    "Expand traits and habitat records through gateway.",
+    "Render poster visual and export bestiary packet.",
+  ],
+  "kAIxu-Mythos": [
+    "Generate a deity profile seed.",
+    "Expand scripture and lore through gateway synthesis.",
+    "Render divine poster and export mythology packet.",
+  ],
+  "kAIxU-Faction": [
+    "Generate a faction dossier seed.",
+    "Expand strategic intel through gateway generation.",
+    "Render sigil poster and export intelligence packet.",
+  ],
+  "kAIxU-PrimeCommand": [
+    "Generate a franchise node seed.",
+    "Expand strategic directives through gateway inference.",
+    "Render key-art poster and export prime bible.",
+  ],
+  "API-Playground": [
+    "Load seeded /api/kaixu-generate payload in the form.",
+    "Send requests and verify response with status timings.",
+    "Review hash-chain ledger integrity and export log file.",
+  ],
+  "Smokehouse-Standalone": [
+    "Run contract smoke checks against base URL.",
+    "Review pass/fail summary and per-check latency.",
+    "Validate chain integrity and export smoke ledger.",
   ],
 };
 
@@ -962,6 +1083,9 @@ export function App() {
   const [isLoadingWorkspace, setIsLoadingWorkspace] = useState(false);
   const [isGitPushing, setIsGitPushing] = useState(false);
   const [isDeployingWorkspace, setIsDeployingWorkspace] = useState(false);
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [commandPaletteQuery, setCommandPaletteQuery] = useState("");
+  const [appProofRuns, setAppProofRuns] = useState<AppProofRun[]>([]);
 
   useEffect(() => {
     if (initialMode === "neural") {
@@ -971,6 +1095,20 @@ export function App() {
 
   useEffect(() => {
     function onShellHotkey(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setCommandPaletteOpen(false);
+        setCommandPaletteQuery("");
+      }
+
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setCommandPaletteOpen((old) => {
+          if (old) setCommandPaletteQuery("");
+          return !old;
+        });
+        return;
+      }
+
       if (!(event.altKey || event.ctrlKey)) return;
       if (event.key.toLowerCase() === "t") {
         event.preventDefault();
@@ -1475,6 +1613,90 @@ export function App() {
     return next;
   }, [assistantAuthStatus, hasApiKeyLoaded, tokenMisuseState, runnerStatus, smokeFailCount]);
   const showFailSafeBanner = failSafeSignals.length > 0;
+  const selectedAppMvpCompleted = useMemo(
+    () => selectedAppDefinition.mvp.filter((item) => mvpChecks[makeMvpKey(selectedSkyeApp, item)]).length,
+    [selectedAppDefinition, selectedSkyeApp, mvpChecks]
+  );
+  const selectedAppTutorialTotal = (APP_TUTORIALS[selectedSkyeApp] || []).length;
+  const selectedAppTutorialCompleted = useMemo(
+    () => (APP_TUTORIALS[selectedSkyeApp] || []).filter((step) => tutorialChecks[makeTutorialKey(selectedSkyeApp, step)]).length,
+    [selectedSkyeApp, tutorialChecks]
+  );
+  const selectedAppReadinessScore = useMemo(() => {
+    const mvpPct = selectedAppDefinition.mvp.length ? selectedAppMvpCompleted / selectedAppDefinition.mvp.length : 1;
+    const tutorialPct = selectedAppTutorialTotal ? selectedAppTutorialCompleted / selectedAppTutorialTotal : 1;
+    const smokePct = smokeResults.length ? (smokeResults.length - smokeFailCount) / smokeResults.length : 0;
+    const authPct = assistantAuthStatus === "ok" || assistantAuthStatus === "token" ? 1 : 0;
+    return Math.round((mvpPct * 0.4 + tutorialPct * 0.2 + smokePct * 0.3 + authPct * 0.1) * 100);
+  }, [selectedAppDefinition, selectedAppMvpCompleted, selectedAppTutorialTotal, selectedAppTutorialCompleted, smokeResults, smokeFailCount, assistantAuthStatus]);
+  const dependencyStatus = useMemo(
+    () => [
+      { name: "Gateway Auth", status: assistantAuthStatus === "ok" || assistantAuthStatus === "token" ? "ok" : "attention", detail: assistantAuthStatus },
+      { name: "Worker Runner", status: runnerStatus === "ok" ? "ok" : "attention", detail: healthUrl },
+      { name: "API Key", status: hasApiKeyLoaded ? "ok" : "attention", detail: hasApiKeyLoaded ? "loaded" : "missing" },
+      { name: "Smokehouse", status: smokeFailCount === 0 && smokeResults.length > 0 ? "ok" : "attention", detail: smokeResults.length ? `${smokeResults.length - smokeFailCount}/${smokeResults.length} passing` : "not-run" },
+      { name: "Workspace Surface", status: livePreviewUrl ? "ok" : "attention", detail: livePreviewUrl || "no-surface" },
+    ],
+    [assistantAuthStatus, runnerStatus, healthUrl, hasApiKeyLoaded, smokeFailCount, smokeResults, livePreviewUrl]
+  );
+  const buildMetadata = useMemo(() => {
+    const version = String(import.meta.env.VITE_APP_VERSION || "dev");
+    const commit = String(import.meta.env.VITE_GIT_SHA || "local").slice(0, 12);
+    const builtAt = String(import.meta.env.VITE_BUILD_TIME || new Date().toISOString());
+    const signatureBase = `${version}:${commit}:${workspaceId}:${files.length}:${smokeLedger.length}`;
+    const signature = `SIG-${btoa(signatureBase).replace(/=+/g, "").slice(0, 22)}`;
+    return { version, commit, builtAt, signature };
+  }, [workspaceId, files.length, smokeLedger.length]);
+  const commandPaletteActions = useMemo(
+    () => [
+      {
+        id: "run-smoke",
+        label: "Run Full Smokehouse",
+        run: () => {
+          setToolTab("smokehouse");
+          void runSmokehouseSuite("manual");
+        },
+      },
+      {
+        id: "run-proof",
+        label: `Run App Proof (${selectedSkyeApp})`,
+        run: () => {
+          setToolTab("smokehouse");
+          void runAppProofFlow(selectedSkyeApp);
+        },
+      },
+      {
+        id: "open-standalone",
+        label: `Open ${selectedSkyeApp} Standalone`,
+        run: () => {
+          const url = buildAppSurfaceUrl(selectedSkyeApp, workspaceId);
+          if (!url) return;
+          window.open(url.replace("embed=1", "embed=0"), "_blank", "noopener,noreferrer");
+        },
+      },
+      {
+        id: "export-health",
+        label: "Export Health Snapshot",
+        run: () => exportAppHealthSnapshot(),
+      },
+      {
+        id: "toggle-tutorial",
+        label: showTutorialPanel ? "Hide Tutorial Panel" : "Show Tutorial Panel",
+        run: () => setShowTutorialPanel((old) => !old),
+      },
+      {
+        id: "switch-mode",
+        label: appMode === "skyeide" ? "Switch to Neural Space Pro" : "Switch to SkyeIDE",
+        run: () => setAppMode((old) => (old === "skyeide" ? "neural" : "skyeide")),
+      },
+    ],
+    [selectedSkyeApp, workspaceId, showTutorialPanel, appMode]
+  );
+  const filteredCommandPaletteActions = useMemo(() => {
+    const q = commandPaletteQuery.trim().toLowerCase();
+    if (!q) return commandPaletteActions;
+    return commandPaletteActions.filter((action) => action.label.toLowerCase().includes(q));
+  }, [commandPaletteQuery, commandPaletteActions]);
 
   function dismissCurrentSpotlight() {
     setDismissedSpotlightByApp((old) => ({ ...old, [selectedSkyeApp]: true }));
@@ -1789,6 +2011,7 @@ export function App() {
     const health = out.find((item) => item.name === "Worker Health");
     if (health?.ok) setRunnerStatus("ok");
     else if (health) setRunnerStatus("fail");
+    return out;
   }
 
   function dismissSmokeStaleWarning() {
@@ -1802,6 +2025,31 @@ export function App() {
     setDismissedStaleSmokeWarning(false);
     setWorkerUrl(KNOWN_WORKER_URL);
     setSmokeResults([]);
+  }
+
+  async function runAppProofFlow(appId: SkyeAppId) {
+    setSelectedSkyeApp(appId);
+    setToolTab("smokehouse");
+    const proofUrl = buildAppSurfaceUrl(appId, workspaceId);
+    if (proofUrl) {
+      window.open(proofUrl.replace("embed=1", "embed=0"), "_blank", "noopener,noreferrer");
+    }
+
+    const authOk = await checkAssistantAuth();
+    const results = await runSmokehouseSuite("manual");
+    const failCount = results.filter((item) => !item.ok).length;
+    const worker = results.find((item) => item.name === "Worker Health");
+    setAppProofRuns((old) => [
+      {
+        id: makeId(),
+        at: new Date().toISOString(),
+        appId,
+        smoke_failures: failCount,
+        runner_status: worker?.ok ? ("ok" as const) : ("fail" as const),
+        auth_status: authOk ? (apiAccessToken.trim() ? ("token" as const) : ("ok" as const)) : ("unauthorized" as const),
+      },
+      ...old,
+    ].slice(0, 15));
   }
 
   function buildSmokeReport() {
@@ -4278,6 +4526,39 @@ export function App() {
 
           {toolTab === "smokehouse" && (
             <div className="tool-panel">
+              <div className="release-cockpit">
+                <div>
+                  <strong>Release Cockpit</strong>
+                  <div className="muted-copy">Selected app: {selectedSkyeApp}</div>
+                </div>
+                <div className="readiness-chip">Readiness {selectedAppReadinessScore}%</div>
+              </div>
+              <div className="readiness-bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={selectedAppReadinessScore}>
+                <span style={{ width: `${selectedAppReadinessScore}%` }} />
+              </div>
+              <div className="dependency-grid">
+                {dependencyStatus.map((item) => (
+                  <div key={item.name} className={`dependency-item ${item.status === "ok" ? "pass" : "fail"}`}>
+                    <strong>{item.name}</strong>
+                    <div>{item.status === "ok" ? "OK" : "ATTENTION"}</div>
+                    <div>{item.detail}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="tool-actions left">
+                <button type="button" className="ghost" onClick={() => void runAppProofFlow(selectedSkyeApp)} disabled={isSmokeChecking}>
+                  {isSmokeChecking ? "Running Proof..." : `Run ${selectedSkyeApp} App Proof`}
+                </button>
+              </div>
+              {appProofRuns.length > 0 && (
+                <div className="proof-runs">
+                  {appProofRuns.slice(0, 3).map((run) => (
+                    <div key={run.id} className="proof-run-item">
+                      <strong>{run.appId}</strong> · {new Date(run.at).toLocaleString()} · auth={run.auth_status} · runner={run.runner_status} · smoke_failures={run.smoke_failures}
+                    </div>
+                  ))}
+                </div>
+              )}
               <div className="smoke-warning">
                 <strong>Health Gate Matrix</strong>
                 <div>Auth: {assistantAuthStatus.toUpperCase()} · Key: {hasApiKeyLoaded ? "LOADED" : "MISSING"}</div>
@@ -4368,6 +4649,41 @@ export function App() {
             </form>
           )}
       </aside>
+      <footer className="build-metadata-footer">
+        <span>Build {buildMetadata.version}</span>
+        <span>Commit {buildMetadata.commit}</span>
+        <span>Built {buildMetadata.builtAt}</span>
+        <span>Signature {buildMetadata.signature}</span>
+      </footer>
+      {commandPaletteOpen && (
+        <div className="command-palette-overlay" onClick={() => setCommandPaletteOpen(false)}>
+          <div className="command-palette" onClick={(event) => event.stopPropagation()}>
+            <input
+              autoFocus
+              value={commandPaletteQuery}
+              onChange={(event) => setCommandPaletteQuery(event.target.value)}
+              placeholder="Type a command (Ctrl/Cmd+K)"
+            />
+            <div className="command-palette-list">
+              {filteredCommandPaletteActions.map((action) => (
+                <button
+                  key={action.id}
+                  type="button"
+                  className="command-palette-item"
+                  onClick={() => {
+                    setCommandPaletteOpen(false);
+                    setCommandPaletteQuery("");
+                    action.run();
+                  }}
+                >
+                  {action.label}
+                </button>
+              ))}
+              {!filteredCommandPaletteActions.length && <p className="muted-copy">No commands match this query.</p>}
+            </div>
+          </div>
+        </div>
+      )}
       {mergePreview && (
         <div className="merge-modal-overlay">
           <div className="merge-modal">

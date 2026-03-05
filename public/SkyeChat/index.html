@@ -100,6 +100,7 @@
         <div class="actions">
           <button class="primary" id="postBtn" type="button">Post Message</button>
           <button id="kaixuBtn" type="button">Post + Ask kAIxU</button>
+          <button id="extractDecisionBtn" type="button">Extract Decisions</button>
           <button id="loadBtn" type="button">Reload Channel</button>
         </div>
         <h2 style="margin-top:14px;">Moderation Controls</h2>
@@ -112,7 +113,9 @@
         </div>
         <div class="actions">
           <button id="applyModeration" type="button">Apply Moderation</button>
+          <button id="revertModeration" type="button">Revert Last Moderation</button>
         </div>
+        <div class="diag" id="moderationTimelinePanel">Moderation timeline: no actions yet.</div>
         <div class="status" id="status"></div>
       </section>
 
@@ -124,8 +127,10 @@
         <input id="search" placeholder="search messages or source" />
         <div class="actions">
           <button id="applyFilterBtn" type="button">Apply Filter</button>
+          <button id="exportDigestBtn" type="button">Export Digest</button>
         </div>
         <div class="diag" id="healthPanel">Room health panel pending feed load.</div>
+        <div class="diag" id="qualitySignalsPanel">Quality signals pending feed load.</div>
         <div class="feed" id="feed"></div>
       </section>
     </main>
@@ -135,7 +140,12 @@
     const statusEl = document.getElementById('status');
     const feedEl = document.getElementById('feed');
     const healthPanel = document.getElementById('healthPanel');
-    const chatState = { records: [] };
+    const qualitySignalsPanel = document.getElementById('qualitySignalsPanel');
+    const moderationTimelinePanel = document.getElementById('moderationTimelinePanel');
+    const chatState = {
+      records: [],
+      moderationTimeline: JSON.parse(localStorage.getItem('skyechat.moderation.timeline') || '[]'),
+    };
     const moderationState = {
       lock: localStorage.getItem('skyechat.moderation.lock') || 'off',
       slowMode: Number(localStorage.getItem('skyechat.moderation.slow') || 0),
@@ -154,6 +164,42 @@
 
     function setStatus(text) { statusEl.textContent = text || ''; }
 
+    function persistModerationTimeline() {
+      localStorage.setItem('skyechat.moderation.timeline', JSON.stringify(chatState.moderationTimeline.slice(0, 60)));
+    }
+
+    function renderModerationTimeline() {
+      const rows = chatState.moderationTimeline.slice(0, 6);
+      if (!rows.length) {
+        moderationTimelinePanel.textContent = 'Moderation timeline: no actions yet.';
+        return;
+      }
+      moderationTimelinePanel.textContent = 'Moderation timeline: ' + rows.map((item) => `${item.type}[${item.prev.lock}/${item.prev.slowMode}->${item.next.lock}/${item.next.slowMode}]@${item.at.slice(11, 16)}`).join(' | ');
+    }
+
+    function extractDecisionCandidates(records) {
+      const out = [];
+      (records || []).forEach((record, idx) => {
+        const payload = record?.payload || {};
+        const message = String(payload.message || '').trim();
+        if (!message) return;
+        const parts = message.split(/(?<=[.!?])\s+/);
+        parts.forEach((part) => {
+          if (!/(decision|decided|action|will|must|ship|launch|assign)/i.test(part)) return;
+          const dateMatch = part.match(/\b\d{4}-\d{2}-\d{2}\b/);
+          out.push({
+            id: `decision-${Date.now()}-${idx}-${out.length}`,
+            channel: payload.channel || 'general',
+            text: part.trim().slice(0, 220),
+            source: payload.source || 'SkyeChat',
+            sourceRecordId: record.id || record.record_id || '',
+            dueDate: dateMatch ? dateMatch[0] : new Date(Date.now() + 86400000).toISOString().slice(0, 10),
+          });
+        });
+      });
+      return out.slice(0, 12);
+    }
+
     function buildIdempotencyKey(prefix, parts) {
       const payload = [prefix].concat(parts || []).join('|');
       let hash = 0;
@@ -169,6 +215,52 @@
       const actionItems = rows.filter((record) => /(todo|action|follow up)/i.test(String(record?.payload?.message || ''))).length;
       const channels = new Set(rows.map((record) => String(record?.payload?.channel || '').trim()).filter(Boolean));
       healthPanel.textContent = `Health: messages=${rows.length}, unresolved_questions=${unresolved}, action_items=${actionItems}, active_channels=${channels.size}`;
+
+      const byChannel = new Map();
+      rows.forEach((record) => {
+        const c = String(record?.payload?.channel || 'general');
+        const created = new Date(String(record?.created_at || Date.now())).getTime();
+        const list = byChannel.get(c) || [];
+        list.push(created);
+        byChannel.set(c, list);
+      });
+      const lagSamples = [];
+      byChannel.forEach((times) => {
+        times.sort((a, b) => a - b);
+        for (let i = 1; i < times.length; i += 1) lagSamples.push((times[i] - times[i - 1]) / 60000);
+      });
+      const avgLag = lagSamples.length ? Math.round(lagSamples.reduce((a, b) => a + b, 0) / lagSamples.length) : 0;
+      const unresolvedActionDebt = rows.filter((record) => /(todo|action)/i.test(String(record?.payload?.message || '')) && !/(done|resolved|closed)/i.test(String(record?.payload?.message || ''))).length;
+      qualitySignalsPanel.textContent = `Quality signals: avg_response_lag_min=${avgLag}, unresolved_count=${unresolved}, action_debt=${unresolvedActionDebt}`;
+    }
+
+    function exportDigest() {
+      const rows = chatState.records || [];
+      const decisions = extractDecisionCandidates(rows);
+      const unresolved = rows.filter((record) => /\?$/.test(String(record?.payload?.message || '').trim())).slice(0, 12);
+      const digest = {
+        schema: 'skyechat-digest-v1',
+        generated_at: new Date().toISOString(),
+        ws_id: wsId,
+        channel_filter: document.getElementById('filterChannel').value.trim(),
+        metrics: {
+          message_count: rows.length,
+          unresolved_count: unresolved.length,
+          decision_count: decisions.length,
+          moderation_actions: chatState.moderationTimeline.length,
+        },
+        highlights: {
+          decisions: decisions.map((d) => ({ text: d.text, due_date: d.dueDate, provenance: { record_id: d.sourceRecordId, source: d.source, channel: d.channel } })),
+          unresolved_questions: unresolved.map((r) => ({ text: String(r?.payload?.message || '').slice(0, 220), provenance: { record_id: r.id || r.record_id || '', source: r?.payload?.source || '', channel: r?.payload?.channel || '' } })),
+        },
+      };
+      const blob = new Blob([JSON.stringify(digest, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `skyechat-digest-${Date.now()}.json`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      setStatus('Exported SkyeChat digest schema JSON.');
     }
 
     function hydrateModerationInputs() {
@@ -177,6 +269,7 @@
     }
 
     async function applyModeration() {
+      const prev = { lock: moderationState.lock, slowMode: moderationState.slowMode };
       moderationState.lock = document.getElementById('roomLock').value;
       moderationState.slowMode = Math.max(0, Number(document.getElementById('slowMode').value || 0));
       localStorage.setItem('skyechat.moderation.lock', moderationState.lock);
@@ -193,7 +286,98 @@
           idempotency_key: idempotencyKey,
         }),
       });
+      chatState.moderationTimeline.unshift({
+        type: 'apply',
+        at: new Date().toISOString(),
+        prev,
+        next: { lock: moderationState.lock, slowMode: moderationState.slowMode },
+        reversible: true,
+      });
+      persistModerationTimeline();
+      renderModerationTimeline();
       setStatus(`Moderation saved: lock=${moderationState.lock}, slow=${moderationState.slowMode}s`);
+    }
+
+    async function revertLastModeration() {
+      const last = chatState.moderationTimeline.find((item) => item.reversible);
+      if (!last) {
+        setStatus('No reversible moderation action found.');
+        return;
+      }
+      moderationState.lock = last.prev.lock;
+      moderationState.slowMode = Number(last.prev.slowMode || 0);
+      localStorage.setItem('skyechat.moderation.lock', moderationState.lock);
+      localStorage.setItem('skyechat.moderation.slow', String(moderationState.slowMode));
+      hydrateModerationInputs();
+      const idempotencyKey = buildIdempotencyKey('skyechat-moderation-revert', [wsId, moderationState.lock, String(moderationState.slowMode), last.at]);
+      await call('/api/skychat-notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ws_id: wsId,
+          channel: document.getElementById('channel').value.trim() || 'general',
+          source: 'SkyeChat Moderation',
+          message: `Moderation reverted to lock=${moderationState.lock}, slow_mode=${moderationState.slowMode}s`,
+          idempotency_key: idempotencyKey,
+        }),
+      });
+      chatState.moderationTimeline.unshift({
+        type: 'revert',
+        at: new Date().toISOString(),
+        prev: last.next,
+        next: { lock: moderationState.lock, slowMode: moderationState.slowMode },
+        reversible: false,
+      });
+      persistModerationTimeline();
+      renderModerationTimeline();
+      setStatus('Reverted latest moderation action.');
+    }
+
+    async function extractDecisionsToWorkflows() {
+      const decisions = extractDecisionCandidates(chatState.records || []);
+      if (!decisions.length) {
+        setStatus('No decision/action candidates found in current feed.');
+        return;
+      }
+
+      const taskData = await call('/api/skyetasks-list?ws_id=' + encodeURIComponent(wsId) + '&limit=1');
+      const existingTasks = Array.isArray(taskData?.records) && Array.isArray(taskData.records[0]?.payload) ? taskData.records[0].payload : [];
+      const taskAdds = decisions.map((item, idx) => ({
+        id: 'chatdec-task-' + Date.now() + '-' + idx,
+        title: '[Decision] ' + item.text.slice(0, 88),
+        description: 'Provenance: channel=' + item.channel + ' source=' + item.source + ' record=' + (item.sourceRecordId || 'n/a'),
+        status: 'backlog',
+        priority: 'medium',
+        assignee: 'unassigned',
+        due_at: item.dueDate,
+        depends_on: '',
+        blocked_reason: '',
+        updated_at: new Date().toISOString(),
+      }));
+      await call('/api/skyetasks-save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ws_id: wsId, title: 'SkyeTasks Board', model: [...taskAdds, ...existingTasks] }),
+      });
+
+      const calData = await call('/api/app-record-list?ws_id=' + encodeURIComponent(wsId) + '&app=SkyeCalendar&limit=1');
+      const existingEvents = Array.isArray(calData?.records) && Array.isArray(calData.records[0]?.payload?.events) ? calData.records[0].payload.events : [];
+      const eventAdds = decisions.map((item, idx) => ({
+        id: 'chatdec-cal-' + Date.now() + '-' + idx,
+        title: '[Decision] ' + item.text.slice(0, 64),
+        start_date: item.dueDate,
+        end_date: item.dueDate,
+        owner: 'chat-derived',
+        status: 'planned',
+        notes: 'Provenance: channel=' + item.channel + ' source=' + item.source + ' record=' + (item.sourceRecordId || 'n/a'),
+      }));
+      await call('/api/app-record-save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ws_id: wsId, app: 'SkyeCalendar', title: 'SkyeCalendar Events', model: { events: [...eventAdds, ...existingEvents] } }),
+      });
+
+      setStatus(`Extracted ${decisions.length} decision(s) to SkyeTasks and SkyeCalendar with provenance links.`);
     }
 
     function getAccessAuthHeaders() {
@@ -527,9 +711,12 @@
     document.getElementById('saveProfileBtn').onclick = () => saveProfile().catch((e) => setStatus(e.message));
     document.getElementById('postBtn').onclick = () => postMessage().catch((e) => setStatus(e.message));
     document.getElementById('kaixuBtn').onclick = () => postWithKaixu().catch((e) => setStatus(e.message));
+    document.getElementById('extractDecisionBtn').onclick = () => extractDecisionsToWorkflows().catch((e) => setStatus(e.message));
     document.getElementById('loadBtn').onclick = () => loadFeed().catch((e) => setStatus(e.message));
     document.getElementById('applyFilterBtn').onclick = () => loadFeed().catch((e) => setStatus(e.message));
+    document.getElementById('exportDigestBtn').onclick = () => exportDigest();
     document.getElementById('applyModeration').onclick = () => applyModeration().catch((e) => setStatus(e.message));
+    document.getElementById('revertModeration').onclick = () => revertLastModeration().catch((e) => setStatus(e.message));
     document.getElementById('logoutBtn').onclick = () => logout().catch((e) => setStatus(e.message));
     document.getElementById('exportSkyeBtn').onclick = () => exportSkyeFile().catch((e) => setStatus(e.message));
     document.getElementById('importSkyeBtn').onclick = () => document.getElementById('importSkyeInput').click();
@@ -541,6 +728,7 @@
     });
 
     hydrateModerationInputs();
+    renderModerationTimeline();
     refreshMe().then(loadProfile).then(loadFeed).catch((e) => setStatus(e.message));
   </script>
 <button id="skye-tutorial-fab" type="button" style="position:fixed;right:16px;bottom:16px;z-index:10000;padding:10px 14px;border-radius:999px;border:1px solid rgba(191,238,255,.42);background:rgba(44,230,255,.2);color:#eff9ff;font-weight:700;cursor:pointer;">Start Tutorial</button>

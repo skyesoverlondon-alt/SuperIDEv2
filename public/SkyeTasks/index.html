@@ -17,6 +17,12 @@
     .col{border:1px solid rgba(191,238,255,.22);border-radius:10px;padding:10px;background:rgba(255,255,255,.03)}
     .item{border:1px solid rgba(191,238,255,.22);border-radius:10px;padding:8px;margin-top:8px;background:rgba(255,255,255,.03)}
     .muted{color:var(--muted);font-size:.84rem}
+    .insights{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+    .insight{border:1px solid rgba(191,238,255,.22);border-radius:10px;padding:10px;background:rgba(255,255,255,.03);min-height:130px}
+    .insight h3{margin:0 0 8px 0;font-size:.8rem;letter-spacing:.06em;text-transform:uppercase}
+    .line{font-size:.78rem;margin-bottom:6px}
+    .line.warn{color:#ffb6b6}
+    .line.ok{color:#bff0c8}
     @media (max-width: 900px){ .row{grid-template-columns:1fr 1fr;} .board{grid-template-columns:1fr;} }
   </style>
 </head>
@@ -53,10 +59,38 @@
         <input id="escalationChannel" placeholder="Escalation channel" value="task-escalations" />
         <button id="escalateBlocked">Escalate Blocked</button>
       </div>
+      <div class="row" style="margin-top:8px;grid-template-columns:1fr 1fr 1fr 1fr;">
+        <select id="slaTemplate">
+          <option value="sev2" selected>sev2 - standard breach</option>
+          <option value="sev1">sev1 - customer impact</option>
+          <option value="sev0">sev0 - executive critical</option>
+        </select>
+        <input id="slaRouteChannel" placeholder="SLA route channel" value="task-sla-routing" />
+        <select id="defaultQualityTemplate">
+          <option value="light" selected>quality: light</option>
+          <option value="standard">quality: standard</option>
+          <option value="strict">quality: strict</option>
+        </select>
+        <button id="routeSla">Route SLA Breaches</button>
+      </div>
       <div class="muted" id="status">Ready.</div>
     </section>
 
     <section class="card board" id="board"></section>
+    <section class="card insights">
+      <div class="insight">
+        <h3>Dependency Graph</h3>
+        <div id="dependencyGraph" class="muted">No dependency links yet.</div>
+      </div>
+      <div class="insight">
+        <h3>Workload Balancer</h3>
+        <div id="workloadSuggestions" class="muted">No workload suggestions yet.</div>
+      </div>
+      <div class="insight">
+        <h3>Completion Quality</h3>
+        <div id="qualityPanel" class="muted">No completion quality data yet.</div>
+      </div>
+    </section>
   </div>
 
 <script>
@@ -65,6 +99,11 @@ document.getElementById('ws').value = qs.get('ws_id') || 'primary-workspace';
 let model = [];
 const statusEl = document.getElementById('status');
 function setStatus(t){ statusEl.textContent = t; }
+const SLA_TEMPLATES = {
+  sev2: 'Standard breach route: notify team lead and shift board within 24h.',
+  sev1: 'Customer-impact breach route: notify manager, add incident channel, rebalance assignees now.',
+  sev0: 'Executive-critical route: notify leadership, freeze non-critical backlog, initiate hourly review cadence.'
+};
 
 function getAccessAuthHeaders(){
   const token = (localStorage.getItem('kx.api.accessToken') || '').trim();
@@ -122,6 +161,7 @@ async function save(){
 function add(){
   const title = document.getElementById('title').value.trim();
   if(!title) return setStatus('Task title required');
+  const defaultQualityTemplate = document.getElementById('defaultQualityTemplate').value;
   model.unshift({
     id: 'task-' + Date.now(), title,
     description:'', status:'backlog', priority:document.getElementById('priority').value,
@@ -129,6 +169,8 @@ function add(){
     due_at: document.getElementById('due').value || '',
     depends_on: document.getElementById('dependsOn').value.trim(),
     blocked_reason: document.getElementById('blockedReason').value.trim(),
+    quality_template: defaultQualityTemplate,
+    quality_notes: '',
     updated_at: new Date().toISOString()
   });
   document.getElementById('title').value='';
@@ -163,6 +205,117 @@ async function escalateBlocked(){
   setStatus(`Escalated ${blocked.length} blocked task(s) to #${channel}.`);
 }
 
+async function routeSlaBreaches(){
+  await auth();
+  const today = new Date().toISOString().slice(0, 10);
+  const breached = model.filter((task) => task.status !== 'done' && task.due_at && String(task.due_at) < today);
+  if (!breached.length) return setStatus('No SLA breaches to route.');
+  const templateKey = document.getElementById('slaTemplate').value;
+  const routeChannel = document.getElementById('slaRouteChannel').value.trim() || 'task-sla-routing';
+  const templateText = SLA_TEMPLATES[templateKey] || SLA_TEMPLATES.sev2;
+  const summary = breached.slice(0, 8).map((task) => `${task.title} [owner=${task.assignee || 'n/a'} due=${task.due_at}]`).join(' | ');
+  const idempotencyKey = buildIdempotencyKey('skyetasks-sla-routing', [document.getElementById('ws').value.trim(), routeChannel, templateKey, summary]);
+  await call('/api/skychat-notify', {
+    method: 'POST',
+    headers: { 'Content-Type':'application/json' },
+    body: JSON.stringify({
+      ws_id: document.getElementById('ws').value.trim(),
+      channel: routeChannel,
+      message: `SLA breach routing (${templateKey}): ${templateText} :: ${summary}`,
+      source: 'SkyeTasks SLA Router',
+      idempotency_key: idempotencyKey
+    })
+  });
+  setStatus(`Routed ${breached.length} SLA breach task(s) via ${templateKey} to #${routeChannel}.`);
+}
+
+function traceRootCause(task, taskMap, seen = new Set()) {
+  if (!task || !task.depends_on) return null;
+  const dep = taskMap.get(task.depends_on);
+  if (!dep || seen.has(dep.id)) return null;
+  seen.add(dep.id);
+  if (String(dep.blocked_reason || '').trim()) return dep;
+  return traceRootCause(dep, taskMap, seen);
+}
+
+function renderDependencyGraph() {
+  const host = document.getElementById('dependencyGraph');
+  if (!host) return;
+  const taskMap = new Map(model.map((task) => [String(task.id), task]));
+  const rows = model.filter((task) => task.depends_on).map((task) => {
+    const dep = taskMap.get(String(task.depends_on));
+    const root = traceRootCause(task, taskMap);
+    return { task, dep, root };
+  });
+  if (!rows.length) {
+    host.className = 'muted';
+    host.textContent = 'No dependency links yet.';
+    return;
+  }
+  host.className = '';
+  host.innerHTML = rows.slice(0, 12).map(({ task, dep, root }) => {
+    const depTitle = dep ? dep.title : 'missing dependency';
+    const detail = root ? `root block: ${root.title}` : (dep && dep.blocked_reason ? `root block: ${dep.title}` : 'clear');
+    const cls = root || (dep && dep.blocked_reason) ? 'warn' : 'ok';
+    return `<div class="line ${cls}"><strong>${task.title}</strong> <= ${depTitle}<br /><span class="muted">${detail}</span></div>`;
+  }).join('');
+}
+
+function renderWorkloadSuggestions() {
+  const host = document.getElementById('workloadSuggestions');
+  if (!host) return;
+  if (!model.length) {
+    host.className = 'muted';
+    host.textContent = 'No workload suggestions yet.';
+    return;
+  }
+  const weights = { low: 1, medium: 2, high: 3 };
+  const loadByOwner = new Map();
+  model.filter((task) => task.status !== 'done').forEach((task) => {
+    const owner = String(task.assignee || 'unassigned');
+    const next = (loadByOwner.get(owner) || 0) + (weights[task.priority] || 2);
+    loadByOwner.set(owner, next);
+  });
+  const rows = Array.from(loadByOwner.entries()).sort((a, b) => b[1] - a[1]);
+  if (!rows.length) {
+    host.className = 'muted';
+    host.textContent = 'No active workload.';
+    return;
+  }
+  const heavy = rows[0];
+  const light = rows[rows.length - 1];
+  host.className = '';
+  host.innerHTML = rows.slice(0, 8).map(([owner, score]) => (`<div class="line"><strong>${owner}</strong> load=${score}</div>`)).join('') +
+    `<div class="line ${heavy[1] - light[1] >= 3 ? 'warn' : 'ok'}"><span class="muted">Suggestion: move one medium/high task from ${heavy[0]} to ${light[0]}.</span></div>`;
+}
+
+function renderQualityPanel() {
+  const host = document.getElementById('qualityPanel');
+  if (!host) return;
+  const done = model.filter((task) => task.status === 'done');
+  if (!done.length) {
+    host.className = 'muted';
+    host.textContent = 'No completion quality data yet.';
+    return;
+  }
+  const withTemplate = done.filter((task) => task.quality_template).length;
+  const withNotes = done.filter((task) => String(task.quality_notes || '').trim()).length;
+  const coverage = Math.round((withTemplate / done.length) * 100);
+  const evidence = Math.round((withNotes / done.length) * 100);
+  host.className = '';
+  host.innerHTML =
+    `<div class="line"><strong>Completed:</strong> ${done.length}</div>` +
+    `<div class="line"><strong>Template coverage:</strong> ${coverage}%</div>` +
+    `<div class="line"><strong>Evidence notes:</strong> ${evidence}%</div>` +
+    done.slice(0, 4).map((task) => `<div class="line muted">${task.title} :: ${task.quality_template || 'none'}</div>`).join('');
+}
+
+function renderInsights(){
+  renderDependencyGraph();
+  renderWorkloadSuggestions();
+  renderQualityPanel();
+}
+
 function render(){
   const cols = ['backlog','doing','done'];
   const board = document.getElementById('board');
@@ -181,10 +334,28 @@ function render(){
       const blocked = document.createElement('input'); blocked.placeholder='Blocked reason'; blocked.value=t.blocked_reason || ''; blocked.style.marginTop='6px';
       blocked.onchange=()=>{ update(t.id,{blocked_reason:blocked.value}); };
       item.appendChild(blocked);
+      const qualityRow = document.createElement('div'); qualityRow.className='row'; qualityRow.style.gridTemplateColumns='1fr 1fr'; qualityRow.style.marginTop='6px';
+      const qualityTemplate = document.createElement('select');
+      ['light','standard','strict'].forEach((tpl) => {
+        const o = document.createElement('option');
+        o.value = tpl;
+        o.textContent = tpl;
+        if ((t.quality_template || 'light') === tpl) o.selected = true;
+        qualityTemplate.appendChild(o);
+      });
+      qualityTemplate.onchange = () => { update(t.id, { quality_template: qualityTemplate.value }); renderInsights(); };
+      const qualityNotes = document.createElement('input');
+      qualityNotes.placeholder = 'Completion quality evidence';
+      qualityNotes.value = t.quality_notes || '';
+      qualityNotes.onchange = () => { update(t.id, { quality_notes: qualityNotes.value }); renderInsights(); };
+      qualityRow.appendChild(qualityTemplate);
+      qualityRow.appendChild(qualityNotes);
+      item.appendChild(qualityRow);
       c.appendChild(item);
     });
     board.appendChild(c);
   });
+  renderInsights();
 }
 
 document.getElementById('login').onclick = () => auth().then(()=>setStatus('Session ready.')).catch(e=>setStatus(e.message));
@@ -192,6 +363,7 @@ document.getElementById('load').onclick = () => load().catch(e=>setStatus(e.mess
 document.getElementById('save').onclick = () => save().catch(e=>setStatus(e.message));
 document.getElementById('add').onclick = add;
 document.getElementById('escalateBlocked').onclick = () => escalateBlocked().catch(e=>setStatus(e.message));
+document.getElementById('routeSla').onclick = () => routeSlaBreaches().catch(e=>setStatus(e.message));
 render();
 </script>
 <button id="skye-tutorial-fab" type="button" style="position:fixed;right:16px;bottom:16px;z-index:10000;padding:10px 14px;border-radius:999px;border:1px solid rgba(191,238,255,.42);background:rgba(44,230,255,.2);color:#eff9ff;font-weight:700;cursor:pointer;">Start Tutorial</button>

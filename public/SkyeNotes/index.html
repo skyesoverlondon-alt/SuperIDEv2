@@ -17,6 +17,7 @@
     .card { padding:12px; display:grid; gap:10px; }
     .row { display:grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap:8px; }
     .row.two { grid-template-columns: 1fr 1fr; }
+    .diag { border:1px solid var(--line2); border-radius:10px; padding:8px; font-size:.8rem; color:var(--muted); }
     input,textarea,button { width:100%; border:1px solid var(--line2); border-radius:10px; background:rgba(0,0,0,.34); color:var(--text); padding:9px 10px; font:inherit; }
     button { cursor:pointer; border-color:var(--line); background:rgba(44,230,255,.12); }
     button.primary { background:linear-gradient(135deg, rgba(255,203,71,.9), rgba(44,230,255,.78)); color:#03131a; font-weight:700; border-color:rgba(255,203,71,.5); }
@@ -48,6 +49,7 @@
     </div>
     <div class="row">
       <input id="ws" placeholder="workspace" />
+      <input id="notebook" placeholder="Notebook" value="General" />
       <input id="title" placeholder="Note title" />
       <input id="tags" placeholder="tags" />
       <button class="primary" id="add">Add Note</button>
@@ -57,6 +59,7 @@
       <button id="sync">Load + Save</button>
     </div>
     <div class="muted" id="status">Ready.</div>
+    <div class="diag" id="hierarchyInfo">Notebook hierarchy not loaded.</div>
   </section>
 
   <section class="card"><div class="list" id="list"></div></section>
@@ -68,6 +71,7 @@ document.getElementById('ws').value = qs.get('ws_id') || 'primary-workspace';
 document.getElementById('meta').textContent = `ws_id=${document.getElementById('ws').value}`;
 let notes = [];
 const status = document.getElementById('status');
+const hierarchyInfo = document.getElementById('hierarchyInfo');
 function setStatus(t){ status.textContent = t; }
 
 async function call(path, opt = {}) {
@@ -114,7 +118,7 @@ async function save() {
 function add() {
   const title = document.getElementById('title').value.trim();
   if (!title) return setStatus('title required');
-  notes.unshift({ id:'note-' + Date.now(), title, body:'', tags:document.getElementById('tags').value.trim(), owner:'owner', updated_at:new Date().toISOString() });
+  notes.unshift({ id:'note-' + Date.now(), notebook:document.getElementById('notebook').value.trim() || 'General', title, body:'', tags:document.getElementById('tags').value.trim(), owner:'owner', updated_at:new Date().toISOString() });
   document.getElementById('title').value = '';
   render();
 }
@@ -123,19 +127,31 @@ function render() {
   const q = document.getElementById('search').value.trim().toLowerCase();
   const list = document.getElementById('list');
   list.innerHTML = '';
+  const grouped = new Map();
+  notes.forEach((n) => {
+    const bucket = n.notebook || 'General';
+    if (!grouped.has(bucket)) grouped.set(bucket, []);
+    grouped.get(bucket).push(n);
+  });
+  hierarchyInfo.textContent = `Hierarchy: ${grouped.size} notebook(s) -> ${Array.from(grouped.keys()).join(', ')}`;
+
   notes
     .filter(n => (`${n.title} ${n.body} ${n.tags}`).toLowerCase().includes(q))
     .forEach(n => {
       const item = document.createElement('div');
       item.className = 'item';
-      item.innerHTML = `<strong>${n.title}</strong><div class="muted">tags=${n.tags || ''}</div>`;
+      item.innerHTML = `<strong>${n.title}</strong><div class="muted">notebook=${n.notebook || 'General'} | tags=${n.tags || ''}</div>`;
       const ta = document.createElement('textarea');
       ta.value = n.body || '';
       ta.onchange = () => { notes = notes.map(x => x.id === n.id ? { ...x, body: ta.value, updated_at:new Date().toISOString() } : x); };
+      const nb = document.createElement('input');
+      nb.value = n.notebook || 'General';
+      nb.onchange = () => { notes = notes.map(x => x.id === n.id ? { ...x, notebook: nb.value.trim() || 'General', updated_at:new Date().toISOString() } : x); render(); };
       const tg = document.createElement('input');
       tg.value = n.tags || '';
       tg.onchange = () => { notes = notes.map(x => x.id === n.id ? { ...x, tags: tg.value, updated_at:new Date().toISOString() } : x); };
       item.appendChild(ta);
+      item.appendChild(nb);
       item.appendChild(tg);
       list.appendChild(item);
     });
@@ -146,6 +162,19 @@ document.getElementById('add').onclick = add;
 document.getElementById('search').oninput = render;
 document.getElementById('sync').onclick = () => load().then(save).catch(e => setStatus(e.message));
 render();
+</script>
+<button id="skye-tutorial-fab" type="button" style="position:fixed;right:16px;bottom:16px;z-index:10000;padding:10px 14px;border-radius:999px;border:1px solid rgba(191,238,255,.42);background:rgba(44,230,255,.2);color:#eff9ff;font-weight:700;cursor:pointer;">Start Tutorial</button>
+<div id="skye-tutorial-modal" style="display:none;position:fixed;inset:0;z-index:10001;background:rgba(2,6,23,.72);"></div>
+<script>
+(function(){
+  const fab=document.getElementById('skye-tutorial-fab');
+  const modal=document.getElementById('skye-tutorial-modal');
+  if(!fab||!modal) return;
+  const app=(document.title||'App').replace(/Standalone|Workspace|Command Surface|Platform/gi,'').trim();
+  modal.innerHTML='<div style="max-width:520px;margin:10vh auto;background:#07131a;color:#eff9ff;border:1px solid rgba(191,238,255,.32);border-radius:14px;padding:18px"><h3 style="margin:0 0 8px">'+app+' Quick Start</h3><ol style="margin:0 0 12px 18px;line-height:1.5"><li>Review auth and active workspace context.</li><li>Run one core workflow action in this app.</li><li>Save/export/share output and verify completion state.</li></ol><div style="display:flex;justify-content:flex-end"><button id="skye-tutorial-close" type="button" style="padding:8px 12px;border-radius:10px;border:1px solid rgba(191,238,255,.32);background:rgba(0,0,0,.34);color:#eff9ff;cursor:pointer;">Close</button></div></div>';
+  fab.addEventListener('click',()=>{modal.style.display='block';});
+  modal.addEventListener('click',(e)=>{if(e.target===modal||e.target.id==='skye-tutorial-close') modal.style.display='none';});
+})();
 </script>
 </body>
 </html>

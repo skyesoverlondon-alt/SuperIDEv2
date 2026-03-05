@@ -61,6 +61,15 @@
         </div>
 
         <h2 style="margin-top:14px;">Policy</h2>
+        <label>kAIxU Key (optional bearer)</label>
+        <input id="apiKey" type="password" placeholder="kx_at_..." />
+        <label>Token Email</label>
+        <input id="tokenEmail" placeholder="user@company.com" />
+        <div class="actions">
+          <button id="saveKeyBtn" type="button">Save Key</button>
+          <button id="clearKeyBtn" type="button">Clear Key</button>
+          <button id="validateAuthBtn" type="button">Validate Auth</button>
+        </div>
         <label>Scope</label>
         <select id="scope">
           <option value="org">Organization</option>
@@ -77,7 +86,29 @@ secrets/**
         <div class="actions">
           <button id="loadBtn" type="button">Load Policy</button>
           <button id="saveBtn" class="primary" type="button">Save Policy</button>
+          <button id="exportPolicyBtn" type="button">Export Policy Pack</button>
+          <button id="importPolicyBtn" type="button">Import Policy Pack</button>
         </div>
+        <input id="importPolicyFile" type="file" accept="application/json" style="display:none;" />
+
+        <h2 style="margin-top:14px;">Policy Compiler</h2>
+        <div class="row">
+          <select id="severityTier">
+            <option value="strict" selected>strict</option>
+            <option value="balanced">balanced</option>
+            <option value="lenient">lenient</option>
+          </select>
+          <button id="compilePolicyBtn" type="button">Compile Policy</button>
+        </div>
+        <div id="compileResult" class="meta"></div>
+        <div id="overlapRiskResult" class="meta"></div>
+
+        <h2 style="margin-top:14px;">Policy Pack Signing</h2>
+        <div class="row">
+          <input id="signerId" placeholder="Signer ID" value="security-admin" />
+          <input id="signingKey" type="password" placeholder="Signing secret" />
+        </div>
+        <div class="meta">Signature uses SHA-256 hash over canonical policy payload + signing secret.</div>
 
         <h2 style="margin-top:14px;">Path Test</h2>
         <label>File path</label>
@@ -85,6 +116,29 @@ secrets/**
         <div class="actions">
           <button id="testBtn" type="button">Test Match</button>
         </div>
+
+        <h2 style="margin-top:14px;">Policy Test Runner</h2>
+        <label>File tree sample (one path per line)</label>
+        <textarea id="testRunnerPaths" rows="6" placeholder="src/.env\nsrc/app.ts\nsecrets/prod.pem"></textarea>
+        <div class="actions">
+          <button id="applyPresetBtn" type="button">Apply Preset</button>
+          <button id="runTestsBtn" type="button">Run Policy Tests</button>
+        </div>
+        <select id="testPreset">
+          <option value="baseline" selected>baseline sensitive files</option>
+          <option value="certs">certificates and keys</option>
+          <option value="workspace">workspace mixed tree</option>
+        </select>
+        <div id="runnerResult" class="meta"></div>
+
+        <h2 style="margin-top:14px;">Policy Simulation</h2>
+        <label>Candidate paths (one per line)</label>
+        <textarea id="pathsList" rows="6" placeholder="src/.env\nsrc/config/prod.key\nsecrets/team.pem"></textarea>
+        <div class="actions">
+          <button id="simulateBtn" type="button">Run Simulation</button>
+        </div>
+        <div id="simulationResult" class="meta"></div>
+        <div id="conflictResult" class="meta"></div>
 
         <h2 style="margin-top:14px;">Release Info</h2>
         <div class="meta">Product: SKNore standalone</div>
@@ -112,8 +166,19 @@ secrets/**
 
     function setStatus(text) { statusEl.textContent = text || ''; }
 
+    function getAccessAuthHeaders() {
+      const token = (localStorage.getItem('kx.api.accessToken') || '').trim();
+      const email = (localStorage.getItem('kx.api.tokenEmail') || '').trim().toLowerCase();
+      const headers = {};
+      if (token) headers.Authorization = `Bearer ${token}`;
+      if (email) headers['X-Token-Email'] = email;
+      return headers;
+    }
+
     async function call(path, options = {}) {
-      const res = await fetch(path, { credentials: 'include', ...options });
+      const authHeaders = getAccessAuthHeaders();
+      const mergedHeaders = { ...(options.headers || {}), ...authHeaders };
+      const res = await fetch(path, { credentials: 'include', ...options, headers: mergedHeaders });
       let data = {};
       try { data = await res.json(); } catch {}
       if (!res.ok) throw new Error(data?.error || `${path} failed (${res.status})`);
@@ -139,6 +204,198 @@ secrets/**
       return patterns.some((pattern) => globToRegex(pattern).test(target));
     }
 
+    function findPolicyConflicts(patterns) {
+      const conflicts = [];
+      for (let i = 0; i < patterns.length; i += 1) {
+        for (let j = i + 1; j < patterns.length; j += 1) {
+          const a = patterns[i];
+          const b = patterns[j];
+          if (a === b) {
+            conflicts.push(`duplicate: ${a}`);
+            continue;
+          }
+          const aPrefix = a.split('*')[0];
+          const bPrefix = b.split('*')[0];
+          if (aPrefix && bPrefix && (aPrefix.startsWith(bPrefix) || bPrefix.startsWith(aPrefix))) {
+            conflicts.push(`overlap: ${a} <-> ${b}`);
+          }
+        }
+      }
+      return Array.from(new Set(conflicts));
+    }
+
+    function compilePolicyWithTier(patterns, tier) {
+      const rules = patterns.map((pattern) => {
+        let severity = 'medium';
+        if (/(^|\/)\.env|secrets|\.pem$|\.key$/i.test(pattern)) severity = 'critical';
+        else if (/token|credential|private|cert/i.test(pattern)) severity = 'high';
+        if (tier === 'lenient' && severity === 'critical') severity = 'high';
+        if (tier === 'strict' && severity === 'medium') severity = 'high';
+        return { pattern, severity };
+      });
+      const counts = rules.reduce((acc, rule) => {
+        acc[rule.severity] = (acc[rule.severity] || 0) + 1;
+        return acc;
+      }, {});
+      return { rules, counts };
+    }
+
+    function computeOverlapRisk(patterns) {
+      const overlaps = findPolicyConflicts(patterns);
+      let risk = 0;
+      patterns.forEach((pattern) => {
+        const wildcardCount = (pattern.match(/\*/g) || []).length;
+        risk += wildcardCount * 2;
+        if (/\*\*/.test(pattern)) risk += 3;
+        if (/secrets|\.env|\.key|\.pem/i.test(pattern)) risk += 4;
+      });
+      risk += overlaps.length * 5;
+      return { overlaps, riskScore: risk };
+    }
+
+    async function hashText(text) {
+      const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+      return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    function canonicalPolicyPack(pack) {
+      return JSON.stringify({
+        format: pack.format,
+        exported_at: pack.exported_at,
+        scope: pack.scope,
+        ws_id: pack.ws_id,
+        patterns: Array.isArray(pack.patterns) ? [...pack.patterns].sort() : [],
+      });
+    }
+
+    async function signPolicyPack(pack) {
+      const signer = document.getElementById('signerId').value.trim();
+      const key = document.getElementById('signingKey').value;
+      if (!signer || !key) return pack;
+      const canonical = canonicalPolicyPack(pack);
+      const signature = await hashText(`${signer}|${key}|${canonical}`);
+      return { ...pack, signature: { signer, algorithm: 'sha256-hash-v1', value: signature } };
+    }
+
+    async function verifyPolicyPackSignature(pack) {
+      if (!pack?.signature) return { ok: true, detail: 'unsigned pack accepted' };
+      const key = document.getElementById('signingKey').value;
+      if (!key) return { ok: false, detail: 'missing signing key for verification' };
+      const canonical = canonicalPolicyPack(pack);
+      const expected = await hashText(`${pack.signature.signer}|${key}|${canonical}`);
+      const ok = expected === pack.signature.value;
+      return { ok, detail: ok ? `signature verified (${pack.signature.signer})` : 'signature verification failed' };
+    }
+
+    function applyTestPreset() {
+      const preset = document.getElementById('testPreset').value;
+      const map = {
+        baseline: ['src/.env', 'src/app.ts', 'secrets/prod.pem', 'docs/readme.md'],
+        certs: ['certs/root.pem', 'keys/service.key', 'src/public.ts', 'vault/token.txt'],
+        workspace: ['apps/portal/.env.local', 'workspace/config.yml', 'secrets/team.pem', 'notes/todo.md'],
+      };
+      document.getElementById('testRunnerPaths').value = (map[preset] || map.baseline).join('\n');
+      setStatus(`Applied policy test preset: ${preset}.`);
+    }
+
+    function compilePolicy() {
+      const tier = document.getElementById('severityTier').value;
+      const patterns = normalizePatterns(document.getElementById('patterns').value);
+      const compiled = compilePolicyWithTier(patterns, tier);
+      const overlap = computeOverlapRisk(patterns);
+      document.getElementById('compileResult').textContent = `Compile(${tier}): critical=${compiled.counts.critical || 0}, high=${compiled.counts.high || 0}, medium=${compiled.counts.medium || 0}`;
+      document.getElementById('overlapRiskResult').textContent = `Overlap risk score=${overlap.riskScore}${overlap.overlaps.length ? ` | overlaps=${overlap.overlaps.join(' ; ')}` : ' | overlaps=none'}`;
+      setStatus('Policy compile complete with severity tiering and risk score.');
+    }
+
+    function saveKeyLocally() {
+      const token = document.getElementById('apiKey').value.trim();
+      const email = document.getElementById('tokenEmail').value.trim().toLowerCase();
+      localStorage.setItem('kx.api.accessToken', token);
+      localStorage.setItem('kx.api.tokenEmail', email);
+      setStatus('Saved key + token email to local auth context.');
+    }
+
+    function clearKeyLocally() {
+      localStorage.removeItem('kx.api.accessToken');
+      localStorage.removeItem('kx.api.tokenEmail');
+      document.getElementById('apiKey').value = '';
+      document.getElementById('tokenEmail').value = '';
+      setStatus('Cleared local auth context.');
+    }
+
+    async function validateAuthPath() {
+      try {
+        const me = await call('/api/auth-me');
+        if (me?.email) setStatus(`Auth valid: ${me.email}`);
+        else setStatus('Auth check completed without active session identity.');
+      } catch (error) {
+        setStatus(`Auth check failed: ${error.message}`);
+      }
+    }
+
+    function hydrateAuthInputs() {
+      document.getElementById('apiKey').value = localStorage.getItem('kx.api.accessToken') || '';
+      document.getElementById('tokenEmail').value = localStorage.getItem('kx.api.tokenEmail') || '';
+    }
+
+    function runSimulation() {
+      const patterns = normalizePatterns(document.getElementById('patterns').value);
+      const paths = normalizePatterns(document.getElementById('pathsList').value);
+      const blocked = [];
+      const allowed = [];
+      paths.forEach((path) => (isProtected(path, patterns) ? blocked : allowed).push(path));
+      const simEl = document.getElementById('simulationResult');
+      const conflictEl = document.getElementById('conflictResult');
+      const conflicts = findPolicyConflicts(patterns);
+      simEl.textContent = `Simulation: blocked=${blocked.length}, allowed=${allowed.length}${blocked.length ? ` | blocked_paths=${blocked.join(', ')}` : ''}`;
+      conflictEl.textContent = conflicts.length ? `Policy diagnostics: ${conflicts.join(' | ')}` : 'Policy diagnostics: no obvious overlap conflicts.';
+      setStatus('Simulation complete. Review blocked paths and diagnostics.');
+    }
+
+    function runPolicyTests() {
+      const patterns = normalizePatterns(document.getElementById('patterns').value);
+      const paths = normalizePatterns(document.getElementById('testRunnerPaths').value);
+      const blocked = [];
+      const allowed = [];
+      paths.forEach((path) => (isProtected(path, patterns) ? blocked : allowed).push(path));
+      document.getElementById('runnerResult').textContent = `Runner: blocked=${blocked.length}, allowed=${allowed.length}${blocked.length ? ` | blocked=${blocked.join(', ')}` : ''}`;
+      setStatus('Policy test runner complete.');
+    }
+
+    async function exportPolicyPack() {
+      const payload = {
+        format: 'sknore-policy-pack-v1',
+        exported_at: new Date().toISOString(),
+        scope: document.getElementById('scope').value,
+        ws_id: document.getElementById('wsId').value.trim(),
+        patterns: normalizePatterns(document.getElementById('patterns').value),
+      };
+      const signedPayload = await signPolicyPack(payload);
+      const blob = new Blob([JSON.stringify(signedPayload, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `sknore-policy-pack-${Date.now()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setStatus(`Exported SKNore policy pack${signedPayload.signature ? ` signed by ${signedPayload.signature.signer}` : ''}.`);
+    }
+
+    async function importPolicyPack(file) {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      if (parsed?.format !== 'sknore-policy-pack-v1' || !Array.isArray(parsed?.patterns)) {
+        throw new Error('Invalid policy pack format.');
+      }
+      const verify = await verifyPolicyPackSignature(parsed);
+      if (!verify.ok) throw new Error(verify.detail);
+      document.getElementById('scope').value = parsed.scope === 'workspace' ? 'workspace' : 'org';
+      document.getElementById('wsId').value = parsed.ws_id || document.getElementById('wsId').value;
+      document.getElementById('patterns').value = parsed.patterns.join('\n');
+      setStatus(`Imported policy pack (${parsed.patterns.length} patterns) | ${verify.detail}.`);
+    }
+
     async function refreshMe() {
       const me = await call('/api/auth-me');
       if (me?.email) {
@@ -153,11 +410,15 @@ secrets/**
       const email = document.getElementById('email').value.trim();
       const password = document.getElementById('password').value;
       const orgName = document.getElementById('orgName').value.trim() || 'SKNore Org';
-      await call('/api/auth-signup', {
+      const signup = await call('/api/auth-signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password, orgName }),
       });
+      if (signup?.kaixu_token?.token) {
+        localStorage.setItem('kx.api.accessToken', signup.kaixu_token.token);
+        localStorage.setItem('kx.api.tokenEmail', signup.kaixu_token.locked_email || email.toLowerCase());
+      }
       await refreshMe();
       await loadPolicy();
       await loadEvents();
@@ -234,8 +495,37 @@ secrets/**
     document.getElementById('saveBtn').onclick = () => savePolicy().catch((e) => setStatus(e.message));
     document.getElementById('eventsBtn').onclick = () => loadEvents().catch((e) => setStatus(e.message));
     document.getElementById('testBtn').onclick = () => runPathTest();
+    document.getElementById('saveKeyBtn').onclick = () => saveKeyLocally();
+    document.getElementById('clearKeyBtn').onclick = () => clearKeyLocally();
+    document.getElementById('validateAuthBtn').onclick = () => validateAuthPath();
+    document.getElementById('simulateBtn').onclick = () => runSimulation();
+    document.getElementById('compilePolicyBtn').onclick = () => compilePolicy();
+    document.getElementById('applyPresetBtn').onclick = () => applyTestPreset();
+    document.getElementById('runTestsBtn').onclick = () => runPolicyTests();
+    document.getElementById('exportPolicyBtn').onclick = () => exportPolicyPack().catch((e) => setStatus(e.message));
+    document.getElementById('importPolicyBtn').onclick = () => document.getElementById('importPolicyFile').click();
+    document.getElementById('importPolicyFile').onchange = (event) => {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      importPolicyPack(file).catch((e) => setStatus(e.message));
+      event.target.value = '';
+    };
 
+    hydrateAuthInputs();
     refreshMe().then(loadPolicy).then(loadEvents).catch((e) => setStatus(e.message));
   </script>
+<button id="skye-tutorial-fab" type="button" style="position:fixed;right:16px;bottom:16px;z-index:10000;padding:10px 14px;border-radius:999px;border:1px solid rgba(191,238,255,.42);background:rgba(44,230,255,.2);color:#eff9ff;font-weight:700;cursor:pointer;">Start Tutorial</button>
+<div id="skye-tutorial-modal" style="display:none;position:fixed;inset:0;z-index:10001;background:rgba(2,6,23,.72);"></div>
+<script>
+(function(){
+  const fab=document.getElementById('skye-tutorial-fab');
+  const modal=document.getElementById('skye-tutorial-modal');
+  if(!fab||!modal) return;
+  const app=(document.title||'App').replace(/Standalone|Workspace|Command Surface|Platform/gi,'').trim();
+  modal.innerHTML='<div style="max-width:520px;margin:10vh auto;background:#07131a;color:#eff9ff;border:1px solid rgba(191,238,255,.32);border-radius:14px;padding:18px"><h3 style="margin:0 0 8px">'+app+' Quick Start</h3><ol style="margin:0 0 12px 18px;line-height:1.5"><li>Review auth and active workspace context.</li><li>Run one core workflow action in this app.</li><li>Save/export/share output and verify completion state.</li></ol><div style="display:flex;justify-content:flex-end"><button id="skye-tutorial-close" type="button" style="padding:8px 12px;border-radius:10px;border:1px solid rgba(191,238,255,.32);background:rgba(0,0,0,.34);color:#eff9ff;cursor:pointer;">Close</button></div></div>';
+  fab.addEventListener('click',()=>{modal.style.display='block';});
+  modal.addEventListener('click',(e)=>{if(e.target===modal||e.target.id==='skye-tutorial-close') modal.style.display='none';});
+})();
+</script>
 </body>
 </html>

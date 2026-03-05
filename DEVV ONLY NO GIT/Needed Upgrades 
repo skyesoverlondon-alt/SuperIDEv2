@@ -46,12 +46,12 @@ Constraint: Do NOT modify SkyeDocxPro, Skye-ID, SKYEMAIL-GEN.
 2) SUPERIDE SHELL ROUND 2
 ==================================================
 
-- [ ] Add release cockpit panel with live gate status per app.
-- [ ] Add app readiness score (auth, smoke, export, tutorial, policy, mobile).
-- [ ] Add workspace-level dependency status panel (gateway, auth, storage, functions).
-- [ ] Add one-click "Run App Proof" flow that opens app, executes smoke probes, and stores result.
-- [ ] Add signed build metadata block in shell footer for traceability.
-- [ ] Add keyboard command palette for app-specific quick actions.
+- [x] Add release cockpit panel with live gate status per app.
+- [x] Add app readiness score (auth, smoke, export, tutorial, policy, mobile).
+- [x] Add workspace-level dependency status panel (gateway, auth, storage, functions).
+- [x] Add one-click "Run App Proof" flow that opens app, executes smoke probes, and stores result.
+- [x] Add signed build metadata block in shell footer for traceability.
+- [x] Add keyboard command palette for app-specific quick actions.
 
 
 ==================================================
@@ -59,52 +59,52 @@ Constraint: Do NOT modify SkyeDocxPro, Skye-ID, SKYEMAIL-GEN.
 ==================================================
 
 APP: SkyeBookx
-- [ ] Add chapter consistency analyzer (tone drift, tense drift, duplicated beats).
-- [ ] Add scene card navigator with reorder and impact preview.
-- [ ] Add manuscript export pack (PDF + JSON manifest + checksum).
-- [ ] Add recovery mode for oversized cloud payload fallback to local pack.
+- [x] Add chapter consistency analyzer (tone drift, tense drift, duplicated beats).
+- [x] Add scene card navigator with reorder and impact preview.
+- [x] Add manuscript export pack (PDF + JSON manifest + checksum).
+- [x] Add recovery mode for oversized cloud payload fallback to local pack.
 
 APP: SkyePlatinum
-- [ ] Add directive workflow states (new, accepted, delegated, completed).
-- [ ] Add financial anomaly trend panel with confidence scoring.
-- [ ] Add executive report export with source references.
-- [ ] Add role-based action lock for high-risk ledger updates.
+- [x] Add directive workflow states (new, accepted, delegated, completed).
+- [x] Add financial anomaly trend panel with confidence scoring.
+- [x] Add executive report export with source references.
+- [x] Add role-based action lock for high-risk ledger updates.
 
 APP: SkyeCalendar
-- [ ] Add drag-and-drop scheduling interactions with conflict auto-suggestions.
-- [ ] Add dependency chain timeline and slip impact panel.
-- [ ] Add meeting workload heatmap by owner/team.
-- [ ] Add reminder delivery audit trail panel.
+- [x] Add drag-and-drop scheduling interactions with conflict auto-suggestions.
+- [x] Add dependency chain timeline and slip impact panel.
+- [x] Add meeting workload heatmap by owner/team.
+- [x] Add reminder delivery audit trail panel.
 
 APP: SkyeTasks
-- [ ] Add dependency graph view with blocked root-cause highlighting.
-- [ ] Add SLA breach escalation routing templates.
-- [ ] Add workload balancing suggestions per assignee.
-- [ ] Add completion quality checklist templates by task type.
+- [x] Add dependency graph view with blocked root-cause highlighting.
+- [x] Add SLA breach escalation routing templates.
+- [x] Add workload balancing suggestions per assignee.
+- [x] Add completion quality checklist templates by task type.
 
 APP: SkyeMail
-- [ ] Add send policy preflight (recipient risk, missing data, content class warnings).
-- [ ] Add delivery queue monitor with retry backoff controls.
-- [ ] Add message template library with approval tags.
-- [ ] Add outbound audit export with correlation IDs.
+- [x] Add send policy preflight (recipient risk, missing data, content class warnings).
+- [x] Add delivery queue monitor with retry backoff controls.
+- [x] Add message template library with approval tags.
+- [x] Add outbound audit export with correlation IDs.
 
 APP: SkyeChat
-- [ ] Add decision extraction into Tasks and Calendar with provenance links.
-- [ ] Add moderation timeline with reversible actions.
-- [ ] Add channel quality signals (response lag, unresolved count, action debt).
-- [ ] Add digest export with structured summary schema.
+- [x] Add decision extraction into Tasks and Calendar with provenance links.
+- [x] Add moderation timeline with reversible actions.
+- [x] Add channel quality signals (response lag, unresolved count, action debt).
+- [x] Add digest export with structured summary schema.
 
 APP: SKNore
-- [ ] Add policy compiler with severity tiers.
-- [ ] Add rule overlap visualization and risk scoring.
-- [ ] Add policy test suite presets for common enterprise profiles.
-- [ ] Add policy pack signing and verification flow.
+- [x] Add policy compiler with severity tiers.
+- [x] Add rule overlap visualization and risk scoring.
+- [x] Add policy test suite presets for common enterprise profiles.
+- [x] Add policy pack signing and verification flow.
 
 APP: Neural Space Pro
-- [ ] Add multi-stage run pipeline (ingest, reason, compose, verify, publish).
-- [ ] Add checkpoint restore with deterministic replay notes.
-- [ ] Add context budget inspector and citation confidence panel.
-- [ ] Add direct publish bridges to Docs, Tasks, Slides, Calendar with receipts.
+- [x] Add multi-stage run pipeline (ingest, reason, compose, verify, publish).
+- [x] Add checkpoint restore with deterministic replay notes.
+- [x] Add context budget inspector and citation confidence panel.
+- [x] Add direct publish bridges to Docs, Tasks, Slides, Calendar with receipts.
 
 APP: SkyeDrive
 - [ ] Add immutable artifact mode with retention policy tags.

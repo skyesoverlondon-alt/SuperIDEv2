@@ -24,6 +24,10 @@
     .card { border:1px solid var(--line2); border-radius:12px; padding:10px; background:rgba(255,255,255,.03); display:grid; gap:8px; }
     .row { display:grid; gap:8px; grid-template-columns: 1fr 140px; }
     .status { color:var(--muted); font-size:.82rem; }
+    .diag { border:1px solid var(--line2); border-radius:10px; padding:8px; color:var(--muted); font-size:.78rem; }
+    .presenter { position:fixed; inset:0; z-index:10020; background:rgba(2,8,14,.95); display:none; color:var(--text); }
+    .presenter-card { max-width:860px; margin:10vh auto; border:1px solid var(--line); border-radius:14px; background:rgba(8,16,22,.94); padding:18px; display:grid; gap:12px; }
+    .presenter-controls { display:flex; gap:8px; flex-wrap:wrap; }
     @media (max-width:760px){ .row { grid-template-columns:1fr; } }
   </style>
 </head>
@@ -40,10 +44,26 @@
       <div class="toolbar">
         <button id="add">Add Slide</button>
         <button class="primary" id="save">Save</button>
+        <button id="consistency">Run Consistency Check</button>
+        <button id="presenterMode">Presenter Mode</button>
       </div>
       <div class="slides" id="slides"></div>
+      <div id="diagnostics" class="diag">No consistency checks run yet.</div>
       <div class="status" id="status"></div>
     </section>
+  </div>
+  <div id="presenter" class="presenter">
+    <div class="presenter-card">
+      <div class="meta" id="presenterIndex">Slide 1</div>
+      <h2 id="presenterTitle" style="margin:0;">-</h2>
+      <p id="presenterSummary" style="margin:0; white-space:pre-wrap;"></p>
+      <div class="meta" id="presenterTimer">00:00</div>
+      <div class="presenter-controls">
+        <button id="prevSlide">Prev</button>
+        <button id="nextSlide">Next</button>
+        <button id="closePresenter">Exit</button>
+      </div>
+    </div>
   </div>
 
 <script>
@@ -54,6 +74,15 @@ const key = `skye.slides.${ws}`;
 let slides = JSON.parse(localStorage.getItem(key) || "null") || [{ title: "Intro", summary: "Overview", status: "draft" }];
 const wrap = document.getElementById("slides");
 const status = document.getElementById("status");
+const diagnosticsEl = document.getElementById("diagnostics");
+const presenterEl = document.getElementById("presenter");
+const presenterIndexEl = document.getElementById("presenterIndex");
+const presenterTitleEl = document.getElementById("presenterTitle");
+const presenterSummaryEl = document.getElementById("presenterSummary");
+const presenterTimerEl = document.getElementById("presenterTimer");
+let presenterIndex = 0;
+let presenterStart = 0;
+let presenterTicker = null;
 
 function render() {
   wrap.innerHTML = "";
@@ -84,10 +113,88 @@ function save() {
   status.textContent = `Saved ${new Date().toLocaleString()}`;
 }
 
+function runConsistencyCheck() {
+  const issues = [];
+  const titleSet = new Set();
+  slides.forEach((slide, idx) => {
+    const title = String(slide.title || '').trim();
+    const summary = String(slide.summary || '').trim();
+    if (!title) issues.push(`slide ${idx + 1}: title missing`);
+    if (title && titleSet.has(title.toLowerCase())) issues.push(`slide ${idx + 1}: duplicate title \"${title}\"`);
+    if (title) titleSet.add(title.toLowerCase());
+    if (summary.split(/\s+/).filter(Boolean).length > 90) issues.push(`slide ${idx + 1}: summary exceeds 90 words`);
+    if (summary && !/[.!?]$/.test(summary)) issues.push(`slide ${idx + 1}: summary should end with punctuation`);
+  });
+  diagnosticsEl.textContent = issues.length ? `Consistency issues: ${issues.join(' | ')}` : 'Consistency check passed: no obvious style violations.';
+}
+
+function renderPresenter() {
+  const active = slides[presenterIndex] || { title: '-', summary: '' };
+  presenterIndexEl.textContent = `Slide ${presenterIndex + 1} of ${slides.length}`;
+  presenterTitleEl.textContent = active.title || 'Untitled slide';
+  presenterSummaryEl.textContent = active.summary || '(No summary)';
+}
+
+function startPresenterMode() {
+  presenterIndex = 0;
+  presenterStart = Date.now();
+  presenterEl.style.display = 'block';
+  renderPresenter();
+  if (presenterTicker) clearInterval(presenterTicker);
+  presenterTicker = setInterval(() => {
+    const secs = Math.floor((Date.now() - presenterStart) / 1000);
+    const mm = String(Math.floor(secs / 60)).padStart(2, '0');
+    const ss = String(secs % 60).padStart(2, '0');
+    presenterTimerEl.textContent = `${mm}:${ss}`;
+  }, 1000);
+}
+
+function closePresenterMode() {
+  presenterEl.style.display = 'none';
+  if (presenterTicker) {
+    clearInterval(presenterTicker);
+    presenterTicker = null;
+  }
+}
+
+function presenterNext() {
+  presenterIndex = Math.min(slides.length - 1, presenterIndex + 1);
+  renderPresenter();
+}
+
+function presenterPrev() {
+  presenterIndex = Math.max(0, presenterIndex - 1);
+  renderPresenter();
+}
+
 document.getElementById("add").onclick = () => { slides.push({ title: "New Slide", summary: "", status: "draft" }); render(); };
 document.getElementById("save").onclick = save;
+document.getElementById("consistency").onclick = runConsistencyCheck;
+document.getElementById("presenterMode").onclick = startPresenterMode;
+document.getElementById("closePresenter").onclick = closePresenterMode;
+document.getElementById("nextSlide").onclick = presenterNext;
+document.getElementById("prevSlide").onclick = presenterPrev;
+document.addEventListener('keydown', (event) => {
+  if (presenterEl.style.display !== 'block') return;
+  if (event.key === 'ArrowRight') presenterNext();
+  if (event.key === 'ArrowLeft') presenterPrev();
+  if (event.key === 'Escape') closePresenterMode();
+});
 setInterval(save, 12000);
 render();
+</script>
+<button id="skye-tutorial-fab" type="button" style="position:fixed;right:16px;bottom:16px;z-index:10000;padding:10px 14px;border-radius:999px;border:1px solid rgba(191,238,255,.42);background:rgba(44,230,255,.2);color:#eff9ff;font-weight:700;cursor:pointer;">Start Tutorial</button>
+<div id="skye-tutorial-modal" style="display:none;position:fixed;inset:0;z-index:10001;background:rgba(2,6,23,.72);"></div>
+<script>
+(function(){
+  const fab=document.getElementById('skye-tutorial-fab');
+  const modal=document.getElementById('skye-tutorial-modal');
+  if(!fab||!modal) return;
+  const app=(document.title||'App').replace(/Standalone|Workspace|Command Surface|Platform/gi,'').trim();
+  modal.innerHTML='<div style="max-width:520px;margin:10vh auto;background:#07131a;color:#eff9ff;border:1px solid rgba(191,238,255,.32);border-radius:14px;padding:18px"><h3 style="margin:0 0 8px">'+app+' Quick Start</h3><ol style="margin:0 0 12px 18px;line-height:1.5"><li>Review auth and active workspace context.</li><li>Run one core workflow action in this app.</li><li>Save/export/share output and verify completion state.</li></ol><div style="display:flex;justify-content:flex-end"><button id="skye-tutorial-close" type="button" style="padding:8px 12px;border-radius:10px;border:1px solid rgba(191,238,255,.32);background:rgba(0,0,0,.34);color:#eff9ff;cursor:pointer;">Close</button></div></div>';
+  fab.addEventListener('click',()=>{modal.style.display='block';});
+  modal.addEventListener('click',(e)=>{if(e.target===modal||e.target.id==='skye-tutorial-close') modal.style.display='none';});
+})();
 </script>
 </body>
 </html>

@@ -25,6 +25,8 @@
     .row.head { position:sticky; top:0; background:rgba(10,20,28,.95); z-index:2; }
     .row:last-child { border-bottom:none; }
     .status { color:var(--muted); font-size:.82rem; }
+    .diag { border:1px solid var(--line2); border-radius:10px; padding:8px; color:var(--muted); font-size:.8rem; }
+    .brand-preview { max-height:42px; max-width:220px; object-fit:contain; border:1px solid rgba(191,238,255,.22); border-radius:8px; padding:4px; background:rgba(0,0,0,.2); }
   </style>
 </head>
 <body>
@@ -40,7 +42,12 @@
       <div class="toolbar">
         <button id="add">Add Row</button>
         <button class="primary" id="save">Save</button>
+        <button id="lint">Formula Lint</button>
+        <button id="exportPdf">Export Branded PDF</button>
+        <input id="brandUpload" type="file" accept="image/*" />
+        <img id="brandPreview" class="brand-preview" alt="brand preview" style="display:none;" />
       </div>
+      <div class="diag" id="lintOut">Formula lint output pending.</div>
       <div class="grid-wrap" id="grid"></div>
       <div class="status" id="status"></div>
     </section>
@@ -52,8 +59,16 @@ const ws = qs.get("ws_id") || "default";
 document.getElementById("meta").textContent = `ws_id=${ws}`;
 const key = `skye.sheets.${ws}`;
 let rows = JSON.parse(localStorage.getItem(key) || "null") || Array.from({length:5},()=>Array.from({length:5},()=>""));
+let brandImage = localStorage.getItem(`${key}.brand`) || '';
 const grid = document.getElementById("grid");
 const status = document.getElementById("status");
+const lintOut = document.getElementById('lintOut');
+const brandPreview = document.getElementById('brandPreview');
+
+if (brandImage) {
+  brandPreview.src = brandImage;
+  brandPreview.style.display = 'block';
+}
 
 function render() {
   grid.innerHTML = "";
@@ -82,13 +97,69 @@ function render() {
 
 function save() {
   localStorage.setItem(key, JSON.stringify(rows));
+  localStorage.setItem(`${key}.brand`, brandImage || '');
   status.textContent = `Saved ${new Date().toLocaleString()}`;
+}
+
+function lintFormulas() {
+  const issues = [];
+  for (let r = 0; r < rows.length; r += 1) {
+    for (let c = 0; c < rows[r].length; c += 1) {
+      const value = String(rows[r][c] || '');
+      if (!value.startsWith('=')) continue;
+      const formula = value.slice(1);
+      const opens = (formula.match(/\(/g) || []).length;
+      const closes = (formula.match(/\)/g) || []).length;
+      if (opens !== closes) issues.push(`R${r+1}C${c+1}: unbalanced parentheses`);
+      if (/[^A-Z0-9_+\-*/().,: ]/i.test(formula)) issues.push(`R${r+1}C${c+1}: unsupported characters`);
+      if (/\b[A-Z]{1,2}[0-9]{1,3}\b/.test(formula) === false) issues.push(`R${r+1}C${c+1}: no cell references detected`);
+    }
+  }
+  lintOut.textContent = issues.length ? `Formula lint: ${issues.join(' | ')}` : 'Formula lint: no obvious formula issues found.';
+}
+
+function exportBrandedPdf() {
+  const rowsHtml = rows.map((r) => '<tr>' + r.map((v) => `<td style="border:1px solid #94a3b8;padding:6px;">${String(v).replace(/</g,'&lt;')}</td>`).join('') + '</tr>').join('');
+  const brandHtml = brandImage ? `<img src="${brandImage}" style="max-height:44px;max-width:200px;object-fit:contain;" alt="Brand" />` : '<strong>SkyeSheets</strong>';
+  const w = window.open('', '_blank');
+  if (!w) return;
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>SkyeSheets Export</title></head><body style="font-family:Arial,sans-serif;padding:18px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">${brandHtml}<div>Workspace: ${ws}</div></div><table style="border-collapse:collapse;width:100%;">${rowsHtml}</table><div style="margin-top:10px;font-size:12px;color:#334155;">Generated ${new Date().toLocaleString()}</div></body></html>`);
+  w.document.close();
+  w.focus();
+  w.print();
 }
 
 document.getElementById("add").onclick = () => { rows.push(Array.from({length:5},()=>"")); render(); };
 document.getElementById("save").onclick = save;
+document.getElementById('lint').onclick = lintFormulas;
+document.getElementById('exportPdf').onclick = exportBrandedPdf;
+document.getElementById('brandUpload').onchange = (event) => {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    brandImage = String(reader.result || '');
+    brandPreview.src = brandImage;
+    brandPreview.style.display = 'block';
+    save();
+  };
+  reader.readAsDataURL(file);
+};
 setInterval(save, 12000);
 render();
+</script>
+<button id="skye-tutorial-fab" type="button" style="position:fixed;right:16px;bottom:16px;z-index:10000;padding:10px 14px;border-radius:999px;border:1px solid rgba(191,238,255,.42);background:rgba(44,230,255,.2);color:#eff9ff;font-weight:700;cursor:pointer;">Start Tutorial</button>
+<div id="skye-tutorial-modal" style="display:none;position:fixed;inset:0;z-index:10001;background:rgba(2,6,23,.72);"></div>
+<script>
+(function(){
+  const fab=document.getElementById('skye-tutorial-fab');
+  const modal=document.getElementById('skye-tutorial-modal');
+  if(!fab||!modal) return;
+  const app=(document.title||'App').replace(/Standalone|Workspace|Command Surface|Platform/gi,'').trim();
+  modal.innerHTML='<div style="max-width:520px;margin:10vh auto;background:#07131a;color:#eff9ff;border:1px solid rgba(191,238,255,.32);border-radius:14px;padding:18px"><h3 style="margin:0 0 8px">'+app+' Quick Start</h3><ol style="margin:0 0 12px 18px;line-height:1.5"><li>Review auth and active workspace context.</li><li>Run one core workflow action in this app.</li><li>Save/export/share output and verify completion state.</li></ol><div style="display:flex;justify-content:flex-end"><button id="skye-tutorial-close" type="button" style="padding:8px 12px;border-radius:10px;border:1px solid rgba(191,238,255,.32);background:rgba(0,0,0,.34);color:#eff9ff;cursor:pointer;">Close</button></div></div>';
+  fab.addEventListener('click',()=>{modal.style.display='block';});
+  modal.addEventListener('click',(e)=>{if(e.target===modal||e.target.id==='skye-tutorial-close') modal.style.display='none';});
+})();
 </script>
 </body>
 </html>

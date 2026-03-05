@@ -106,9 +106,14 @@
                     <i class="fa-solid fa-brain text-blue-400 text-xs"></i>
                     <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Processing...</span>
                 </div>
+                <div id="runtime-mode-badge" class="px-3 py-2 glass-panel rounded-full text-[10px] font-black uppercase tracking-widest text-emerald-300">Mode: Pending</div>
                 <button id="stop-btn" onclick="stopEngine()" class="hidden px-4 py-2 bg-red-500/10 border border-red-500/20 text-red-400 rounded-full text-[10px] font-black uppercase">Interrupt</button>
             </div>
         </header>
+
+        <div id="health-panel" class="mx-8 mt-4 px-4 py-3 glass-panel rounded-2xl text-[11px] text-gray-300">
+            Health: initializing...
+        </div>
 
         <div id="chat-window" class="flex-1 overflow-y-auto pt-10 pb-32">
             <div id="welcome-view" class="h-full flex flex-col items-center justify-center text-center p-12 space-y-8 max-w-2xl mx-auto">
@@ -244,6 +249,16 @@
 
         function getUnifiedStoredKey() {
             return localStorage.getItem('kx.api.accessToken') || localStorage.getItem('kaixu_api_key') || '';
+        }
+
+        function refreshRuntimeHealth() {
+            const badge = document.getElementById('runtime-mode-badge');
+            const panel = document.getElementById('health-panel');
+            const mode = firebaseReady ? 'Firebase' : 'Local Fallback';
+            const hasKey = Boolean(getUnifiedStoredKey());
+            const archiveCount = readLocalArchives().length;
+            if (badge) badge.textContent = `Mode: ${mode}`;
+            if (panel) panel.textContent = `Health: mode=${mode} | key=${hasKey ? 'loaded' : 'missing'} | local_archives=${archiveCount} | gate=${GATE_BASE}`;
         }
 
         // --- ENGINE SETTINGS ---
@@ -509,6 +524,7 @@
             archives[idx].updatedAt = Date.now();
             writeLocalArchives(archives);
             syncArchives();
+            refreshRuntimeHealth();
         }
 
         async function syncArchives() {
@@ -539,6 +555,7 @@
                     div.onclick = () => loadSession(chat.id);
                     list.appendChild(div);
                 });
+                refreshRuntimeHealth();
             });
         }
 
@@ -625,6 +642,20 @@
                 }
             });
         }
+        refreshRuntimeHealth();
+    </script>
+    <button id="skye-tutorial-fab" type="button" style="position:fixed;right:16px;bottom:16px;z-index:10000;padding:10px 14px;border-radius:999px;border:1px solid rgba(191,238,255,.42);background:rgba(44,230,255,.2);color:#eff9ff;font-weight:700;cursor:pointer;">Start Tutorial</button>
+    <div id="skye-tutorial-modal" style="display:none;position:fixed;inset:0;z-index:10001;background:rgba(2,6,23,.72);"></div>
+    <script>
+        (function(){
+            const fab = document.getElementById('skye-tutorial-fab');
+            const modal = document.getElementById('skye-tutorial-modal');
+            if (!fab || !modal) return;
+            const app = (document.title || 'Neural Space Pro').replace(/Standalone|Workspace|Command Surface|Platform/gi, '').trim();
+            modal.innerHTML = '<div style="max-width:520px;margin:10vh auto;background:#07131a;color:#eff9ff;border:1px solid rgba(191,238,255,.32);border-radius:14px;padding:18px"><h3 style="margin:0 0 8px">' + app + ' Quick Start</h3><ol style="margin:0 0 12px 18px;line-height:1.5"><li>Open kAIxu Config and verify key/session state.</li><li>Run one prompt with optional attachment ingest.</li><li>Persist or export session output and validate recovery flow.</li></ol><div style="display:flex;justify-content:flex-end"><button id="skye-tutorial-close" type="button" style="padding:8px 12px;border-radius:10px;border:1px solid rgba(191,238,255,.32);background:rgba(0,0,0,.34);color:#eff9ff;cursor:pointer;">Close</button></div></div>';
+            fab.addEventListener('click', () => { modal.style.display = 'block'; });
+            modal.addEventListener('click', (e) => { if (e.target === modal || e.target.id === 'skye-tutorial-close') modal.style.display = 'none'; });
+        })();
     </script>
 </body>
 </html>

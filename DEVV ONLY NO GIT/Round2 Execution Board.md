@@ -30,54 +30,54 @@ Status legend:
 
 ## 2) SuperIDE Shell
 
-- [ ] `R2-017` Add release cockpit with live gate status per app.
-- [ ] `R2-018` Add app readiness score.
-- [ ] `R2-019` Add workspace dependency status panel.
-- [ ] `R2-020` Add one-click Run App Proof flow.
-- [ ] `R2-021` Add signed build metadata block in shell footer.
-- [ ] `R2-022` Add keyboard command palette for app quick actions.
+- [x] `R2-017` Add release cockpit with live gate status per app.
+- [x] `R2-018` Add app readiness score.
+- [x] `R2-019` Add workspace dependency status panel.
+- [x] `R2-020` Add one-click Run App Proof flow.
+- [x] `R2-021` Add signed build metadata block in shell footer.
+- [x] `R2-022` Add keyboard command palette for app quick actions.
 
 ## 3) Standalone App Targets
 
-- [ ] `R2-023` SkyeBookx: chapter consistency analyzer.
-- [ ] `R2-024` SkyeBookx: scene card navigator with reorder.
-- [ ] `R2-025` SkyeBookx: manuscript export pack.
-- [ ] `R2-026` SkyeBookx: oversized cloud payload recovery mode.
+- [x] `R2-023` SkyeBookx: chapter consistency analyzer.
+- [x] `R2-024` SkyeBookx: scene card navigator with reorder.
+- [x] `R2-025` SkyeBookx: manuscript export pack.
+- [x] `R2-026` SkyeBookx: oversized cloud payload recovery mode.
 
-- [ ] `R2-027` SkyePlatinum: directive workflow states.
-- [ ] `R2-028` SkyePlatinum: financial anomaly trend panel.
-- [ ] `R2-029` SkyePlatinum: executive report export.
-- [ ] `R2-030` SkyePlatinum: role-based action lock.
+- [x] `R2-027` SkyePlatinum: directive workflow states.
+- [x] `R2-028` SkyePlatinum: financial anomaly trend panel.
+- [x] `R2-029` SkyePlatinum: executive report export.
+- [x] `R2-030` SkyePlatinum: role-based action lock.
 
-- [ ] `R2-031` SkyeCalendar: drag-and-drop scheduling.
-- [ ] `R2-032` SkyeCalendar: dependency chain timeline.
-- [ ] `R2-033` SkyeCalendar: workload heatmap.
-- [ ] `R2-034` SkyeCalendar: reminder delivery audit trail.
+- [x] `R2-031` SkyeCalendar: drag-and-drop scheduling.
+- [x] `R2-032` SkyeCalendar: dependency chain timeline.
+- [x] `R2-033` SkyeCalendar: workload heatmap.
+- [x] `R2-034` SkyeCalendar: reminder delivery audit trail.
 
-- [ ] `R2-035` SkyeTasks: dependency graph view.
-- [ ] `R2-036` SkyeTasks: SLA breach routing templates.
-- [ ] `R2-037` SkyeTasks: workload balancing suggestions.
-- [ ] `R2-038` SkyeTasks: completion quality templates.
+- [x] `R2-035` SkyeTasks: dependency graph view.
+- [x] `R2-036` SkyeTasks: SLA breach routing templates.
+- [x] `R2-037` SkyeTasks: workload balancing suggestions.
+- [x] `R2-038` SkyeTasks: completion quality templates.
 
-- [ ] `R2-039` SkyeMail: send policy preflight.
-- [ ] `R2-040` SkyeMail: delivery queue monitor retry controls.
-- [ ] `R2-041` SkyeMail: template library with approval tags.
-- [ ] `R2-042` SkyeMail: outbound audit export with correlation IDs.
+- [x] `R2-039` SkyeMail: send policy preflight.
+- [x] `R2-040` SkyeMail: delivery queue monitor retry controls.
+- [x] `R2-041` SkyeMail: template library with approval tags.
+- [x] `R2-042` SkyeMail: outbound audit export with correlation IDs.
 
-- [ ] `R2-043` SkyeChat: decision extraction to Tasks/Calendar.
-- [ ] `R2-044` SkyeChat: moderation timeline with reversible actions.
-- [ ] `R2-045` SkyeChat: channel quality signals.
-- [ ] `R2-046` SkyeChat: digest export schema.
+- [x] `R2-043` SkyeChat: decision extraction to Tasks/Calendar.
+- [x] `R2-044` SkyeChat: moderation timeline with reversible actions.
+- [x] `R2-045` SkyeChat: channel quality signals.
+- [x] `R2-046` SkyeChat: digest export schema.
 
-- [ ] `R2-047` SKNore: policy compiler severity tiers.
-- [ ] `R2-048` SKNore: rule overlap visualization/risk scoring.
-- [ ] `R2-049` SKNore: policy test suite presets.
-- [ ] `R2-050` SKNore: policy pack signing and verification.
+- [x] `R2-047` SKNore: policy compiler severity tiers.
+- [x] `R2-048` SKNore: rule overlap visualization/risk scoring.
+- [x] `R2-049` SKNore: policy test suite presets.
+- [x] `R2-050` SKNore: policy pack signing and verification.
 
-- [ ] `R2-051` Neural Space Pro: multi-stage run pipeline.
-- [ ] `R2-052` Neural Space Pro: checkpoint restore with replay notes.
-- [ ] `R2-053` Neural Space Pro: context budget inspector/citation confidence.
-- [ ] `R2-054` Neural Space Pro: direct publish bridges + receipts.
+- [x] `R2-051` Neural Space Pro: multi-stage run pipeline.
+- [x] `R2-052` Neural Space Pro: checkpoint restore with replay notes.
+- [x] `R2-053` Neural Space Pro: context budget inspector/citation confidence.
+- [x] `R2-054` Neural Space Pro: direct publish bridges + receipts.
 
 - [ ] `R2-055` SkyeDrive: immutable artifact mode.
 - [ ] `R2-056` SkyeDrive: share-link governance controls.

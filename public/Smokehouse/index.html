@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smokehouse | SuperIDE</title>
+  <script src="/_shared/gateway-retry.js"></script>
+  <style>
+    :root { --bg:#140f21; --card:#231a36; --ink:#f4f0ff; --muted:#b7abcf; --good:#22c55e; --bad:#ef4444; --accent:#f97316; }
+    *{box-sizing:border-box;} body{margin:0;font-family:"Space Grotesk","Segoe UI",sans-serif;color:var(--ink);background:radial-gradient(circle at 80% 10%,#3b1f6d,var(--bg));}
+    .wrap{max-width:1200px;margin:0 auto;padding:20px;} .card{background:color-mix(in oklab,var(--card),black 10%);border:1px solid #4d3a73;border-radius:14px;padding:14px;}
+    button,input{border-radius:10px;border:1px solid #5c4a84;background:#1c1330;color:var(--ink);padding:10px;} button{cursor:pointer;font-weight:700;}
+    .primary{background:linear-gradient(120deg,#fb923c,#f43f5e);border:none;} .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;} .muted{color:var(--muted);} table{width:100%;border-collapse:collapse;font-size:12px;} th,td{padding:8px;border-bottom:1px solid #463760;text-align:left;} .good{color:var(--good);} .bad{color:var(--bad);} @media(max-width:900px){.grid{grid-template-columns:1fr;}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Smokehouse Standalone</h1>
+    <p class="muted">Contract checks with persistent hash-linked run history for audit evidence.</p>
+
+    <div class="grid">
+      <section class="card">
+        <label>Base URL</label>
+        <input id="baseUrl" />
+        <label style="display:block;margin-top:8px;">Access Token (optional)</label>
+        <input id="token" type="password" placeholder="Bearer token" />
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px;">
+          <button id="runBtn" class="primary">Run Smoke</button>
+          <button id="exportBtn">Export Runs</button>
+          <button id="clearBtn">Clear Runs</button>
+        </div>
+        <p id="status" class="muted">Idle.</p>
+      </section>
+      <section class="card">
+        <h3 style="margin-top:0;">Latest Summary</h3>
+        <pre id="summary" style="white-space:pre-wrap">No run yet.</pre>
+      </section>
+    </div>
+
+    <section class="card" style="margin-top:16px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+        <h3 style="margin:0;">Run Ledger</h3>
+        <span id="chain" class="muted">Chain unchecked</span>
+      </div>
+      <div style="overflow:auto;max-height:360px;">
+        <table>
+          <thead><tr><th>At</th><th>Pass/Total</th><th>Hash</th><th>Prev</th></tr></thead>
+          <tbody id="runs"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const LOG_KEY = "superide.smokehouse.hashruns.v1";
+    const gatewayFetch = (window.SkyeGateway && window.SkyeGateway.fetchWithRetry) || fetch;
+
+    async function sha256(text) {
+      const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+      return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, "0")).join("");
+    }
+    function readRuns() { try { return JSON.parse(localStorage.getItem(LOG_KEY) || "[]"); } catch { return []; } }
+    function writeRuns(v) { localStorage.setItem(LOG_KEY, JSON.stringify(v)); }
+    function setStatus(s) { document.getElementById("status").textContent = s; }
+
+    async function runCheck(name, method, url, payload, headers) {
+      const start = performance.now();
+      try {
+        const res = await gatewayFetch(url, {
+          method,
+          headers,
+          credentials: "include",
+          body: payload ? JSON.stringify(payload) : undefined,
+        });
+        const text = await res.text();
+        const ok = res.status >= 200 && res.status < 300;
+        return { name, status: res.status, ok, ms: Math.round(performance.now() - start), detail: text.slice(0, 180) };
+      } catch (e) {
+        return { name, status: 0, ok: false, ms: Math.round(performance.now() - start), detail: String(e?.message || e) };
+      }
+    }
+
+    async function runSmoke() {
+      const base = (document.getElementById("baseUrl").value || location.origin).replace(/\/$/, "");
+      const token = document.getElementById("token").value.trim();
+      const headers = { "Content-Type": "application/json" };
+      if (token) headers.Authorization = `Bearer ${token}`;
+      setStatus("Running checks...");
+
+      const wsId = new URLSearchParams(location.search).get("ws_id") || "primary-workspace";
+      const checks = [
+        await runCheck("Site Root", "GET", `${base}/`, null, headers),
+        await runCheck("Auth Me", "GET", `${base}/api/auth-me`, null, headers),
+        await runCheck("Generate", "POST", `${base}/api/kaixu-generate`, { ws_id: wsId, activePath: "/Smokehouse/index.html", prompt: "smokehouse ping" }, headers),
+      ];
+
+      const pass = checks.filter((c) => c.ok).length;
+      document.getElementById("summary").textContent = checks.map((c) => `${c.ok ? "PASS" : "FAIL"} | ${c.name} | ${c.status} | ${c.ms}ms | ${c.detail}`).join("\n");
+
+      const runs = readRuns();
+      const prev = runs.length ? runs[0].hash : "GENESIS";
+      const run = { at: new Date().toISOString(), pass, total: checks.length, checks, prev_hash: prev };
+      run.hash = await sha256(JSON.stringify(run));
+      runs.unshift(run);
+      writeRuns(runs.slice(0, 300));
+      setStatus(`Smoke complete: ${pass}/${checks.length} pass.`);
+      await renderRuns();
+    }
+
+    async function renderRuns() {
+      const rows = readRuns();
+      document.getElementById("runs").innerHTML = rows.map((r) => `<tr><td>${new Date(r.at).toLocaleString()}</td><td class="${r.pass === r.total ? "good" : "bad"}">${r.pass}/${r.total}</td><td title="${r.hash}">${r.hash.slice(0, 12)}...</td><td title="${r.prev_hash}">${String(r.prev_hash).slice(0, 12)}...</td></tr>`).join("");
+
+      let prev = "GENESIS";
+      let ok = true;
+      for (let i = rows.length - 1; i >= 0; i -= 1) {
+        const r = rows[i];
+        const canonical = { at: r.at, pass: r.pass, total: r.total, checks: r.checks, prev_hash: prev };
+        const hash = await sha256(JSON.stringify(canonical));
+        if (r.prev_hash !== prev || r.hash !== hash) { ok = false; break; }
+        prev = r.hash;
+      }
+      document.getElementById("chain").textContent = ok ? "Chain: VALID" : "Chain: INVALID";
+      document.getElementById("chain").className = ok ? "good" : "bad";
+    }
+
+    document.getElementById("baseUrl").value = location.origin;
+    document.getElementById("runBtn").onclick = () => runSmoke();
+    document.getElementById("exportBtn").onclick = () => {
+      const blob = new Blob([JSON.stringify(readRuns(), null, 2)], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `smokehouse-ledger-${Date.now()}.json`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    };
+    document.getElementById("clearBtn").onclick = () => { localStorage.removeItem(LOG_KEY); renderRuns(); setStatus("Run history cleared."); };
+
+    renderRuns();
+  </script>
+</body>
+</html>

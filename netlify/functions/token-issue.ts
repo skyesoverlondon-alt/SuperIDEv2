@@ -2,7 +2,7 @@ import { json } from "./_shared/response";
 import { requireUser, forbid } from "./_shared/auth";
 import { q } from "./_shared/neon";
 import { audit } from "./_shared/audit";
-import { hasValidMasterSequence, mintApiToken, normalizeTokenScopes, tokenHash } from "./_shared/api_tokens";
+import { hasValidMasterSequence, mintApiToken, tokenHash } from "./_shared/api_tokens";
 import { opt } from "./_shared/env";
 
 const TTL_PRESETS_MINUTES: Record<string, number> = {
@@ -54,8 +54,7 @@ export const handler = async (event: any) => {
   const labelPrefix = String(body.label_prefix || "token").slice(0, 64);
   const requestedLockedEmail = String(body.locked_email || "").trim().toLowerCase();
   const unlockRequested = body.unlock_email_lock === true;
-  const scopes = normalizeTokenScopes(body.scopes || body.scope || ["generate"]);
-  const hasPrivilegedScopes = scopes.some((s) => s !== "generate");
+  const scopes = ["generate"];
   const masterProvided = String(body.token_master_sequence || "");
   const masterExpected = opt("TOKEN_MASTER_SEQUENCE", "");
   const hasMaster = hasValidMasterSequence(masterProvided, masterExpected);
@@ -64,10 +63,6 @@ export const handler = async (event: any) => {
     if (!hasMaster) {
       return json(403, { error: "Email lock override requires TOKEN_MASTER_SEQUENCE." });
     }
-  }
-
-  if (hasPrivilegedScopes && !hasMaster) {
-    return json(403, { error: "Privileged scopes require TOKEN_MASTER_SEQUENCE." });
   }
 
   const lockedEmail = unlockRequested

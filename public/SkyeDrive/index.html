@@ -23,6 +23,7 @@
     button { cursor:pointer; border-color:var(--line); background:rgba(44,230,255,.12); }
     button.primary { background:linear-gradient(135deg, rgba(255,203,71,.9), rgba(44,230,255,.78)); color:#03131a; font-weight:700; border-color:rgba(255,203,71,.5); }
     .status { color:var(--muted); font-size:.82rem; }
+    .diag { border:1px solid var(--line2); border-radius:10px; padding:8px; color:var(--muted); font-size:.8rem; }
     @media (max-width:860px){ .form{grid-template-columns:1fr;} }
   </style>
 </head>
@@ -48,6 +49,11 @@
         <input id="owner" placeholder="Owner" value="owner@skye.local" />
         <button class="primary" id="add">Add</button>
       </div>
+      <div class="form" style="grid-template-columns:1fr auto;">
+        <input id="uploadFile" type="file" />
+        <button id="uploadBtn">Upload File</button>
+      </div>
+      <div class="diag" id="compareInfo">Version compare panel: select an item to inspect versions.</div>
       <div class="list" id="list"></div>
       <div class="status" id="status"></div>
     </section>
@@ -61,6 +67,7 @@ const key = `skye.drive.${ws}`;
 let items = JSON.parse(localStorage.getItem(key) || "[]");
 const list = document.getElementById("list");
 const status = document.getElementById("status");
+const compareInfo = document.getElementById("compareInfo");
 
 function save() {
   localStorage.setItem(key, JSON.stringify(items));
@@ -75,15 +82,61 @@ function render() {
     d.innerHTML = `
       <div>
         <strong>${x.name}</strong><br>
-        <span class="status">kind=${x.kind} · owner=${x.owner} · version=${x.version}</span>
+        <span class="status">kind=${x.kind} · owner=${x.owner} · version=${x.version} · size=${x.size || 0}b</span>
       </div>
       <div>
         <button data-i="${i}">Bump Version</button>
+        <button data-compare="${i}">Compare</button>
+        <button data-restore="${i}">Restore Prev</button>
       </div>
     `;
-    d.querySelector("button").onclick = () => { items[i].version += 1; save(); render(); };
+    d.querySelector("button[data-i]").onclick = () => {
+      items[i].version += 1;
+      items[i].versions = items[i].versions || [];
+      items[i].versions.unshift({ version: items[i].version, at: new Date().toISOString(), size: items[i].size || 0, checksum: items[i].checksum || '' });
+      save();
+      render();
+    };
+    d.querySelector("button[data-compare]").onclick = () => compareVersions(i);
+    d.querySelector("button[data-restore]").onclick = () => restorePrevious(i);
     list.appendChild(d);
   });
+}
+
+function checksumText(text) {
+  let hash = 0;
+  for (let i = 0; i < text.length; i += 1) hash = ((hash << 5) - hash) + text.charCodeAt(i);
+  return 'h' + Math.abs(hash);
+}
+
+function compareVersions(index) {
+  const item = items[index];
+  const versions = item.versions || [];
+  if (versions.length < 2) {
+    compareInfo.textContent = `${item.name}: not enough versions to compare.`;
+    return;
+  }
+  const latest = versions[0];
+  const prev = versions[1];
+  compareInfo.textContent = `${item.name} compare: v${prev.version} -> v${latest.version} | size ${prev.size}b -> ${latest.size}b | checksum ${prev.checksum} -> ${latest.checksum}`;
+}
+
+function restorePrevious(index) {
+  const item = items[index];
+  const versions = item.versions || [];
+  if (versions.length < 2) {
+    status.textContent = 'No previous version available to restore.';
+    return;
+  }
+  const prev = versions[1];
+  item.version = prev.version;
+  item.size = prev.size;
+  item.checksum = prev.checksum;
+  item.at = new Date().toISOString();
+  versions.unshift({ version: item.version, at: item.at, size: item.size, checksum: item.checksum });
+  save();
+  render();
+  status.textContent = `${item.name} restored to v${prev.version}.`;
 }
 
 document.getElementById("add").onclick = () => {
@@ -97,7 +150,45 @@ document.getElementById("add").onclick = () => {
   save();
 };
 
+document.getElementById('uploadBtn').onclick = async () => {
+  const input = document.getElementById('uploadFile');
+  const file = input.files && input.files[0];
+  if (!file) {
+    status.textContent = 'Choose a file first.';
+    return;
+  }
+  const text = await file.text().catch(() => '');
+  const record = {
+    name: file.name,
+    kind: file.type || 'file',
+    owner: document.getElementById('owner').value.trim() || 'owner@skye.local',
+    version: 1,
+    at: new Date().toISOString(),
+    size: file.size,
+    checksum: checksumText(text),
+    versions: [{ version: 1, at: new Date().toISOString(), size: file.size, checksum: checksumText(text) }],
+  };
+  items.unshift(record);
+  save();
+  render();
+  status.textContent = `Uploaded ${file.name} (${file.size} bytes).`;
+  input.value = '';
+};
+
 render();
+</script>
+<button id="skye-tutorial-fab" type="button" style="position:fixed;right:16px;bottom:16px;z-index:10000;padding:10px 14px;border-radius:999px;border:1px solid rgba(191,238,255,.42);background:rgba(44,230,255,.2);color:#eff9ff;font-weight:700;cursor:pointer;">Start Tutorial</button>
+<div id="skye-tutorial-modal" style="display:none;position:fixed;inset:0;z-index:10001;background:rgba(2,6,23,.72);"></div>
+<script>
+(function(){
+  const fab=document.getElementById('skye-tutorial-fab');
+  const modal=document.getElementById('skye-tutorial-modal');
+  if(!fab||!modal) return;
+  const app=(document.title||'App').replace(/Standalone|Workspace|Command Surface|Platform/gi,'').trim();
+  modal.innerHTML='<div style="max-width:520px;margin:10vh auto;background:#07131a;color:#eff9ff;border:1px solid rgba(191,238,255,.32);border-radius:14px;padding:18px"><h3 style="margin:0 0 8px">'+app+' Quick Start</h3><ol style="margin:0 0 12px 18px;line-height:1.5"><li>Review auth and active workspace context.</li><li>Run one core workflow action in this app.</li><li>Save/export/share output and verify completion state.</li></ol><div style="display:flex;justify-content:flex-end"><button id="skye-tutorial-close" type="button" style="padding:8px 12px;border-radius:10px;border:1px solid rgba(191,238,255,.32);background:rgba(0,0,0,.34);color:#eff9ff;cursor:pointer;">Close</button></div></div>';
+  fab.addEventListener('click',()=>{modal.style.display='block';});
+  modal.addEventListener('click',(e)=>{if(e.target===modal||e.target.id==='skye-tutorial-close') modal.style.display='none';});
+})();
 </script>
 </body>
 </html>

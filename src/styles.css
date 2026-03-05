@@ -32,6 +32,15 @@ body {
     linear-gradient(158deg, var(--bg-0), var(--bg-1) 52%, #020509);
 }
 
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+a:focus-visible {
+  outline: 2px solid rgba(255, 203, 71, 0.9);
+  outline-offset: 2px;
+}
+
 #root {
   min-height: 100vh;
 }
@@ -520,7 +529,7 @@ body {
 
 .neural-frame {
   width: 100%;
-  min-height: 74vh;
+  min-height: 78vh;
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 10px;
   background: #05040a;
@@ -533,7 +542,7 @@ body {
 
 .platform-frame {
   width: 100%;
-  min-height: 74vh;
+  min-height: 78vh;
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 10px;
   background: #05040a;
@@ -689,8 +698,8 @@ body {
   margin: 10px;
   padding: 14px;
   overflow: auto;
-  min-height: 0;
-  height: calc(100% - 24px);
+  min-height: clamp(500px, 70vh, 980px);
+  height: calc(100% - 12px);
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -948,7 +957,7 @@ body {
 }
 
 .chat-pane-bottom {
-  height: min(34vh, 340px);
+  height: min(28vh, 280px);
   border-left: none;
   border-top: 1px solid var(--border);
   background: linear-gradient(180deg, rgba(8, 18, 24, 0.97), rgba(7, 13, 19, 0.95));
@@ -1114,6 +1123,130 @@ body {
   gap: 8px;
 }
 
+.release-cockpit {
+  border: 1px solid rgba(44, 230, 255, 0.34);
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: linear-gradient(145deg, rgba(7, 17, 24, 0.9), rgba(10, 25, 35, 0.62));
+}
+
+.readiness-chip {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #ffe894;
+}
+
+.readiness-bar {
+  border: 1px solid rgba(44, 230, 255, 0.28);
+  border-radius: 999px;
+  height: 10px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.readiness-bar span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, rgba(255, 203, 71, 0.9), rgba(44, 230, 255, 0.9));
+}
+
+.dependency-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+}
+
+.dependency-item {
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding: 8px;
+  font-size: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.dependency-item.pass {
+  border-color: rgba(44, 230, 255, 0.42);
+  background: rgba(44, 230, 255, 0.09);
+}
+
+.dependency-item.fail {
+  border-color: rgba(255, 203, 71, 0.55);
+  background: rgba(255, 203, 71, 0.08);
+}
+
+.proof-runs {
+  display: grid;
+  gap: 6px;
+}
+
+.proof-run-item {
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding: 8px;
+  border-color: rgba(44, 230, 255, 0.26);
+  background: rgba(44, 230, 255, 0.05);
+  font-size: 0.73rem;
+}
+
+.build-metadata-footer {
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 8px 14px;
+  font-size: 0.72rem;
+  color: var(--muted);
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.command-palette-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2200;
+  background: rgba(3, 7, 12, 0.74);
+  backdrop-filter: blur(4px);
+  display: grid;
+  place-items: start center;
+  padding-top: 12vh;
+}
+
+.command-palette {
+  width: min(720px, calc(100vw - 28px));
+  border: 1px solid rgba(44, 230, 255, 0.36);
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(8, 18, 24, 0.96), rgba(6, 12, 18, 0.96));
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.58);
+  padding: 10px;
+  display: grid;
+  gap: 10px;
+}
+
+.command-palette-list {
+  max-height: 48vh;
+  overflow: auto;
+  display: grid;
+  gap: 8px;
+}
+
+.command-palette-item {
+  text-align: left;
+  border: 1px solid rgba(44, 230, 255, 0.28);
+  border-radius: 10px;
+  background: rgba(44, 230, 255, 0.08);
+  color: var(--text);
+  padding: 10px;
+}
+
+.command-palette-item:hover {
+  background: rgba(44, 230, 255, 0.16);
+}
+
 .merge-modal-overlay {
   position: fixed;
   inset: 0;
@@ -1173,15 +1306,43 @@ body {
   }
 
   .chat-pane-bottom {
-    height: 42vh;
+    height: 34vh;
     border-top: 1px solid var(--border);
   }
 
   .merge-grid,
   .tool-row.split,
   .kanban-grid,
-  .kpi-grid {
+  .kpi-grid,
+  .dependency-grid {
     grid-template-columns: 1fr;
+  }
+
+  .build-metadata-footer {
+    gap: 8px;
+    padding: 8px 10px;
+  }
+}
+
+@media (max-width: 640px) {
+  .workspace-header {
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .tool-actions,
+  .tool-actions.left {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .tool-actions button,
+  .tool-actions .ghost {
+    min-height: 40px;
+  }
+
+  .app-module {
+    padding: 12px;
   }
 }
 

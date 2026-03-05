@@ -12,6 +12,7 @@
     .brand{font-family:"Orbitron",sans-serif;text-transform:uppercase;letter-spacing:.09em;} .muted{color:var(--muted);font-size:.82rem;} .chip{border:1px solid rgba(255,203,71,.42);border-radius:999px;padding:5px 10px;color:#ffe6a5;background:rgba(255,203,71,.08);font-size:.74rem;}
     .card{padding:12px;display:grid;gap:10px;} .row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;} .row.two{grid-template-columns:1fr 1fr;}
     input,select,button{width:100%;border:1px solid var(--line2);border-radius:10px;background:rgba(0,0,0,.34);color:var(--text);padding:9px 10px;font:inherit;} button{cursor:pointer;border-color:var(--line);background:rgba(44,230,255,.12);} button.primary{background:linear-gradient(135deg, rgba(255,203,71,.9), rgba(44,230,255,.78));color:#03131a;font-weight:700;border-color:rgba(255,203,71,.5);} .item{border:1px solid var(--line2);border-radius:12px;padding:10px;background:rgba(255,255,255,.03);margin-top:8px;}
+    .diag{border:1px solid var(--line2);border-radius:10px;padding:8px;color:var(--muted);font-size:.8rem;}
     a{color:#d8f7ff;} @media (max-width:900px){.row{grid-template-columns:1fr 1fr;}.row.two{grid-template-columns:1fr;}} @media (max-width:560px){.row{grid-template-columns:1fr;}}
   </style>
 </head>
@@ -29,6 +30,8 @@
   <section class="card">
     <div class="row"><input id="email" placeholder="email"/><input id="password" type="password" placeholder="password"/><input id="org" value="SkyeVault Org"/><button id="login">Login or Signup</button></div>
     <div class="row"><input id="ws" placeholder="workspace"/><input id="label" placeholder="Secret label"/><select id="scope"><option>workspace</option><option>org</option><option>deploy</option></select><button class="primary" id="add">Register</button></div>
+    <div class="row two"><input id="rotationDays" type="number" min="1" value="30" placeholder="Rotation every N days"/><button id="runScheduler">Run Rotation Scheduler</button></div>
+    <div class="diag" id="rotationAlerts">Rotation alerts pending scheduler run.</div>
     <div class="row two"><button id="load">Load</button><button id="save">Save</button></div>
     <div class="muted" id="status">Ready.</div>
   </section>
@@ -38,13 +41,40 @@
 <script>
 const qs=new URLSearchParams(location.search);document.getElementById('ws').value=qs.get('ws_id')||'primary-workspace';document.getElementById('meta').textContent=`ws_id=${document.getElementById('ws').value}`;
 let secrets=[];const status=document.getElementById('status');function setStatus(t){status.textContent=t}
+const rotationAlerts=document.getElementById('rotationAlerts');
 async function call(path,opt={}){const r=await fetch(path,{credentials:'include',...opt});const t=await r.text();let d={};try{d=t?JSON.parse(t):{}}catch{d={raw:t}}if(!r.ok)throw new Error(d.error||path+' failed ('+r.status+')');return d}
 async function auth(){const email=document.getElementById('email').value.trim();const password=document.getElementById('password').value;const org=document.getElementById('org').value.trim()||'SkyeVault Org';if(!email||!password)throw new Error('email/password required');try{await call('/api/auth-login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})})}catch{const signup=await call('/api/auth-signup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password,orgName:org})});if(signup?.kaixu_token?.token){localStorage.setItem('kx.api.accessToken',signup.kaixu_token.token);localStorage.setItem('kx.api.tokenEmail',signup.kaixu_token.locked_email||email.toLowerCase())}}}
 async function load(){await auth();const ws=document.getElementById('ws').value.trim();const d=await call('/api/app-record-list?ws_id='+encodeURIComponent(ws)+'&app=SkyeVault&limit=1');secrets=Array.isArray(d.records)&&d.records[0]&&d.records[0].payload&&Array.isArray(d.records[0].payload.secrets)?d.records[0].payload.secrets:[];render();setStatus('Loaded vault model.')}
 async function save(){await auth();const ws=document.getElementById('ws').value.trim();await call('/api/app-record-save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ws_id:ws,app:'SkyeVault',title:'SkyeVault Secrets',model:{secrets}})});setStatus('Saved vault model.')}
-function add(){const label=document.getElementById('label').value.trim();if(!label)return setStatus('label required');secrets.unshift({id:'vault-'+Date.now(),label,scope:document.getElementById('scope').value,owner:'owner',last_rotated:new Date().toISOString().slice(0,10),status:'active',redacted_value:'****'});document.getElementById('label').value='';render()}
-function render(){const list=document.getElementById('list');list.innerHTML='';secrets.forEach(s=>{const item=document.createElement('div');item.className='item';item.innerHTML='<strong>'+s.label+'</strong><div class="muted">scope='+s.scope+' owner='+(s.owner||'n/a')+' last_rotated='+s.last_rotated+'</div>';const row=document.createElement('div');row.className='row two';row.style.marginTop='8px';const st=document.createElement('select');['active','rotation_due'].forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;if(v===s.status)o.selected=true;st.appendChild(o)});st.onchange=()=>{secrets=secrets.map(x=>x.id===s.id?{...x,status:st.value}:x)};const rot=document.createElement('button');rot.textContent='Rotate';rot.onclick=()=>{secrets=secrets.map(x=>x.id===s.id?{...x,last_rotated:new Date().toISOString().slice(0,10),status:'active'}:x);render()};row.appendChild(st);row.appendChild(rot);item.appendChild(row);list.appendChild(item);})}
+function add(){const label=document.getElementById('label').value.trim();if(!label)return setStatus('label required');const intervalDays=Math.max(1,Number(document.getElementById('rotationDays').value||30));secrets.unshift({id:'vault-'+Date.now(),label,scope:document.getElementById('scope').value,owner:'owner',last_rotated:new Date().toISOString().slice(0,10),status:'active',redacted_value:'****',rotation_days:intervalDays,next_due:new Date(Date.now()+intervalDays*86400000).toISOString().slice(0,10)});document.getElementById('label').value='';render()}
+function runScheduler(){
+  const today=new Date().toISOString().slice(0,10);
+  let due=0;
+  secrets=secrets.map((s)=>{
+    const nextDue=s.next_due||today;
+    const overdue=nextDue<today;
+    if(overdue) due+=1;
+    return {...s,status:overdue?'rotation_due':s.status};
+  });
+  rotationAlerts.textContent = due ? `Rotation scheduler: ${due} secret(s) overdue.` : 'Rotation scheduler: all secrets within policy window.';
+  render();
+}
+function render(){const list=document.getElementById('list');list.innerHTML='';secrets.forEach(s=>{const item=document.createElement('div');item.className='item';item.innerHTML='<strong>'+s.label+'</strong><div class="muted">scope='+s.scope+' owner='+(s.owner||'n/a')+' last_rotated='+s.last_rotated+' next_due='+(s.next_due||'n/a')+'</div>';const row=document.createElement('div');row.className='row two';row.style.marginTop='8px';const st=document.createElement('select');['active','rotation_due'].forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;if(v===s.status)o.selected=true;st.appendChild(o)});st.onchange=()=>{secrets=secrets.map(x=>x.id===s.id?{...x,status:st.value}:x)};const rot=document.createElement('button');rot.textContent='Rotate';rot.onclick=()=>{const days=Math.max(1,Number(s.rotation_days||30));secrets=secrets.map(x=>x.id===s.id?{...x,last_rotated:new Date().toISOString().slice(0,10),status:'active',next_due:new Date(Date.now()+days*86400000).toISOString().slice(0,10)}:x);render()};row.appendChild(st);row.appendChild(rot);item.appendChild(row);list.appendChild(item);})}
 document.getElementById('login').onclick=()=>auth().then(()=>setStatus('Session ready.')).catch(e=>setStatus(e.message));document.getElementById('load').onclick=()=>load().catch(e=>setStatus(e.message));document.getElementById('save').onclick=()=>save().catch(e=>setStatus(e.message));document.getElementById('add').onclick=add;render();
+document.getElementById('runScheduler').onclick=runScheduler;
+</script>
+<button id="skye-tutorial-fab" type="button" style="position:fixed;right:16px;bottom:16px;z-index:10000;padding:10px 14px;border-radius:999px;border:1px solid rgba(191,238,255,.42);background:rgba(44,230,255,.2);color:#eff9ff;font-weight:700;cursor:pointer;">Start Tutorial</button>
+<div id="skye-tutorial-modal" style="display:none;position:fixed;inset:0;z-index:10001;background:rgba(2,6,23,.72);"></div>
+<script>
+(function(){
+  const fab=document.getElementById('skye-tutorial-fab');
+  const modal=document.getElementById('skye-tutorial-modal');
+  if(!fab||!modal) return;
+  const app=(document.title||'App').replace(/Standalone|Workspace|Command Surface|Platform/gi,'').trim();
+  modal.innerHTML='<div style="max-width:520px;margin:10vh auto;background:#07131a;color:#eff9ff;border:1px solid rgba(191,238,255,.32);border-radius:14px;padding:18px"><h3 style="margin:0 0 8px">'+app+' Quick Start</h3><ol style="margin:0 0 12px 18px;line-height:1.5"><li>Review auth and active workspace context.</li><li>Run one core workflow action in this app.</li><li>Save/export/share output and verify completion state.</li></ol><div style="display:flex;justify-content:flex-end"><button id="skye-tutorial-close" type="button" style="padding:8px 12px;border-radius:10px;border:1px solid rgba(191,238,255,.32);background:rgba(0,0,0,.34);color:#eff9ff;cursor:pointer;">Close</button></div></div>';
+  fab.addEventListener('click',()=>{modal.style.display='block';});
+  modal.addEventListener('click',(e)=>{if(e.target===modal||e.target.id==='skye-tutorial-close') modal.style.display='none';});
+})();
 </script>
 </body>
 </html>

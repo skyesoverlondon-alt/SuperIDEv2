@@ -11,7 +11,8 @@
     .shell{max-width:1150px;margin:0 auto;padding:16px;display:grid;gap:12px;} .topbar,.card{border:1px solid var(--line);border-radius:14px;background:rgba(7,15,21,.9);} .topbar{padding:12px 14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;}
     .brand{font-family:"Orbitron",sans-serif;text-transform:uppercase;letter-spacing:.09em;} .muted{color:var(--muted);font-size:.82rem;} .chip{border:1px solid rgba(255,203,71,.42);border-radius:999px;padding:5px 10px;color:#ffe6a5;background:rgba(255,203,71,.08);font-size:.74rem;}
     .card{padding:12px;display:grid;gap:10px;} .row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;} .row.two{grid-template-columns:1fr 1fr;}
-    input,select,button{width:100%;border:1px solid var(--line2);border-radius:10px;background:rgba(0,0,0,.34);color:var(--text);padding:9px 10px;font:inherit;} button{cursor:pointer;border-color:var(--line);background:rgba(44,230,255,.12);} button.primary{background:linear-gradient(135deg, rgba(255,203,71,.9), rgba(44,230,255,.78));color:#03131a;font-weight:700;border-color:rgba(255,203,71,.5);} .item{border:1px solid var(--line2);border-radius:12px;padding:10px;background:rgba(255,255,255,.03);margin-top:8px;}
+    input,select,button,textarea{width:100%;border:1px solid var(--line2);border-radius:10px;background:rgba(0,0,0,.34);color:var(--text);padding:9px 10px;font:inherit;} button{cursor:pointer;border-color:var(--line);background:rgba(44,230,255,.12);} button.primary{background:linear-gradient(135deg, rgba(255,203,71,.9), rgba(44,230,255,.78));color:#03131a;font-weight:700;border-color:rgba(255,203,71,.5);} .item{border:1px solid var(--line2);border-radius:12px;padding:10px;background:rgba(255,255,255,.03);margin-top:8px;}
+    .diag{border:1px solid var(--line2);border-radius:10px;padding:8px;color:var(--muted);font-size:.8rem;}
     a{color:#d8f7ff;} @media (max-width:900px){.row{grid-template-columns:1fr 1fr;}.row.two{grid-template-columns:1fr;}} @media (max-width:560px){.row{grid-template-columns:1fr;}}
   </style>
 </head>
@@ -36,6 +37,7 @@
       <button class="primary" id="add">Add Question</button>
     </div>
     <div class="row two"><button id="load">Load</button><button id="save">Save</button></div>
+    <div class="diag" id="logicDiagnostics">Conditional logic diagnostics pending.</div>
     <div class="muted" id="status">Ready.</div>
   </section>
 
@@ -44,13 +46,42 @@
 <script>
 const qs=new URLSearchParams(location.search);document.getElementById('ws').value=qs.get('ws_id')||'primary-workspace';document.getElementById('meta').textContent=`ws_id=${document.getElementById('ws').value}`;
 let questions=[];const status=document.getElementById('status');function setStatus(t){status.textContent=t}
+const logicDiagnostics=document.getElementById('logicDiagnostics');
 async function call(path,opt={}){const r=await fetch(path,{credentials:'include',...opt});const t=await r.text();let d={};try{d=t?JSON.parse(t):{}}catch{d={raw:t}}if(!r.ok)throw new Error(d.error||path+' failed ('+r.status+')');return d}
 async function auth(){const email=document.getElementById('email').value.trim();const password=document.getElementById('password').value;const org=document.getElementById('org').value.trim()||'SkyeForms Org';if(!email||!password)throw new Error('email/password required');try{await call('/api/auth-login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})})}catch{const signup=await call('/api/auth-signup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password,orgName:org})});if(signup?.kaixu_token?.token){localStorage.setItem('kx.api.accessToken',signup.kaixu_token.token);localStorage.setItem('kx.api.tokenEmail',signup.kaixu_token.locked_email||email.toLowerCase())}}}
 async function load(){await auth();const ws=document.getElementById('ws').value.trim();const d=await call('/api/app-record-list?ws_id='+encodeURIComponent(ws)+'&app=SkyeForms&limit=1');questions=Array.isArray(d.records)&&d.records[0]&&d.records[0].payload&&Array.isArray(d.records[0].payload.questions)?d.records[0].payload.questions:[];render();setStatus('Loaded forms model.')}
 async function save(){await auth();const ws=document.getElementById('ws').value.trim();await call('/api/app-record-save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ws_id:ws,app:'SkyeForms',title:'SkyeForms Questions',model:{questions}})});setStatus('Saved forms model.')}
-function add(){const p=document.getElementById('prompt').value.trim();if(!p)return setStatus('prompt required');questions.unshift({id:'form-'+Date.now(),prompt:p,type:document.getElementById('type').value,required:false,owner:'owner'});document.getElementById('prompt').value='';render()}
-function render(){const list=document.getElementById('list');list.innerHTML='';questions.forEach(q=>{const item=document.createElement('div');item.className='item';item.innerHTML='<strong>'+q.prompt+'</strong><div class="muted">type='+q.type+'</div>';const row=document.createElement('div');row.className='row two';row.style.marginTop='8px';const sel=document.createElement('select');['short_text','long_text','select'].forEach(t=>{const o=document.createElement('option');o.value=t;o.textContent=t;if(t===q.type)o.selected=true;sel.appendChild(o)});sel.onchange=()=>{questions=questions.map(x=>x.id===q.id?{...x,type:sel.value}:x)};const req=document.createElement('button');req.textContent=q.required?'Required':'Optional';req.onclick=()=>{questions=questions.map(x=>x.id===q.id?{...x,required:!x.required}:x);render()};row.appendChild(sel);row.appendChild(req);item.appendChild(row);list.appendChild(item);})}
+function add(){const p=document.getElementById('prompt').value.trim();if(!p)return setStatus('prompt required');questions.unshift({id:'form-'+Date.now(),prompt:p,type:document.getElementById('type').value,required:false,owner:'owner',condition:{depends_on:'',equals:''}});document.getElementById('prompt').value='';render()}
+function renderDiagnostics(){
+  const ids = new Set(questions.map((q)=>q.id));
+  const issues=[];
+  questions.forEach((q)=>{
+    if(q.condition?.depends_on && !ids.has(q.condition.depends_on)) issues.push(`Missing dependency target for ${q.prompt}`);
+    if(q.condition?.depends_on===q.id) issues.push(`Self dependency found in ${q.prompt}`);
+  });
+  logicDiagnostics.textContent = issues.length ? `Logic diagnostics: ${issues.join(' | ')}` : 'Logic diagnostics: no conditional wiring conflicts.';
+}
+function render(){const list=document.getElementById('list');list.innerHTML='';questions.forEach(q=>{const item=document.createElement('div');item.className='item';item.innerHTML='<strong>'+q.prompt+'</strong><div class="muted">type='+q.type+'</div>';const row=document.createElement('div');row.className='row two';row.style.marginTop='8px';const sel=document.createElement('select');['short_text','long_text','select'].forEach(t=>{const o=document.createElement('option');o.value=t;o.textContent=t;if(t===q.type)o.selected=true;sel.appendChild(o)});sel.onchange=()=>{questions=questions.map(x=>x.id===q.id?{...x,type:sel.value}:x)};const req=document.createElement('button');req.textContent=q.required?'Required':'Optional';req.onclick=()=>{questions=questions.map(x=>x.id===q.id?{...x,required:!x.required}:x);render()};row.appendChild(sel);row.appendChild(req);item.appendChild(row);
+const condRow=document.createElement('div');condRow.className='row two';condRow.style.marginTop='8px';
+const dep=document.createElement('select');const none=document.createElement('option');none.value='';none.textContent='condition: always visible';dep.appendChild(none);questions.filter(x=>x.id!==q.id).forEach((x)=>{const o=document.createElement('option');o.value=x.id;o.textContent='depends on: '+x.prompt.slice(0,28);if((q.condition?.depends_on||'')===x.id)o.selected=true;dep.appendChild(o)});
+dep.onchange=()=>{questions=questions.map(x=>x.id===q.id?{...x,condition:{...(x.condition||{}),depends_on:dep.value}}:x);render();};
+const eq=document.createElement('input');eq.placeholder='show when answer equals...';eq.value=q.condition?.equals||'';eq.onchange=()=>{questions=questions.map(x=>x.id===q.id?{...x,condition:{...(x.condition||{}),equals:eq.value}}:x);renderDiagnostics();};
+condRow.appendChild(dep);condRow.appendChild(eq);item.appendChild(condRow);
+list.appendChild(item);});renderDiagnostics();}
 document.getElementById('login').onclick=()=>auth().then(()=>setStatus('Session ready.')).catch(e=>setStatus(e.message));document.getElementById('load').onclick=()=>load().catch(e=>setStatus(e.message));document.getElementById('save').onclick=()=>save().catch(e=>setStatus(e.message));document.getElementById('add').onclick=add;render();
+</script>
+<button id="skye-tutorial-fab" type="button" style="position:fixed;right:16px;bottom:16px;z-index:10000;padding:10px 14px;border-radius:999px;border:1px solid rgba(191,238,255,.42);background:rgba(44,230,255,.2);color:#eff9ff;font-weight:700;cursor:pointer;">Start Tutorial</button>
+<div id="skye-tutorial-modal" style="display:none;position:fixed;inset:0;z-index:10001;background:rgba(2,6,23,.72);"></div>
+<script>
+(function(){
+  const fab=document.getElementById('skye-tutorial-fab');
+  const modal=document.getElementById('skye-tutorial-modal');
+  if(!fab||!modal) return;
+  const app=(document.title||'App').replace(/Standalone|Workspace|Command Surface|Platform/gi,'').trim();
+  modal.innerHTML='<div style="max-width:520px;margin:10vh auto;background:#07131a;color:#eff9ff;border:1px solid rgba(191,238,255,.32);border-radius:14px;padding:18px"><h3 style="margin:0 0 8px">'+app+' Quick Start</h3><ol style="margin:0 0 12px 18px;line-height:1.5"><li>Review auth and active workspace context.</li><li>Run one core workflow action in this app.</li><li>Save/export/share output and verify completion state.</li></ol><div style="display:flex;justify-content:flex-end"><button id="skye-tutorial-close" type="button" style="padding:8px 12px;border-radius:10px;border:1px solid rgba(191,238,255,.32);background:rgba(0,0,0,.34);color:#eff9ff;cursor:pointer;">Close</button></div></div>';
+  fab.addEventListener('click',()=>{modal.style.display='block';});
+  modal.addEventListener('click',(e)=>{if(e.target===modal||e.target.id==='skye-tutorial-close') modal.style.display='none';});
+})();
 </script>
 </body>
 </html>

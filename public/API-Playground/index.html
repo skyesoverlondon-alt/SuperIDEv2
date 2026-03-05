@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>API Playground | SuperIDE</title>
+  <script src="/_shared/gateway-retry.js"></script>
+  <style>
+    :root {
+      --bg: #09131f;
+      --panel: #12263a;
+      --ink: #e6eef8;
+      --muted: #9fb3c9;
+      --accent: #2dd4bf;
+      --warn: #f59e0b;
+      --ok: #22c55e;
+      --bad: #ef4444;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: "IBM Plex Sans", "Segoe UI", sans-serif; background: radial-gradient(circle at 20% 0%, #17314d, var(--bg)); color: var(--ink); }
+    .shell { max-width: 1200px; margin: 0 auto; padding: 20px; }
+    .row { display: grid; grid-template-columns: 1.1fr 1fr; gap: 16px; }
+    .card { background: color-mix(in oklab, var(--panel), black 14%); border: 1px solid #204263; border-radius: 14px; padding: 14px; }
+    label { display: block; font-size: 12px; color: var(--muted); margin: 8px 0 6px; text-transform: uppercase; letter-spacing: 0.06em; }
+    input, textarea, select, button { width: 100%; border-radius: 10px; border: 1px solid #2c4b69; background: #0d2032; color: var(--ink); padding: 10px; }
+    textarea { min-height: 130px; resize: vertical; }
+    .btns { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 10px; }
+    button { cursor: pointer; font-weight: 700; }
+    .primary { background: linear-gradient(135deg, #14b8a6, #0ea5e9); border: none; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th, td { border-bottom: 1px solid #27415c; padding: 8px; text-align: left; vertical-align: top; }
+    .ok { color: var(--ok); }
+    .bad { color: var(--bad); }
+    .muted { color: var(--muted); }
+    @media (max-width: 900px) { .row { grid-template-columns: 1fr; } .btns { grid-template-columns: repeat(2, 1fr); } }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <h1>API Playground</h1>
+    <p class="muted">Gateway-only request testing with persistent hash-chained ledger history.</p>
+
+    <div class="row">
+      <section class="card">
+        <label>Endpoint</label>
+        <input id="endpoint" value="/api/kaixu-generate" />
+        <label>Method</label>
+        <select id="method"><option>POST</option><option>GET</option></select>
+        <label>Access Token (optional)</label>
+        <input id="token" type="password" placeholder="Bearer token for gate" />
+        <label>Payload (JSON)</label>
+        <textarea id="payload">{
+  "ws_id": "primary-workspace",
+  "activePath": "/API-Playground/index.html",
+  "prompt": "Playground smoke ping"
+}</textarea>
+        <div class="btns">
+          <button id="sendBtn" class="primary">Send</button>
+          <button id="seedBtn">Seed Generate</button>
+          <button id="exportBtn">Export Logs</button>
+          <button id="clearBtn">Clear Logs</button>
+        </div>
+        <p id="status" class="muted">Idle.</p>
+      </section>
+
+      <section class="card">
+        <h3 style="margin-top:0">Response</h3>
+        <pre id="response" style="white-space:pre-wrap">No request yet.</pre>
+      </section>
+    </div>
+
+    <section class="card" style="margin-top:16px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+        <h3 style="margin:0">Ledger</h3>
+        <span id="chainState" class="muted">Chain unchecked</span>
+      </div>
+      <div style="overflow:auto;max-height:380px;">
+        <table>
+          <thead>
+            <tr><th>At</th><th>Endpoint</th><th>Status</th><th>ms</th><th>Hash</th></tr>
+          </thead>
+          <tbody id="ledger"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const LOG_KEY = "superide.apiplayground.hashlogs.v1";
+    const gatewayFetch = (window.SkyeGateway && window.SkyeGateway.fetchWithRetry) || fetch;
+
+    async function sha256(text) {
+      const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+      return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, "0")).join("");
+    }
+
+    function readLogs() {
+      try { return JSON.parse(localStorage.getItem(LOG_KEY) || "[]"); } catch { return []; }
+    }
+
+    function writeLogs(logs) {
+      localStorage.setItem(LOG_KEY, JSON.stringify(logs));
+    }
+
+    async function appendLog(entry) {
+      const logs = readLogs();
+      const prev = logs.length ? logs[logs.length - 1].hash : "GENESIS";
+      const canonical = JSON.stringify({ ...entry, prev_hash: prev });
+      const hash = await sha256(canonical);
+      logs.unshift({ ...entry, prev_hash: prev, hash });
+      writeLogs(logs.slice(0, 500));
+      await renderLedger();
+    }
+
+    async function renderLedger() {
+      const logs = readLogs();
+      const tbody = document.getElementById("ledger");
+      tbody.innerHTML = logs.map((r) => `
+        <tr>
+          <td>${new Date(r.at).toLocaleString()}</td>
+          <td>${r.endpoint}</td>
+          <td class="${r.status >= 200 && r.status < 300 ? "ok" : "bad"}">${r.status}</td>
+          <td>${r.ms}</td>
+          <td title="${r.hash}">${r.hash.slice(0, 14)}...</td>
+        </tr>
+      `).join("");
+
+      let prev = "GENESIS";
+      let ok = true;
+      for (let i = logs.length - 1; i >= 0; i -= 1) {
+        const row = logs[i];
+        const canonical = JSON.stringify({
+          at: row.at,
+          endpoint: row.endpoint,
+          method: row.method,
+          status: row.status,
+          ms: row.ms,
+          request_preview: row.request_preview,
+          response_preview: row.response_preview,
+          prev_hash: prev,
+        });
+        const expected = await sha256(canonical);
+        if (row.prev_hash !== prev || row.hash !== expected) { ok = false; break; }
+        prev = row.hash;
+      }
+      document.getElementById("chainState").textContent = ok ? "Chain: VALID" : "Chain: INVALID";
+      document.getElementById("chainState").className = ok ? "ok" : "bad";
+    }
+
+    function setStatus(msg) { document.getElementById("status").textContent = msg; }
+
+    async function send() {
+      const endpoint = document.getElementById("endpoint").value.trim();
+      const method = document.getElementById("method").value;
+      const token = document.getElementById("token").value.trim();
+      const payloadText = document.getElementById("payload").value;
+      const headers = { "Content-Type": "application/json" };
+      if (token) headers.Authorization = `Bearer ${token}`;
+
+      let payload = null;
+      try { payload = payloadText ? JSON.parse(payloadText) : null; }
+      catch (e) { setStatus(`Invalid JSON: ${e.message}`); return; }
+
+      const start = performance.now();
+      let status = 0;
+      let bodyText = "";
+      try {
+        const res = await gatewayFetch(endpoint, {
+          method,
+          headers,
+          credentials: "include",
+          body: method === "GET" ? undefined : JSON.stringify(payload),
+        });
+        status = res.status;
+        bodyText = await res.text();
+        document.getElementById("response").textContent = bodyText || "(empty)";
+        setStatus(`Done: ${status}`);
+      } catch (e) {
+        bodyText = String(e?.message || e);
+        document.getElementById("response").textContent = bodyText;
+        setStatus(`Failed: ${bodyText}`);
+      }
+
+      await appendLog({
+        at: new Date().toISOString(),
+        endpoint,
+        method,
+        status,
+        ms: Math.round(performance.now() - start),
+        request_preview: payloadText.slice(0, 600),
+        response_preview: bodyText.slice(0, 600),
+      });
+    }
+
+    document.getElementById("sendBtn").onclick = () => send();
+    document.getElementById("seedBtn").onclick = () => {
+      document.getElementById("endpoint").value = "/api/kaixu-generate";
+      document.getElementById("method").value = "POST";
+      document.getElementById("payload").value = JSON.stringify({
+        ws_id: new URLSearchParams(window.location.search).get("ws_id") || "primary-workspace",
+        activePath: "/API-Playground/index.html",
+        prompt: "Seeded gateway smoke prompt",
+      }, null, 2);
+    };
+    document.getElementById("exportBtn").onclick = () => {
+      const blob = new Blob([JSON.stringify(readLogs(), null, 2)], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `api-playground-ledger-${Date.now()}.json`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    };
+    document.getElementById("clearBtn").onclick = () => {
+      localStorage.removeItem(LOG_KEY);
+      renderLedger();
+      setStatus("Ledger cleared.");
+    };
+
+    renderLedger();
+  </script>
+</body>
+</html>
