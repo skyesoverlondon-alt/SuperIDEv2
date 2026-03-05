@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import Editor from "@monaco-editor/react";
+import { redactDiagnosticsValue } from "./redaction";
 import { filterSknoreFiles, isSknoreProtected, normalizeSknorePatterns } from "./sknore/policy";
 
 type Message = {
@@ -50,6 +51,8 @@ type ToolTab = "assistant" | "smokehouse" | "playground";
 type SkyeAppId =
   | "SkyeDocs"
   | "SkyeDocxPro"
+  | "SkyeBookx"
+  | "SkyePlatinum"
   | "REACT2HTML"
   | "SKYEMAIL-GEN"
   | "Skye-ID"
@@ -256,6 +259,8 @@ const HISTORY_PAGE_SIZE = 50;
 const SKYE_APPS: SkyeAppDefinition[] = [
   { id: "SkyeDocs", summary: "Collaborative document workspace.", mvp: ["Rich text", "Markdown mode", "Autosave"] },
   { id: "SkyeDocxPro", summary: "Full document production suite integrated into SuperIDE.", mvp: ["Advanced editor", "Offline-ready workflows", "Production-grade exports"] },
+  { id: "SkyeBookx", summary: "AI-native authoring and publishing surface.", mvp: ["Chapter drafting", "AI rewrite", "Compile preview"] },
+  { id: "SkyePlatinum", summary: "Executive command hub with kAIxU analysis.", mvp: ["Client registry", "Ledger ops", "AI directives"] },
   { id: "REACT2HTML", summary: "Convert React snippets into standalone HTML outputs.", mvp: ["kAIxU conversion", "Live preview", "Copy output"] },
   { id: "SKYEMAIL-GEN", summary: "Generate branded SKYEMAIL identities and exports.", mvp: ["Email generator", "Persistence", "PDF export"] },
   { id: "Skye-ID", summary: "Generate and archive identity cards with export workflows.", mvp: ["ID generator", "IndexedDB archive", "CSV/PDF export"] },
@@ -275,6 +280,8 @@ const SKYE_APPS: SkyeAppDefinition[] = [
 
 const APP_SURFACE_PATHS: Partial<Record<SkyeAppId, string>> = {
   SkyeDocxPro: "/SkyeDocxPro/index.html",
+  SkyeBookx: "/SkyeBookx/index.html",
+  SkyePlatinum: "/SkyePlatinum/index.html",
   "REACT2HTML": "/REACT2HTML/index.html",
   "SKYEMAIL-GEN": "/SKYEMAIL-GEN/index.html",
   "Skye-ID": "/Skye-ID/index.html",
@@ -318,6 +325,16 @@ const APP_TUTORIALS: Record<SkyeAppId, string[]> = {
     "Store recovery kit separately from passphrase vault and perform one recovery import drill.",
     "Run full export flow (PDF/TXT/HTML ZIP/.skye) and verify artifact integrity.",
     "Share resulting workspace update to team via Project Share.",
+  ],
+  SkyeBookx: [
+    "Open SkyeBookx and verify workspace context.",
+    "Run one kAIxU rewrite action through gateway.",
+    "Compile preview and export manuscript artifact.",
+  ],
+  SkyePlatinum: [
+    "Open command dashboard and verify org data sync.",
+    "Run kAIxU fiscal directive generation via gateway.",
+    "Capture action directives and validate ledger updates.",
   ],
   "REACT2HTML": [
     "Paste React component code into the input panel.",
@@ -396,7 +413,7 @@ const APP_TUTORIALS: Record<SkyeAppId, string[]> = {
   ],
 };
 
-const FEATURED_APP_IDS: SkyeAppId[] = ["REACT2HTML", "SKYEMAIL-GEN", "Skye-ID"];
+const FEATURED_APP_IDS: SkyeAppId[] = ["SkyeBookx", "REACT2HTML", "SKYEMAIL-GEN", "Skye-ID", "SkyePlatinum"];
 
 const DEFAULT_FILES: WorkspaceFile[] = [
   {
@@ -928,6 +945,16 @@ export function App() {
   const [skyeEncrypt, setSkyeEncrypt] = useState(true);
   const [isImportingSkye, setIsImportingSkye] = useState(false);
   const [showTutorialPanel, setShowTutorialPanel] = useState(false);
+  const [dismissedSpotlightByApp, setDismissedSpotlightByApp] = useState<Record<string, boolean>>(() => {
+    const raw = localStorage.getItem("kx.skye.spotlight.dismissed");
+    if (!raw) return {};
+    try {
+      const parsed = JSON.parse(raw) as Record<string, boolean>;
+      return parsed && typeof parsed === "object" ? parsed : {};
+    } catch {
+      return {};
+    }
+  });
   const [newFilePath, setNewFilePath] = useState("src/new-file.ts");
   const [ideCommitMessage, setIdeCommitMessage] = useState("SuperIDE workspace update");
   const [ideOpsResult, setIdeOpsResult] = useState("");
@@ -941,6 +968,27 @@ export function App() {
       setAppMode("neural");
     }
   }, [initialMode]);
+
+  useEffect(() => {
+    function onShellHotkey(event: KeyboardEvent) {
+      if (!(event.altKey || event.ctrlKey)) return;
+      if (event.key.toLowerCase() === "t") {
+        event.preventDefault();
+        setShowTutorialPanel((old) => !old);
+      }
+      if (event.key.toLowerCase() === "r") {
+        event.preventDefault();
+        resetSelectedAppDemoState();
+      }
+      if (event.key.toLowerCase() === "m") {
+        event.preventDefault();
+        setToolTab("smokehouse");
+      }
+    }
+
+    window.addEventListener("keydown", onShellHotkey);
+    return () => window.removeEventListener("keydown", onShellHotkey);
+  }, [selectedSkyeApp]);
 
   const healthUrl = useMemo(() => `${normalizeBaseUrl(workerUrl)}/health`, [workerUrl]);
   const activeFile = useMemo(() => files.find((file) => file.path === activePath) || files[0], [files, activePath]);
@@ -1029,6 +1077,10 @@ export function App() {
   useEffect(() => {
     localStorage.setItem("kx.skye.apps.tutorial", JSON.stringify(tutorialChecks));
   }, [tutorialChecks]);
+
+  useEffect(() => {
+    localStorage.setItem("kx.skye.spotlight.dismissed", JSON.stringify(dismissedSpotlightByApp));
+  }, [dismissedSpotlightByApp]);
 
   useEffect(() => {
     localStorage.setItem("kx.sknore.patterns", sknoreText);
@@ -1393,6 +1445,97 @@ export function App() {
     () => SKYE_APPS.flatMap((app) => app.mvp.map((item) => mvpChecks[makeMvpKey(app.id, item)])).filter(Boolean).length,
     [mvpChecks]
   );
+  const smokeFailCount = useMemo(() => smokeResults.filter((result) => !result.ok).length, [smokeResults]);
+  const hasApiKeyLoaded = Boolean(apiAccessToken.trim());
+  const tokenMisuseState = useMemo<"none" | "missing-token-email" | "invalid-token-email" | "token-email-mismatch">(() => {
+    const token = apiAccessToken.trim();
+    const email = apiTokenEmail.trim().toLowerCase();
+    if (!token) return "none";
+    if (!email) return "missing-token-email";
+    const isValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    if (!isValid) return "invalid-token-email";
+    const auth = authUser.trim().toLowerCase();
+    if (auth && auth !== email) return "token-email-mismatch";
+    return "none";
+  }, [apiAccessToken, apiTokenEmail, authUser]);
+  const selectedAppHealthSignal = useMemo(() => {
+    const latestSmoke = smokeResults.length ? smokeResults[smokeResults.length - 1] : null;
+    const appMvpDone = selectedAppDefinition.mvp.filter((item) => mvpChecks[makeMvpKey(selectedSkyeApp, item)]).length;
+    const appTutorialDone = (APP_TUTORIALS[selectedSkyeApp] || []).filter((step) => tutorialChecks[makeTutorialKey(selectedSkyeApp, step)]).length;
+    const smokeText = latestSmoke ? (latestSmoke.ok ? "smoke=pass" : "smoke=fail") : "smoke=n/a";
+    return `mvp=${appMvpDone}/${selectedAppDefinition.mvp.length} · tutorial=${appTutorialDone}/${(APP_TUTORIALS[selectedSkyeApp] || []).length} · ${smokeText} · key=${hasApiKeyLoaded ? "loaded" : "missing"}`;
+  }, [selectedSkyeApp, selectedAppDefinition, mvpChecks, tutorialChecks, smokeResults, hasApiKeyLoaded]);
+  const failSafeSignals = useMemo(() => {
+    const next: string[] = [];
+    if (assistantAuthStatus !== "ok") next.push(`auth=${assistantAuthStatus}`);
+    if (!hasApiKeyLoaded) next.push("key=missing");
+    if (tokenMisuseState !== "none") next.push(`token_misuse=${tokenMisuseState}`);
+    if (runnerStatus === "fail") next.push("worker=degraded");
+    if (smokeFailCount > 0) next.push(`smoke_failures=${smokeFailCount}`);
+    return next;
+  }, [assistantAuthStatus, hasApiKeyLoaded, tokenMisuseState, runnerStatus, smokeFailCount]);
+  const showFailSafeBanner = failSafeSignals.length > 0;
+
+  function dismissCurrentSpotlight() {
+    setDismissedSpotlightByApp((old) => ({ ...old, [selectedSkyeApp]: true }));
+  }
+
+  function resetSelectedAppDemoState() {
+    if (selectedSkyeApp === "SkyeSheets") setSheetsModel({ title: "SkyeSheets Board", columns: ["A", "B", "C", "D", "E"], rows: [] });
+    if (selectedSkyeApp === "SkyeSlides") setSlidesModel({ title: "SkyeSlides Deck", slides: [] });
+    if (selectedSkyeApp === "SkyeTasks") setTasksModel([]);
+    if (selectedSkyeApp === "SkyeCalendar") setCalendarEvents([]);
+    if (selectedSkyeApp === "SkyeDrive") setDriveAssets([]);
+    if (selectedSkyeApp === "SkyeVault") setVaultSecrets([]);
+    if (selectedSkyeApp === "SkyeForms") setFormQuestions([]);
+    if (selectedSkyeApp === "SkyeNotes") setNotesModel([]);
+    if (selectedSkyeApp === "SkyeAnalytics") setSmokeResults([]);
+    setSuiteSyncResult(`Reset demo state for ${selectedSkyeApp}.`);
+  }
+
+  function exportAppHealthSnapshot() {
+    const latestSmoke = smokeResults.length ? smokeResults[smokeResults.length - 1] : null;
+    const payload = {
+      exported_at: new Date().toISOString(),
+      app_id: selectedSkyeApp,
+      workspace_id: workspaceId,
+      auth_status: assistantAuthStatus,
+      api_key_loaded: hasApiKeyLoaded,
+      runner_status: runnerStatus,
+      smoke: {
+        total: smokeResults.length,
+        failed: smokeFailCount,
+        latest: latestSmoke
+          ? {
+              name: latestSmoke.name,
+              ok: latestSmoke.ok,
+              status: latestSmoke.status,
+              summary: latestSmoke.summary,
+            }
+          : null,
+      },
+      app_health_signal: selectedAppHealthSignal,
+      fail_safe_signals: failSafeSignals,
+      mvp_progress: {
+        completed: selectedAppDefinition.mvp.filter((item) => mvpChecks[makeMvpKey(selectedSkyeApp, item)]).length,
+        total: selectedAppDefinition.mvp.length,
+      },
+      tutorial_progress: {
+        completed: (APP_TUTORIALS[selectedSkyeApp] || []).filter((step) => tutorialChecks[makeTutorialKey(selectedSkyeApp, step)]).length,
+        total: (APP_TUTORIALS[selectedSkyeApp] || []).length,
+      },
+    };
+
+    const redacted = redactDiagnosticsValue(payload);
+    const blob = new Blob([JSON.stringify(redacted, null, 2)], { type: "application/json" });
+    const href = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = href;
+    a.download = `${selectedSkyeApp}-health-snapshot-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(href);
+    setSuiteSyncResult(`Exported health snapshot for ${selectedSkyeApp}.`);
+  }
 
   async function runSmokeTest() {
     setIsSmokeChecking(true);
@@ -1413,8 +1556,11 @@ export function App() {
     } catch (error: any) {
       const workerFetchBlocked = /failed to fetch|networkerror|load failed/i.test(String(error?.message || ""));
       if (workerFetchBlocked) {
-        setRunnerStatus("ok");
-        return { ok: true, text: "Smoke passed: worker is likely policy/CORS protected from browser fetch; validate with server-side script." };
+        setRunnerStatus("fail");
+        return {
+          ok: false,
+          text: "Smoke failed: worker fetch blocked at browser boundary (CORS/access/policy). Treat as failed until server-side smoke confirms reachability.",
+        };
       }
       setRunnerStatus("fail");
       return { ok: false, text: `Smoke failed: ${error?.message || "network error"}` };
@@ -1615,8 +1761,8 @@ export function App() {
             method: check.method,
             url: check.url,
             status: 0,
-            ok: true,
-            summary: "Worker check blocked by browser CORS/Access boundary; treat as reachable policy boundary and validate with server-side smokehouse script.",
+            ok: false,
+            summary: "Worker check blocked by browser CORS/Access boundary. This is a failed gate until server-side smoke confirms reachability.",
           });
           continue;
         }
@@ -1692,7 +1838,10 @@ export function App() {
 
     try {
       const headers = tryParseJson(playHeaders);
-      const baseHeaders = typeof headers === "object" && headers ? { ...(headers as Record<string, string>) } : { "Content-Type": "application/json" };
+      const baseHeaders: Record<string, string> =
+        typeof headers === "object" && headers
+          ? { ...(headers as Record<string, string>) }
+          : { "Content-Type": "application/json" };
       const authHeaders = getAccessAuthHeaders();
       if (authHeaders.Authorization && !(baseHeaders.Authorization || baseHeaders.authorization)) {
         baseHeaders.Authorization = authHeaders.Authorization;
@@ -2934,7 +3083,13 @@ export function App() {
       );
     }
 
-    if (selectedSkyeApp === "REACT2HTML" || selectedSkyeApp === "SKYEMAIL-GEN" || selectedSkyeApp === "Skye-ID") {
+    if (
+      selectedSkyeApp === "REACT2HTML" ||
+      selectedSkyeApp === "SKYEMAIL-GEN" ||
+      selectedSkyeApp === "Skye-ID" ||
+      selectedSkyeApp === "SkyeBookx" ||
+      selectedSkyeApp === "SkyePlatinum"
+    ) {
       const surfacePath = APP_SURFACE_PATHS[selectedSkyeApp] || "/";
       const surfaceHref = `${surfacePath}?ws_id=${encodeURIComponent(workspaceId)}`;
       return (
@@ -3816,6 +3971,22 @@ export function App() {
         </button>
       </section>
 
+      {showFailSafeBanner && (
+        <section className="smoke-warning" style={{ margin: "10px 12px 0 12px" }}>
+          <strong>Fail-Safe Mode Active</strong>
+          <div>Core dependencies are degraded. Actions that depend on auth, gateway, or worker may be restricted.</div>
+          <div>Signals: {failSafeSignals.join(" · ")}</div>
+        </section>
+      )}
+
+      {tokenMisuseState !== "none" && (
+        <section className="smoke-warning" style={{ margin: "10px 12px 0 12px" }}>
+          <strong>Token Misuse Detected</strong>
+          <div>State: {tokenMisuseState}</div>
+          <div>Set a valid token-locked email that matches the active auth user to avoid authorization failures.</div>
+        </section>
+      )}
+
       <div className="workspace-body">
         <aside className="file-pane">
           <div className="mode-switch">
@@ -3998,6 +4169,37 @@ export function App() {
               </section>
             ) : (
               <>
+                <section className="app-module" style={{ marginBottom: 10 }}>
+                  <header>
+                    <h2>{selectedSkyeApp} Quick Start</h2>
+                    <p>Launch the guided checklist directly from the active module surface.</p>
+                  </header>
+                  {!dismissedSpotlightByApp[selectedSkyeApp] && (
+                    <div className="smoke-warning">
+                      <strong>First-Run Spotlight</strong>
+                      <div>Use Start Tutorial, validate auth/key context, then run one real workflow and save/export.</div>
+                      <div className="tool-actions left">
+                        <button className="ghost" type="button" onClick={() => setShowTutorialPanel(true)}>Open Tutorial Now</button>
+                        <button className="ghost" type="button" onClick={dismissCurrentSpotlight}>Dismiss Spotlight</button>
+                      </div>
+                    </div>
+                  )}
+                  <p className="muted-copy">App health: {selectedAppHealthSignal}</p>
+                  <div className="tool-actions left">
+                    <button className="ghost" type="button" onClick={() => setShowTutorialPanel(true)}>
+                      Start Tutorial
+                    </button>
+                    <button className="ghost" type="button" onClick={() => setShowTutorialPanel((old) => !old)}>
+                      {showTutorialPanel ? "Hide Tutorial" : "Toggle Tutorial"}
+                    </button>
+                    <button className="ghost" type="button" onClick={exportAppHealthSnapshot}>
+                      Export Health Snapshot
+                    </button>
+                    <button className="ghost" type="button" onClick={resetSelectedAppDemoState}>
+                      Reset App Demo State
+                    </button>
+                  </div>
+                </section>
                 {renderAppModule()}
                 {showTutorialPanel && renderTutorialPanel(selectedSkyeApp)}
               </>
@@ -4076,6 +4278,12 @@ export function App() {
 
           {toolTab === "smokehouse" && (
             <div className="tool-panel">
+              <div className="smoke-warning">
+                <strong>Health Gate Matrix</strong>
+                <div>Auth: {assistantAuthStatus.toUpperCase()} · Key: {hasApiKeyLoaded ? "LOADED" : "MISSING"}</div>
+                <div>Latest Smoke: {smokeResults.length ? `${smokeResults.length - smokeFailCount}/${smokeResults.length} passing` : "No run yet"}</div>
+                {smokeFailCount > 0 && <div>Blocking failures detected: {smokeFailCount}</div>}
+              </div>
               <div className="tool-actions">
                 <button type="button" className="ghost" onClick={() => void runSmokehouseSuite("manual")} disabled={isSmokeChecking}>
                   {isSmokeChecking ? "Running..." : "Run Full Smoke"}

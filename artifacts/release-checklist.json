@@ -1,0 +1,52 @@
+{
+  "generated_at": "2026-03-05T09:55:49.791Z",
+  "blocking_failures": 0,
+  "ok": true,
+  "checks": [
+    {
+      "id": "gateway_only",
+      "blocking": true,
+      "ok": true,
+      "exit_code": 0,
+      "duration_ms": 342,
+      "stdout": "\n> kaixu-superide-vnext@1.0.0 check:gateway-only\n> node scripts/check-gateway-only.js\n\n[gateway-check] PASS: gateway-only policy enforced.\n",
+      "stderr": ""
+    },
+    {
+      "id": "provider_strings",
+      "blocking": true,
+      "ok": true,
+      "exit_code": 0,
+      "duration_ms": 253,
+      "stdout": "\n> kaixu-superide-vnext@1.0.0 check:provider-strings\n> node scripts/check-provider-strings.js\n\n[provider-strings] PASS\n",
+      "stderr": ""
+    },
+    {
+      "id": "secure_defaults",
+      "blocking": true,
+      "ok": true,
+      "exit_code": 0,
+      "duration_ms": 283,
+      "stdout": "\n> kaixu-superide-vnext@1.0.0 check:secure-defaults\n> node scripts/check-secure-defaults.js\n\n[secure-defaults] PASS: required secure defaults are present.\n",
+      "stderr": ""
+    },
+    {
+      "id": "skye_schema",
+      "blocking": true,
+      "ok": true,
+      "exit_code": 0,
+      "duration_ms": 256,
+      "stdout": "\n> kaixu-superide-vnext@1.0.0 check:skye-schema\n> node scripts/check-skye-schema.js\n\n[skye-schema] PASS (2 samples)\n",
+      "stderr": ""
+    },
+    {
+      "id": "build",
+      "blocking": true,
+      "ok": true,
+      "exit_code": 0,
+      "duration_ms": 4486,
+      "stdout": "\n> kaixu-superide-vnext@1.0.0 prebuild\n> npm run sync:surfaces\n\n\n> kaixu-superide-vnext@1.0.0 sync:surfaces\n> npm run sync:docxpro && npm run sync:neural\n\n\n> kaixu-superide-vnext@1.0.0 sync:docxpro\n> rm -rf public/SkyeDocxPro && mkdir -p public && cp -R SkyeDocxPro public/SkyeDocxPro\n\n\n> kaixu-superide-vnext@1.0.0 sync:neural\n> rm -rf public/Neural-Space-Pro && mkdir -p public && cp -R Neural-Space-Pro public/Neural-Space-Pro\n\n\n> kaixu-superide-vnext@1.0.0 build\n> vite build\n\nvite v6.4.1 building for production...\ntransforming...\n✓ 245 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/index.html                   0.47 kB │ gzip:   0.31 kB\ndist/assets/index-C4qoxVRR.css   19.91 kB │ gzip:   5.14 kB\ndist/assets/index-E0i785y-.js   335.65 kB │ gzip: 103.44 kB\n✓ built in 2.89s\n",
+      "stderr": ""
+    }
+  ]
+}

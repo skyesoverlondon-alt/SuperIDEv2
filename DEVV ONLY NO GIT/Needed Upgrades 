@@ -1,0 +1,201 @@
+SUPERIDEV2 NEXT ROUND UPGRADE LIST (ROUND 2)
+Date: 2026-03-05
+Owner intent: Skye Standard plus enterprise hardening.
+Constraint: Do NOT modify SkyeDocxPro, Skye-ID, SKYEMAIL-GEN.
+
+==================================================
+0) ROUND 2 MISSION
+==================================================
+
+- [ ] Move from feature-complete to release-hardened.
+- [ ] Standardize reliability, observability, and security behavior across all app surfaces.
+- [ ] Convert manual quality checks into enforceable automated gates.
+- [ ] Prepare production-grade handoff artifacts for procurement and enterprise review.
+
+
+==================================================
+1) GLOBAL PLATFORM HARDENING
+==================================================
+
+[RELIABILITY]
+- [x] Define uptime and latency SLO targets per app class (interactive, AI, export, admin).
+- [x] Add shared retry/backoff utility for gateway calls in all standalone apps.
+- [x] Add idempotency keys for write-heavy workflows (mail send, chat notify, task updates, vault rotations).
+- [x] Add cross-app fail-safe mode banner when core dependencies degrade.
+
+[OBSERVABILITY]
+- [x] Add unified client telemetry envelope (app, action, duration, outcome, error code, ws_id).
+- [x] Add frontend error fingerprinting with user-safe reporting IDs.
+- [x] Add correlation IDs from UI to Netlify function logs.
+- [x] Add per-app health snapshot export for support diagnostics.
+
+[SECURITY]
+- [x] Enforce gateway-only AI call path validation in CI.
+- [x] Add token misuse detection (email mismatch, expired token, scope mismatch) with explicit UX states.
+- [x] Add sensitive field redaction policy for all exported diagnostics.
+- [x] Add secure defaults check script for headers, CSP notes, and storage handling.
+
+[QUALITY GATES]
+- [x] Add smoke contract matrix file with blocking/non-blocking checks.
+- [x] Add policy gate ensuring no forbidden provider strings in gateway-only surfaces.
+- [x] Add schema version validator for all `.skye` import paths.
+- [x] Add release checklist runner that emits pass/fail JSON artifact.
+
+
+==================================================
+2) SUPERIDE SHELL ROUND 2
+==================================================
+
+- [ ] Add release cockpit panel with live gate status per app.
+- [ ] Add app readiness score (auth, smoke, export, tutorial, policy, mobile).
+- [ ] Add workspace-level dependency status panel (gateway, auth, storage, functions).
+- [ ] Add one-click "Run App Proof" flow that opens app, executes smoke probes, and stores result.
+- [ ] Add signed build metadata block in shell footer for traceability.
+- [ ] Add keyboard command palette for app-specific quick actions.
+
+
+==================================================
+3) STANDALONE APP ROUND 2 TARGETS
+==================================================
+
+APP: SkyeBookx
+- [ ] Add chapter consistency analyzer (tone drift, tense drift, duplicated beats).
+- [ ] Add scene card navigator with reorder and impact preview.
+- [ ] Add manuscript export pack (PDF + JSON manifest + checksum).
+- [ ] Add recovery mode for oversized cloud payload fallback to local pack.
+
+APP: SkyePlatinum
+- [ ] Add directive workflow states (new, accepted, delegated, completed).
+- [ ] Add financial anomaly trend panel with confidence scoring.
+- [ ] Add executive report export with source references.
+- [ ] Add role-based action lock for high-risk ledger updates.
+
+APP: SkyeCalendar
+- [ ] Add drag-and-drop scheduling interactions with conflict auto-suggestions.
+- [ ] Add dependency chain timeline and slip impact panel.
+- [ ] Add meeting workload heatmap by owner/team.
+- [ ] Add reminder delivery audit trail panel.
+
+APP: SkyeTasks
+- [ ] Add dependency graph view with blocked root-cause highlighting.
+- [ ] Add SLA breach escalation routing templates.
+- [ ] Add workload balancing suggestions per assignee.
+- [ ] Add completion quality checklist templates by task type.
+
+APP: SkyeMail
+- [ ] Add send policy preflight (recipient risk, missing data, content class warnings).
+- [ ] Add delivery queue monitor with retry backoff controls.
+- [ ] Add message template library with approval tags.
+- [ ] Add outbound audit export with correlation IDs.
+
+APP: SkyeChat
+- [ ] Add decision extraction into Tasks and Calendar with provenance links.
+- [ ] Add moderation timeline with reversible actions.
+- [ ] Add channel quality signals (response lag, unresolved count, action debt).
+- [ ] Add digest export with structured summary schema.
+
+APP: SKNore
+- [ ] Add policy compiler with severity tiers.
+- [ ] Add rule overlap visualization and risk scoring.
+- [ ] Add policy test suite presets for common enterprise profiles.
+- [ ] Add policy pack signing and verification flow.
+
+APP: Neural Space Pro
+- [ ] Add multi-stage run pipeline (ingest, reason, compose, verify, publish).
+- [ ] Add checkpoint restore with deterministic replay notes.
+- [ ] Add context budget inspector and citation confidence panel.
+- [ ] Add direct publish bridges to Docs, Tasks, Slides, Calendar with receipts.
+
+APP: SkyeDrive
+- [ ] Add immutable artifact mode with retention policy tags.
+- [ ] Add share-link governance (expiry, revoke, download cap).
+- [ ] Add content integrity verify-on-open path.
+- [ ] Add storage pressure predictor and cleanup assistant.
+
+APP: SkyeVault
+- [ ] Add secret access approval workflow.
+- [ ] Add usage attestation logging for secret consumers.
+- [ ] Add rotation playbooks by scope profile.
+- [ ] Add emergency break-glass session auditing.
+
+APP: SkyeForms
+- [ ] Add workflow routing from responses to Tasks and Mail actions.
+- [ ] Add anti-abuse heuristics and suspicious submission flags.
+- [ ] Add form versioning with rollback support.
+- [ ] Add certified response archive bundle export.
+
+APP: SkyeNotes
+- [ ] Add linked knowledge graph with action extraction.
+- [ ] Add stale-note detection and refresh prompts.
+- [ ] Add canonical source pinning and conflict warnings.
+- [ ] Add decision-to-task conversion helper.
+
+APP: SkyeSlides
+- [ ] Add narrative coherence scoring and pacing hints.
+- [ ] Add slide policy checks for sensitive text patterns.
+- [ ] Add speaker timeline rehearsal report.
+- [ ] Add approved export pipeline with presentation manifest.
+
+APP: SkyeSheets
+- [ ] Add dependency-aware formula audit map.
+- [ ] Add row-level validation rules and exception report.
+- [ ] Add branded scheduled report generation.
+- [ ] Add signed workbook export with integrity summary.
+
+APP: SkyeAnalytics
+- [ ] Add metric confidence scoring from freshness and completeness.
+- [ ] Add anomaly classifier with explainability notes.
+- [ ] Add executive mode dashboards with saved profiles.
+- [ ] Add KPI source lineage explorer.
+
+APP: SkyeAdmin
+- [ ] Add access review campaign engine.
+- [ ] Add org policy templates with enforcement preview.
+- [ ] Add risky action approval queue.
+- [ ] Add admin audit pack export with filters.
+
+
+==================================================
+4) ENGINEERING AND CI ROUND 2
+==================================================
+
+- [ ] Add static scan to block direct external AI endpoint usage.
+- [ ] Add fixture-based tests for gateway response shape tolerance.
+- [ ] Add regression test suite for key auth flows across standalone apps.
+- [ ] Add schema tests for all export/import payloads.
+- [ ] Add deterministic smoke script output snapshots.
+- [ ] Add release artifact generator bundling smoke, policy, and build metadata.
+
+
+==================================================
+5) RELEASE GATES ROUND 2
+==================================================
+
+GATE A: Security Integrity
+- [ ] Gateway-only enforcement check passes.
+- [ ] Token/authorization hardening checks pass.
+- [ ] Sensitive export redaction checks pass.
+
+GATE B: Reliability Integrity
+- [ ] Smoke matrix all critical checks passing.
+- [ ] Retry/idempotency behavior validated for critical writes.
+- [ ] Degraded-mode UX behavior validated.
+
+GATE C: Data Integrity
+- [ ] `.skye` schema validation pass across apps.
+- [ ] Export/import round-trip pass for all primary surfaces.
+- [ ] Audit trace integrity validated.
+
+GATE D: Executive Readiness
+- [ ] Release cockpit shows all target apps green.
+- [ ] Procurement handoff packet regenerated.
+- [ ] Final risk register closed or explicitly accepted.
+
+
+==================================================
+6) PROTECTED APPS (NO TOUCH)
+==================================================
+
+- [ ] SkyeDocxPro
+- [ ] Skye-ID
+- [ ] SKYEMAIL-GEN

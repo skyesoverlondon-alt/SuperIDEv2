@@ -10,6 +10,11 @@
     "predev": "npm run sync:surfaces",
     "dev": "vite",
     "prebuild": "npm run sync:surfaces",
+    "check:gateway-only": "node scripts/check-gateway-only.js",
+    "check:provider-strings": "node scripts/check-provider-strings.js",
+    "check:secure-defaults": "node scripts/check-secure-defaults.js",
+    "check:skye-schema": "node scripts/check-skye-schema.js",
+    "release:checklist": "node scripts/run-release-checklist.js",
     "build": "vite build",
     "preview": "vite preview"
   },

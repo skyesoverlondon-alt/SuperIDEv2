@@ -6,6 +6,10 @@
   <title>React to HTML Converter (kAIxU)</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="/_shared/gateway-retry.js"></script>
+  <script src="/_shared/telemetry.js"></script>
+  <script src="/_shared/error-fingerprint.js"></script>
+  <script src="/_shared/correlation.js"></script>
   <style>
     ::selection { background: rgba(99,102,241,.25); }
     textarea { tab-size: 2; }
@@ -40,7 +44,17 @@
     </div>
 
     <section class="px-6 py-3 border-b border-slate-200 bg-white">
-      <div class="max-w-[1600px] mx-auto grid gap-2 md:grid-cols-[1.6fr_1fr_auto_auto] items-end">
+      <div class="max-w-[1600px] mx-auto grid gap-2 md:grid-cols-[1.2fr_1.2fr_1fr_auto_auto] items-end">
+        <label class="text-xs font-semibold text-slate-600 uppercase tracking-wider">
+          Preset
+          <select id="presetSelect" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white">
+            <option value="counter">Counter Widget</option>
+            <option value="landing">Landing Hero</option>
+            <option value="dashboard">Metrics Dashboard</option>
+            <option value="email">Email Layout</option>
+          </select>
+        </label>
+        <button id="applyPresetBtn" class="h-10 px-4 rounded-lg border border-slate-300 bg-slate-100 text-slate-700 font-semibold">Apply Preset</button>
         <label class="text-xs font-semibold text-slate-600 uppercase tracking-wider">
           kAIxU Access Key
           <input id="keyInput" type="password" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" placeholder="kx_at_..." />
@@ -52,6 +66,8 @@
         <button id="saveAuthBtn" class="h-10 px-4 rounded-lg border border-indigo-300 bg-indigo-50 text-indigo-700 font-semibold">Save Auth</button>
         <button id="clearAuthBtn" class="h-10 px-4 rounded-lg border border-slate-300 bg-slate-100 text-slate-700 font-semibold">Clear Auth</button>
       </div>
+      <div id="preflightPanel" class="max-w-[1600px] mx-auto mt-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900"></div>
+      <div id="qaPanel" class="max-w-[1600px] mx-auto mt-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-900">QA diagnostics pending first build.</div>
     </section>
 
     <main class="flex-1 flex flex-col lg:flex-row gap-6 p-6 max-w-[1600px] w-full mx-auto overflow-hidden">
@@ -123,6 +139,10 @@
       const emailInput = document.getElementById('emailInput');
       const saveAuthBtn = document.getElementById('saveAuthBtn');
       const clearAuthBtn = document.getElementById('clearAuthBtn');
+      const presetSelect = document.getElementById('presetSelect');
+      const applyPresetBtn = document.getElementById('applyPresetBtn');
+      const preflightPanel = document.getElementById('preflightPanel');
+      const qaPanel = document.getElementById('qaPanel');
       const loadingOverlay = document.getElementById('loadingOverlay');
       const errorOverlay = document.getElementById('errorOverlay');
       const errorText = document.getElementById('errorText');
@@ -134,15 +154,58 @@
       let outputHtml = '';
       let isLoading = false;
       let activeTab = 'preview';
+      const gatewayFetch = (window.SkyeGateway && window.SkyeGateway.fetchWithRetry) || fetch;
+      const telemetryEmit = (window.SkyeTelemetry && window.SkyeTelemetry.emit) || (async () => {});
+      const errorFingerprint = (window.SkyeError && window.SkyeError.fingerprint) || (() => 'E-UNKNOWN');
 
-      inputCodeEl.value = `import React, { useState } from 'react';\n\nexport default function Counter() {\n  const [count, setCount] = useState(0);\n\n  return (\n    <div className="p-4 bg-blue-50 rounded-lg text-center font-sans">\n      <h2 className="text-2xl font-bold mb-4 text-blue-800">React Counter</h2>\n      <p className="mb-4 text-lg text-gray-700">Current count: {count}</p>\n      <button\n        onClick={() => setCount(count + 1)}\n        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"\n      >\n        Increment\n      </button>\n    </div>\n  );\n}`;
+      const presets = {
+        counter: `import React, { useState } from 'react';\n\nexport default function Counter() {\n  const [count, setCount] = useState(0);\n  return (<div className=\"p-4\"><h2>Counter</h2><p>{count}</p><button onClick={() => setCount(count + 1)}>Increment</button></div>);\n}`,
+        landing: `import React from 'react';\n\nexport default function Hero(){\n  return (<section className=\"p-8 bg-slate-900 text-white\"><h1>Launch Fast</h1><p>Build with confidence.</p><button>Start</button></section>);\n}`,
+        dashboard: `import React from 'react';\n\nexport default function Dashboard(){\n  return (<div className=\"grid grid-cols-3 gap-3\">{['Revenue','Churn','NPS'].map((k,i)=><article key={k} className=\"p-4 bg-white rounded\"><h3>{k}</h3><strong>{(i+1)*12}%</strong></article>)}</div>);\n}`,
+        email: `import React from 'react';\n\nexport default function Mail(){\n  return (<table width=\"100%\" cellPadding=\"0\" cellSpacing=\"0\"><tbody><tr><td><h2>Weekly Update</h2><p>Your summary is ready.</p><a href=\"#\">View dashboard</a></td></tr></tbody></table>);\n}`,
+      };
+
+      inputCodeEl.value = presets.counter;
+
+      function runPreflight(text) {
+        const code = String(text || '');
+        const issues = [];
+        const warnings = [];
+        if (/dangerouslySetInnerHTML/.test(code)) issues.push('Uses dangerouslySetInnerHTML; requires manual sanitization review.');
+        if (/useEffect\s*\(.*fetch\(/s.test(code)) warnings.push('Contains async fetch in useEffect; conversion may need manual lifecycle adjustment.');
+        if (/import\s+.*from\s+['"](?!react|react-dom)/.test(code)) warnings.push('Contains non-React external imports; verify output dependencies.');
+        if (!/export\s+default\s+function|const\s+\w+\s*=\s*\(?.*=>/.test(code)) warnings.push('No explicit component export pattern detected.');
+        const tone = issues.length ? 'border-red-200 bg-red-50 text-red-900' : 'border-amber-200 bg-amber-50 text-amber-900';
+        preflightPanel.className = 'max-w-[1600px] mx-auto mt-2 rounded-lg border p-3 text-xs ' + tone;
+        preflightPanel.innerHTML = '<strong>Preflight:</strong> ' +
+          (issues.length || warnings.length
+            ? [...issues.map((x) => 'ERROR: ' + x), ...warnings.map((x) => 'WARN: ' + x)].join(' | ')
+            : 'No obvious blockers detected.');
+      }
+
+      function renderQaDiagnostics(html) {
+        const text = String(html || '');
+        if (!text) {
+          qaPanel.textContent = 'QA diagnostics pending first build.';
+          return;
+        }
+        const scripts = (text.match(/<script\b/gi) || []).length;
+        const externalLinks = (text.match(/https?:\/\//gi) || []).length;
+        const imgs = [...text.matchAll(/<img\b[^>]*>/gi)].map((m) => m[0]);
+        const imgNoAlt = imgs.filter((tag) => !/\balt\s*=/.test(tag)).length;
+        const buttons = [...text.matchAll(/<button\b[^>]*>([\s\S]*?)<\/button>/gi)].map((m) => (m[1] || '').replace(/<[^>]+>/g, '').trim());
+        const unlabeledButtons = buttons.filter((label) => !label).length;
+        qaPanel.textContent = `QA: scripts=${scripts}, external_refs=${externalLinks}, images_missing_alt=${imgNoAlt}, unlabeled_buttons=${unlabeledButtons}`;
+      }
 
       function getAccessAuthHeaders() {
         const token = (localStorage.getItem('kx.api.accessToken') || '').trim();
         const email = (localStorage.getItem('kx.api.tokenEmail') || '').trim().toLowerCase();
+        const corr = window.SkyeCorrelation && window.SkyeCorrelation.next ? window.SkyeCorrelation.next('react2html') : '';
         const headers = {};
         if (token) headers.Authorization = `Bearer ${token}`;
         if (email) headers['X-Token-Email'] = email;
+        if (corr) headers['X-Correlation-Id'] = corr;
         return headers;
       }
 
@@ -270,12 +333,13 @@
         codeOutput.textContent = '';
         previewFrame.srcdoc = '';
         setActiveTab('preview');
+        const startedAt = Date.now();
 
         const prompt = `You are an expert web developer compiler. Convert the provided React code into a single, functional Vanilla HTML/JS file.\n\nCRITICAL RULES:\n1. OUTPUT ONLY RAW HTML. Do NOT include markdown backticks.\n2. Include <!DOCTYPE html>, <html>, <head>, and <body> tags.\n3. Include Tailwind CSS via CDN.\n4. Translate React state/event handlers into Vanilla JavaScript.\n5. Place ALL JavaScript in one <script> tag at the end of <body>.\n6. Wrap JavaScript in document.addEventListener('DOMContentLoaded', () => { ... });\n\nReact code:\n${inputCode}`;
 
         try {
           const authHeaders = getAccessAuthHeaders();
-          const res = await fetch('/api/kaixu-generate', {
+          const res = await gatewayFetch('/api/kaixu-generate', {
             method: 'POST',
             credentials: 'include',
             headers: { 'Content-Type': 'application/json', ...authHeaders },
@@ -289,9 +353,28 @@
           outputHtml = sanitizeModelOutputToHtml(raw);
           codeOutput.textContent = outputHtml;
           previewFrame.srcdoc = outputHtml;
+          renderQaDiagnostics(outputHtml);
           setActiveTab(activeTab);
+          await telemetryEmit({
+            app: 'REACT2HTML',
+            action: 'convert_react_to_html',
+            outcome: 'success',
+            duration_ms: Date.now() - startedAt,
+            ws_id: wsId,
+            context: { input_chars: inputCode.length, output_chars: outputHtml.length },
+          });
         } catch (err) {
-          showError(`Conversion Failed: ${err?.message || String(err)}`);
+          const errorId = errorFingerprint(err, { app: 'REACT2HTML', action: 'convert_react_to_html' });
+          await telemetryEmit({
+            app: 'REACT2HTML',
+            action: 'convert_react_to_html',
+            outcome: 'error',
+            error_code: String(err?.message || 'unknown').slice(0, 64),
+            duration_ms: Date.now() - startedAt,
+            ws_id: wsId,
+            context: { error_id: errorId },
+          });
+          showError(`Conversion Failed: ${err?.message || String(err)} [${errorId}]`);
         } finally {
           setLoading(false);
         }
@@ -324,10 +407,16 @@
       }
 
       convertBtn.addEventListener('click', convertReactToHtml);
-      inputCodeEl.addEventListener('input', updateConvertEnabled);
+      inputCodeEl.addEventListener('input', () => { updateConvertEnabled(); runPreflight(inputCodeEl.value); });
       tabPreview.addEventListener('click', () => setActiveTab('preview'));
       tabCode.addEventListener('click', () => setActiveTab('code'));
       copyBtn.addEventListener('click', copyHtml);
+      applyPresetBtn.addEventListener('click', () => {
+        const key = presetSelect.value;
+        inputCodeEl.value = presets[key] || presets.counter;
+        runPreflight(inputCodeEl.value);
+        updateConvertEnabled();
+      });
       saveAuthBtn.addEventListener('click', async () => { saveAuthInputs(); await refreshAuthBadge(); });
       clearAuthBtn.addEventListener('click', async () => {
         localStorage.removeItem('kx.api.accessToken');
@@ -339,9 +428,36 @@
 
       hydrateAuthInputs();
       refreshAuthBadge();
+      runPreflight(inputCodeEl.value);
       updateConvertEnabled();
       setActiveTab('preview');
     });
   </script>
+<button id="skye-tutorial-fab" type="button" style="position:fixed;right:16px;bottom:16px;z-index:10000;padding:10px 14px;border-radius:999px;border:1px solid #6366f1;background:#312e81;color:#fff;font-weight:700;cursor:pointer;box-shadow:0 10px 24px rgba(0,0,0,.25);">Start Tutorial</button>
+<div id="skye-tutorial-modal" style="display:none;position:fixed;inset:0;z-index:10001;background:rgba(2,6,23,.7);">
+  <div style="max-width:520px;margin:10vh auto;background:#fff;border-radius:14px;padding:18px;border:1px solid #cbd5e1;box-shadow:0 20px 44px rgba(2,6,23,.35);">
+    <h3 style="margin:0 0 8px;font-size:18px;">REACT2HTML Quick Start</h3>
+    <ol style="margin:0 0 12px 18px;padding:0;line-height:1.5;">
+      <li>Paste React code in the input panel.</li>
+      <li>Set kAIxU key/auth if needed and click Build HTML.</li>
+      <li>Validate Preview, then open Code Output and copy/export.</li>
+    </ol>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button id="skye-tutorial-close" type="button" style="padding:8px 12px;border:1px solid #94a3b8;border-radius:10px;background:#f8fafc;cursor:pointer;">Close</button>
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  const fab = document.getElementById('skye-tutorial-fab');
+  const modal = document.getElementById('skye-tutorial-modal');
+  const close = document.getElementById('skye-tutorial-close');
+  if (!fab || !modal || !close) return;
+  const appKey = 'kx.tutorial.REACT2HTML.seen';
+  fab.addEventListener('click', () => { modal.style.display = 'block'; localStorage.setItem(appKey, '1'); });
+  close.addEventListener('click', () => { modal.style.display = 'none'; });
+  modal.addEventListener('click', (e) => { if (e.target === modal) modal.style.display = 'none'; });
+})();
+</script>
 </body>
 </html>

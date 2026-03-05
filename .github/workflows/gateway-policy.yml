@@ -1,0 +1,37 @@
+name: Gateway Policy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  gateway_only_check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Sync Surfaces
+        run: npm run sync:surfaces
+
+      - name: Enforce Gateway Policy
+        run: npm run check:gateway-only
+
+      - name: Enforce Secure Defaults
+        run: npm run check:secure-defaults
+
+      - name: Enforce Provider String Policy
+        run: npm run check:provider-strings
+
+      - name: Validate .skye Schema Fixtures
+        run: npm run check:skye-schema

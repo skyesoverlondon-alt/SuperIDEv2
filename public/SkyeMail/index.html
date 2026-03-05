@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SkyeMail Workspace</title>
+    <script src="/_shared/correlation.js"></script>
   <style>
     @import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Space+Grotesk:wght@400;500;600&display=swap");
     :root {
@@ -38,6 +39,7 @@
     .auth { display: grid; gap: 8px; }
     .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     .status { font-size: 12px; color: var(--gold); margin-top: 8px; white-space: pre-wrap; }
+    .diag { font-size: 11px; color: var(--muted); border: 1px solid rgba(191,238,255,0.2); border-radius: 8px; padding: 8px; margin-top: 8px; }
   </style>
 </head>
 <body>
@@ -63,6 +65,14 @@
             <button id="signupBtn" type="button">Create Account</button>
             <button id="loginBtn" type="button">Login</button>
             <button id="meBtn" type="button">Refresh Session</button>
+          </div>
+          <label>kAIxU Access Key</label>
+          <input id="apiKey" type="password" placeholder="kx_at_..." />
+          <label>Token Email</label>
+          <input id="tokenEmail" placeholder="user@company.com" />
+          <div class="actions">
+            <button id="saveKeyBtn" type="button">Save Key</button>
+            <button id="clearKeyBtn" type="button">Clear Key</button>
           </div>
         </div>
 
@@ -97,8 +107,10 @@
         <input id="channel" placeholder="general" />
         <div class="actions">
           <button class="primary" id="sendBtn" type="button">Send Mail</button>
+          <button id="retryFailedBtn" type="button">Retry Failed</button>
           <button id="reloadBtn" type="button">Reload Inbox</button>
         </div>
+        <div class="diag" id="deliveryPanel">Delivery lifecycle: no records yet.</div>
         <div class="status" id="status"></div>
       </section>
 
@@ -106,6 +118,23 @@
         <h2>Inbox Workspace</h2>
         <label>Search</label>
         <input id="search" placeholder="subject, recipient, body" />
+        <div class="row" style="margin-top:8px;">
+          <select id="statusFilter">
+            <option value="all">Status: all</option>
+            <option value="queued">queued</option>
+            <option value="sent">sent</option>
+            <option value="failed">failed</option>
+          </select>
+          <select id="channelFilter">
+            <option value="all">Channel hook: all</option>
+            <option value="hooked">hooked only</option>
+            <option value="none">no hook</option>
+          </select>
+        </div>
+        <div class="row" style="margin-top:8px;">
+          <input id="dateFrom" type="date" />
+          <input id="dateTo" type="date" />
+        </div>
         <div class="actions">
           <button id="searchBtn" type="button">Apply Search</button>
         </div>
@@ -120,22 +149,83 @@
       cursor: null,
       wsId: new URLSearchParams(window.location.search).get('ws_id') || 'primary-workspace',
       inboxRecords: [],
+      deliveryRecords: JSON.parse(localStorage.getItem('skymail.delivery.records') || '[]'),
     };
 
     const statusEl = document.getElementById('status');
     const inboxEl = document.getElementById('inbox');
+    const deliveryPanel = document.getElementById('deliveryPanel');
     const query = new URLSearchParams(window.location.search);
 
     if (query.get('embed') === '1') {
       document.querySelector('.top a').setAttribute('href', `/index.html?app=SkyeMail&ws_id=${encodeURIComponent(state.wsId)}`);
     }
 
+    function persistDeliveryRecords() {
+      localStorage.setItem('skymail.delivery.records', JSON.stringify(state.deliveryRecords.slice(0, 80)));
+    }
+
+    function renderDeliveryPanel() {
+      const rows = state.deliveryRecords.slice(0, 8);
+      if (!rows.length) {
+        deliveryPanel.textContent = 'Delivery lifecycle: no records yet.';
+        return;
+      }
+      const counts = rows.reduce((acc, row) => {
+        acc[row.status] = (acc[row.status] || 0) + 1;
+        return acc;
+      }, {});
+      deliveryPanel.textContent = `Delivery lifecycle: queued=${counts.queued || 0}, sent=${counts.sent || 0}, failed=${counts.failed || 0} | recent=${rows.map((r) => r.subject + ':' + r.status).join(' | ')}`;
+    }
+
     function setStatus(text) {
       statusEl.textContent = text || '';
     }
 
+    function buildIdempotencyKey(prefix, parts) {
+      const payload = [prefix].concat(parts || []).join('|');
+      let hash = 0;
+      for (let i = 0; i < payload.length; i += 1) {
+        hash = ((hash << 5) - hash + payload.charCodeAt(i)) | 0;
+      }
+      return `${prefix}:${Math.abs(hash)}`;
+    }
+
+    function getAccessAuthHeaders() {
+      const token = (localStorage.getItem('kx.api.accessToken') || '').trim();
+      const email = (localStorage.getItem('kx.api.tokenEmail') || '').trim().toLowerCase();
+      const corr = window.SkyeCorrelation && window.SkyeCorrelation.next ? window.SkyeCorrelation.next('skyemail') : '';
+      const headers = {};
+      if (token) headers.Authorization = `Bearer ${token}`;
+      if (email) headers['X-Token-Email'] = email;
+      if (corr) headers['X-Correlation-Id'] = corr;
+      return headers;
+    }
+
+    function hydrateAuthInputs() {
+      document.getElementById('apiKey').value = localStorage.getItem('kx.api.accessToken') || '';
+      document.getElementById('tokenEmail').value = localStorage.getItem('kx.api.tokenEmail') || '';
+    }
+
+    function saveAuthInputs() {
+      const token = document.getElementById('apiKey').value.trim();
+      const email = document.getElementById('tokenEmail').value.trim().toLowerCase();
+      localStorage.setItem('kx.api.accessToken', token);
+      localStorage.setItem('kx.api.tokenEmail', email);
+      setStatus('Saved kAIxU key context for SkyeMail.');
+    }
+
+    function clearAuthInputs() {
+      localStorage.removeItem('kx.api.accessToken');
+      localStorage.removeItem('kx.api.tokenEmail');
+      hydrateAuthInputs();
+      setStatus('Cleared kAIxU key context.');
+    }
+
     async function call(path, options = {}) {
-      const res = await fetch(path, { credentials: 'include', ...options });
+      const authHeaders = getAccessAuthHeaders();
+      const mergedHeaders = { ...(options.headers || {}), ...authHeaders };
+      const res = await fetch(path, { credentials: 'include', ...options, headers: mergedHeaders });
       let data = {};
       try { data = await res.json(); } catch {}
       if (!res.ok) throw new Error(data?.error || `${path} failed (${res.status})`);
@@ -248,6 +338,8 @@
 
     function applySkyeState(payload) {
       if (!payload?.meta || payload.meta.app_id !== 'SkyeMail') throw new Error('This .skye file is not for SkyeMail.');
+      const schemaVersion = Number(payload?.meta?.schema_version || 1);
+      if (!Number.isFinite(schemaVersion) || schemaVersion > 1) throw new Error(`Unsupported .skye schema version for SkyeMail: ${schemaVersion}`);
       const s = payload.state || {};
       const profile = s.profile || {};
       const compose = s.compose || {};
@@ -285,7 +377,21 @@
       if (!passphrase.trim()) throw new Error('Passphrase is required.');
       const plain = await decryptSkye(envelope.payload.primary, passphrase.trim());
       const payload = JSON.parse(plain);
+      const mode = (prompt('Import mode: type merge or replace', 'merge') || 'merge').trim().toLowerCase();
       applySkyeState(payload);
+      if (mode === 'merge') {
+        const imported = Array.isArray(payload?.state?.inbox_records) ? payload.state.inbox_records : [];
+        const merged = [...imported, ...state.inboxRecords];
+        const unique = [];
+        const seen = new Set();
+        merged.forEach((item) => {
+          const key = JSON.stringify(item);
+          if (seen.has(key)) return;
+          seen.add(key);
+          unique.push(item);
+        });
+        state.inboxRecords = unique;
+      }
       setStatus('Imported secure .skye package for SkyeMail.');
       await loadInbox(false);
     }
@@ -339,13 +445,34 @@
       const channel = document.getElementById('channel').value.trim();
       const local = document.getElementById('addressLocal').value.trim().toLowerCase();
       const fromAlias = local ? `${local}@skymail.local` : '';
+      const idempotencyKey = buildIdempotencyKey('skymail-send', [state.wsId, to, subject, text, channel, fromAlias]);
+      const eventId = 'mail-' + Date.now();
+      state.deliveryRecords.unshift({ id: eventId, subject, to, status: 'queued', at: new Date().toISOString(), channel: channel || '' });
+      persistDeliveryRecords();
+      renderDeliveryPanel();
       const data = await call('/api/skymail-send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to, subject, text, channel, from_alias: fromAlias, ws_id: state.wsId }),
+        body: JSON.stringify({ to, subject, text, channel, from_alias: fromAlias, ws_id: state.wsId, idempotency_key: idempotencyKey }),
       });
+      const delivered = data?.ok !== false;
+      state.deliveryRecords = state.deliveryRecords.map((row) => row.id === eventId ? { ...row, status: delivered ? 'sent' : 'failed' } : row);
+      persistDeliveryRecords();
+      renderDeliveryPanel();
       setStatus(`Mail sent via ${data?.provider || 'provider'} (record=${data?.mail_record_id || 'n/a'})`);
       await loadInbox();
+    }
+
+    async function retryFailed() {
+      const failed = state.deliveryRecords.find((row) => row.status === 'failed');
+      if (!failed) {
+        setStatus('No failed deliveries to retry.');
+        return;
+      }
+      document.getElementById('to').value = failed.to || '';
+      document.getElementById('subject').value = failed.subject || '';
+      document.getElementById('body').value = document.getElementById('body').value || 'Retry delivery triggered from lifecycle queue.';
+      await sendMail();
     }
 
     async function loadInbox(append = false) {
@@ -358,16 +485,44 @@
       if (append && state.cursor) qs.set('before', state.cursor);
       const data = await call(`/api/skymail-list?${qs.toString()}`);
       const records = Array.isArray(data?.records) ? data.records : [];
-      state.inboxRecords = records;
+      const search = document.getElementById('search').value.trim().toLowerCase();
+      const statusFilter = document.getElementById('statusFilter').value;
+      const channelFilter = document.getElementById('channelFilter').value;
+      const dateFrom = document.getElementById('dateFrom').value;
+      const dateTo = document.getElementById('dateTo').value;
+
+      const filtered = records.filter((record) => {
+        const payload = record?.payload || {};
+        const subject = String(payload?.subject || record?.title || '').toLowerCase();
+        const body = String(payload?.text || '').toLowerCase();
+        const toAddr = String(payload?.to || '').toLowerCase();
+        const created = String(record?.created_at || '');
+        const dateIso = created ? created.slice(0, 10) : '';
+        const hasHook = !!String(payload?.channel || '').trim();
+        const lifecycle = state.deliveryRecords.find((row) => row.subject === (payload?.subject || record?.title || '') && row.to === (payload?.to || ''));
+        const lifecycleStatus = lifecycle?.status || 'sent';
+
+        if (search && !`${subject} ${body} ${toAddr}`.includes(search)) return false;
+        if (statusFilter !== 'all' && lifecycleStatus !== statusFilter) return false;
+        if (channelFilter === 'hooked' && !hasHook) return false;
+        if (channelFilter === 'none' && hasHook) return false;
+        if (dateFrom && dateIso && dateIso < dateFrom) return false;
+        if (dateTo && dateIso && dateIso > dateTo) return false;
+        return true;
+      });
+
+      state.inboxRecords = filtered;
       state.cursor = data?.page?.next_before || null;
 
-      const items = records.map((record) => {
+      const items = filtered.map((record) => {
         const payload = record?.payload || {};
         const to = payload?.to || 'unknown';
         const fromAlias = payload?.from_alias || 'noreply@skymail.local';
         const subject = payload?.subject || record?.title || '(no subject)';
         const body = payload?.text || '';
-        return `<div class="item"><strong>${subject}</strong><div class="meta">from ${fromAlias} to ${to}</div><div class="meta">${body}</div></div>`;
+        const lifecycle = state.deliveryRecords.find((row) => row.subject === subject && row.to === to);
+        const lifecycleStatus = lifecycle?.status || 'sent';
+        return `<div class="item"><strong>${subject}</strong><div class="meta">from ${fromAlias} to ${to}</div><div class="meta">status=${lifecycleStatus}</div><div class="meta">${body}</div></div>`;
       }).join('');
 
       if (!append) inboxEl.innerHTML = items || '<div class="meta">No mail records found.</div>';
@@ -411,10 +566,15 @@
       inboxEl.innerHTML = '';
     }
 
+    hydrateAuthInputs();
+
     document.getElementById('signupBtn').onclick = () => signup().catch((e) => setStatus(e.message));
     document.getElementById('loginBtn').onclick = () => login().catch((e) => setStatus(e.message));
     document.getElementById('meBtn').onclick = () => refreshMe().then(loadProfile).catch((e) => setStatus(e.message));
+    document.getElementById('saveKeyBtn').onclick = () => saveAuthInputs();
+    document.getElementById('clearKeyBtn').onclick = () => clearAuthInputs();
     document.getElementById('sendBtn').onclick = () => sendMail().catch((e) => setStatus(e.message));
+    document.getElementById('retryFailedBtn').onclick = () => retryFailed().catch((e) => setStatus(e.message));
     document.getElementById('reloadBtn').onclick = () => loadInbox(false).catch((e) => setStatus(e.message));
     document.getElementById('searchBtn').onclick = () => loadInbox(false).catch((e) => setStatus(e.message));
     document.getElementById('saveProfileBtn').onclick = () => saveProfile().catch((e) => setStatus(e.message));
@@ -428,7 +588,21 @@
       importSkyeFile(file).catch((e) => setStatus(e.message));
     });
 
+    renderDeliveryPanel();
     refreshMe().then(loadProfile).then(() => loadInbox(false)).catch((e) => setStatus(e.message));
   </script>
+<button id="skye-tutorial-fab" type="button" style="position:fixed;right:16px;bottom:16px;z-index:10000;padding:10px 14px;border-radius:999px;border:1px solid rgba(191,238,255,.42);background:rgba(44,230,255,.2);color:#eff9ff;font-weight:700;cursor:pointer;">Start Tutorial</button>
+<div id="skye-tutorial-modal" style="display:none;position:fixed;inset:0;z-index:10001;background:rgba(2,6,23,.72);"></div>
+<script>
+(function(){
+  const fab=document.getElementById('skye-tutorial-fab');
+  const modal=document.getElementById('skye-tutorial-modal');
+  if(!fab||!modal) return;
+  const app=(document.title||'App').replace(/Standalone|Workspace|Command Surface|Platform/gi,'').trim();
+  modal.innerHTML='<div style="max-width:520px;margin:10vh auto;background:#07131a;color:#eff9ff;border:1px solid rgba(191,238,255,.32);border-radius:14px;padding:18px"><h3 style="margin:0 0 8px">'+app+' Quick Start</h3><ol style="margin:0 0 12px 18px;line-height:1.5"><li>Review auth and active workspace context.</li><li>Run one core workflow action in this app.</li><li>Save/export/share output and verify completion state.</li></ol><div style="display:flex;justify-content:flex-end"><button id="skye-tutorial-close" type="button" style="padding:8px 12px;border-radius:10px;border:1px solid rgba(191,238,255,.32);background:rgba(0,0,0,.34);color:#eff9ff;cursor:pointer;">Close</button></div></div>';
+  fab.addEventListener('click',()=>{modal.style.display='block';});
+  modal.addEventListener('click',(e)=>{if(e.target===modal||e.target.id==='skye-tutorial-close') modal.style.display='none';});
+})();
+</script>
 </body>
 </html>

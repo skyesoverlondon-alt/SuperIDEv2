@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SkyeChat Workspace</title>
+  <script src="/_shared/correlation.js"></script>
   <style>
     @import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Space+Grotesk:wght@400;500;600&display=swap");
     :root {
@@ -36,6 +37,7 @@
     .meta { color:var(--muted); font-size:12px; margin-top:4px; }
     .status { font-size:12px; color:var(--gold); margin-top:8px; white-space:pre-wrap; }
     .row { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    .diag { border:1px solid rgba(191,238,255,0.22); border-radius:10px; padding:8px; color:var(--muted); font-size:11px; margin-top:8px; }
   </style>
 </head>
 <body>
@@ -60,6 +62,14 @@
           <button id="signupBtn" type="button">Create Account</button>
           <button id="loginBtn" type="button">Login</button>
           <button id="meBtn" type="button">Refresh Session</button>
+        </div>
+        <label>kAIxU Access Key</label>
+        <input id="apiKey" type="password" placeholder="kx_at_..." />
+        <label>Token Email</label>
+        <input id="tokenEmail" placeholder="user@company.com" />
+        <div class="actions">
+          <button id="saveKeyBtn" type="button">Save Key</button>
+          <button id="clearKeyBtn" type="button">Clear Key</button>
         </div>
 
         <h2 style="margin-top:14px;">Chat Profile</h2>
@@ -92,6 +102,17 @@
           <button id="kaixuBtn" type="button">Post + Ask kAIxU</button>
           <button id="loadBtn" type="button">Reload Channel</button>
         </div>
+        <h2 style="margin-top:14px;">Moderation Controls</h2>
+        <div class="row">
+          <select id="roomLock">
+            <option value="off">Room lock: off</option>
+            <option value="on">Room lock: on</option>
+          </select>
+          <input id="slowMode" type="number" min="0" value="0" placeholder="Slow mode seconds" />
+        </div>
+        <div class="actions">
+          <button id="applyModeration" type="button">Apply Moderation</button>
+        </div>
         <div class="status" id="status"></div>
       </section>
 
@@ -104,6 +125,7 @@
         <div class="actions">
           <button id="applyFilterBtn" type="button">Apply Filter</button>
         </div>
+        <div class="diag" id="healthPanel">Room health panel pending feed load.</div>
         <div class="feed" id="feed"></div>
       </section>
     </main>
@@ -112,7 +134,13 @@
   <script>
     const statusEl = document.getElementById('status');
     const feedEl = document.getElementById('feed');
+    const healthPanel = document.getElementById('healthPanel');
     const chatState = { records: [] };
+    const moderationState = {
+      lock: localStorage.getItem('skyechat.moderation.lock') || 'off',
+      slowMode: Number(localStorage.getItem('skyechat.moderation.slow') || 0),
+      lastPostAt: 0,
+    };
     const query = new URLSearchParams(window.location.search);
     const wsId = query.get('ws_id') || 'primary-workspace';
     const initialChannel = query.get('channel') || 'general';
@@ -126,8 +154,83 @@
 
     function setStatus(text) { statusEl.textContent = text || ''; }
 
+    function buildIdempotencyKey(prefix, parts) {
+      const payload = [prefix].concat(parts || []).join('|');
+      let hash = 0;
+      for (let i = 0; i < payload.length; i += 1) {
+        hash = ((hash << 5) - hash + payload.charCodeAt(i)) | 0;
+      }
+      return `${prefix}:${Math.abs(hash)}`;
+    }
+
+    function renderHealthPanel(records) {
+      const rows = Array.isArray(records) ? records : [];
+      const unresolved = rows.filter((record) => /\?$/.test(String(record?.payload?.message || '').trim())).length;
+      const actionItems = rows.filter((record) => /(todo|action|follow up)/i.test(String(record?.payload?.message || ''))).length;
+      const channels = new Set(rows.map((record) => String(record?.payload?.channel || '').trim()).filter(Boolean));
+      healthPanel.textContent = `Health: messages=${rows.length}, unresolved_questions=${unresolved}, action_items=${actionItems}, active_channels=${channels.size}`;
+    }
+
+    function hydrateModerationInputs() {
+      document.getElementById('roomLock').value = moderationState.lock;
+      document.getElementById('slowMode').value = String(moderationState.slowMode || 0);
+    }
+
+    async function applyModeration() {
+      moderationState.lock = document.getElementById('roomLock').value;
+      moderationState.slowMode = Math.max(0, Number(document.getElementById('slowMode').value || 0));
+      localStorage.setItem('skyechat.moderation.lock', moderationState.lock);
+      localStorage.setItem('skyechat.moderation.slow', String(moderationState.slowMode));
+      const idempotencyKey = buildIdempotencyKey('skyechat-moderation', [wsId, moderationState.lock, String(moderationState.slowMode)]);
+      await call('/api/skychat-notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ws_id: wsId,
+          channel: document.getElementById('channel').value.trim() || 'general',
+          source: 'SkyeChat Moderation',
+          message: `Moderation updated: lock=${moderationState.lock}, slow_mode=${moderationState.slowMode}s`,
+          idempotency_key: idempotencyKey,
+        }),
+      });
+      setStatus(`Moderation saved: lock=${moderationState.lock}, slow=${moderationState.slowMode}s`);
+    }
+
+    function getAccessAuthHeaders() {
+      const token = (localStorage.getItem('kx.api.accessToken') || '').trim();
+      const email = (localStorage.getItem('kx.api.tokenEmail') || '').trim().toLowerCase();
+      const corr = window.SkyeCorrelation && window.SkyeCorrelation.next ? window.SkyeCorrelation.next('skychat') : '';
+      const headers = {};
+      if (token) headers.Authorization = `Bearer ${token}`;
+      if (email) headers['X-Token-Email'] = email;
+      if (corr) headers['X-Correlation-Id'] = corr;
+      return headers;
+    }
+
+    function hydrateAuthInputs() {
+      document.getElementById('apiKey').value = localStorage.getItem('kx.api.accessToken') || '';
+      document.getElementById('tokenEmail').value = localStorage.getItem('kx.api.tokenEmail') || '';
+    }
+
+    function saveAuthInputs() {
+      const token = document.getElementById('apiKey').value.trim();
+      const email = document.getElementById('tokenEmail').value.trim().toLowerCase();
+      localStorage.setItem('kx.api.accessToken', token);
+      localStorage.setItem('kx.api.tokenEmail', email);
+      setStatus('Saved kAIxU key context for SkyeChat.');
+    }
+
+    function clearAuthInputs() {
+      localStorage.removeItem('kx.api.accessToken');
+      localStorage.removeItem('kx.api.tokenEmail');
+      hydrateAuthInputs();
+      setStatus('Cleared kAIxU key context.');
+    }
+
     async function call(path, options = {}) {
-      const res = await fetch(path, { credentials: 'include', ...options });
+      const authHeaders = getAccessAuthHeaders();
+      const mergedHeaders = { ...(options.headers || {}), ...authHeaders };
+      const res = await fetch(path, { credentials: 'include', ...options, headers: mergedHeaders });
       let data = {};
       try { data = await res.json(); } catch {}
       if (!res.ok) throw new Error(data?.error || `${path} failed (${res.status})`);
@@ -241,6 +344,8 @@
 
     function applySkyeState(payload) {
       if (!payload?.meta || payload.meta.app_id !== 'SkyeChat') throw new Error('This .skye file is not for SkyeChat.');
+      const schemaVersion = Number(payload?.meta?.schema_version || 1);
+      if (!Number.isFinite(schemaVersion) || schemaVersion > 1) throw new Error(`Unsupported .skye schema version for SkyeChat: ${schemaVersion}`);
       const s = payload.state || {};
       const p = s.profile || {};
       const compose = s.compose || {};
@@ -276,7 +381,21 @@
       if (!passphrase.trim()) throw new Error('Passphrase is required.');
       const plain = await decryptSkye(envelope.payload.primary, passphrase.trim());
       const payload = JSON.parse(plain);
+      const mode = (prompt('Import mode: type merge or replace', 'merge') || 'merge').trim().toLowerCase();
       applySkyeState(payload);
+      if (mode === 'merge') {
+        const imported = Array.isArray(payload?.state?.feed_records) ? payload.state.feed_records : [];
+        const merged = [...imported, ...chatState.records];
+        const unique = [];
+        const seen = new Set();
+        merged.forEach((item) => {
+          const key = JSON.stringify(item);
+          if (seen.has(key)) return;
+          seen.add(key);
+          unique.push(item);
+        });
+        chatState.records = unique;
+      }
       setStatus('Imported secure .skye package for SkyeChat.');
       await loadFeed();
     }
@@ -347,14 +466,21 @@
     }
 
     async function postMessage() {
+      if (moderationState.lock === 'on') throw new Error('Room is locked by moderator policy.');
+      const now = Date.now();
+      if (moderationState.slowMode > 0 && (now - moderationState.lastPostAt) < moderationState.slowMode * 1000) {
+        throw new Error(`Slow mode active. Wait ${moderationState.slowMode}s between posts.`);
+      }
       const channel = document.getElementById('channel').value.trim();
       const message = document.getElementById('message').value.trim();
       const displayName = document.getElementById('displayName').value.trim() || 'SkyeChat User';
+      const idempotencyKey = buildIdempotencyKey('skyechat-post', [wsId, channel, message, displayName]);
       await call('/api/skychat-notify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ channel, message, source: `SkyeChat Workspace · ${displayName}` }),
+        body: JSON.stringify({ ws_id: wsId, channel, message, source: `SkyeChat Workspace · ${displayName}`, idempotency_key: idempotencyKey }),
       });
+      moderationState.lastPostAt = now;
       setStatus(`Posted to #${channel}`);
       await loadFeed();
     }
@@ -381,6 +507,7 @@
       const data = await call(`/api/skychat-list?${qs.toString()}`);
       const records = Array.isArray(data?.records) ? data.records : [];
       chatState.records = records;
+      renderHealthPanel(records);
       feedEl.innerHTML = records.map((record) => {
         const payload = record?.payload || {};
         const c = payload?.channel || 'general';
@@ -390,14 +517,19 @@
       }).join('') || '<div class="meta">No messages found.</div>';
     }
 
+    hydrateAuthInputs();
+
     document.getElementById('signupBtn').onclick = () => signup().catch((e) => setStatus(e.message));
     document.getElementById('loginBtn').onclick = () => login().catch((e) => setStatus(e.message));
     document.getElementById('meBtn').onclick = () => refreshMe().then(loadProfile).catch((e) => setStatus(e.message));
+    document.getElementById('saveKeyBtn').onclick = () => saveAuthInputs();
+    document.getElementById('clearKeyBtn').onclick = () => clearAuthInputs();
     document.getElementById('saveProfileBtn').onclick = () => saveProfile().catch((e) => setStatus(e.message));
     document.getElementById('postBtn').onclick = () => postMessage().catch((e) => setStatus(e.message));
     document.getElementById('kaixuBtn').onclick = () => postWithKaixu().catch((e) => setStatus(e.message));
     document.getElementById('loadBtn').onclick = () => loadFeed().catch((e) => setStatus(e.message));
     document.getElementById('applyFilterBtn').onclick = () => loadFeed().catch((e) => setStatus(e.message));
+    document.getElementById('applyModeration').onclick = () => applyModeration().catch((e) => setStatus(e.message));
     document.getElementById('logoutBtn').onclick = () => logout().catch((e) => setStatus(e.message));
     document.getElementById('exportSkyeBtn').onclick = () => exportSkyeFile().catch((e) => setStatus(e.message));
     document.getElementById('importSkyeBtn').onclick = () => document.getElementById('importSkyeInput').click();
@@ -408,7 +540,21 @@
       importSkyeFile(file).catch((e) => setStatus(e.message));
     });
 
+    hydrateModerationInputs();
     refreshMe().then(loadProfile).then(loadFeed).catch((e) => setStatus(e.message));
   </script>
+<button id="skye-tutorial-fab" type="button" style="position:fixed;right:16px;bottom:16px;z-index:10000;padding:10px 14px;border-radius:999px;border:1px solid rgba(191,238,255,.42);background:rgba(44,230,255,.2);color:#eff9ff;font-weight:700;cursor:pointer;">Start Tutorial</button>
+<div id="skye-tutorial-modal" style="display:none;position:fixed;inset:0;z-index:10001;background:rgba(2,6,23,.72);"></div>
+<script>
+(function(){
+  const fab=document.getElementById('skye-tutorial-fab');
+  const modal=document.getElementById('skye-tutorial-modal');
+  if(!fab||!modal) return;
+  const app=(document.title||'App').replace(/Standalone|Workspace|Command Surface|Platform/gi,'').trim();
+  modal.innerHTML='<div style="max-width:520px;margin:10vh auto;background:#07131a;color:#eff9ff;border:1px solid rgba(191,238,255,.32);border-radius:14px;padding:18px"><h3 style="margin:0 0 8px">'+app+' Quick Start</h3><ol style="margin:0 0 12px 18px;line-height:1.5"><li>Review auth and active workspace context.</li><li>Run one core workflow action in this app.</li><li>Save/export/share output and verify completion state.</li></ol><div style="display:flex;justify-content:flex-end"><button id="skye-tutorial-close" type="button" style="padding:8px 12px;border-radius:10px;border:1px solid rgba(191,238,255,.32);background:rgba(0,0,0,.34);color:#eff9ff;cursor:pointer;">Close</button></div></div>';
+  fab.addEventListener('click',()=>{modal.style.display='block';});
+  modal.addEventListener('click',(e)=>{if(e.target===modal||e.target.id==='skye-tutorial-close') modal.style.display='none';});
+})();
+</script>
 </body>
 </html>

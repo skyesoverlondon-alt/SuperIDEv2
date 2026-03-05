@@ -1,0 +1,26 @@
+[
+  {
+    "meta": {
+      "app_id": "SkyeMail",
+      "schema_version": 1,
+      "exported_at": "2026-03-05T00:00:00Z"
+    },
+    "state": {
+      "profile": {
+        "display_name": "User"
+      }
+    }
+  },
+  {
+    "meta": {
+      "app_id": "SkyeChat",
+      "schema_version": 1,
+      "exported_at": "2026-03-05T00:00:00Z"
+    },
+    "state": {
+      "profile": {
+        "display_name": "User"
+      }
+    }
+  }
+]
