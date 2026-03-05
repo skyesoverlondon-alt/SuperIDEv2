@@ -1,5 +1,5 @@
 # SKNore Product Surface
-
+SIR 
 Version: 1.0.0
 
 ## Standalone App
@@ -30,3 +30,15 @@ Version: 1.0.0
 ## Deploy Notes
 - Requires standard Netlify API env set (DB/auth runtime)
 - No special SKNore-only env vars required in this version
+
+## Smoke Evidence (2026-03-05)
+- Baseline production smoke (`scripts/smokehouse.sh`)
+  - Summary: `PASS=13 FAIL=0`
+  - Site and standalone surfaces: all `200`
+  - Generate API: `401` expected (policy-protected)
+  - Auth Me API: `200`
+- Authenticated kAIxU chat verification (`POST /api/skychat-kaixu`)
+  - Result: `ok: true`
+  - Provider path: `Skyes Over London`
+  - Model path: `kAIxU-Prime6.7`
+  - Returned `ai_record_id` and assistant output payload in production
