@@ -24,6 +24,14 @@ async function tokenFingerprint(token: string): Promise<string> {
   return `${normalized.slice(0, 4)}...len=${normalized.length} sha256=${hex.slice(0, 12)}`;
 }
 
+function normalizeKaixuGatewayProvider(raw: string): string {
+  const value = String(raw || "").trim().toLowerCase();
+  if (!value) return "openai";
+  if (value === "openai" || value === "anthropic" || value === "gemini") return value;
+  if (value === "skyes over london" || value === "skyes" || value === "kaixu") return "openai";
+  return "openai";
+}
+
 /**
  * Call the Kaixu Gateway to generate a response for the given prompt.
  * The active file, full workspace snapshot and user prompt are
@@ -94,7 +102,8 @@ export const handler = async (event: any) => {
   const endpoint = normalizeKaixuGatewayEndpoint(must("KAIXU_GATEWAY_ENDPOINT"));
   const token = must("KAIXU_APP_TOKEN");
   const tokenFp = await tokenFingerprint(token);
-  const provider = opt("KAIXU_GATEWAY_PROVIDER", "Skyes Over London");
+  const providerRaw = opt("KAIXU_GATEWAY_PROVIDER", "Skyes Over London");
+  const provider = normalizeKaixuGatewayProvider(providerRaw);
   // Emit audit before calling the model
   await audit(actorEmail, actorOrg, ws_id, "kaixu.generate.requested", {
     activePath: activePath || null,
@@ -140,6 +149,8 @@ export const handler = async (event: any) => {
         body: text.slice(0, 2000),
         gateway_request_id: gatewayRequestId,
         token_fingerprint: tokenFp,
+        configured_provider: providerRaw,
+        effective_provider: provider,
       });
       const gatewayMsg =
         (typeof data?.error === "string" && data.error) ||
@@ -153,6 +164,8 @@ export const handler = async (event: any) => {
         gateway_status: res.status,
         gateway_request_id: gatewayRequestId,
         token_fingerprint: tokenFp,
+        configured_provider: providerRaw,
+        effective_provider: provider,
         gateway_detail: String(gatewayMsg).slice(0, 400),
       });
     }
