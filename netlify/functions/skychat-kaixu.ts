@@ -107,7 +107,12 @@ export const handler = async (event: any) => {
       gateway_error: lastErr || null,
       gateway_body: lastBody || null,
     });
-    return json(502, { error: "kAIxU gateway failed for chat." });
+    return json(502, {
+      error: "kAIxU gateway failed for chat.",
+      gateway_status: lastStatus || null,
+      gateway_error: lastErr || null,
+      gateway_detail: (lastBody || "").slice(0, 400) || null,
+    });
   }
 
   const aiRow = await q(

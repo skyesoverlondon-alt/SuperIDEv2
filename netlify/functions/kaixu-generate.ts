@@ -116,7 +116,17 @@ export const handler = async (event: any) => {
         status: res.status,
         body: text.slice(0, 2000),
       });
-      return json(500, { error: "Kaixu gateway call failed." });
+      const gatewayMsg =
+        (typeof data?.error === "string" && data.error) ||
+        (typeof data?.message === "string" && data.message) ||
+        (typeof data?.raw === "string" && data.raw) ||
+        text ||
+        "Gateway returned non-OK response.";
+      return json(502, {
+        error: "Kaixu gateway call failed.",
+        gateway_status: res.status,
+        gateway_detail: String(gatewayMsg).slice(0, 400),
+      });
     }
     const reply =
       data?.text || data?.output || data?.choices?.[0]?.message?.content || text;
@@ -129,6 +139,6 @@ export const handler = async (event: any) => {
     await audit(actorEmail, actorOrg, ws_id, "kaixu.generate.failed", {
       error: err,
     });
-    return json(500, { error: err });
+    return json(502, { error: err });
   }
 };
