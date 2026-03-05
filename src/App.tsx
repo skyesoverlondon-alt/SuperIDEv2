@@ -363,6 +363,30 @@ function normalizeWorkerUrl(raw: string | null | undefined): string {
   return trimmed;
 }
 
+function fileExt(path: string): string {
+  const name = String(path || "");
+  const idx = name.lastIndexOf(".");
+  return idx >= 0 ? name.slice(idx + 1).toLowerCase() : "";
+}
+
+function buildPreviewDocument(file: WorkspaceFile | undefined): string | null {
+  if (!file) return null;
+  const ext = fileExt(file.path);
+  if (["html", "htm", "svg"].includes(ext)) return file.content;
+  if (ext === "md") {
+    const escaped = file.content
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+    return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Preview</title><style>body{margin:0;padding:16px;background:#0b0914;color:#f7f7ff;font-family:ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap;line-height:1.45}</style></head><body>${escaped}</body></html>`;
+  }
+  return null;
+}
+
+function buildDefaultWorkspaceSurfaces(seed: string): Record<SkyeAppId, string> {
+  return Object.fromEntries(SKYE_APPS.map((app) => [app.id, seed])) as Record<SkyeAppId, string>;
+}
+
 function makeId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -538,6 +562,23 @@ export function App() {
   const [workerUrl, setWorkerUrl] = useState(() => normalizeWorkerUrl(localStorage.getItem("kx.worker.url") || DEFAULT_WORKER_URL));
   const [siteBaseUrl, setSiteBaseUrl] = useState(() => localStorage.getItem("kx.site.base") || DEFAULT_SITE_BASE);
   const [workspaceId, setWorkspaceId] = useState(() => localStorage.getItem("kx.workspace.id") || DEFAULT_WS_ID);
+  const [workspaceSurfaces, setWorkspaceSurfaces] = useState<Record<SkyeAppId, string>>(() => {
+    const seed = localStorage.getItem("kx.workspace.id") || DEFAULT_WS_ID;
+    const raw = localStorage.getItem("kx.workspace.surfaces");
+    const base = buildDefaultWorkspaceSurfaces(seed);
+    if (!raw) return base;
+    try {
+      const parsed = JSON.parse(raw) as Partial<Record<SkyeAppId, string>>;
+      for (const app of SKYE_APPS) {
+        const val = String(parsed[app.id] || "").trim();
+        if (val) base[app.id] = val;
+      }
+      return base;
+    } catch {
+      return base;
+    }
+  });
+  const [previewDevice, setPreviewDevice] = useState<"desktop" | "mobile">("desktop");
 
   const [files, setFiles] = useState<WorkspaceFile[]>(() => {
     const raw = localStorage.getItem("kx.workspace.files");
@@ -829,6 +870,7 @@ export function App() {
 
   const healthUrl = useMemo(() => `${normalizeBaseUrl(workerUrl)}/health`, [workerUrl]);
   const activeFile = useMemo(() => files.find((file) => file.path === activePath) || files[0], [files, activePath]);
+  const previewDocument = useMemo(() => buildPreviewDocument(activeFile), [activeFile]);
   const sknorePatterns = useMemo(() => normalizeSknorePatterns(sknoreText.split("\n")), [sknoreText]);
   const sknoreBlockedCount = useMemo(
     () => files.filter((file) => isSknoreProtected(file.path, sknorePatterns)).length,
@@ -872,6 +914,26 @@ export function App() {
   useEffect(() => {
     localStorage.setItem("kx.workspace.id", workspaceId);
   }, [workspaceId]);
+
+  useEffect(() => {
+    localStorage.setItem("kx.workspace.surfaces", JSON.stringify(workspaceSurfaces));
+  }, [workspaceSurfaces]);
+
+  useEffect(() => {
+    const appWorkspace = String(workspaceSurfaces[selectedSkyeApp] || "").trim();
+    if (appWorkspace && appWorkspace !== workspaceId) {
+      setWorkspaceId(appWorkspace);
+    }
+  }, [selectedSkyeApp, workspaceSurfaces]);
+
+  useEffect(() => {
+    const next = workspaceId.trim();
+    if (!next) return;
+    setWorkspaceSurfaces((old) => {
+      if (old[selectedSkyeApp] === next) return old;
+      return { ...old, [selectedSkyeApp]: next };
+    });
+  }, [workspaceId, selectedSkyeApp]);
 
   useEffect(() => {
     localStorage.setItem("kx.workspace.files", JSON.stringify(files));
@@ -2365,6 +2427,10 @@ export function App() {
           setSuiteSyncResult("Invalid .skye package format.");
           return;
         }
+        if (!legacyEnvelope.encrypted) {
+          setSuiteSyncResult("Legacy unencrypted .skye packages are blocked. Export/import secure encrypted .skye only.");
+          return;
+        }
         if (legacyEnvelope.encrypted) {
           if (!skyePassphrase.trim()) {
             setSuiteSyncResult("This legacy .skye package is encrypted. Enter passphrase and import again.");
@@ -2376,8 +2442,6 @@ export function App() {
             String(legacyEnvelope.salt || ""),
             skyePassphrase.trim()
           );
-        } else {
-          payloadString = new TextDecoder().decode(base64ToBytes(String(legacyEnvelope.payload || "")));
         }
 
         const payload = tryParseJson(payloadString) as Record<string, any>;
@@ -3331,6 +3395,37 @@ export function App() {
         </div>
       </header>
 
+      <section className="workspace-surface-bar">
+        <div className="workspace-surface-meta">Workspace Surface · {selectedSkyeApp}</div>
+        <label htmlFor="workspace-id-global">Workspace ID</label>
+        <input
+          id="workspace-id-global"
+          value={workspaceId}
+          onChange={(event) => setWorkspaceId(event.target.value)}
+          placeholder="Workspace UUID"
+        />
+        <label htmlFor="site-base-global">Site Base</label>
+        <input
+          id="site-base-global"
+          value={siteBaseUrl}
+          onChange={(event) => setSiteBaseUrl(event.target.value)}
+          placeholder="https://your-site.netlify.app"
+        />
+        <label htmlFor="worker-url-global">Worker URL</label>
+        <input
+          id="worker-url-global"
+          value={workerUrl}
+          onChange={(event) => setWorkerUrl(event.target.value)}
+          placeholder="https://your-worker.workers.dev"
+        />
+        <button className="ghost" type="button" onClick={() => void saveWorkspaceNow()} disabled={isSavingWorkspace}>
+          {isSavingWorkspace ? "Saving..." : "Save"}
+        </button>
+        <button className="ghost" type="button" onClick={() => void loadWorkspaceNow()} disabled={isLoadingWorkspace}>
+          {isLoadingWorkspace ? "Loading..." : "Load"}
+        </button>
+      </section>
+
       <div className="workspace-body">
         <aside className="file-pane">
           <div className="mode-switch">
@@ -3343,15 +3438,6 @@ export function App() {
 
           {appMode === "skyeide" ? (
             <>
-              <label htmlFor="workspace-id">Workspace ID</label>
-              <input id="workspace-id" value={workspaceId} onChange={(event) => setWorkspaceId(event.target.value)} placeholder="Workspace UUID" />
-
-              <label htmlFor="site-base">Site Base URL</label>
-              <input id="site-base" value={siteBaseUrl} onChange={(event) => setSiteBaseUrl(event.target.value)} placeholder="https://your-site.netlify.app" />
-
-              <label htmlFor="worker-url">Worker URL</label>
-              <input id="worker-url" value={workerUrl} onChange={(event) => setWorkerUrl(event.target.value)} placeholder="https://your-worker.workers.dev" />
-
               <h3>Skye Apps</h3>
               <input
                 value={appSearch}
@@ -3373,7 +3459,9 @@ export function App() {
                       }}
                     >
                       <span>{app.id}</span>
-                      <small>{done}/{app.mvp.length}</small>
+                      <small>
+                        {done}/{app.mvp.length} · ws:{String(workspaceSurfaces[app.id] || DEFAULT_WS_ID).slice(0, 8)}
+                      </small>
                     </button>
                   );
                 })}
@@ -3410,10 +3498,6 @@ export function App() {
             <section className="neural-sidecard">
               <h3>Neural Space Pro</h3>
               <p className="muted-copy">Dedicated cinematic copilot surface with isolated workspace context.</p>
-              <label htmlFor="workspace-id-neural">Workspace ID</label>
-              <input id="workspace-id-neural" value={workspaceId} onChange={(event) => setWorkspaceId(event.target.value)} placeholder="Workspace UUID" />
-              <label htmlFor="worker-url-neural">Worker URL</label>
-              <input id="worker-url-neural" value={workerUrl} onChange={(event) => setWorkerUrl(event.target.value)} placeholder="https://your-worker.workers.dev" />
               <div className="tool-actions left">
                 <button type="button" className="ghost" onClick={() => setToolTab("assistant")}>Open Assistant</button>
                 <button type="button" className="ghost" onClick={() => setAppMode("skyeide")}>Return to SkyeIDE</button>
@@ -3466,6 +3550,36 @@ export function App() {
                   onChange={(value) => updateActiveFileContent(value || "")}
                   options={{ minimap: { enabled: false }, fontSize: 13, wordWrap: "on", automaticLayout: true }}
                 />
+                <div className="preview-shell">
+                  <div className="preview-head">
+                    <strong>Live Preview</strong>
+                    <div className="tool-actions left">
+                      <button
+                        className="ghost"
+                        type="button"
+                        onClick={() => setPreviewDevice("desktop")}
+                        disabled={previewDevice === "desktop"}
+                      >
+                        Desktop
+                      </button>
+                      <button
+                        className="ghost"
+                        type="button"
+                        onClick={() => setPreviewDevice("mobile")}
+                        disabled={previewDevice === "mobile"}
+                      >
+                        Mobile
+                      </button>
+                    </div>
+                  </div>
+                  {previewDocument ? (
+                    <div className={`preview-frame-wrap ${previewDevice}`}>
+                      <iframe title="IDE Live Preview" className="preview-frame" srcDoc={previewDocument} sandbox="allow-same-origin" />
+                    </div>
+                  ) : (
+                    <p className="muted-copy">Preview supports `.html`, `.htm`, `.svg`, and `.md` files. Open one of those files to preview.</p>
+                  )}
+                </div>
               </section>
               <section className="app-module">
                 <header><h2>Secure .skye Package</h2><p>Export and import app state as encrypted `.skye` using the SKYESEC1 + skye-secure-v1 contract.</p></header>

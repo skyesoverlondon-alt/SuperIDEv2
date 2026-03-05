@@ -7,6 +7,13 @@ import { hasValidMasterSequence, readBearerToken, resolveApiToken, tokenHasScope
 
 function normalizeKaixuGatewayEndpoint(raw: string): string {
   const endpoint = String(raw || "").trim();
+  if (!endpoint) return endpoint;
+  if (/^https:\/\/skyesol\.netlify\.app\/?$/i.test(endpoint)) {
+    return "https://skyesol.netlify.app/.netlify/functions/gateway-chat";
+  }
+  if (/^https:\/\/skyesol\.netlify\.app\/platforms-apps-infrastructure\/kaixugateway13\/v1\/generate\/?$/i.test(endpoint)) {
+    return "https://skyesol.netlify.app/.netlify/functions/gateway-chat";
+  }
   return endpoint;
 }
 
