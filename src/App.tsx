@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import Editor from "@monaco-editor/react";
 import { redactDiagnosticsValue } from "./redaction";
 import { filterSknoreFiles, isSknoreProtected, normalizeSknorePatterns } from "./sknore/policy";
@@ -226,6 +226,9 @@ type MergePreviewState = {
   serverRecordId: string;
   serverUpdatedAt: string;
 };
+
+type ResizeKind = "sidebar" | "chat" | "ide-split";
+type WorkspaceStageApp = SkyeAppId | "Neural-Space-Pro";
 
 type TokenInventoryItem = {
   id: string;
@@ -784,7 +787,50 @@ export function App() {
   });
   const [previewDevice, setPreviewDevice] = useState<"desktop" | "mobile">("desktop");
   const [previewPane, setPreviewPane] = useState<"split" | "code" | "preview">("split");
+  const [workspaceSidebarWidth, setWorkspaceSidebarWidth] = useState(() => {
+    const raw = Number(localStorage.getItem("kx.layout.sidebar.width"));
+    if (!Number.isFinite(raw)) return 420;
+    return Math.min(640, Math.max(300, raw));
+  });
+  const [chatPaneHeight, setChatPaneHeight] = useState(() => {
+    const raw = Number(localStorage.getItem("kx.layout.chat.height"));
+    if (!Number.isFinite(raw)) return 340;
+    return Math.min(560, Math.max(220, raw));
+  });
+  const [ideSplitRatio, setIdeSplitRatio] = useState(() => {
+    const raw = Number(localStorage.getItem("kx.layout.ide.split"));
+    if (!Number.isFinite(raw)) return 56;
+    return Math.min(75, Math.max(25, raw));
+  });
   const [assistantAuthStatus, setAssistantAuthStatus] = useState<"unknown" | "ok" | "token" | "unauthorized">("unknown");
+  const [topWorkspaceApp, setTopWorkspaceApp] = useState<WorkspaceStageApp>(() => {
+    const raw = String(localStorage.getItem("kx.workspace.stack.top") || "").trim();
+    if (raw === "Neural-Space-Pro") return raw;
+    if (SKYE_APPS.some((app) => app.id === raw)) return raw as SkyeAppId;
+    return "SkyeDocxPro";
+  });
+  const [middleWorkspaceApp, setMiddleWorkspaceApp] = useState<WorkspaceStageApp>(() => {
+    const raw = String(localStorage.getItem("kx.workspace.stack.middle") || "").trim();
+    if (raw === "Neural-Space-Pro") return raw;
+    if (SKYE_APPS.some((app) => app.id === raw)) return raw as SkyeAppId;
+    return "Neural-Space-Pro";
+  });
+  const [bottomWorkspaceApp, setBottomWorkspaceApp] = useState<WorkspaceStageApp>(() => {
+    const raw = String(localStorage.getItem("kx.workspace.stack.bottom") || "").trim();
+    if (raw === "Neural-Space-Pro") return raw;
+    if (SKYE_APPS.some((app) => app.id === raw)) return raw as SkyeAppId;
+    return "SkyeBookx";
+  });
+
+  const resizeStateRef = useRef<{
+    kind: ResizeKind;
+    startX: number;
+    startY: number;
+    sidebarWidth: number;
+    chatHeight: number;
+    ideSplitRatio: number;
+  } | null>(null);
+  const ideSplitRef = useRef<HTMLDivElement | null>(null);
 
   const [files, setFiles] = useState<WorkspaceFile[]>(() => {
     const raw = localStorage.getItem("kx.workspace.files");
@@ -1173,6 +1219,30 @@ export function App() {
   useEffect(() => {
     localStorage.setItem("kx.site.base", siteBaseUrl);
   }, [siteBaseUrl]);
+
+  useEffect(() => {
+    localStorage.setItem("kx.layout.sidebar.width", String(Math.round(workspaceSidebarWidth)));
+  }, [workspaceSidebarWidth]);
+
+  useEffect(() => {
+    localStorage.setItem("kx.layout.chat.height", String(Math.round(chatPaneHeight)));
+  }, [chatPaneHeight]);
+
+  useEffect(() => {
+    localStorage.setItem("kx.layout.ide.split", String(Math.round(ideSplitRatio)));
+  }, [ideSplitRatio]);
+
+  useEffect(() => {
+    localStorage.setItem("kx.workspace.stack.top", topWorkspaceApp);
+  }, [topWorkspaceApp]);
+
+  useEffect(() => {
+    localStorage.setItem("kx.workspace.stack.middle", middleWorkspaceApp);
+  }, [middleWorkspaceApp]);
+
+  useEffect(() => {
+    localStorage.setItem("kx.workspace.stack.bottom", bottomWorkspaceApp);
+  }, [bottomWorkspaceApp]);
 
   useEffect(() => {
     localStorage.setItem("kx.workspace.id", workspaceId);
@@ -3275,6 +3345,71 @@ export function App() {
     setTasksModel((old) => old.map((task) => (task.id === taskId ? { ...task, ...patch, updated_at: new Date().toISOString() } : task)));
   }
 
+  function beginResize(kind: ResizeKind, event: any) {
+    const startX = Number(event?.clientX || 0);
+    const startY = Number(event?.clientY || 0);
+    resizeStateRef.current = {
+      kind,
+      startX,
+      startY,
+      sidebarWidth: workspaceSidebarWidth,
+      chatHeight: chatPaneHeight,
+      ideSplitRatio,
+    };
+
+    const handleMove = (moveEvent: PointerEvent) => {
+      const state = resizeStateRef.current;
+      if (!state) return;
+
+      if (state.kind === "sidebar") {
+        const delta = moveEvent.clientX - state.startX;
+        const max = Math.max(460, Math.floor(window.innerWidth * 0.62));
+        const next = Math.min(max, Math.max(300, state.sidebarWidth + delta));
+        setWorkspaceSidebarWidth(next);
+        return;
+      }
+
+      if (state.kind === "chat") {
+        const delta = state.startY - moveEvent.clientY;
+        const max = Math.max(360, Math.floor(window.innerHeight * 0.66));
+        const next = Math.min(max, Math.max(220, state.chatHeight + delta));
+        setChatPaneHeight(next);
+        return;
+      }
+
+      const splitWidth = ideSplitRef.current?.getBoundingClientRect().width || 0;
+      if (splitWidth <= 0) return;
+      const delta = moveEvent.clientX - state.startX;
+      const ratioDelta = (delta / splitWidth) * 100;
+      const next = Math.min(75, Math.max(25, state.ideSplitRatio + ratioDelta));
+      setIdeSplitRatio(next);
+    };
+
+    const handleUp = () => {
+      window.removeEventListener("pointermove", handleMove);
+      window.removeEventListener("pointerup", handleUp);
+      resizeStateRef.current = null;
+    };
+
+    window.addEventListener("pointermove", handleMove);
+    window.addEventListener("pointerup", handleUp);
+  }
+
+  function workspaceStageLabel(app: WorkspaceStageApp): string {
+    if (app === "Neural-Space-Pro") return "Neural-Space-Pro";
+    return app;
+  }
+
+  function workspaceStageUrl(app: WorkspaceStageApp): string {
+    if (app === "Neural-Space-Pro") {
+      const qs = new URLSearchParams();
+      qs.set("embed", "1");
+      qs.set("ws_id", workspaceId || DEFAULT_WS_ID);
+      return `/Neural-Space-Pro/index.html?${qs.toString()}`;
+    }
+    return buildAppSurfaceUrl(app, workspaceId) || "/";
+  }
+
   function renderTutorialPanel(appId: SkyeAppId) {
     const steps = APP_TUTORIALS[appId] || [];
     const completed = steps.filter((step) => tutorialChecks[makeTutorialKey(appId, step)]).length;
@@ -4259,7 +4394,8 @@ export function App() {
         </section>
       )}
 
-      <div className="workspace-body">
+      <div className="workspace-stack">
+      <div className="workspace-body" style={{ ["--sidebar-width" as any]: `${workspaceSidebarWidth}px` }}>
         <aside className="file-pane">
           <div className="mode-switch">
             <button type="button" className={`switch-btn ${appMode === "skyeide" ? "active" : ""}`} onClick={() => setAppMode("skyeide")}>SkyeIDE</button>
@@ -4360,9 +4496,76 @@ export function App() {
           )}
         </aside>
 
+        <div
+          className="panel-resizer vertical"
+          role="separator"
+          aria-label="Resize workspace columns"
+          onPointerDown={(event) => beginResize("sidebar", event)}
+        />
+
         <main className="editor-pane">
           {appMode === "skyeide" ? (
             selectedSkyeApp === "SkyeDocs" ? (
+              <>
+                <section className="app-module workspace-stage-settings">
+                  <header>
+                    <h2>Primary Workspace Stack</h2>
+                    <p>DocxPro-first full app workspace. Scroll each full section to move through Top, Middle, and Bottom apps.</p>
+                  </header>
+                  <div className="tool-row split">
+                    <div>
+                      <label>Top App</label>
+                      <select value={topWorkspaceApp} onChange={(event) => setTopWorkspaceApp(event.target.value as WorkspaceStageApp)}>
+                        <option value="Neural-Space-Pro">Neural-Space-Pro</option>
+                        {SKYE_APPS.map((app) => (
+                          <option key={`top-${app.id}`} value={app.id}>{app.id}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label>Middle App</label>
+                      <select value={middleWorkspaceApp} onChange={(event) => setMiddleWorkspaceApp(event.target.value as WorkspaceStageApp)}>
+                        <option value="Neural-Space-Pro">Neural-Space-Pro</option>
+                        {SKYE_APPS.map((app) => (
+                          <option key={`mid-${app.id}`} value={app.id}>{app.id}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="tool-row split">
+                    <div>
+                      <label>Bottom App</label>
+                      <select value={bottomWorkspaceApp} onChange={(event) => setBottomWorkspaceApp(event.target.value as WorkspaceStageApp)}>
+                        <option value="Neural-Space-Pro">Neural-Space-Pro</option>
+                        {SKYE_APPS.map((app) => (
+                          <option key={`bot-${app.id}`} value={app.id}>{app.id}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label>Default Focus</label>
+                      <input readOnly value={`${workspaceStageLabel(topWorkspaceApp)} -> ${workspaceStageLabel(middleWorkspaceApp)} -> ${workspaceStageLabel(bottomWorkspaceApp)}`} />
+                    </div>
+                  </div>
+                </section>
+
+                {[topWorkspaceApp, middleWorkspaceApp, bottomWorkspaceApp].map((app, index) => {
+                  const slot = index === 0 ? "Top Workspace" : index === 1 ? "Middle Workspace" : "Bottom Workspace";
+                  const src = workspaceStageUrl(app);
+                  return (
+                    <section key={`stack-${slot}-${app}`} className="app-module workspace-stage-block">
+                      <header>
+                        <h2>{slot}: {workspaceStageLabel(app)}</h2>
+                        <p>1:1 embedded surface in the primary container workspace.</p>
+                      </header>
+                      <div className="tool-actions left">
+                        <a className="ghost" href={src} target="_blank" rel="noreferrer">Open Standalone</a>
+                      </div>
+                      <iframe className="workspace-stage-frame" title={`${slot}-${workspaceStageLabel(app)}`} src={src} />
+                    </section>
+                  );
+                })}
+
               <section className="app-module ide-module-focus">
                 <header><h2>IDE Workspace</h2><p>Real app-focused workspace with side-by-side code and live preview that can be detached.</p></header>
                 <div className="tool-row split">
@@ -4409,36 +4612,74 @@ export function App() {
                   </div>
                 </div>
                 <div className={`ide-workbench ${previewPane}`}>
-                  {previewPane !== "preview" && (
-                    <div className="ide-code-col">
-                      <div className="editor-head">{activeFile?.path || "No file"}</div>
-                      <Editor
-                        height={previewPane === "split" ? "65vh" : "76vh"}
-                        theme="vs-dark"
-                        path={activeFile?.path}
-                        value={activeFile?.content || ""}
-                        onChange={(value) => updateActiveFileContent(value || "")}
-                        options={{ minimap: { enabled: false }, fontSize: 13, wordWrap: "on", automaticLayout: true }}
+                  {previewPane === "split" ? (
+                    <div className="ide-split-resizable" ref={ideSplitRef}>
+                      <div className="ide-code-col" style={{ width: `${ideSplitRatio}%` }}>
+                        <div className="editor-head">{activeFile?.path || "No file"}</div>
+                        <Editor
+                          height="72vh"
+                          theme="vs-dark"
+                          path={activeFile?.path}
+                          value={activeFile?.content || ""}
+                          onChange={(value) => updateActiveFileContent(value || "")}
+                          options={{ minimap: { enabled: false }, fontSize: 13, wordWrap: "on", automaticLayout: true }}
+                        />
+                      </div>
+                      <div
+                        className="panel-resizer vertical"
+                        role="separator"
+                        aria-label="Resize code and preview"
+                        onPointerDown={(event) => beginResize("ide-split", event)}
                       />
+                      <div className="preview-shell" style={{ width: `${100 - ideSplitRatio}%` }}>
+                        {previewDocument ? (
+                          <div className={`preview-frame-wrap ${previewDevice}`}>
+                            <iframe key={`${activeFile?.path || "file"}-${previewDocument.length}`} title="IDE File Preview" className="preview-frame" srcDoc={previewDocument} sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-downloads" />
+                          </div>
+                        ) : livePreviewUrl ? (
+                          <div className={`preview-frame-wrap ${previewDevice}`}>
+                            <iframe key={livePreviewUrl} title="IDE Live Preview" className="preview-frame" src={livePreviewUrl} sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-downloads" />
+                          </div>
+                        ) : (
+                          <p className="muted-copy">Preview supports live app surfaces and `.html`, `.htm`, `.svg`, `.md` file rendering.</p>
+                        )}
+                      </div>
                     </div>
-                  )}
-                  {previewPane !== "code" && (
-                    <div className="preview-shell">
-                      {livePreviewUrl ? (
-                        <div className={`preview-frame-wrap ${previewDevice}`}>
-                          <iframe key={livePreviewUrl} title="IDE Live Preview" className="preview-frame" src={livePreviewUrl} sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-downloads" />
+                  ) : (
+                    <>
+                      {previewPane !== "preview" && (
+                        <div className="ide-code-col">
+                          <div className="editor-head">{activeFile?.path || "No file"}</div>
+                          <Editor
+                            height="76vh"
+                            theme="vs-dark"
+                            path={activeFile?.path}
+                            value={activeFile?.content || ""}
+                            onChange={(value) => updateActiveFileContent(value || "")}
+                            options={{ minimap: { enabled: false }, fontSize: 13, wordWrap: "on", automaticLayout: true }}
+                          />
                         </div>
-                      ) : previewDocument ? (
-                        <div className={`preview-frame-wrap ${previewDevice}`}>
-                          <iframe key={`${activeFile?.path || "file"}-${previewDocument.length}`} title="IDE File Preview" className="preview-frame" srcDoc={previewDocument} sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-downloads" />
-                        </div>
-                      ) : (
-                        <p className="muted-copy">Preview supports live app surfaces and `.html`, `.htm`, `.svg`, `.md` file rendering.</p>
                       )}
-                    </div>
+                      {previewPane !== "code" && (
+                        <div className="preview-shell">
+                          {previewDocument ? (
+                            <div className={`preview-frame-wrap ${previewDevice}`}>
+                              <iframe key={`${activeFile?.path || "file"}-${previewDocument.length}`} title="IDE File Preview" className="preview-frame" srcDoc={previewDocument} sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-downloads" />
+                            </div>
+                          ) : livePreviewUrl ? (
+                            <div className={`preview-frame-wrap ${previewDevice}`}>
+                              <iframe key={livePreviewUrl} title="IDE Live Preview" className="preview-frame" src={livePreviewUrl} sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-downloads" />
+                            </div>
+                          ) : (
+                            <p className="muted-copy">Preview supports live app surfaces and `.html`, `.htm`, `.svg`, `.md` file rendering.</p>
+                          )}
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               </section>
+              </>
             ) : (
               <>
                 <section className="app-module" style={{ marginBottom: 10 }}>
@@ -4520,7 +4761,14 @@ export function App() {
 
       </div>
 
-      <aside className="chat-pane chat-pane-bottom">
+      <div
+        className="panel-resizer horizontal"
+        role="separator"
+        aria-label="Resize workspace rows"
+        onPointerDown={(event) => beginResize("chat", event)}
+      />
+
+      <aside className="chat-pane chat-pane-bottom" style={{ height: `${chatPaneHeight}px` }}>
           <header>
             <div className="tool-tabs">
               <button type="button" className={`tool-tab ${toolTab === "assistant" ? "active" : ""}`} onClick={() => setToolTab("assistant")}>Assistant</button>
@@ -4673,6 +4921,7 @@ export function App() {
             </form>
           )}
       </aside>
+      </div>
       <footer className="build-metadata-footer">
         <span>Build {buildMetadata.version}</span>
         <span>Commit {buildMetadata.commit}</span>
