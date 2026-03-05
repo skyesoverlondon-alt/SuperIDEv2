@@ -250,9 +250,17 @@
         // --- Firebase Init ---
         const { initializeApp, getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged, getFirestore, doc, setDoc, onSnapshot } = window.fb;
         const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
+        let auth = null;
+        let db = null;
+        try {
+            if (firebaseConfig && typeof firebaseConfig === 'object' && Object.keys(firebaseConfig).length > 0) {
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+            }
+        } catch (err) {
+            console.warn('SkyeBookx Firebase bootstrap disabled', err);
+        }
 
         // --- Three.js Neon Background Logic ---
         function initThreeJS() {
@@ -348,13 +356,16 @@
             setupDragAndDrop();
             renderNav();
 
-            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) { await signInWithCustomToken(auth, __initial_auth_token); } 
-            else { await signInAnonymously(auth); }
+            if (auth) {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) { await signInWithCustomToken(auth, __initial_auth_token); } 
+                else { await signInAnonymously(auth); }
 
-            onAuthStateChanged(auth, (u) => { user = u; if (user) syncCloudData(); });
+                onAuthStateChanged(auth, (u) => { user = u; if (user) syncCloudData(); });
+            }
         }
 
         async function syncCloudData() {
+            if (!user || !db) return;
             const docRef = doc(db, 'artifacts', appId, 'users', user.uid, 'manuscript', 'current');
             onSnapshot(docRef, (snap) => {
                 if (snap.exists() && !isSaving) {
@@ -378,7 +389,7 @@
         }
 
         async function saveToCloud() {
-            if (!user) return;
+            if (!user || !db) return;
             isSaving = true;
             document.getElementById('sync-status').innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> <span>Syncing...</span>';
             try {

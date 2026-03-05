@@ -4108,6 +4108,28 @@ export function App() {
       );
     }
 
+    const fallbackSurface = buildAppSurfaceUrl(selectedSkyeApp, workspaceId);
+    if (fallbackSurface) {
+      return (
+        <section className="app-module">
+          <header>
+            <h2>{selectedSkyeApp}</h2>
+            <p>Embedded standalone surface for this app is now loaded directly inside IDE.</p>
+          </header>
+          <div className="tool-actions left">
+            <a className="ghost" href={fallbackSurface} target="_blank" rel="noreferrer">Open Standalone</a>
+          </div>
+          <iframe
+            key={`${selectedSkyeApp}-${workspaceId}`}
+            title={`${selectedSkyeApp} Embedded`}
+            src={fallbackSurface}
+            className="platform-frame"
+            sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-downloads"
+          />
+        </section>
+      );
+    }
+
     return null;
   }
 

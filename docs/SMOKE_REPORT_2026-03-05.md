@@ -53,3 +53,22 @@ Smoke validation passed for the contract suite and all 13 regenerated kAIxu rout
 - Worker health check skipped because `WORKER_URL` was not provided.
 - `POST /api/kaixu-generate` returned `401` and was treated as expected policy protection.
 - `GET /api/auth-me` returned `200` in this run.
+
+## Smokehouse Result (Latest Full Run)
+- Command: `bash scripts/smokehouse.sh`
+- Timestamp (UTC): `2026-03-05T21:10:59Z`
+- Summary: `PASS=13 FAIL=0`
+- Site: `https://kaixusuperidev2.netlify.app`
+- Worker: `<not-set>`
+
+## Interaction Smoke (Playwright-Style)
+- Command: `SITE_BASE_URL=http://127.0.0.1:4175 npm run smoke:interactions`
+- Result: `apps=37`, `checks=74`, `failed=0` (`PASS`)
+- Artifact: `artifacts/interaction-smoke.json`
+- Coverage:
+- Surface checks for every `public/*/index.html` app.
+- IDE checks for every app selection via `index.html?app=<id>` ensuring non-blank module/frame rendering.
+
+## Live App Sweep
+- Command: route-level sweep across all discoverable app surfaces on production.
+- Result: `APP_SURFACE_SWEEP_LIVE PASS=37 FAIL=0`

@@ -61,9 +61,17 @@
 
     const { initializeApp, getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged, getFirestore, doc, setDoc, onSnapshot } = window.fb;
     const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
+    let auth = null;
+    let db = null;
+    try {
+      if (firebaseConfig && typeof firebaseConfig === 'object' && Object.keys(firebaseConfig).length > 0) {
+        const app = initializeApp(firebaseConfig);
+        auth = getAuth(app);
+        db = getFirestore(app);
+      }
+    } catch (err) {
+      console.warn('Firebase bootstrap disabled in', appId, err);
+    }
 
     const gatewayFetch = (window.SkyeGateway && window.SkyeGateway.fetchWithRetry) || fetch;
     function wsId() { return new URLSearchParams(window.location.search).get('ws_id') || 'primary-workspace'; }
@@ -103,13 +111,14 @@
     }
     function debounceSave() { clearTimeout(saveTimeout); saveTimeout = setTimeout(save, 800); }
     async function save() {
-      if (!user) return;
+      if (!user || !db) return;
       isSaving = true;
       try {
         await setDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'workspace', 'current'), { ...state }, { merge: true });
       } finally { setTimeout(() => isSaving = false, 150); }
     }
     function sync() {
+      if (!user || !db || !onSnapshot) return;
       onSnapshot(doc(db, 'artifacts', appId, 'users', user.uid, 'workspace', 'current'), (snap) => {
         if (snap.exists() && !isSaving) { state = { ...state, ...snap.data() }; refresh(); }
       });
@@ -139,11 +148,13 @@
     });
     document.getElementById('btn-pdf').addEventListener('click', () => { window.focus(); window.print(); });
 
-    try {
-      if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token);
-      else await signInAnonymously(auth);
-    } catch {}
-    onAuthStateChanged(auth, (u) => { user = u; if (u) sync(); });
+    if (auth) {
+      try {
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token);
+        else await signInAnonymously(auth);
+      } catch {}
+      onAuthStateChanged(auth, (u) => { user = u; if (u) sync(); });
+    }
 
     refresh();
   </script>

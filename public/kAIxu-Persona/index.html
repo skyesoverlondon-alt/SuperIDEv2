@@ -264,8 +264,16 @@
 
         const { initializeApp, getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged, getFirestore, doc, setDoc, onSnapshot } = window.fb;
         const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app), db = getFirestore(app);
+        let auth = null, db = null;
+        try {
+            if (firebaseConfig && typeof firebaseConfig === 'object' && Object.keys(firebaseConfig).length > 0) {
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+            }
+        } catch (err) {
+            console.warn('kAIxu Persona Firebase bootstrap disabled', err);
+        }
 
         // --- Neon Three.js Soul Spheres ---
         function initThreeJS() {
@@ -347,13 +355,16 @@
             });
             document.getElementById('import-input').addEventListener('change', handleImport);
 
-            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token);
-            else await signInAnonymously(auth);
-            onAuthStateChanged(auth, u => { user = u; if(user) syncCloud(); });
+            if (auth) {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token);
+                else await signInAnonymously(auth);
+                onAuthStateChanged(auth, u => { user = u; if(user) syncCloud(); });
+            }
             renderNav();
         }
 
         async function syncCloud() {
+            if (!user || !db) return;
             onSnapshot(doc(db, 'artifacts', appId, 'users', user.uid, 'persona', 'current'), snap => {
                 if (snap.exists() && !isSaving) {
                     const data = snap.data();
@@ -367,7 +378,7 @@
         function debouncedSave() { clearTimeout(saveTimeout); saveTimeout = setTimeout(saveToCloud, 2000); }
 
         async function saveToCloud() {
-            if (!user) return;
+            if (!user || !db) return;
             isSaving = true;
             document.getElementById('sync-status').innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> <span>Syncing...</span>';
             try {

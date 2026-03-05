@@ -296,3 +296,29 @@ Passing checks:
 2. Full smokehouse: PASS=13 FAIL=0 (`bash scripts/smokehouse.sh`).
 3. App surface production sweep: PASS=37 FAIL=0 across all `public/*/index.html` routes.
 
+## Full App Reliability Sweep (2026-03-05, execution bundle)
+
+### A) IDE Blank-App Root Cause and Fix
+1. Root cause: `renderAppModule()` had no branches for many app IDs (especially kAIxU + API/Smokehouse IDs), returning `null` and showing blank panels.
+2. Fix: Added generic mapped-surface fallback renderer in `src/App.tsx`.
+3. Result: Any app with a valid `APP_SURFACE_PATHS` mapping now renders as embedded surface in IDE.
+
+### B) App Bootstrap Hardening
+1. Hardened Firebase bootstrap fail-open behavior for standalone surfaces so missing/invalid Firebase config does not blank the UI.
+2. Patched kAIxU app family plus SkyeBookx and SkyePlatinum config parse path.
+3. Added auth/db guards around cloud sync/save handlers.
+
+### C) New Automated Interaction Smoke
+1. Added Playwright-style interaction smoke script:
+2. `scripts/smoke-interactions-playwright.mjs`
+3. Added npm command:
+4. `npm run smoke:interactions`
+5. Emits artifact:
+6. `artifacts/interaction-smoke.json`
+
+### D) Verification Outcomes (post-fix)
+1. Local interaction smoke: `apps=37`, `checks=74`, `failed=0`.
+2. Release checklist: PASS.
+3. Production smokehouse: PASS=13 FAIL=0.
+4. Production app route sweep: PASS=37 FAIL=0.
+

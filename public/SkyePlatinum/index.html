@@ -61,7 +61,7 @@
     <script type="text/babel">
         const { useState, useEffect, useMemo, useRef } = React;
 
-        const firebaseConfig = JSON.parse(__firebase_config);
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'skye-platinum-hub-v1';
         const logoSrc = "https://cdn1.sharemyimage.com/2026/02/16/logo1_transparent.png";
 
