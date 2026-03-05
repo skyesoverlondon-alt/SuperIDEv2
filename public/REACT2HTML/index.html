@@ -39,6 +39,21 @@
       </div>
     </div>
 
+    <section class="px-6 py-3 border-b border-slate-200 bg-white">
+      <div class="max-w-[1600px] mx-auto grid gap-2 md:grid-cols-[1.6fr_1fr_auto_auto] items-end">
+        <label class="text-xs font-semibold text-slate-600 uppercase tracking-wider">
+          kAIxU Access Key
+          <input id="keyInput" type="password" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" placeholder="kx_at_..." />
+        </label>
+        <label class="text-xs font-semibold text-slate-600 uppercase tracking-wider">
+          Token Email
+          <input id="emailInput" type="email" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" placeholder="user@company.com" />
+        </label>
+        <button id="saveAuthBtn" class="h-10 px-4 rounded-lg border border-indigo-300 bg-indigo-50 text-indigo-700 font-semibold">Save Auth</button>
+        <button id="clearAuthBtn" class="h-10 px-4 rounded-lg border border-slate-300 bg-slate-100 text-slate-700 font-semibold">Clear Auth</button>
+      </div>
+    </section>
+
     <main class="flex-1 flex flex-col lg:flex-row gap-6 p-6 max-w-[1600px] w-full mx-auto overflow-hidden">
       <section class="flex-1 flex flex-col bg-white rounded-xl shadow border border-slate-200 overflow-hidden min-h-[520px]">
         <div class="bg-slate-50 border-b border-slate-200 px-4 py-3 flex items-center gap-2">
@@ -104,6 +119,10 @@
       const tabPreview = document.getElementById('tabPreview');
       const tabCode = document.getElementById('tabCode');
       const copyBtn = document.getElementById('copyBtn');
+      const keyInput = document.getElementById('keyInput');
+      const emailInput = document.getElementById('emailInput');
+      const saveAuthBtn = document.getElementById('saveAuthBtn');
+      const clearAuthBtn = document.getElementById('clearAuthBtn');
       const loadingOverlay = document.getElementById('loadingOverlay');
       const errorOverlay = document.getElementById('errorOverlay');
       const errorText = document.getElementById('errorText');
@@ -125,6 +144,19 @@
         if (token) headers.Authorization = `Bearer ${token}`;
         if (email) headers['X-Token-Email'] = email;
         return headers;
+      }
+
+      function hydrateAuthInputs() {
+        keyInput.value = localStorage.getItem('kx.api.accessToken') || localStorage.getItem('kaixu_api_key') || '';
+        emailInput.value = localStorage.getItem('kx.api.tokenEmail') || '';
+      }
+
+      function saveAuthInputs() {
+        const token = (keyInput.value || '').trim();
+        const email = (emailInput.value || '').trim().toLowerCase();
+        localStorage.setItem('kx.api.accessToken', token);
+        localStorage.setItem('kaixu_api_key', token);
+        localStorage.setItem('kx.api.tokenEmail', email);
       }
 
       async function refreshAuthBadge() {
@@ -216,7 +248,11 @@
         }
 
         if (!converted.trim().startsWith('<')) {
-          throw new Error('Invalid HTML generated (response did not start with a tag).');
+          const escaped = converted
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+          return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Preview Output</title><style>body{margin:0;padding:16px;font-family:ui-monospace,Menlo,Consolas,monospace;background:#0f172a;color:#e2e8f0;white-space:pre-wrap;line-height:1.5}</style></head><body>${escaped}</body></html>`;
         }
         return converted;
       }
@@ -292,7 +328,16 @@
       tabPreview.addEventListener('click', () => setActiveTab('preview'));
       tabCode.addEventListener('click', () => setActiveTab('code'));
       copyBtn.addEventListener('click', copyHtml);
+      saveAuthBtn.addEventListener('click', async () => { saveAuthInputs(); await refreshAuthBadge(); });
+      clearAuthBtn.addEventListener('click', async () => {
+        localStorage.removeItem('kx.api.accessToken');
+        localStorage.removeItem('kaixu_api_key');
+        localStorage.removeItem('kx.api.tokenEmail');
+        hydrateAuthInputs();
+        await refreshAuthBadge();
+      });
 
+      hydrateAuthInputs();
       refreshAuthBadge();
       updateConvertEnabled();
       setActiveTab('preview');

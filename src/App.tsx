@@ -1042,6 +1042,7 @@ export function App() {
   useEffect(() => {
     localStorage.setItem("kx.api.accessToken", apiAccessToken);
     localStorage.setItem("kx.api.tokenEmail", apiTokenEmail);
+    if (apiAccessToken.trim()) localStorage.setItem("kaixu_api_key", apiAccessToken.trim());
   }, [apiAccessToken, apiTokenEmail]);
 
   useEffect(() => {
@@ -1581,13 +1582,13 @@ export function App() {
         }
 
         if (check.name === "Generate API" && res.status === 401) {
-          ok = true;
-          summary = "Endpoint is protected (401 Unauthorized) which is expected without valid session/token.";
+          ok = false;
+          summary = "Generate API returned 401. Configure a kAIxU key (or valid session) before treating smoke as pass.";
         }
 
         if (check.name === "Auth Me" && [401, 403].includes(res.status)) {
-          ok = true;
-          summary = "Auth endpoint is protected and requires a valid session (expected in hardened deployments).";
+          ok = false;
+          summary = "Auth session missing/forbidden. Sign in or load a kAIxU key before smoke validation.";
         }
 
         if (check.name === "Worker Health" && [302, 401, 403].includes(res.status)) {
@@ -3300,6 +3301,9 @@ export function App() {
       return (
         <section className="app-module">
           <header><h2>SkyeDrive</h2><p>Asset ledger with versioning and share targets for launch artifacts.</p></header>
+          <div className="tool-actions left">
+            <a className="ghost" href={`/SkyeDrive/index.html?ws_id=${encodeURIComponent(workspaceId)}`} target="_blank" rel="noreferrer">Open Standalone</a>
+          </div>
           <div className="tool-row split">
             <input value={driveDraftName} onChange={(e) => setDriveDraftName(e.target.value)} placeholder="File name" />
             <select value={driveDraftKind} onChange={(e) => setDriveDraftKind(e.target.value as DriveAsset["kind"])}>
@@ -3721,8 +3725,8 @@ export function App() {
         <div className="cine-whiteout" />
         <div className="cine-core">
           <img className="cine-logo" src="/SKYESOVERLONDONDIETYLOGO.png" alt="" />
-          <div className="cine-title">SKYE IDE</div>
-          <div className="cine-sub">Command Deck Online</div>
+          <div className="cine-title">kAIxU SKYEIDE</div>
+          <div className="cine-sub">PRIMARY WORKSPACE ONLINE</div>
         </div>
       </div>
       <header className="topbar">
@@ -3780,11 +3784,35 @@ export function App() {
           onChange={(event) => setWorkerUrl(event.target.value)}
           placeholder="https://your-worker.workers.dev"
         />
+        <label htmlFor="kaixu-key-global">kAIxU Key</label>
+        <input
+          id="kaixu-key-global"
+          type="password"
+          value={apiAccessToken}
+          onChange={(event) => setApiAccessToken(event.target.value)}
+          placeholder="kx_at_..."
+        />
+        <label htmlFor="kaixu-email-global">Token Email</label>
+        <input
+          id="kaixu-email-global"
+          value={apiTokenEmail}
+          onChange={(event) => setApiTokenEmail(event.target.value)}
+          placeholder="user@company.com"
+        />
         <button className="ghost" type="button" onClick={() => void saveWorkspaceNow()} disabled={isSavingWorkspace}>
           {isSavingWorkspace ? "Saving..." : "Save"}
         </button>
         <button className="ghost" type="button" onClick={() => void loadWorkspaceNow()} disabled={isLoadingWorkspace}>
           {isLoadingWorkspace ? "Loading..." : "Load"}
+        </button>
+        <button className="ghost" type="button" onClick={() => void checkAssistantAuth()}>
+          Validate Auth
+        </button>
+        <button className="ghost" type="button" onClick={() => { setApiAccessToken(""); setApiTokenEmail(""); setAssistantAuthStatus("unknown"); }}>
+          Clear Auth
+        </button>
+        <button className="ghost" type="button" onClick={() => setShowTutorialPanel((old) => !old)}>
+          {showTutorialPanel ? "Hide Tutorials" : "Show Tutorials"}
         </button>
       </section>
 

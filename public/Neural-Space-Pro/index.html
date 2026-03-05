@@ -189,12 +189,34 @@
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, doc, getDocs, onSnapshot, addDoc, updateDoc, deleteDoc, Timestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Firebase Setup (local persistence only; AI calls go through kAIxU Gate)
-        const firebaseConfig = JSON.parse(window.__firebase_config || '{}');
+        // Firebase Setup (optional; fallback to local archive mode when config is unavailable)
+        function parseFirebaseConfig(raw) {
+            if (!raw) return {};
+            if (typeof raw === 'object') return raw;
+            if (typeof raw === 'string') {
+                try { return JSON.parse(raw); } catch { return {}; }
+            }
+            return {};
+        }
+
+        const firebaseConfig = parseFirebaseConfig(window.__firebase_config);
         const appId = window.__app_id || 'kaixu-nexus-v1';
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
+        const hasFirebaseConfig = Boolean(firebaseConfig && firebaseConfig.apiKey);
+        let app = null;
+        let auth = null;
+        let db = null;
+        let firebaseReady = false;
+
+        if (hasFirebaseConfig) {
+            try {
+                app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+                firebaseReady = true;
+            } catch (error) {
+                console.warn('Neural Space Pro running in local fallback mode:', error);
+            }
+        }
 
         // kAIxU Gate
         const GATE_BASE = window.__kaixu_gate || "https://kaixu67.skyesoverlondon.workers.dev";
@@ -203,14 +225,33 @@
         // App State
         let apiKey = "";
         let user = null, currentChatId = null, activeMode = 'chat', isSearchOn = true, attachments = [], conversation = [], abortCtrl = null;
+        const LOCAL_ARCHIVE_KEY = 'kaixu.neural.local.archives';
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        function readLocalArchives() {
+            try {
+                const raw = localStorage.getItem(LOCAL_ARCHIVE_KEY) || '[]';
+                const parsed = JSON.parse(raw);
+                return Array.isArray(parsed) ? parsed : [];
+            } catch {
+                return [];
+            }
+        }
+
+        function writeLocalArchives(items) {
+            localStorage.setItem(LOCAL_ARCHIVE_KEY, JSON.stringify(items));
+        }
+
+        function getUnifiedStoredKey() {
+            return localStorage.getItem('kx.api.accessToken') || localStorage.getItem('kaixu_api_key') || '';
+        }
 
         // --- ENGINE SETTINGS ---
         function loadLocalStore() {
             const systemPromptEl = document.getElementById('system-prompt');
             const apiKeyEl = document.getElementById('api-key-config');
             
-            const storedKey = localStorage.getItem('kaixu_api_key');
+            const storedKey = getUnifiedStoredKey();
             if (storedKey) {
                 apiKey = storedKey;
                 if (apiKeyEl) apiKeyEl.value = storedKey;
@@ -227,6 +268,7 @@
             
             if (apiKeyEl) {
                 const newKey = apiKeyEl.value.trim();
+                localStorage.setItem('kx.api.accessToken', newKey);
                 localStorage.setItem('kaixu_api_key', newKey);
                 apiKey = newKey;
             }
@@ -244,17 +286,25 @@
         window.autoResize = (t) => { t.style.height = 'auto'; t.style.height = t.scrollHeight + 'px'; };
 
         // Authentication Observer
-        onAuthStateChanged(auth, (u) => { 
-            user = u; 
-            if (user) { 
-                const userUidEl = document.getElementById('user-uid');
-                if (userUidEl) userUidEl.textContent = user.uid.slice(0, 15); 
-                syncArchives(); 
-                loadLocalStore(); 
-            } else {
-                signInAnonymously(auth);
-            }
-        });
+        if (firebaseReady && auth) {
+            onAuthStateChanged(auth, (u) => {
+                user = u;
+                if (user) {
+                    const userUidEl = document.getElementById('user-uid');
+                    if (userUidEl) userUidEl.textContent = user.uid.slice(0, 15);
+                    syncArchives();
+                    loadLocalStore();
+                } else {
+                    signInAnonymously(auth);
+                }
+            });
+        } else {
+            user = { uid: 'local-neural-user' };
+            const userUidEl = document.getElementById('user-uid');
+            if (userUidEl) userUidEl.textContent = 'local-fallback';
+            syncArchives();
+            loadLocalStore();
+        }
 
         // File Processing
         window.handleFiles = async (e) => {
@@ -322,7 +372,7 @@
 
         // Communication
         window.handleSend = async () => {
-            const storedKey = localStorage.getItem('kaixu_api_key');
+            const storedKey = getUnifiedStoredKey();
             if (!storedKey) {
                 addMessageUI('model', "### Authentication Required\nAccessing the **Neural Space Pro** core requires a valid kAIxU Gate token. Please input your activation key in the **kAIxu Config** (Settings) menu.");
                 toggleSettings();
@@ -335,8 +385,16 @@
             if (!text && attachments.length === 0) return;
 
             if (!currentChatId) {
-                const ref = await addDoc(collection(db, 'artifacts', appId, 'users', user.uid, 'chats'), { title: text.slice(0, 30) || "Neural Stream", updatedAt: Timestamp.now() });
-                currentChatId = ref.id;
+                if (firebaseReady && db && user) {
+                    const ref = await addDoc(collection(db, 'artifacts', appId, 'users', user.uid, 'chats'), { title: text.slice(0, 30) || "Neural Stream", updatedAt: Timestamp.now() });
+                    currentChatId = ref.id;
+                } else {
+                    currentChatId = `local-${Date.now().toString(36)}`;
+                    const archives = readLocalArchives();
+                    archives.unshift({ id: currentChatId, title: text.slice(0, 30) || 'Neural Stream', updatedAt: Date.now(), messages: [] });
+                    writeLocalArchives(archives);
+                    syncArchives();
+                }
             }
 
             const welcomeView = document.getElementById('welcome-view');
@@ -437,12 +495,39 @@
 
         async function saveMessage(role, content, atts = null) {
             if (!user || !currentChatId) return;
-            await addDoc(collection(db, 'artifacts', appId, 'users', user.uid, 'chats', currentChatId, 'messages'), { role, content, attachments: atts ? atts.map(a => ({ name: a.name, type: a.type })) : null, timestamp: Date.now() });
-            await updateDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'chats', currentChatId), { updatedAt: Timestamp.now() });
+            if (firebaseReady && db) {
+                await addDoc(collection(db, 'artifacts', appId, 'users', user.uid, 'chats', currentChatId, 'messages'), { role, content, attachments: atts ? atts.map(a => ({ name: a.name, type: a.type })) : null, timestamp: Date.now() });
+                await updateDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'chats', currentChatId), { updatedAt: Timestamp.now() });
+                return;
+            }
+
+            const archives = readLocalArchives();
+            const idx = archives.findIndex((chat) => chat.id === currentChatId);
+            if (idx === -1) return;
+            archives[idx].messages = archives[idx].messages || [];
+            archives[idx].messages.push({ role, content, attachments: atts ? atts.map(a => ({ name: a.name, type: a.type })) : null, timestamp: Date.now() });
+            archives[idx].updatedAt = Date.now();
+            writeLocalArchives(archives);
+            syncArchives();
         }
 
         async function syncArchives() {
             if (!user) return;
+            if (!firebaseReady || !db) {
+                const list = document.getElementById('history-list');
+                if (!list) return;
+                list.innerHTML = '';
+                const archives = readLocalArchives().sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+                archives.forEach((chat) => {
+                    const div = document.createElement('div');
+                    div.className = `p-3 text-xs cursor-pointer hover:bg-white/5 rounded-xl truncate text-gray-400 hover:text-white transition-colors`;
+                    div.textContent = chat.title || 'Neural Session';
+                    div.onclick = () => loadSession(chat.id);
+                    list.appendChild(div);
+                });
+                return;
+            }
+
             onSnapshot(collection(db, 'artifacts', appId, 'users', user.uid, 'chats'), (snap) => {
                 const list = document.getElementById('history-list');
                 if (!list) return;
@@ -464,8 +549,15 @@
             if (welcomeView) welcomeView.classList.add('hidden');
             if (msgList) msgList.innerHTML = '<div class="py-20 text-center text-gray-600 animate-pulse font-bold tracking-widest text-[10px]">RE-INITIALIZING kAIxu STREAM...</div>';
             
-            const snap = await getDocs(collection(db, 'artifacts', appId, 'users', user.uid, 'chats', id, 'messages'));
-            const msgs = snap.docs.map(d => d.data()).sort((a, b) => a.timestamp - b.timestamp);
+            let msgs = [];
+            if (firebaseReady && db) {
+                const snap = await getDocs(collection(db, 'artifacts', appId, 'users', user.uid, 'chats', id, 'messages'));
+                msgs = snap.docs.map(d => d.data()).sort((a, b) => a.timestamp - b.timestamp);
+            } else {
+                const archives = readLocalArchives();
+                const chat = archives.find((x) => x.id === id);
+                msgs = (chat?.messages || []).slice().sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+            }
             
             if (msgList) msgList.innerHTML = '';
             conversation = [];
