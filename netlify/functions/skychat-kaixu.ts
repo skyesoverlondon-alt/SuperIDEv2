@@ -23,12 +23,9 @@ async function tokenFingerprint(token: string): Promise<string> {
   return `${normalized.slice(0, 4)}...len=${normalized.length} sha256=${hex.slice(0, 12)}`;
 }
 
-function normalizeKaixuGatewayProvider(raw: string): string {
-  const value = String(raw || "").trim().toLowerCase();
-  if (!value) return "openai";
-  if (value === "openai" || value === "anthropic" || value === "gemini") return value;
-  if (value === "skyes over london" || value === "skyes" || value === "kaixu") return "openai";
-  return "openai";
+function resolveKaixuGatewayProvider(raw: string): string {
+  const value = String(raw || "").trim();
+  return value || "Skyes Over London";
 }
 
 export const handler = async (event: any) => {
@@ -66,7 +63,9 @@ export const handler = async (event: any) => {
   const token = must("KAIXU_APP_TOKEN");
   const tokenFp = await tokenFingerprint(token);
   const providerRaw = opt("KAIXU_GATEWAY_PROVIDER", "Skyes Over London");
-  const provider = normalizeKaixuGatewayProvider(providerRaw);
+  const provider = resolveKaixuGatewayProvider(providerRaw);
+  const modelRaw = opt("KAIXU_GATEWAY_MODEL", "kAIxU-Prime6.7");
+  const model = String(body.model || modelRaw || "kAIxU-Prime6.7").trim();
   const prompt = [
     `Channel: #${channel}`,
     `User: ${u.email}`,
@@ -76,7 +75,7 @@ export const handler = async (event: any) => {
 
   const payload = {
     provider,
-    model: "kAIxU-Prime6.7",
+    model,
     messages: [
       {
         role: "system",
@@ -143,6 +142,7 @@ export const handler = async (event: any) => {
       token_fingerprint: tokenFp,
       configured_provider: providerRaw,
       effective_provider: provider,
+      effective_model: model,
     });
     return json(502, {
       error: "kAIxU gateway failed for chat.",
@@ -153,6 +153,7 @@ export const handler = async (event: any) => {
       token_fingerprint: tokenFp,
       configured_provider: providerRaw,
       effective_provider: provider,
+      effective_model: model,
       gateway_detail: (lastBody || "").slice(0, 400) || null,
     });
   }
