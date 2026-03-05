@@ -5,6 +5,15 @@ import { filterSknoreFiles, isSknoreProtected, loadSknorePolicy } from "./_share
 import { audit } from "./_shared/audit";
 import { hasValidMasterSequence, readBearerToken, resolveApiToken, tokenHasScope } from "./_shared/api_tokens";
 
+function normalizeKaixuGatewayEndpoint(raw: string): string {
+  const endpoint = String(raw || "").trim();
+  if (!endpoint) return endpoint;
+  if (/skyesol\.netlify\.app\/platforms-apps-infrastructure\/kaixugateway13\/v1\/generate\/?$/i.test(endpoint)) {
+    return "https://skyesol.netlify.app/.netlify/functions/gateway-chat";
+  }
+  return endpoint;
+}
+
 /**
  * Call the Kaixu Gateway to generate a response for the given prompt.
  * The active file, full workspace snapshot and user prompt are
@@ -72,14 +81,16 @@ export const handler = async (event: any) => {
       patterns_count: sknorePatterns.length,
     });
   }
-  const endpoint = must("KAIXU_GATEWAY_ENDPOINT");
+  const endpoint = normalizeKaixuGatewayEndpoint(must("KAIXU_GATEWAY_ENDPOINT"));
   const token = must("KAIXU_APP_TOKEN");
+  const provider = opt("KAIXU_GATEWAY_PROVIDER", "openai");
   // Emit audit before calling the model
   await audit(actorEmail, actorOrg, ws_id, "kaixu.generate.requested", {
     activePath: activePath || null,
     filesLength: safeFiles.length,
   });
   const payload = {
+    provider,
     model: "kAIxU-Prime6.7",
     messages: [
       {

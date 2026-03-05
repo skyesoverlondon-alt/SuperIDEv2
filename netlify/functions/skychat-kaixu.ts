@@ -2,7 +2,16 @@ import { json } from "./_shared/response";
 import { requireUser, forbid } from "./_shared/auth";
 import { q } from "./_shared/neon";
 import { audit } from "./_shared/audit";
-import { must } from "./_shared/env";
+import { must, opt } from "./_shared/env";
+
+function normalizeKaixuGatewayEndpoint(raw: string): string {
+  const endpoint = String(raw || "").trim();
+  if (!endpoint) return endpoint;
+  if (/skyesol\.netlify\.app\/platforms-apps-infrastructure\/kaixugateway13\/v1\/generate\/?$/i.test(endpoint)) {
+    return "https://skyesol.netlify.app/.netlify/functions/gateway-chat";
+  }
+  return endpoint;
+}
 
 export const handler = async (event: any) => {
   const u = await requireUser(event);
@@ -35,8 +44,9 @@ export const handler = async (event: any) => {
     ]
   );
 
-  const endpoint = must("KAIXU_GATEWAY_ENDPOINT");
+  const endpoint = normalizeKaixuGatewayEndpoint(must("KAIXU_GATEWAY_ENDPOINT"));
   const token = must("KAIXU_APP_TOKEN");
+  const provider = opt("KAIXU_GATEWAY_PROVIDER", "openai");
   const prompt = [
     `Channel: #${channel}`,
     `User: ${u.email}`,
@@ -45,6 +55,7 @@ export const handler = async (event: any) => {
   ].join("\n");
 
   const payload = {
+    provider,
     model: "kAIxU-Prime6.7",
     messages: [
       {
