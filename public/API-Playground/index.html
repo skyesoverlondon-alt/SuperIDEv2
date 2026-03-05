@@ -87,6 +87,7 @@
 
   <script>
     const LOG_KEY = "superide.apiplayground.hashlogs.v1";
+    const LEDGER_VERSION = 2;
     const gatewayFetch = (window.SkyeGateway && window.SkyeGateway.fetchWithRetry) || fetch;
 
     async function sha256(text) {
@@ -102,12 +103,28 @@
       localStorage.setItem(LOG_KEY, JSON.stringify(logs));
     }
 
+    function toCanonical(entry, prevHash) {
+      return {
+        v: LEDGER_VERSION,
+        seq: entry.seq,
+        at: entry.at,
+        endpoint: entry.endpoint,
+        method: entry.method,
+        status: entry.status,
+        ms: entry.ms,
+        request_preview: entry.request_preview,
+        response_preview: entry.response_preview,
+        prev_hash: prevHash,
+      };
+    }
+
     async function appendLog(entry) {
       const logs = readLogs();
       const prev = logs.length ? logs[logs.length - 1].hash : "GENESIS";
-      const canonical = JSON.stringify({ ...entry, prev_hash: prev });
+      const seq = logs.length ? (Number(logs[logs.length - 1].seq) || logs.length) + 1 : 1;
+      const canonical = JSON.stringify(toCanonical({ ...entry, seq }, prev));
       const hash = await sha256(canonical);
-      logs.unshift({ ...entry, prev_hash: prev, hash });
+      logs.unshift({ ...entry, v: LEDGER_VERSION, seq, prev_hash: prev, hash });
       writeLogs(logs.slice(0, 500));
       await renderLedger();
     }
@@ -127,23 +144,34 @@
 
       let prev = "GENESIS";
       let ok = true;
+      let reason = "";
+      let expectedSeq = 1;
       for (let i = logs.length - 1; i >= 0; i -= 1) {
         const row = logs[i];
-        const canonical = JSON.stringify({
-          at: row.at,
-          endpoint: row.endpoint,
-          method: row.method,
-          status: row.status,
-          ms: row.ms,
-          request_preview: row.request_preview,
-          response_preview: row.response_preview,
-          prev_hash: prev,
-        });
+        if (Number(row.seq) !== expectedSeq) {
+          ok = false;
+          reason = `Sequence mismatch at seq=${row.seq}, expected=${expectedSeq}`;
+          break;
+        }
+        const canonical = JSON.stringify(toCanonical(row, prev));
         const expected = await sha256(canonical);
-        if (row.prev_hash !== prev || row.hash !== expected) { ok = false; break; }
+        if (row.prev_hash !== prev) {
+          ok = false;
+          reason = `Broken prev_hash link at seq=${row.seq}`;
+          break;
+        }
+        if (row.hash !== expected) {
+          ok = false;
+          reason = `Hash mismatch at seq=${row.seq}`;
+          break;
+        }
         prev = row.hash;
+        expectedSeq += 1;
       }
-      document.getElementById("chainState").textContent = ok ? "Chain: VALID" : "Chain: INVALID";
+      const stamp = new Date().toLocaleTimeString();
+      document.getElementById("chainState").textContent = ok
+        ? `Chain: VALID (v${LEDGER_VERSION}, verified ${stamp})`
+        : `Chain: INVALID (${reason || "unknown"}, verified ${stamp})`;
       document.getElementById("chainState").className = ok ? "ok" : "bad";
     }
 

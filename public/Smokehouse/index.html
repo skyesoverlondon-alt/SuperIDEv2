@@ -53,6 +53,7 @@
 
   <script>
     const LOG_KEY = "superide.smokehouse.hashruns.v1";
+    const LEDGER_VERSION = 2;
     const gatewayFetch = (window.SkyeGateway && window.SkyeGateway.fetchWithRetry) || fetch;
 
     async function sha256(text) {
@@ -61,6 +62,17 @@
     }
     function readRuns() { try { return JSON.parse(localStorage.getItem(LOG_KEY) || "[]"); } catch { return []; } }
     function writeRuns(v) { localStorage.setItem(LOG_KEY, JSON.stringify(v)); }
+    function toCanonical(run, prevHash) {
+      return {
+        v: LEDGER_VERSION,
+        seq: run.seq,
+        at: run.at,
+        pass: run.pass,
+        total: run.total,
+        checks: run.checks,
+        prev_hash: prevHash,
+      };
+    }
     function setStatus(s) { document.getElementById("status").textContent = s; }
 
     async function runCheck(name, method, url, payload, headers) {
@@ -99,8 +111,11 @@
 
       const runs = readRuns();
       const prev = runs.length ? runs[0].hash : "GENESIS";
-      const run = { at: new Date().toISOString(), pass, total: checks.length, checks, prev_hash: prev };
-      run.hash = await sha256(JSON.stringify(run));
+      const seq = runs.length ? (Number(runs[0].seq) || runs.length) + 1 : 1;
+      const run = { at: new Date().toISOString(), pass, total: checks.length, checks, seq };
+      run.prev_hash = prev;
+      run.v = LEDGER_VERSION;
+      run.hash = await sha256(JSON.stringify(toCanonical(run, prev)));
       runs.unshift(run);
       writeRuns(runs.slice(0, 300));
       setStatus(`Smoke complete: ${pass}/${checks.length} pass.`);
@@ -113,14 +128,33 @@
 
       let prev = "GENESIS";
       let ok = true;
+      let reason = "";
+      let expectedSeq = 1;
       for (let i = rows.length - 1; i >= 0; i -= 1) {
         const r = rows[i];
-        const canonical = { at: r.at, pass: r.pass, total: r.total, checks: r.checks, prev_hash: prev };
-        const hash = await sha256(JSON.stringify(canonical));
-        if (r.prev_hash !== prev || r.hash !== hash) { ok = false; break; }
+        if (Number(r.seq) !== expectedSeq) {
+          ok = false;
+          reason = `Sequence mismatch at seq=${r.seq}, expected=${expectedSeq}`;
+          break;
+        }
+        const hash = await sha256(JSON.stringify(toCanonical(r, prev)));
+        if (r.prev_hash !== prev) {
+          ok = false;
+          reason = `Broken prev_hash link at seq=${r.seq}`;
+          break;
+        }
+        if (r.hash !== hash) {
+          ok = false;
+          reason = `Hash mismatch at seq=${r.seq}`;
+          break;
+        }
         prev = r.hash;
+        expectedSeq += 1;
       }
-      document.getElementById("chain").textContent = ok ? "Chain: VALID" : "Chain: INVALID";
+      const stamp = new Date().toLocaleTimeString();
+      document.getElementById("chain").textContent = ok
+        ? `Chain: VALID (v${LEDGER_VERSION}, verified ${stamp})`
+        : `Chain: INVALID (${reason || "unknown"}, verified ${stamp})`;
       document.getElementById("chain").className = ok ? "good" : "bad";
     }
 
