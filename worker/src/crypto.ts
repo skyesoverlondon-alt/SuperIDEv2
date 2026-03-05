@@ -21,6 +21,10 @@ function fromB64url(s: string): Uint8Array {
   return out;
 }
 
+function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+}
+
 export function timingSafeEqual(a: string, b: string): boolean {
   const aa = new TextEncoder().encode(a);
   const bb = new TextEncoder().encode(b);
@@ -31,7 +35,7 @@ export function timingSafeEqual(a: string, b: string): boolean {
 }
 
 export async function sha256Hex(data: Uint8Array): Promise<string> {
-  const hash = await crypto.subtle.digest("SHA-256", data);
+  const hash = await crypto.subtle.digest("SHA-256", toArrayBuffer(data));
   return [...new Uint8Array(hash)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
@@ -82,7 +86,7 @@ export async function decryptToken(masterKey: string, blob: { iv: string; ct: st
   const key = await crypto.subtle.importKey("raw", keyBytes, { name: "AES-GCM" }, false, ["decrypt"]);
   const iv = fromB64url(blob.iv);
   const ct = fromB64url(blob.ct);
-  const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, ct);
+  const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: toArrayBuffer(iv) }, key, toArrayBuffer(ct));
   return new TextDecoder().decode(pt);
 }
 

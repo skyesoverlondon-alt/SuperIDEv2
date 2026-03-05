@@ -41,6 +41,10 @@ function pemToDer(pem: string): Uint8Array {
   return out;
 }
 
+function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+}
+
 /**
  * Import an RSA private key in PKCS8 PEM format for RSASSA-PKCS1-v1_5.
  */
@@ -48,7 +52,7 @@ async function importPkcs8PrivateKey(pem: string): Promise<CryptoKey> {
   const der = pemToDer(pem);
   return crypto.subtle.importKey(
     "pkcs8",
-    der.buffer,
+    toArrayBuffer(der),
     { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
     false,
     ["sign"]
@@ -61,7 +65,7 @@ async function importPkcs8PrivateKey(pem: string): Promise<CryptoKey> {
  * Uint8Array.
  */
 async function signRS256(privateKey: CryptoKey, data: Uint8Array): Promise<Uint8Array> {
-  const sig = await crypto.subtle.sign({ name: "RSASSA-PKCS1-v1_5" }, privateKey, data);
+  const sig = await crypto.subtle.sign({ name: "RSASSA-PKCS1-v1_5" }, privateKey, toArrayBuffer(data));
   return new Uint8Array(sig);
 }
 

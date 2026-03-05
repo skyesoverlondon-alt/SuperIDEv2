@@ -316,6 +316,7 @@ const SKYE_APPS: SkyeAppDefinition[] = [
 ];
 
 const APP_SURFACE_PATHS: Partial<Record<SkyeAppId, string>> = {
+  SkyeDocs: "/SkyeDocs/index.html",
   SkyeDocxPro: "/SkyeDocxPro/index.html",
   SkyeBookx: "/SkyeBookx/index.html",
   SkyePlatinum: "/SkyePlatinum/index.html",
@@ -333,7 +334,7 @@ const APP_SURFACE_PATHS: Partial<Record<SkyeAppId, string>> = {
   SkyeNotes: "/SkyeNotes/index.html",
   SkyeAnalytics: "/SkyeAnalytics/index.html",
   SkyeTasks: "/SkyeTasks/index.html",
-  SkyeAdmin: "/",
+  SkyeAdmin: "/SkyeAdmin/index.html",
   "kAIxU-Vision": "/kAIxU-Vision/index.html",
   "kAixu-Nexus": "/kAixu-Nexus/index.html",
   "kAIxU-Codex": "/kAIxU-Codex/index.html",
@@ -576,11 +577,12 @@ function buildPreviewDocument(file: WorkspaceFile | undefined): string | null {
   const ext = fileExt(file.path);
   if (["html", "htm", "svg"].includes(ext)) return file.content;
   if (ext === "md") {
+    const baseHref = typeof window !== "undefined" ? `${window.location.origin}/` : "/";
     const escaped = file.content
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;");
-    return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Preview</title><style>body{margin:0;padding:16px;background:#0b0914;color:#f7f7ff;font-family:ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap;line-height:1.45}</style></head><body>${escaped}</body></html>`;
+    return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><base href="${baseHref}"><title>Preview</title><style>body{margin:0;padding:16px;background:#0b0914;color:#f7f7ff;font-family:ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap;line-height:1.45}</style></head><body>${escaped}</body></html>`;
   }
   return null;
 }
@@ -4402,11 +4404,11 @@ export function App() {
                     <div className="preview-shell">
                       {livePreviewUrl ? (
                         <div className={`preview-frame-wrap ${previewDevice}`}>
-                          <iframe title="IDE Live Preview" className="preview-frame" src={livePreviewUrl} sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-downloads" />
+                          <iframe key={livePreviewUrl} title="IDE Live Preview" className="preview-frame" src={livePreviewUrl} sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-downloads" />
                         </div>
                       ) : previewDocument ? (
                         <div className={`preview-frame-wrap ${previewDevice}`}>
-                          <iframe title="IDE File Preview" className="preview-frame" srcDoc={previewDocument} sandbox="allow-same-origin" />
+                          <iframe key={`${activeFile?.path || "file"}-${previewDocument.length}`} title="IDE File Preview" className="preview-frame" srcDoc={previewDocument} sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-downloads" />
                         </div>
                       ) : (
                         <p className="muted-copy">Preview supports live app surfaces and `.html`, `.htm`, `.svg`, `.md` file rendering.</p>

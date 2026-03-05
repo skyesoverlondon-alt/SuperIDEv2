@@ -9,13 +9,17 @@
 
 import { q } from "./neon";
 
+function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+}
+
 /**
  * Compute the SHA-1 hash of a Uint8Array and return it as a hex
  * string.  Uses WebCrypto.  Note: SHA-1 is required by the
  * Netlify Deploy API for file identifiers.
  */
 async function sha1Hex(bytes: Uint8Array): Promise<string> {
-  const buf = await crypto.subtle.digest("SHA-1", bytes);
+  const buf = await crypto.subtle.digest("SHA-1", toArrayBuffer(bytes));
   return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
@@ -99,7 +103,7 @@ export async function netlifyDeployFromWorkspace(
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/octet-stream",
       },
-      body: bytes,
+      body: toArrayBuffer(bytes),
     });
     if (!up.ok) {
       throw new Error(`Upload failed for ${p}: ${await up.text()}`);

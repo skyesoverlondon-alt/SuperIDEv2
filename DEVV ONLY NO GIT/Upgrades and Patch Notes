@@ -274,3 +274,25 @@ Passing checks:
 4. `worker/src/netlify.ts`
 5. Recommended next patch: normalize Uint8Array/ArrayBuffer conversions for strict TS WebCrypto typing.
 
+## Stability Consolidation (2026-03-05, follow-up)
+
+### A) IDE Previewer Fixes
+1. Fixed standalone surface mapping for IDE live preview:
+2. Added `SkyeDocs -> /SkyeDocs/index.html` mapping.
+3. Corrected `SkyeAdmin` mapping from `/` to `/SkyeAdmin/index.html` to prevent recursive shell embedding behavior.
+4. Hardened preview iframe refresh behavior using deterministic iframe keys.
+5. Enabled script-capable sandbox for file preview iframe so HTML/srcDoc previews execute expected JS flows.
+
+### B) Worker Type Safety Cleanup (Now Passing)
+1. Patched WebCrypto/fetch BufferSource handling in:
+2. `worker/src/crypto.ts`
+3. `worker/src/github_app.ts`
+4. `worker/src/netlify.ts`
+5. Worker TypeScript check now passes:
+6. `npm --prefix /workspaces/SuperIDEv2/worker exec tsc -- --noEmit -p /workspaces/SuperIDEv2/worker/tsconfig.json`
+
+### C) Full Verification Sweep Results
+1. Release checklist: PASS (`npm --prefix /workspaces/SuperIDEv2 run release:checklist`).
+2. Full smokehouse: PASS=13 FAIL=0 (`bash scripts/smokehouse.sh`).
+3. App surface production sweep: PASS=37 FAIL=0 across all `public/*/index.html` routes.
+

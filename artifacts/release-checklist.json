@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-03-05T20:38:13.555Z",
+  "generated_at": "2026-03-05T20:48:32.952Z",
   "blocking_failures": 0,
   "ok": true,
   "checks": [
@@ -8,7 +8,7 @@
       "blocking": true,
       "ok": true,
       "exit_code": 0,
-      "duration_ms": 264,
+      "duration_ms": 274,
       "stdout": "\n> kaixu-superide-vnext@1.0.0 check:gateway-only\n> node scripts/check-gateway-only.js\n\n[gateway-check] PASS: gateway-only policy enforced.\n",
       "stderr": ""
     },
@@ -17,7 +17,7 @@
       "blocking": true,
       "ok": true,
       "exit_code": 0,
-      "duration_ms": 275,
+      "duration_ms": 340,
       "stdout": "\n> kaixu-superide-vnext@1.0.0 check:external-endpoints\n> node scripts/check-external-ai-endpoints.js\n\n[external-endpoints] PASS (107 files scanned)\n",
       "stderr": ""
     },
@@ -26,7 +26,7 @@
       "blocking": true,
       "ok": true,
       "exit_code": 0,
-      "duration_ms": 264,
+      "duration_ms": 410,
       "stdout": "\n> kaixu-superide-vnext@1.0.0 check:provider-strings\n> node scripts/check-provider-strings.js\n\n[provider-strings] PASS\n",
       "stderr": ""
     },
@@ -35,7 +35,7 @@
       "blocking": true,
       "ok": true,
       "exit_code": 0,
-      "duration_ms": 341,
+      "duration_ms": 245,
       "stdout": "\n> kaixu-superide-vnext@1.0.0 check:secure-defaults\n> node scripts/check-secure-defaults.js\n\n[secure-defaults] PASS: required secure defaults are present.\n",
       "stderr": ""
     },
@@ -44,7 +44,7 @@
       "blocking": true,
       "ok": true,
       "exit_code": 0,
-      "duration_ms": 282,
+      "duration_ms": 238,
       "stdout": "\n> kaixu-superide-vnext@1.0.0 check:protected-apps\n> node scripts/check-protected-apps.js\n\n[protected-apps] PASS (3 targets)\n",
       "stderr": ""
     },
@@ -53,7 +53,7 @@
       "blocking": true,
       "ok": true,
       "exit_code": 0,
-      "duration_ms": 308,
+      "duration_ms": 330,
       "stdout": "\n> kaixu-superide-vnext@1.0.0 check:skye-schema\n> node scripts/check-skye-schema.js\n\n[skye-schema] PASS (2 samples)\n",
       "stderr": ""
     },
@@ -62,7 +62,7 @@
       "blocking": true,
       "ok": true,
       "exit_code": 0,
-      "duration_ms": 302,
+      "duration_ms": 370,
       "stdout": "\n> kaixu-superide-vnext@1.0.0 test:gateway-shape\n> node scripts/test-gateway-shape-fixtures.js\n\n[gateway-shape] PASS (4 fixtures)\n",
       "stderr": ""
     },
@@ -71,7 +71,7 @@
       "blocking": true,
       "ok": true,
       "exit_code": 0,
-      "duration_ms": 252,
+      "duration_ms": 244,
       "stdout": "\n> kaixu-superide-vnext@1.0.0 test:auth-regression\n> node scripts/test-auth-regressions.js\n\n[auth-regression] PASS (7 functions checked)\n",
       "stderr": ""
     },
@@ -80,7 +80,7 @@
       "blocking": true,
       "ok": true,
       "exit_code": 0,
-      "duration_ms": 241,
+      "duration_ms": 243,
       "stdout": "\n> kaixu-superide-vnext@1.0.0 test:export-import-schema\n> node scripts/test-export-import-schema.js\n\n[export-import-schema] PASS (3 fixtures)\n",
       "stderr": ""
     },
@@ -89,7 +89,7 @@
       "blocking": true,
       "ok": true,
       "exit_code": 0,
-      "duration_ms": 335,
+      "duration_ms": 251,
       "stdout": "\n> kaixu-superide-vnext@1.0.0 check:smoke-snapshot\n> node scripts/check-smoke-snapshot.js\n\n[smoke-snapshot] PASS (14 checks)\n",
       "stderr": ""
     },
@@ -98,8 +98,8 @@
       "blocking": true,
       "ok": true,
       "exit_code": 0,
-      "duration_ms": 4162,
-      "stdout": "\n> kaixu-superide-vnext@1.0.0 prebuild\n> npm run sync:surfaces\n\n\n> kaixu-superide-vnext@1.0.0 sync:surfaces\n> npm run sync:docxpro && npm run sync:neural\n\n\n> kaixu-superide-vnext@1.0.0 sync:docxpro\n> rm -rf public/SkyeDocxPro && mkdir -p public && cp -R SkyeDocxPro public/SkyeDocxPro\n\n\n> kaixu-superide-vnext@1.0.0 sync:neural\n> rm -rf public/Neural-Space-Pro && mkdir -p public && cp -R Neural-Space-Pro public/Neural-Space-Pro\n\n\n> kaixu-superide-vnext@1.0.0 build\n> vite build\n\nvite v6.4.1 building for production...\ntransforming...\n✓ 245 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/index.html                   0.47 kB │ gzip:   0.31 kB\ndist/assets/index-DimvG_2z.css   21.90 kB │ gzip:   5.52 kB\ndist/assets/index-CpPzfvLP.js   345.17 kB │ gzip: 106.32 kB\n✓ built in 2.70s\n",
+      "duration_ms": 4866,
+      "stdout": "\n> kaixu-superide-vnext@1.0.0 prebuild\n> npm run sync:surfaces\n\n\n> kaixu-superide-vnext@1.0.0 sync:surfaces\n> npm run sync:docxpro && npm run sync:neural\n\n\n> kaixu-superide-vnext@1.0.0 sync:docxpro\n> rm -rf public/SkyeDocxPro && mkdir -p public && cp -R SkyeDocxPro public/SkyeDocxPro\n\n\n> kaixu-superide-vnext@1.0.0 sync:neural\n> rm -rf public/Neural-Space-Pro && mkdir -p public && cp -R Neural-Space-Pro public/Neural-Space-Pro\n\n\n> kaixu-superide-vnext@1.0.0 build\n> vite build\n\nvite v6.4.1 building for production...\ntransforming...\n✓ 245 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/index.html                   0.47 kB │ gzip:   0.31 kB\ndist/assets/index-DimvG_2z.css   21.90 kB │ gzip:   5.52 kB\ndist/assets/index-CcTRgG0q.js   345.43 kB │ gzip: 106.39 kB\n✓ built in 3.58s\n",
       "stderr": ""
     },
     {
@@ -107,7 +107,7 @@
       "blocking": true,
       "ok": true,
       "exit_code": 0,
-      "duration_ms": 297,
+      "duration_ms": 228,
       "stdout": "\n> kaixu-superide-vnext@1.0.0 release:artifacts\n> node scripts/generate-release-artifacts.js\n\n[release-artifacts] Wrote artifacts/release-artifacts.json\n",
       "stderr": ""
     },
@@ -116,7 +116,7 @@
       "blocking": true,
       "ok": true,
       "exit_code": 0,
-      "duration_ms": 264,
+      "duration_ms": 238,
       "stdout": "\n> kaixu-superide-vnext@1.0.0 release:gates\n> node scripts/evaluate-release-gates.js\n\n[release-gates] Wrote artifacts/release-gates.json\n[release-gates] PASS\n",
       "stderr": ""
     }

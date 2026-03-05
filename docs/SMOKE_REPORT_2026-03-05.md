@@ -42,3 +42,14 @@ Smoke validation passed for the contract suite and all 13 regenerated kAIxu rout
 - Worker health check skipped because `WORKER_URL` was not provided.
 - `POST /api/kaixu-generate` returned `401` and was treated as expected policy protection.
 - `GET /api/auth-me` returned `200` in this run.
+
+## Smokehouse Result (Post Preview + Worker Patch)
+- Command: `bash scripts/smokehouse.sh`
+- Timestamp (UTC): `2026-03-05T20:49:09Z`
+- Summary: `PASS=13 FAIL=0`
+- Site: `https://kaixusuperidev2.netlify.app`
+- Worker: `<not-set>`
+- Notes:
+- Worker health check skipped because `WORKER_URL` was not provided.
+- `POST /api/kaixu-generate` returned `401` and was treated as expected policy protection.
+- `GET /api/auth-me` returned `200` in this run.
