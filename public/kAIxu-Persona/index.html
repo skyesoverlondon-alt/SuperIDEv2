@@ -461,24 +461,46 @@
         window.generatePDF = () => { window.focus(); window.print(); };
 
         // --- kAIxu AI Logic ---
-        async function callGemini(prompt, system) {
-            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], systemInstruction: { parts: [{ text: system }] } })
-            });
-            const data = await res.json();
-            return data.candidates?.[0]?.content?.parts?.[0]?.text;
+        const gatewayFetch = (window.SkyeGateway && window.SkyeGateway.fetchWithRetry) || fetch;
+        function wsId() {
+            return new URLSearchParams(window.location.search).get('ws_id') || 'primary-workspace';
         }
-
-        async function callOpenAI(prompt, system) {
-            const res = await fetch('https://api.openai.com/v1/chat/completions', {
+        function gatewayHeaders() {
+            const bearer = (state.openaiKey || document.getElementById('openai-key')?.value || localStorage.getItem('kx.api.accessToken') || '').trim();
+            const h = { 'Content-Type': 'application/json' };
+            if (bearer) h.Authorization = `Bearer ${bearer}`;
+            if (window.SkyeCorrelation && typeof window.SkyeCorrelation.nextId === 'function') {
+                h['x-correlation-id'] = window.SkyeCorrelation.nextId('kaixu-persona');
+            }
+            return h;
+        }
+        async function callGatewayText(prompt, system) {
+            const res = await gatewayFetch('/api/kaixu-generate', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${state.openaiKey}` },
-                body: JSON.stringify({ model: "gpt-4o", messages: [{ role: "system", content: system }, { role: "user", content: prompt }] })
+                credentials: 'include',
+                headers: gatewayHeaders(),
+                body: JSON.stringify({
+                    ws_id: wsId(),
+                    activePath: window.location.pathname,
+                    prompt: `${String(system || '').trim()}\n\n${String(prompt || '').trim()}`,
+                }),
             });
-            const data = await res.json();
-            return data.choices[0].message.content;
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data?.error || data?.message || `Gateway failure (${res.status})`);
+            return data?.text || data?.output || data?.message || '';
+        }
+        function renderPortraitFromPrompt(text) {
+            const esc = (s) => String(s || '').replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+            const body = esc(String(text || '').slice(0, 540));
+            const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">'
+                + '<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#0f172a"/><stop offset="100%" stop-color="#312e81"/></linearGradient></defs>'
+                + '<rect width="1024" height="1024" fill="url(#g)"/>'
+                + '<rect x="44" y="44" width="936" height="936" rx="24" fill="none" stroke="#facc15" stroke-opacity="0.55" stroke-width="4"/>'
+                + '<text x="72" y="118" fill="#facc15" font-size="34" font-family="Arial,sans-serif" font-weight="700">kAIxu Persona Render</text>'
+                + '<foreignObject x="72" y="168" width="880" height="780"><div xmlns="http://www.w3.org/1999/xhtml" style="font-family:Arial,sans-serif;color:#e2e8f0;font-size:28px;line-height:1.35;white-space:pre-wrap;">'
+                + body
+                + '</div></foreignObject></svg>';
+            return `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`;
         }
 
         window.processAI = async (type) => {
@@ -488,7 +510,7 @@
 
             try {
                 const prompt = `Create a deep psychological profile and secrets for the character: ${p.name}. Context: ${p.bio}`;
-                const result = state.openaiKey ? await callOpenAI(prompt, "You are a master character designer.") : await callGemini(prompt, "System: kAIxu Psychologist.");
+                const result = await callGatewayText(prompt, "You are a master character designer.");
                 p.bio += "\n\n" + result;
                 showToast("Mental Scan Complete!", "success");
                 refreshUI(); debouncedSave();
@@ -504,26 +526,9 @@
             if (overlay) overlay.classList.remove('hidden');
             if (txt) txt.innerText = "kAIxu Portrait Rendering...";
             try {
-                const prompt = `Character portrait headshot, cinematic neon movie still, high detailed: ${p.name}. ${p.bio.slice(0,300)}`;
-                let imageUrl = "";
-                if (state.openaiKey) {
-                    const res = await fetch('https://api.openai.com/v1/images/generations', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${state.openaiKey}` },
-                        body: JSON.stringify({ model: "dall-e-3", prompt, n: 1, response_format: "b64_json" })
-                    });
-                    const data = await res.json();
-                    imageUrl = `data:image/png;base64,${data.data[0].b64_json}`;
-                } else {
-                    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${apiKey}`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ instances: { prompt }, parameters: { sampleCount: 1 } })
-                    });
-                    const result = await res.json();
-                    imageUrl = `data:image/png;base64,${result.predictions[0].bytesBase64Encoded}`;
-                }
-                p.image = imageUrl;
+                const prompt = `Character portrait headshot direction, cinematic neon movie still, high detail: ${p.name}. ${p.bio.slice(0,300)}`;
+                const renderBrief = await callGatewayText(prompt, 'You are a visual art director. Return compact portrait direction text only.');
+                p.image = renderPortraitFromPrompt(renderBrief || `${p.name} portrait`);
                 refreshUI(); debouncedSave();
                 showToast("Visual Rendered!", "success");
             } catch (err) { showToast("Render failed", "error"); }

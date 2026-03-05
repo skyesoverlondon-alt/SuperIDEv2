@@ -46,9 +46,15 @@
         <button class="primary" id="save">Save</button>
         <button id="consistency">Run Consistency Check</button>
         <button id="presenterMode">Presenter Mode</button>
+        <button id="sensitiveCheck">Sensitive Text Check</button>
+        <button id="rehearsalReport">Rehearsal Report</button>
+        <button id="exportManifest">Export Manifest</button>
       </div>
       <div class="slides" id="slides"></div>
       <div id="diagnostics" class="diag">No consistency checks run yet.</div>
+      <div id="coherenceOut" class="diag">Narrative coherence scoring pending.</div>
+      <div id="sensitiveOut" class="diag">Sensitive text policy checks pending.</div>
+      <div id="rehearsalOut" class="diag">Speaker rehearsal report pending.</div>
       <div class="status" id="status"></div>
     </section>
   </div>
@@ -75,6 +81,9 @@ let slides = JSON.parse(localStorage.getItem(key) || "null") || [{ title: "Intro
 const wrap = document.getElementById("slides");
 const status = document.getElementById("status");
 const diagnosticsEl = document.getElementById("diagnostics");
+const coherenceOut = document.getElementById('coherenceOut');
+const sensitiveOut = document.getElementById('sensitiveOut');
+const rehearsalOut = document.getElementById('rehearsalOut');
 const presenterEl = document.getElementById("presenter");
 const presenterIndexEl = document.getElementById("presenterIndex");
 const presenterTitleEl = document.getElementById("presenterTitle");
@@ -115,6 +124,7 @@ function save() {
 
 function runConsistencyCheck() {
   const issues = [];
+  let coherenceScore = 100;
   const titleSet = new Set();
   slides.forEach((slide, idx) => {
     const title = String(slide.title || '').trim();
@@ -124,8 +134,63 @@ function runConsistencyCheck() {
     if (title) titleSet.add(title.toLowerCase());
     if (summary.split(/\s+/).filter(Boolean).length > 90) issues.push(`slide ${idx + 1}: summary exceeds 90 words`);
     if (summary && !/[.!?]$/.test(summary)) issues.push(`slide ${idx + 1}: summary should end with punctuation`);
+    if (idx > 0) {
+      const prev = String(slides[idx - 1].summary || '').toLowerCase();
+      const hasBridge = /(therefore|next|then|because|as a result|building on)/.test(summary.toLowerCase());
+      const lexicalOverlap = prev.split(/\W+/).filter(Boolean).some((w) => summary.toLowerCase().includes(w));
+      if (!hasBridge && !lexicalOverlap) {
+        coherenceScore -= 8;
+        issues.push(`slide ${idx + 1}: weak narrative transition from previous slide`);
+      }
+    }
   });
   diagnosticsEl.textContent = issues.length ? `Consistency issues: ${issues.join(' | ')}` : 'Consistency check passed: no obvious style violations.';
+  coherenceOut.textContent = `Narrative coherence score: ${Math.max(0, coherenceScore)} / 100`;
+}
+
+function runSensitiveTextChecks() {
+  const banned = [/password/i, /secret/i, /token/i, /private key/i, /ssn/i, /credit card/i];
+  const findings = [];
+  slides.forEach((s, i) => {
+    const text = `${s.title || ''} ${s.summary || ''}`;
+    banned.forEach((rx) => {
+      if (rx.test(text)) findings.push(`slide ${i + 1}: ${rx.source}`);
+    });
+  });
+  sensitiveOut.textContent = findings.length
+    ? `Sensitive text policy checks: ${findings.join(' | ')}`
+    : 'Sensitive text policy checks: pass.';
+}
+
+function buildRehearsalReport() {
+  const report = slides.map((s, i) => {
+    const words = String(s.summary || '').split(/\s+/).filter(Boolean).length;
+    const sec = Math.max(8, Math.round(words / 2.5));
+    return { slide: i + 1, title: s.title || `Slide ${i + 1}`, words, est_seconds: sec };
+  });
+  const total = report.reduce((sum, r) => sum + r.est_seconds, 0);
+  rehearsalOut.textContent = `Speaker timeline rehearsal: total ${total}s | ${report.map((r) => `S${r.slide}:${r.est_seconds}s`).join(', ')}`;
+  return report;
+}
+
+function exportApprovedManifest() {
+  const report = buildRehearsalReport();
+  const approvedCount = slides.filter((s) => s.status === 'approved').length;
+  const manifest = {
+    app: 'SkyeSlides',
+    exported_at: new Date().toISOString(),
+    ws_id: ws,
+    slide_count: slides.length,
+    approved_count: approvedCount,
+    rehearsal: report,
+    slides: slides.map((s, i) => ({ index: i + 1, title: s.title, status: s.status })),
+  };
+  const blob = new Blob([JSON.stringify(manifest, null, 2)], { type: 'application/json' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'skyeslides-export-manifest.json';
+  link.click();
+  status.textContent = 'Approved export pipeline manifest generated.';
 }
 
 function renderPresenter() {
@@ -171,6 +236,9 @@ document.getElementById("add").onclick = () => { slides.push({ title: "New Slide
 document.getElementById("save").onclick = save;
 document.getElementById("consistency").onclick = runConsistencyCheck;
 document.getElementById("presenterMode").onclick = startPresenterMode;
+document.getElementById('sensitiveCheck').onclick = runSensitiveTextChecks;
+document.getElementById('rehearsalReport').onclick = buildRehearsalReport;
+document.getElementById('exportManifest').onclick = exportApprovedManifest;
 document.getElementById("closePresenter").onclick = closePresenterMode;
 document.getElementById("nextSlide").onclick = presenterNext;
 document.getElementById("prevSlide").onclick = presenterPrev;

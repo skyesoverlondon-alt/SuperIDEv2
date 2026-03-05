@@ -30,8 +30,14 @@
   <section class="card">
     <div class="row"><input id="email" placeholder="email"/><input id="password" type="password" placeholder="password"/><input id="org" value="SkyeVault Org"/><button id="login">Login or Signup</button></div>
     <div class="row"><input id="ws" placeholder="workspace"/><input id="label" placeholder="Secret label"/><select id="scope"><option>workspace</option><option>org</option><option>deploy</option></select><button class="primary" id="add">Register</button></div>
+    <div class="row"><input id="requester" placeholder="requester email"/><input id="reason" placeholder="access reason"/><select id="approvalDecision"><option value="approved">approve</option><option value="denied">deny</option></select><button id="applyApproval">Apply Approval</button></div>
     <div class="row two"><input id="rotationDays" type="number" min="1" value="30" placeholder="Rotation every N days"/><button id="runScheduler">Run Rotation Scheduler</button></div>
+    <div class="row two"><button id="applyPlaybooks">Apply Scope Playbooks</button><button id="recordUsage">Record Usage Attestation</button></div>
+    <div class="row two"><button id="startBreakGlass">Start Break-Glass Session</button><button id="endBreakGlass">End Break-Glass Session</button></div>
     <div class="diag" id="rotationAlerts">Rotation alerts pending scheduler run.</div>
+    <div class="diag" id="approvalInfo">Approval workflow pending action.</div>
+    <div class="diag" id="attestationInfo">Usage attestation log empty.</div>
+    <div class="diag" id="breakGlassInfo">No break-glass sessions active.</div>
     <div class="row two"><button id="load">Load</button><button id="save">Save</button></div>
     <div class="muted" id="status">Ready.</div>
   </section>
@@ -42,6 +48,10 @@
 const qs=new URLSearchParams(location.search);document.getElementById('ws').value=qs.get('ws_id')||'primary-workspace';document.getElementById('meta').textContent=`ws_id=${document.getElementById('ws').value}`;
 let secrets=[];const status=document.getElementById('status');function setStatus(t){status.textContent=t}
 const rotationAlerts=document.getElementById('rotationAlerts');
+const approvalInfo=document.getElementById('approvalInfo');
+const attestationInfo=document.getElementById('attestationInfo');
+const breakGlassInfo=document.getElementById('breakGlassInfo');
+const playbookByScope={workspace:30,org:14,deploy:7};
 async function call(path,opt={}){const r=await fetch(path,{credentials:'include',...opt});const t=await r.text();let d={};try{d=t?JSON.parse(t):{}}catch{d={raw:t}}if(!r.ok)throw new Error(d.error||path+' failed ('+r.status+')');return d}
 async function auth(){const email=document.getElementById('email').value.trim();const password=document.getElementById('password').value;const org=document.getElementById('org').value.trim()||'SkyeVault Org';if(!email||!password)throw new Error('email/password required');try{await call('/api/auth-login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})})}catch{const signup=await call('/api/auth-signup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password,orgName:org})});if(signup?.kaixu_token?.token){localStorage.setItem('kx.api.accessToken',signup.kaixu_token.token);localStorage.setItem('kx.api.tokenEmail',signup.kaixu_token.locked_email||email.toLowerCase())}}}
 async function load(){await auth();const ws=document.getElementById('ws').value.trim();const d=await call('/api/app-record-list?ws_id='+encodeURIComponent(ws)+'&app=SkyeVault&limit=1');secrets=Array.isArray(d.records)&&d.records[0]&&d.records[0].payload&&Array.isArray(d.records[0].payload.secrets)?d.records[0].payload.secrets:[];render();setStatus('Loaded vault model.')}
@@ -59,9 +69,76 @@ function runScheduler(){
   rotationAlerts.textContent = due ? `Rotation scheduler: ${due} secret(s) overdue.` : 'Rotation scheduler: all secrets within policy window.';
   render();
 }
+function applyApproval(){
+  if(!secrets.length){setStatus('No secret selected. Register one first.');return;}
+  const requester=document.getElementById('requester').value.trim();
+  const reason=document.getElementById('reason').value.trim();
+  const decision=document.getElementById('approvalDecision').value;
+  if(!requester||!reason){setStatus('requester and reason required');return;}
+  const rec={requester,reason,decision,at:new Date().toISOString()};
+  const head=secrets[0];
+  head.approvals=(head.approvals||[]);
+  head.approvals.unshift(rec);
+  head.access_state=decision==='approved'?'approved':'blocked';
+  approvalInfo.textContent=`Approval workflow: ${requester} ${decision} for ${head.label}.`;
+  render();
+}
+function applyPlaybooks(){
+  secrets=secrets.map((s)=>{
+    const days=playbookByScope[s.scope]||30;
+    return {...s,rotation_days:days,next_due:new Date(Date.now()+days*86400000).toISOString().slice(0,10)};
+  });
+  setStatus('Scope playbooks applied (workspace=30, org=14, deploy=7).');
+  render();
+}
+function recordUsage(){
+  if(!secrets.length){setStatus('No secret available to attest.');return;}
+  const requester=document.getElementById('requester').value.trim()||'unknown@local';
+  const reason=document.getElementById('reason').value.trim()||'operational-use';
+  const head=secrets[0];
+  head.attestations=(head.attestations||[]);
+  head.attestations.unshift({actor:requester,purpose:reason,at:new Date().toISOString(),scope:head.scope});
+  attestationInfo.textContent=`Usage attestation entries: ${head.attestations.length} (latest actor=${requester}).`;
+  render();
+}
+function startBreakGlass(){
+  if(!secrets.length){setStatus('No secret available for break-glass.');return;}
+  const requester=document.getElementById('requester').value.trim()||'unknown@local';
+  const reason=document.getElementById('reason').value.trim()||'critical-incident';
+  const durationMin=30;
+  const now=Date.now();
+  const head=secrets[0];
+  head.break_glass_sessions=(head.break_glass_sessions||[]);
+  head.break_glass_sessions.unshift({
+    id:'bg-'+now,
+    actor:requester,
+    reason,
+    start_at:new Date(now).toISOString(),
+    end_at:new Date(now+durationMin*60000).toISOString(),
+    status:'active',
+  });
+  breakGlassInfo.textContent=`Break-glass active for ${head.label} by ${requester} until ${new Date(now+durationMin*60000).toISOString()}.`;
+  render();
+}
+function endBreakGlass(){
+  if(!secrets.length){setStatus('No secret available for break-glass close.');return;}
+  const head=secrets[0];
+  const sessions=head.break_glass_sessions||[];
+  const active=sessions.find((s)=>s.status==='active');
+  if(!active){setStatus('No active break-glass session to close.');return;}
+  active.status='closed';
+  active.closed_at=new Date().toISOString();
+  breakGlassInfo.textContent=`Break-glass session ${active.id} closed at ${active.closed_at}.`;
+  render();
+}
 function render(){const list=document.getElementById('list');list.innerHTML='';secrets.forEach(s=>{const item=document.createElement('div');item.className='item';item.innerHTML='<strong>'+s.label+'</strong><div class="muted">scope='+s.scope+' owner='+(s.owner||'n/a')+' last_rotated='+s.last_rotated+' next_due='+(s.next_due||'n/a')+'</div>';const row=document.createElement('div');row.className='row two';row.style.marginTop='8px';const st=document.createElement('select');['active','rotation_due'].forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;if(v===s.status)o.selected=true;st.appendChild(o)});st.onchange=()=>{secrets=secrets.map(x=>x.id===s.id?{...x,status:st.value}:x)};const rot=document.createElement('button');rot.textContent='Rotate';rot.onclick=()=>{const days=Math.max(1,Number(s.rotation_days||30));secrets=secrets.map(x=>x.id===s.id?{...x,last_rotated:new Date().toISOString().slice(0,10),status:'active',next_due:new Date(Date.now()+days*86400000).toISOString().slice(0,10)}:x);render()};row.appendChild(st);row.appendChild(rot);item.appendChild(row);list.appendChild(item);})}
 document.getElementById('login').onclick=()=>auth().then(()=>setStatus('Session ready.')).catch(e=>setStatus(e.message));document.getElementById('load').onclick=()=>load().catch(e=>setStatus(e.message));document.getElementById('save').onclick=()=>save().catch(e=>setStatus(e.message));document.getElementById('add').onclick=add;render();
 document.getElementById('runScheduler').onclick=runScheduler;
+document.getElementById('applyApproval').onclick=applyApproval;
+document.getElementById('applyPlaybooks').onclick=applyPlaybooks;
+document.getElementById('recordUsage').onclick=recordUsage;
+document.getElementById('startBreakGlass').onclick=startBreakGlass;
+document.getElementById('endBreakGlass').onclick=endBreakGlass;
 </script>
 <button id="skye-tutorial-fab" type="button" style="position:fixed;right:16px;bottom:16px;z-index:10000;padding:10px 14px;border-radius:999px;border:1px solid rgba(191,238,255,.42);background:rgba(44,230,255,.2);color:#eff9ff;font-weight:700;cursor:pointer;">Start Tutorial</button>
 <div id="skye-tutorial-modal" style="display:none;position:fixed;inset:0;z-index:10001;background:rgba(2,6,23,.72);"></div>

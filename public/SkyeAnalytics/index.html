@@ -15,15 +15,18 @@ body{margin:0;font-family:"Space Grotesk",sans-serif;background:radial-gradient(
 <section class="card"><h1 style="margin:0;font-family:'Orbitron',sans-serif;letter-spacing:.09em;text-transform:uppercase">SkyeAnalytics Command Surface</h1><div class="muted">Standalone telemetry dashboard across chat, mail, tasks, and workspace activity.</div><div style="margin-top:8px"><a href="/index.html?app=SkyeAnalytics">Return to IDE</a></div></section>
 <section class="card">
 <div class="row"><input id="email" placeholder="email"/><input id="password" type="password" placeholder="password"/><input id="org" value="SkyeAnalytics Org"/><button id="login">Login or Signup</button></div>
-<div class="row" style="margin-top:8px"><input id="ws" placeholder="workspace"/><button id="refresh">Refresh Metrics</button><div></div><div></div></div><div class="muted" id="status">Ready.</div>
+<div class="row" style="margin-top:8px"><input id="ws" placeholder="workspace"/><button id="refresh">Refresh Metrics</button><button id="execMode">Toggle Executive Mode</button><button id="showLineage">KPI Lineage</button></div><div class="muted" id="status">Ready.</div>
 </section>
 <section class="card"><div class="kpis" id="kpis"></div></section>
 <section class="card"><h3 style="margin:0 0 6px">Source Integrity</h3><div id="integrity" class="diag">Integrity checks pending refresh.</div></section>
 <section class="card"><h3 style="margin:0 0 6px">Anomaly Alerts</h3><div id="anomalies" class="diag">Anomaly detection pending refresh.</div></section>
+<section class="card"><h3 style="margin:0 0 6px">Confidence + Explainability</h3><div id="confidence" class="diag">Confidence scoring pending refresh.</div></section>
+<section class="card"><h3 style="margin:0 0 6px">KPI Source Lineage</h3><div id="lineage" class="diag">KPI lineage explorer pending refresh.</div></section>
 <section class="card"><h3 style="margin:0 0 6px">Recent Records</h3><div id="recent"></div></section>
 </div>
 <script>
 const qs=new URLSearchParams(location.search);document.getElementById('ws').value=qs.get('ws_id')||'primary-workspace';const status=document.getElementById('status');
+let executiveMode=false;
 function setStatus(t){status.textContent=t}
 function freshnessHours(iso){if(!iso)return Number.POSITIVE_INFINITY;const ms=Date.now()-new Date(iso).getTime();return ms/36e5}
 async function call(path,opt={}){const r=await fetch(path,{credentials:'include',...opt});const t=await r.text();let d={};try{d=t?JSON.parse(t):{}}catch{d={raw:t}}if(!r.ok)throw new Error(d.error||path+' failed ('+r.status+')');return d}
@@ -57,7 +60,8 @@ async function refresh(){
     ['SKNore Blocks', Array.isArray(events.events)?events.events.length:0],
   ];
   const k = document.getElementById('kpis'); k.innerHTML='';
-  kpis.forEach(([label,val])=>{const el=document.createElement('div');el.className='kpi';el.innerHTML='<div>'+label+'</div><strong>'+val+'</strong>';k.appendChild(el);});
+  const view=executiveMode ? kpis.filter(([name])=>['Open Tasks','SKNore Blocks','Vault Secrets','Calendar Events'].includes(name)) : kpis;
+  view.forEach(([label,val])=>{const el=document.createElement('div');el.className='kpi';el.innerHTML='<div>'+label+'</div><strong>'+val+'</strong>';k.appendChild(el);});
 
   const integrityRows=[
     ['SkyeChat',chat.records?.[0]?.created_at],
@@ -79,6 +83,32 @@ async function refresh(){
   if (current.open_tasks >= 12) anomalies.push(`High open tasks: ${current.open_tasks}`);
   if (stale.length >= 3) anomalies.push(`Multiple stale sources: ${stale.length}`);
   document.getElementById('anomalies').textContent = anomalies.length ? `Alerts: ${anomalies.join(' | ')}` : 'No major anomalies detected on this refresh.';
+
+  const confidenceRows = [
+    ['chat', current.chat, freshnessHours(chat.records?.[0]?.created_at)],
+    ['mail', current.mail, freshnessHours(mail.records?.[0]?.created_at)],
+    ['tasks', current.open_tasks, freshnessHours(tasks.records?.[0]?.created_at)],
+    ['calendar', current.cal, freshnessHours(cal.records?.[0]?.created_at)],
+  ];
+  const confidence = confidenceRows.map(([name, volume, age]) => {
+    const freshnessPenalty = Number.isFinite(age) ? Math.min(40, Math.round(age / 2)) : 40;
+    const sparsePenalty = Number(volume) < 2 ? 20 : 0;
+    const score = Math.max(0, 100 - freshnessPenalty - sparsePenalty);
+    return { name, score, explain: `freshness_penalty=${freshnessPenalty}, sparse_penalty=${sparsePenalty}` };
+  });
+  document.getElementById('confidence').textContent = `Metric confidence scoring: ${confidence.map((c)=>`${c.name}=${c.score}% (${c.explain})`).join(' | ')}`;
+
+  const lineage = {
+    'Chat Messages': ['skychat-list', 'netlify function', 'workspace channel'],
+    'Mail Records': ['skymail-list', 'mail queue store'],
+    'Open Tasks': ['skyetasks-list', 'task payload model'],
+    'Calendar Events': ['app-record-list:SkyeCalendar', 'calendar payload model'],
+    'Vault Secrets': ['app-record-list:SkyeVault', 'secrets payload model'],
+    'SKNore Blocks': ['sknore-events', 'policy runtime feed'],
+  };
+  localStorage.setItem(`skye.analytics.lineage.${ws}`, JSON.stringify(lineage));
+  document.getElementById('lineage').textContent = `KPI source lineage explorer: ${Object.entries(lineage).map(([k,v])=>`${k}->${v.join('>')}`).join(' | ')}`;
+
   localStorage.setItem('skye.analytics.last', JSON.stringify(current));
 
   const recent=[...(chat.records||[]),...(mail.records||[])].slice(0,10);
@@ -89,6 +119,11 @@ async function refresh(){
 
 document.getElementById('login').onclick=()=>auth().then(()=>setStatus('Session ready.')).catch(e=>setStatus(e.message));
 document.getElementById('refresh').onclick=()=>refresh().catch(e=>setStatus(e.message));
+document.getElementById('execMode').onclick=()=>{executiveMode=!executiveMode;setStatus(`Executive mode ${executiveMode?'enabled':'disabled'}.`);refresh().catch(e=>setStatus(e.message));};
+document.getElementById('showLineage').onclick=()=>{
+  const data=localStorage.getItem(`skye.analytics.lineage.${document.getElementById('ws').value.trim()}`);
+  document.getElementById('lineage').textContent=data?`KPI source lineage explorer (cached): ${data}`:'KPI source lineage explorer: no cached lineage yet. Refresh first.';
+};
 </script><button id="skye-tutorial-fab" type="button" style="position:fixed;right:16px;bottom:16px;z-index:10000;padding:10px 14px;border-radius:999px;border:1px solid rgba(191,238,255,.42);background:rgba(44,230,255,.2);color:#eff9ff;font-weight:700;cursor:pointer;">Start Tutorial</button>
 <div id="skye-tutorial-modal" style="display:none;position:fixed;inset:0;z-index:10001;background:rgba(2,6,23,.72);"></div>
 <script>

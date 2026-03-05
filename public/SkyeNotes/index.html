@@ -58,8 +58,15 @@
       <input id="search" placeholder="search notes" />
       <button id="sync">Load + Save</button>
     </div>
+    <div class="row two">
+      <button id="buildGraph">Build Knowledge Graph</button>
+      <button id="extractTasks">Decision -> Tasks</button>
+    </div>
     <div class="muted" id="status">Ready.</div>
     <div class="diag" id="hierarchyInfo">Notebook hierarchy not loaded.</div>
+    <div class="diag" id="staleInfo">Stale-note detector pending.</div>
+    <div class="diag" id="sourceInfo">Canonical source pinning pending.</div>
+    <div class="diag" id="taskInfo">Decision extraction pending.</div>
   </section>
 
   <section class="card"><div class="list" id="list"></div></section>
@@ -72,6 +79,9 @@ document.getElementById('meta').textContent = `ws_id=${document.getElementById('
 let notes = [];
 const status = document.getElementById('status');
 const hierarchyInfo = document.getElementById('hierarchyInfo');
+const staleInfo = document.getElementById('staleInfo');
+const sourceInfo = document.getElementById('sourceInfo');
+const taskInfo = document.getElementById('taskInfo');
 function setStatus(t){ status.textContent = t; }
 
 async function call(path, opt = {}) {
@@ -134,13 +144,15 @@ function render() {
     grouped.get(bucket).push(n);
   });
   hierarchyInfo.textContent = `Hierarchy: ${grouped.size} notebook(s) -> ${Array.from(grouped.keys()).join(', ')}`;
+  runStaleDetection();
+  checkCanonicalConflicts();
 
   notes
     .filter(n => (`${n.title} ${n.body} ${n.tags}`).toLowerCase().includes(q))
     .forEach(n => {
       const item = document.createElement('div');
       item.className = 'item';
-      item.innerHTML = `<strong>${n.title}</strong><div class="muted">notebook=${n.notebook || 'General'} | tags=${n.tags || ''}</div>`;
+      item.innerHTML = `<strong>${n.title}</strong><div class="muted">notebook=${n.notebook || 'General'} | tags=${n.tags || ''} | source=${n.source || 'none'} ${n.canonical ? '| canonical=pin' : ''}</div>`;
       const ta = document.createElement('textarea');
       ta.value = n.body || '';
       ta.onchange = () => { notes = notes.map(x => x.id === n.id ? { ...x, body: ta.value, updated_at:new Date().toISOString() } : x); };
@@ -150,17 +162,88 @@ function render() {
       const tg = document.createElement('input');
       tg.value = n.tags || '';
       tg.onchange = () => { notes = notes.map(x => x.id === n.id ? { ...x, tags: tg.value, updated_at:new Date().toISOString() } : x); };
+      const src = document.createElement('input');
+      src.placeholder = 'source URL or citation id';
+      src.value = n.source || '';
+      src.onchange = () => { notes = notes.map(x => x.id === n.id ? { ...x, source: src.value.trim(), updated_at:new Date().toISOString() } : x); checkCanonicalConflicts(); };
+      const pin = document.createElement('button');
+      pin.textContent = n.canonical ? 'Canonical Pinned' : 'Pin Canonical';
+      pin.onclick = () => {
+        notes = notes.map(x => x.id === n.id ? { ...x, canonical: !x.canonical, updated_at:new Date().toISOString() } : x);
+        render();
+      };
       item.appendChild(ta);
       item.appendChild(nb);
       item.appendChild(tg);
+      item.appendChild(src);
+      item.appendChild(pin);
       list.appendChild(item);
     });
+}
+
+function runStaleDetection() {
+  const now = Date.now();
+  const stale = notes.filter((n) => (now - new Date(n.updated_at || 0).getTime()) > (14 * 86400000));
+  staleInfo.textContent = stale.length
+    ? `Stale-note detector: ${stale.length} note(s) older than 14 days. Prompt refresh: ${stale.map((x) => x.title).join(', ')}`
+    : 'Stale-note detector: all notes updated in the last 14 days.';
+}
+
+function checkCanonicalConflicts() {
+  const bySource = new Map();
+  notes.forEach((n) => {
+    const source = String(n.source || '').trim();
+    if (!source) return;
+    const arr = bySource.get(source) || [];
+    arr.push(n);
+    bySource.set(source, arr);
+  });
+  const conflicts = [];
+  bySource.forEach((arr, source) => {
+    const pinned = arr.filter((n) => n.canonical);
+    if (pinned.length > 1) conflicts.push(`source ${source} has ${pinned.length} canonical pins`);
+  });
+  sourceInfo.textContent = conflicts.length
+    ? `Canonical conflict warnings: ${conflicts.join(' | ')}`
+    : 'Canonical source pinning: no conflicts detected.';
+}
+
+function buildKnowledgeGraph() {
+  const edges = [];
+  notes.forEach((a) => {
+    const tagsA = new Set(String(a.tags || '').split(',').map((t) => t.trim().toLowerCase()).filter(Boolean));
+    notes.forEach((b) => {
+      if (a.id === b.id) return;
+      const tagsB = String(b.tags || '').split(',').map((t) => t.trim().toLowerCase()).filter(Boolean);
+      if (tagsB.some((t) => tagsA.has(t))) edges.push(`${a.title} -> ${b.title}`);
+    });
+  });
+  hierarchyInfo.textContent = `Knowledge graph edges: ${edges.length}${edges.length ? ' | ' + edges.slice(0, 6).join(' ; ') : ''}`;
+}
+
+function extractTasksFromDecisions() {
+  const tasks = [];
+  notes.forEach((n) => {
+    const body = String(n.body || '');
+    body.split(/\n+/).forEach((line) => {
+      const t = line.trim();
+      if (/^(decision:|decide:|action:|next:)/i.test(t)) {
+        tasks.push({ note: n.title, task: t.replace(/^(decision:|decide:|action:|next:)/i, '').trim() });
+      }
+    });
+  });
+  localStorage.setItem(`skye.notes.tasks.${document.getElementById('ws').value.trim()}`, JSON.stringify(tasks));
+  taskInfo.textContent = tasks.length
+    ? `Decision-to-task helper: ${tasks.length} task(s) extracted and staged to local task queue.`
+    : 'Decision-to-task helper: no decision markers found.';
 }
 
 document.getElementById('login').onclick = () => auth().then(() => setStatus('Session ready.')).catch(e => setStatus(e.message));
 document.getElementById('add').onclick = add;
 document.getElementById('search').oninput = render;
 document.getElementById('sync').onclick = () => load().then(save).catch(e => setStatus(e.message));
+document.getElementById('buildGraph').onclick = buildKnowledgeGraph;
+document.getElementById('extractTasks').onclick = extractTasksFromDecisions;
 render();
 </script>
 <button id="skye-tutorial-fab" type="button" style="position:fixed;right:16px;bottom:16px;z-index:10000;padding:10px 14px;border-radius:999px;border:1px solid rgba(191,238,255,.42);background:rgba(44,230,255,.2);color:#eff9ff;font-weight:700;cursor:pointer;">Start Tutorial</button>

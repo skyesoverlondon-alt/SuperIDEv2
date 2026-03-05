@@ -1,0 +1,33 @@
+[
+  {
+    "id": "success-text",
+    "kind": "success",
+    "response": {
+      "text": "ok",
+      "meta": {
+        "latency_ms": 123
+      }
+    }
+  },
+  {
+    "id": "success-output",
+    "kind": "success",
+    "response": {
+      "output": "ok"
+    }
+  },
+  {
+    "id": "error-standard",
+    "kind": "error",
+    "response": {
+      "error": "unauthorized"
+    }
+  },
+  {
+    "id": "error-alt",
+    "kind": "error",
+    "response": {
+      "message": "rate limited"
+    }
+  }
+]

@@ -1,0 +1,40 @@
+{
+  "generated_at": "2026-03-05T20:26:07.785Z",
+  "gates": {
+    "security": true,
+    "reliability": true,
+    "data_integrity": true,
+    "executive_readiness": true
+  },
+  "required": {
+    "security": {
+      "required": [
+        "gateway_only",
+        "provider_strings",
+        "secure_defaults",
+        "external_endpoints",
+        "protected_apps"
+      ]
+    },
+    "reliability": {
+      "required": [
+        "build",
+        "smoke_snapshot",
+        "auth_regression"
+      ]
+    },
+    "data_integrity": {
+      "required": [
+        "skye_schema",
+        "gateway_shape",
+        "export_import_schema"
+      ]
+    },
+    "executive_readiness": {
+      "required": [
+        "release_artifacts"
+      ]
+    }
+  },
+  "ok": true
+}

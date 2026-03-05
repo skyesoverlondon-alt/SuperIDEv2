@@ -1,0 +1,18 @@
+{
+  "checks": [
+    "Site Root",
+    "SkyeMail Surface",
+    "SkyeChat Surface",
+    "Neural Surface",
+    "Upgrade Notes Surface",
+    "SkyeCalendar Surface",
+    "SkyeTasks Surface",
+    "SkyeNotes Surface",
+    "SkyeForms Surface",
+    "SkyeVault Surface",
+    "SkyeAnalytics Surface",
+    "Worker Health",
+    "Generate API",
+    "Auth Me API"
+  ]
+}

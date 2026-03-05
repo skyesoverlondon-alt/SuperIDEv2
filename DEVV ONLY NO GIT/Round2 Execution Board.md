@@ -79,64 +79,64 @@ Status legend:
 - [x] `R2-053` Neural Space Pro: context budget inspector/citation confidence.
 - [x] `R2-054` Neural Space Pro: direct publish bridges + receipts.
 
-- [ ] `R2-055` SkyeDrive: immutable artifact mode.
-- [ ] `R2-056` SkyeDrive: share-link governance controls.
-- [ ] `R2-057` SkyeDrive: integrity verify-on-open.
-- [ ] `R2-058` SkyeDrive: storage pressure predictor/cleanup assistant.
+- [x] `R2-055` SkyeDrive: immutable artifact mode.
+- [x] `R2-056` SkyeDrive: share-link governance controls.
+- [x] `R2-057` SkyeDrive: integrity verify-on-open.
+- [x] `R2-058` SkyeDrive: storage pressure predictor/cleanup assistant.
 
-- [ ] `R2-059` SkyeVault: secret access approval workflow.
-- [ ] `R2-060` SkyeVault: usage attestation logging.
-- [ ] `R2-061` SkyeVault: rotation playbooks by scope profile.
-- [ ] `R2-062` SkyeVault: break-glass session auditing.
+- [x] `R2-059` SkyeVault: secret access approval workflow.
+- [x] `R2-060` SkyeVault: usage attestation logging.
+- [x] `R2-061` SkyeVault: rotation playbooks by scope profile.
+- [x] `R2-062` SkyeVault: break-glass session auditing.
 
-- [ ] `R2-063` SkyeForms: response workflow routing.
-- [ ] `R2-064` SkyeForms: anti-abuse heuristics.
-- [ ] `R2-065` SkyeForms: form versioning with rollback.
-- [ ] `R2-066` SkyeForms: certified response archive export.
+- [x] `R2-063` SkyeForms: response workflow routing.
+- [x] `R2-064` SkyeForms: anti-abuse heuristics.
+- [x] `R2-065` SkyeForms: form versioning with rollback.
+- [x] `R2-066` SkyeForms: certified response archive export.
 
-- [ ] `R2-067` SkyeNotes: linked knowledge graph/action extraction.
-- [ ] `R2-068` SkyeNotes: stale-note detection prompts.
-- [ ] `R2-069` SkyeNotes: canonical source pinning/conflict warnings.
-- [ ] `R2-070` SkyeNotes: decision-to-task conversion helper.
+- [x] `R2-067` SkyeNotes: linked knowledge graph/action extraction.
+- [x] `R2-068` SkyeNotes: stale-note detection prompts.
+- [x] `R2-069` SkyeNotes: canonical source pinning/conflict warnings.
+- [x] `R2-070` SkyeNotes: decision-to-task conversion helper.
 
-- [ ] `R2-071` SkyeSlides: narrative coherence scoring.
-- [ ] `R2-072` SkyeSlides: sensitive text policy checks.
-- [ ] `R2-073` SkyeSlides: speaker timeline rehearsal report.
-- [ ] `R2-074` SkyeSlides: approved export pipeline manifest.
+- [x] `R2-071` SkyeSlides: narrative coherence scoring.
+- [x] `R2-072` SkyeSlides: sensitive text policy checks.
+- [x] `R2-073` SkyeSlides: speaker timeline rehearsal report.
+- [x] `R2-074` SkyeSlides: approved export pipeline manifest.
 
-- [ ] `R2-075` SkyeSheets: dependency-aware formula audit map.
-- [ ] `R2-076` SkyeSheets: row-level validation + exception report.
-- [ ] `R2-077` SkyeSheets: branded scheduled report generation.
-- [ ] `R2-078` SkyeSheets: signed workbook export integrity summary.
+- [x] `R2-075` SkyeSheets: dependency-aware formula audit map.
+- [x] `R2-076` SkyeSheets: row-level validation + exception report.
+- [x] `R2-077` SkyeSheets: branded scheduled report generation.
+- [x] `R2-078` SkyeSheets: signed workbook export integrity summary.
 
-- [ ] `R2-079` SkyeAnalytics: metric confidence scoring.
-- [ ] `R2-080` SkyeAnalytics: anomaly classifier explainability.
-- [ ] `R2-081` SkyeAnalytics: executive mode dashboards.
-- [ ] `R2-082` SkyeAnalytics: KPI source lineage explorer.
+- [x] `R2-079` SkyeAnalytics: metric confidence scoring.
+- [x] `R2-080` SkyeAnalytics: anomaly classifier explainability.
+- [x] `R2-081` SkyeAnalytics: executive mode dashboards.
+- [x] `R2-082` SkyeAnalytics: KPI source lineage explorer.
 
-- [ ] `R2-083` SkyeAdmin: access review campaign engine.
-- [ ] `R2-084` SkyeAdmin: org policy templates with enforcement preview.
-- [ ] `R2-085` SkyeAdmin: risky action approval queue.
-- [ ] `R2-086` SkyeAdmin: admin audit pack export.
+- [x] `R2-083` SkyeAdmin: access review campaign engine.
+- [x] `R2-084` SkyeAdmin: org policy templates with enforcement preview.
+- [x] `R2-085` SkyeAdmin: risky action approval queue.
+- [x] `R2-086` SkyeAdmin: admin audit pack export.
 
 ## 4) Engineering and CI
 
-- [ ] `R2-087` Add static scan to block direct external AI endpoints.
-- [ ] `R2-088` Add fixture-based tests for gateway response shape tolerance.
-- [ ] `R2-089` Add regression suite for key auth flows.
-- [ ] `R2-090` Add schema tests for export/import payloads.
-- [ ] `R2-091` Add deterministic smoke output snapshots.
-- [ ] `R2-092` Add release artifact generator.
+- [x] `R2-087` Add static scan to block direct external AI endpoints.
+- [x] `R2-088` Add fixture-based tests for gateway response shape tolerance.
+- [x] `R2-089` Add regression suite for key auth flows.
+- [x] `R2-090` Add schema tests for export/import payloads.
+- [x] `R2-091` Add deterministic smoke output snapshots.
+- [x] `R2-092` Add release artifact generator.
 
 ## 5) Release Gates
 
-- [ ] `R2-093` Security gate pass criteria implemented.
-- [ ] `R2-094` Reliability gate pass criteria implemented.
-- [ ] `R2-095` Data integrity gate pass criteria implemented.
-- [ ] `R2-096` Executive readiness gate pass criteria implemented.
+- [x] `R2-093` Security gate pass criteria implemented.
+- [x] `R2-094` Reliability gate pass criteria implemented.
+- [x] `R2-095` Data integrity gate pass criteria implemented.
+- [x] `R2-096` Executive readiness gate pass criteria implemented.
 
 ## 6) Protected Apps
 
-- [ ] `R2-097` Preserve no-touch rule for SkyeDocxPro.
-- [ ] `R2-098` Preserve no-touch rule for Skye-ID.
-- [ ] `R2-099` Preserve no-touch rule for SKYEMAIL-GEN.
+- [x] `R2-097` Preserve no-touch rule for SkyeDocxPro.
+- [x] `R2-098` Preserve no-touch rule for Skye-ID.
+- [x] `R2-099` Preserve no-touch rule for SKYEMAIL-GEN.

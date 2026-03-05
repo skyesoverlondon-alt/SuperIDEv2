@@ -63,6 +63,26 @@
         <button id="resetPolicy" type="button">Reset Policy</button>
         <div id="policyStatus" class="status"></div>
       </div>
+      <h3 style="margin:6px 0 0;color:var(--gold);font-size:13px;text-transform:uppercase;letter-spacing:.06em;">Governance Ops</h3>
+      <div class="form" style="grid-template-columns: 1fr 1fr auto;">
+        <input id="campaignName" placeholder="Access review campaign name" />
+        <select id="policyTemplate">
+          <option value="strict">Template: strict</option>
+          <option value="balanced">Template: balanced</option>
+          <option value="relaxed">Template: relaxed</option>
+        </select>
+        <button id="startCampaign" type="button">Start Campaign</button>
+      </div>
+      <div class="form" style="grid-template-columns: 1fr auto auto;">
+        <input id="riskyAction" placeholder="Risky action request summary" />
+        <button id="queueRisky" type="button">Queue Risky Action</button>
+        <button id="approveRisky" type="button">Approve Top Request</button>
+      </div>
+      <div class="form" style="grid-template-columns: auto 1fr;">
+        <button id="exportAudit" type="button">Export Admin Audit Pack</button>
+        <div id="governanceStatus" class="status"></div>
+      </div>
+      <div class="status" id="templatePreview">Policy template preview pending selection.</div>
       <div class="list" id="users"></div>
       <div class="status">Local-first standalone shell for offline admin review.</div>
     </section>
@@ -76,11 +96,21 @@ const key = `skye.admin.${ws}`;
 const policyKey = `skye.admin.policy.${ws}`;
 let users = JSON.parse(localStorage.getItem(key) || "[]");
 let policy = JSON.parse(localStorage.getItem(policyKey) || '{"token_ttl_days":90,"naming_prefix":"skye","allowed_scope":"generate","allowed_domain":""}');
+let campaigns = JSON.parse(localStorage.getItem(`${key}.campaigns`) || '[]');
+let riskyQueue = JSON.parse(localStorage.getItem(`${key}.riskyQueue`) || '[]');
+let auditTrail = JSON.parse(localStorage.getItem(`${key}.auditTrail`) || '[]');
 const usersEl = document.getElementById("users");
 const policyStatusEl = document.getElementById("policyStatus");
+const governanceStatusEl = document.getElementById('governanceStatus');
+const templatePreviewEl = document.getElementById('templatePreview');
 
 function save() { localStorage.setItem(key, JSON.stringify(users)); }
 function savePolicy() { localStorage.setItem(policyKey, JSON.stringify(policy)); }
+function saveGovernance() {
+  localStorage.setItem(`${key}.campaigns`, JSON.stringify(campaigns));
+  localStorage.setItem(`${key}.riskyQueue`, JSON.stringify(riskyQueue));
+  localStorage.setItem(`${key}.auditTrail`, JSON.stringify(auditTrail));
+}
 
 function hydratePolicyInputs() {
   document.getElementById('tokenTtl').value = String(policy.token_ttl_days || 90);
@@ -96,6 +126,23 @@ function readPolicyFromInputs() {
     allowed_scope: document.getElementById('allowedScope').value || 'generate',
     allowed_domain: (document.getElementById('allowedDomain').value || '').trim().toLowerCase(),
   };
+}
+
+function applyTemplatePreview() {
+  const template = document.getElementById('policyTemplate').value;
+  const presets = {
+    strict: { token_ttl_days: 30, allowed_scope: 'generate', note: 'high controls, short token life' },
+    balanced: { token_ttl_days: 90, allowed_scope: 'generate', note: 'default controls' },
+    relaxed: { token_ttl_days: 180, allowed_scope: 'generate', note: 'longer token life for lower-friction ops' },
+  };
+  const p = presets[template];
+  templatePreviewEl.textContent = `Policy template preview: ${template} -> ttl=${p.token_ttl_days}, scope=${p.allowed_scope}, note=${p.note}`;
+}
+
+function pushAudit(event, details) {
+  auditTrail.unshift({ at: new Date().toISOString(), event, details });
+  auditTrail = auditTrail.slice(0, 400);
+  saveGovernance();
 }
 
 function render() {
@@ -125,23 +172,78 @@ document.getElementById("add").onclick = () => {
   users.unshift({ email: value, role, policy_snapshot: { ...policy } });
   email.value = "";
   save();
+  pushAudit('member_added', { email: value, role });
   render();
 };
 
 document.getElementById('savePolicy').onclick = () => {
   readPolicyFromInputs();
   savePolicy();
+  pushAudit('policy_saved', { ...policy });
   policyStatusEl.textContent = `Saved policy: ttl=${policy.token_ttl_days}d, prefix=${policy.naming_prefix}, scope=${policy.allowed_scope}`;
 };
 
 document.getElementById('resetPolicy').onclick = () => {
   policy = { token_ttl_days: 90, naming_prefix: 'skye', allowed_scope: 'generate', allowed_domain: '' };
   savePolicy();
+  pushAudit('policy_reset', { ...policy });
   hydratePolicyInputs();
   policyStatusEl.textContent = 'Reset policy center to defaults.';
 };
 
+document.getElementById('startCampaign').onclick = () => {
+  const name = (document.getElementById('campaignName').value || '').trim() || `access-review-${Date.now()}`;
+  const campaign = { id: `cmp-${Date.now()}`, name, started_at: new Date().toISOString(), status: 'active', user_count: users.length };
+  campaigns.unshift(campaign);
+  pushAudit('campaign_started', campaign);
+  governanceStatusEl.textContent = `Access review campaign started: ${name} (${users.length} member(s)).`;
+};
+
+document.getElementById('policyTemplate').onchange = applyTemplatePreview;
+
+document.getElementById('queueRisky').onclick = () => {
+  const summary = (document.getElementById('riskyAction').value || '').trim();
+  if (!summary) {
+    governanceStatusEl.textContent = 'Risky action summary required.';
+    return;
+  }
+  const req = { id: `risk-${Date.now()}`, summary, status: 'queued', requested_at: new Date().toISOString() };
+  riskyQueue.unshift(req);
+  pushAudit('risky_action_queued', req);
+  governanceStatusEl.textContent = `Risky action queued: ${req.id}`;
+};
+
+document.getElementById('approveRisky').onclick = () => {
+  if (!riskyQueue.length) {
+    governanceStatusEl.textContent = 'No risky actions in queue.';
+    return;
+  }
+  riskyQueue[0].status = 'approved';
+  riskyQueue[0].approved_at = new Date().toISOString();
+  pushAudit('risky_action_approved', riskyQueue[0]);
+  governanceStatusEl.textContent = `Approved risky request: ${riskyQueue[0].id}`;
+};
+
+document.getElementById('exportAudit').onclick = () => {
+  const payload = {
+    ws_id: ws,
+    exported_at: new Date().toISOString(),
+    users,
+    policy,
+    campaigns,
+    risky_queue: riskyQueue,
+    audit_trail: auditTrail,
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'skyeadmin-audit-pack.json';
+  link.click();
+  governanceStatusEl.textContent = 'Admin audit pack exported.';
+};
+
 hydratePolicyInputs();
+applyTemplatePreview();
 render();
 </script>
 <button id="skye-tutorial-fab" type="button" style="position:fixed;right:16px;bottom:16px;z-index:10000;padding:10px 14px;border-radius:999px;border:1px solid rgba(191,238,255,.42);background:rgba(44,230,255,.2);color:#eff9ff;font-weight:700;cursor:pointer;">Start Tutorial</button>
