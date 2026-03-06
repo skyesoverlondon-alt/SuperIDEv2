@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-cd /workspace
+cd "${LOCAL_WORKSPACE_FOLDER:-$PWD}"
 
 echo "[fat-wizard] bootstrapping workspace"
 

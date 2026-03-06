@@ -58,10 +58,12 @@ Useful commands:
   curl http://mailpit:8025/api/v1/info
   curl http://minio:9000/minio/health/live
 
+
+Optional infra services (if not already running):
+  docker compose -f .devcontainer/docker-compose.yaml up -d db redis mailpit minio
+
 Optional local AI lane:
   docker compose -f .devcontainer/optional-ollama-compose.yaml up -d
-  # or, before rename:
-  docker compose -f 1.devcontainer/optional-ollama-compose.yaml up -d
 
 Common app starts:
   npm run dev
