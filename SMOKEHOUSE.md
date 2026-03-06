@@ -117,6 +117,65 @@ Results:
 
 Summary: `PASS=4 FAIL=0`
 
+## Current Smoke Record (2026-03-06T10:42:57Z)
+
+Command:
+
+```bash
+./scripts/smokehouse.sh https://kaixusuperidev2.netlify.app https://kaixu-superide-runner.skyesoverlondon.workers.dev
+```
+
+Results:
+
+- PASS `GET https://kaixusuperidev2.netlify.app/` -> `200`
+- PASS `GET https://kaixusuperidev2.netlify.app/SkyeMail/index.html` -> `200`
+- PASS `GET https://kaixusuperidev2.netlify.app/SkyeChat/index.html` -> `200`
+- PASS `GET https://kaixusuperidev2.netlify.app/Neural-Space-Pro/index.html` -> `200`
+- PASS `GET https://kaixusuperidev2.netlify.app/upgrade-notes.html` -> `200`
+- PASS `GET https://kaixusuperidev2.netlify.app/SkyeCalendar/index.html` -> `200`
+- PASS `GET https://kaixusuperidev2.netlify.app/SkyeTasks/index.html` -> `200`
+- PASS `GET https://kaixusuperidev2.netlify.app/SkyeNotes/index.html` -> `200`
+- PASS `GET https://kaixusuperidev2.netlify.app/SkyeForms/index.html` -> `200`
+- PASS `GET https://kaixusuperidev2.netlify.app/SkyeVault/index.html` -> `200`
+- PASS `GET https://kaixusuperidev2.netlify.app/SkyeAnalytics/index.html` -> `200`
+- PASS `GET https://kaixu-superide-runner.skyesoverlondon.workers.dev/health` -> `200`
+- PASS `POST https://kaixusuperidev2.netlify.app/api/kaixu-generate` -> `401` (policy-protected expected)
+- PASS `GET https://kaixusuperidev2.netlify.app/api/auth-me` -> `200`
+
+Summary: `PASS=14 FAIL=0`
+
+## Current Smoke Record (2026-03-06T05:14:45Z)
+
+Command:
+
+```bash
+./scripts/smokehouse.sh https://kaixusuperidev2.netlify.app https://kaixu-superide-runner.skyesoverlondon.workers.dev
+```
+
+Results:
+
+- PASS `GET https://kaixusuperidev2.netlify.app/` -> `200`
+- PASS `GET https://kaixusuperidev2.netlify.app/SkyeMail/index.html` -> `200`
+- PASS `GET https://kaixusuperidev2.netlify.app/SkyeChat/index.html` -> `200`
+- PASS `GET https://kaixusuperidev2.netlify.app/Neural-Space-Pro/index.html` -> `200`
+- PASS `GET https://kaixusuperidev2.netlify.app/upgrade-notes.html` -> `200`
+- PASS `GET https://kaixusuperidev2.netlify.app/SkyeCalendar/index.html` -> `200`
+- PASS `GET https://kaixusuperidev2.netlify.app/SkyeTasks/index.html` -> `200`
+- PASS `GET https://kaixusuperidev2.netlify.app/SkyeNotes/index.html` -> `200`
+- PASS `GET https://kaixusuperidev2.netlify.app/SkyeForms/index.html` -> `200`
+- PASS `GET https://kaixusuperidev2.netlify.app/SkyeVault/index.html` -> `200`
+- PASS `GET https://kaixusuperidev2.netlify.app/SkyeAnalytics/index.html` -> `200`
+- PASS `GET https://kaixu-superide-runner.skyesoverlondon.workers.dev/health` -> `200`
+- PASS `POST https://kaixusuperidev2.netlify.app/api/kaixu-generate` -> `401` (policy-protected expected)
+- PASS `GET https://kaixusuperidev2.netlify.app/api/auth-me` -> `200`
+
+Summary: `PASS=14 FAIL=0`
+
+### Interpretation
+
+- Production surfaces and gateway endpoints are green across the expanded smoke matrix.
+- Worker health now returns `200` while policy-protected API behavior remains correctly enforced.
+
 ### Interpretation
 
 - Smoke now classifies protected endpoints correctly as policy-pass instead of hard fail.
