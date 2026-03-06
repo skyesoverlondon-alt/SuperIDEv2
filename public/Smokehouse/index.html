@@ -22,8 +22,12 @@
       <section class="card">
         <label>Base URL</label>
         <input id="baseUrl" />
+        <label style="display:block;margin-top:8px;">Worker URL (optional override)</label>
+        <input id="workerUrl" placeholder="https://kaixu-superide-runner.skyesoverlondon.workers.dev" />
         <label style="display:block;margin-top:8px;">Access Token (optional)</label>
-        <input id="token" type="password" placeholder="Bearer token" />
+        <input id="token" type="password" placeholder="kx_at_..." />
+        <label style="display:block;margin-top:8px;">Token Email (optional)</label>
+        <input id="tokenEmail" placeholder="owner@company.com" />
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px;">
           <button id="runBtn" class="primary">Run Smoke</button>
           <button id="exportBtn">Export Runs</button>
@@ -93,8 +97,9 @@
       }, interval);
     }
 
-    async function runCheck(name, method, url, payload, headers) {
+    async function runCheck(name, method, url, payload, headers, opts = {}) {
       const start = performance.now();
+      const authExpected = Boolean(opts.authExpected);
       try {
         const res = await gatewayFetch(url, {
           method,
@@ -103,29 +108,76 @@
           body: payload ? JSON.stringify(payload) : undefined,
         });
         const text = await res.text();
-        const ok = res.status >= 200 && res.status < 300;
-        return { name, status: res.status, ok, ms: Math.round(performance.now() - start), detail: text.slice(0, 180) };
+        const okStatus = res.status >= 200 && res.status < 300;
+        const gatedStatus = authExpected && [401, 403].includes(res.status);
+        const ok = okStatus || gatedStatus;
+        const detail = gatedStatus ? `Gated (${res.status})` : text.slice(0, 180);
+        return { name, status: res.status, ok, ms: Math.round(performance.now() - start), detail, url };
       } catch (e) {
-        return { name, status: 0, ok: false, ms: Math.round(performance.now() - start), detail: String(e?.message || e) };
+        return { name, status: 0, ok: false, ms: Math.round(performance.now() - start), detail: String(e?.message || e), url };
       }
     }
 
     async function runSmoke() {
       const base = (document.getElementById("baseUrl").value || location.origin).replace(/\/$/, "");
+      const workerUrlInput = String(document.getElementById("workerUrl").value || "").trim();
       const token = document.getElementById("token").value.trim();
+      const tokenEmail = String(document.getElementById("tokenEmail").value || "").trim();
       const headers = { "Content-Type": "application/json" };
       if (token) headers.Authorization = `Bearer ${token}`;
+      if (tokenEmail) headers["X-Token-Email"] = tokenEmail;
       setStatus("Running checks...");
 
       const wsId = new URLSearchParams(location.search).get("ws_id") || "primary-workspace";
-      const checks = [
-        await runCheck("Site Root", "GET", `${base}/`, null, headers),
-        await runCheck("Auth Me", "GET", `${base}/api/auth-me`, null, headers),
-        await runCheck("Generate", "POST", `${base}/api/kaixu-generate`, { ws_id: wsId, activePath: "/Smokehouse/index.html", prompt: "smokehouse ping" }, headers),
-      ];
+      const workerUrl = workerUrlInput || localStorage.getItem("kx.worker.url") || "https://kaixu-superide-runner.skyesoverlondon.workers.dev";
+      const checks = [];
+      checks.push(await runCheck("Site Root", "GET", `${base}/`, null, headers));
+      checks.push(await runCheck("Auth Me", "GET", `${base}/api/auth-me`, null, headers));
+      checks.push(await runCheck("Worker Health", "GET", `${workerUrl.replace(/\/+$/, "")}/health`, null, headers));
+      checks.push(
+        await runCheck(
+          "Generate API",
+          "POST",
+          `${base}/api/kaixu-generate`,
+          { ws_id: wsId, activePath: "/Smokehouse/index.html", prompt: "smokehouse ping" },
+          headers,
+          { authExpected: true }
+        )
+      );
+      checks.push(await runCheck("Workspace Get", "GET", `${base}/api/ws-get?id=${encodeURIComponent(wsId)}`, null, headers, { authExpected: true }));
+      const tree = await runCheck("IDE Tree", "GET", `${base}/api/ide/tree?id=${encodeURIComponent(wsId)}`, null, headers, { authExpected: true });
+      checks.push(tree);
+
+      let filePath = "README.md";
+      try {
+        const treeRes = await gatewayFetch(`${base}/api/ide/tree?id=${encodeURIComponent(wsId)}`, {
+          method: "GET",
+          headers,
+          credentials: "include",
+        });
+        if (treeRes.ok) {
+          const treeData = await treeRes.json();
+          const firstPath = Array.isArray(treeData?.files) && treeData.files[0] && String(treeData.files[0].path || "").trim();
+          if (firstPath) filePath = firstPath;
+        }
+      } catch {
+      }
+      checks.push(
+        await runCheck(
+          "IDE File",
+          "GET",
+          `${base}/api/ide/file?id=${encodeURIComponent(wsId)}&path=${encodeURIComponent(filePath)}`,
+          null,
+          headers,
+          { authExpected: true }
+        )
+      );
+      checks.push(await runCheck("Team Members", "GET", `${base}/api/team-members`, null, headers, { authExpected: true }));
 
       const pass = checks.filter((c) => c.ok).length;
-      document.getElementById("summary").textContent = checks.map((c) => `${c.ok ? "PASS" : "FAIL"} | ${c.name} | ${c.status} | ${c.ms}ms | ${c.detail}`).join("\n");
+      document.getElementById("summary").textContent = checks
+        .map((c) => `${c.ok ? "PASS" : "FAIL"} | ${c.name} | ${c.status} | ${c.ms}ms | ${c.url} | ${c.detail}`)
+        .join("\n");
 
       const runs = readRuns();
       const prev = runs.length ? runs[0].hash : "GENESIS";
@@ -177,6 +229,9 @@
     }
 
     document.getElementById("baseUrl").value = location.origin;
+    document.getElementById("workerUrl").value = localStorage.getItem("kx.worker.url") || "";
+    document.getElementById("token").value = localStorage.getItem("kx.api.accessToken") || "";
+    document.getElementById("tokenEmail").value = localStorage.getItem("kx.api.tokenEmail") || localStorage.getItem("kx.auth.user") || "";
     document.getElementById("runBtn").onclick = () => runSmoke();
     document.getElementById("exportBtn").onclick = () => {
       const blob = new Blob([JSON.stringify(readRuns(), null, 2)], { type: "application/json" });

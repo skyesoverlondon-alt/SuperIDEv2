@@ -24,7 +24,7 @@
     label { display: block; font-size: 12px; color: var(--muted); margin: 8px 0 6px; text-transform: uppercase; letter-spacing: 0.06em; }
     input, textarea, select, button { width: 100%; border-radius: 10px; border: 1px solid #2c4b69; background: #0d2032; color: var(--ink); padding: 10px; }
     textarea { min-height: 130px; resize: vertical; }
-    .btns { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 10px; }
+    .btns { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-top: 10px; }
     button { cursor: pointer; font-weight: 700; }
     .primary { background: linear-gradient(135deg, #14b8a6, #0ea5e9); border: none; }
     table { width: 100%; border-collapse: collapse; font-size: 12px; }
@@ -44,10 +44,22 @@
       <section class="card">
         <label>Endpoint</label>
         <input id="endpoint" value="/api/kaixu-generate" />
+        <label>Preset</label>
+        <select id="preset">
+          <option value="generate">Generate API</option>
+          <option value="auth-me">Auth Me</option>
+          <option value="workspace-get">Workspace Get</option>
+          <option value="ide-tree">IDE Tree</option>
+          <option value="ide-file">IDE File</option>
+          <option value="team-members">Team Members</option>
+          <option value="token-list">Token List</option>
+        </select>
         <label>Method</label>
         <select id="method"><option>POST</option><option>GET</option></select>
         <label>Access Token (optional)</label>
         <input id="token" type="password" placeholder="Bearer token for gate" />
+        <label>Token Email (optional)</label>
+        <input id="tokenEmail" placeholder="owner@company.com" />
         <label>Payload (JSON)</label>
         <textarea id="payload">{
   "ws_id": "primary-workspace",
@@ -56,6 +68,7 @@
 }</textarea>
         <div class="btns">
           <button id="sendBtn" class="primary">Send</button>
+          <button id="sweepBtn">Run Sweep</button>
           <button id="seedBtn">Seed Generate</button>
           <button id="exportBtn">Export Logs</button>
           <button id="clearBtn">Clear Logs</button>
@@ -181,9 +194,11 @@
       const endpoint = document.getElementById("endpoint").value.trim();
       const method = document.getElementById("method").value;
       const token = document.getElementById("token").value.trim();
+      const tokenEmail = document.getElementById("tokenEmail").value.trim();
       const payloadText = document.getElementById("payload").value;
       const headers = { "Content-Type": "application/json" };
       if (token) headers.Authorization = `Bearer ${token}`;
+      if (tokenEmail) headers["X-Token-Email"] = tokenEmail;
 
       let payload = null;
       try { payload = payloadText ? JSON.parse(payloadText) : null; }
@@ -220,15 +235,114 @@
       });
     }
 
+    function applyPreset() {
+      const wsId = new URLSearchParams(window.location.search).get("ws_id") || "primary-workspace";
+      const preset = document.getElementById("preset").value;
+      if (preset === "generate") {
+        document.getElementById("endpoint").value = "/api/kaixu-generate";
+        document.getElementById("method").value = "POST";
+        document.getElementById("payload").value = JSON.stringify({
+          ws_id: wsId,
+          activePath: "/API-Playground/index.html",
+          prompt: "Seeded gateway smoke prompt",
+        }, null, 2);
+        return;
+      }
+      if (preset === "auth-me") {
+        document.getElementById("endpoint").value = "/api/auth-me";
+        document.getElementById("method").value = "GET";
+        document.getElementById("payload").value = "{}";
+        return;
+      }
+      if (preset === "workspace-get") {
+        document.getElementById("endpoint").value = `/api/ws-get?id=${encodeURIComponent(wsId)}`;
+        document.getElementById("method").value = "GET";
+        document.getElementById("payload").value = "{}";
+        return;
+      }
+      if (preset === "ide-tree") {
+        document.getElementById("endpoint").value = `/api/ide/tree?id=${encodeURIComponent(wsId)}`;
+        document.getElementById("method").value = "GET";
+        document.getElementById("payload").value = "{}";
+        return;
+      }
+      if (preset === "ide-file") {
+        document.getElementById("endpoint").value = `/api/ide/file?id=${encodeURIComponent(wsId)}&path=${encodeURIComponent("README.md")}`;
+        document.getElementById("method").value = "GET";
+        document.getElementById("payload").value = "{}";
+        return;
+      }
+      if (preset === "team-members") {
+        document.getElementById("endpoint").value = "/api/team-members";
+        document.getElementById("method").value = "GET";
+        document.getElementById("payload").value = "{}";
+        return;
+      }
+      document.getElementById("endpoint").value = "/api/token-list";
+      document.getElementById("method").value = "GET";
+      document.getElementById("payload").value = "{}";
+    }
+
+    async function runSweep() {
+      const wsId = new URLSearchParams(window.location.search).get("ws_id") || "primary-workspace";
+      const sweep = [
+        { endpoint: "/api/auth-me", method: "GET", payload: {} },
+        { endpoint: `/api/ws-get?id=${encodeURIComponent(wsId)}`, method: "GET", payload: {} },
+        { endpoint: `/api/ide/tree?id=${encodeURIComponent(wsId)}`, method: "GET", payload: {} },
+        { endpoint: `/api/ide/file?id=${encodeURIComponent(wsId)}&path=${encodeURIComponent("README.md")}`, method: "GET", payload: {} },
+        {
+          endpoint: "/api/kaixu-generate",
+          method: "POST",
+          payload: { ws_id: wsId, activePath: "/API-Playground/index.html", prompt: "Sweep smoke prompt" },
+        },
+      ];
+
+      const token = document.getElementById("token").value.trim();
+      const tokenEmail = document.getElementById("tokenEmail").value.trim();
+      const headers = { "Content-Type": "application/json" };
+      if (token) headers.Authorization = `Bearer ${token}`;
+      if (tokenEmail) headers["X-Token-Email"] = tokenEmail;
+
+      setStatus(`Running sweep (${sweep.length} endpoints)...`);
+      let passed = 0;
+      for (const item of sweep) {
+        const start = performance.now();
+        let status = 0;
+        let bodyText = "";
+        try {
+          const res = await gatewayFetch(item.endpoint, {
+            method: item.method,
+            headers,
+            credentials: "include",
+            body: item.method === "GET" ? undefined : JSON.stringify(item.payload),
+          });
+          status = res.status;
+          bodyText = await res.text();
+          if (status >= 200 && status < 300) passed += 1;
+        } catch (e) {
+          bodyText = String(e?.message || e);
+        }
+        await appendLog({
+          at: new Date().toISOString(),
+          endpoint: item.endpoint,
+          method: item.method,
+          status,
+          ms: Math.round(performance.now() - start),
+          request_preview: JSON.stringify(item.payload).slice(0, 600),
+          response_preview: bodyText.slice(0, 600),
+        });
+      }
+
+      setStatus(`Sweep complete: ${passed}/${sweep.length} returned 2xx.`);
+      document.getElementById("response").textContent = `Sweep complete: ${passed}/${sweep.length} returned 2xx. Inspect ledger for endpoint-level details.`;
+    }
+
     document.getElementById("sendBtn").onclick = () => send();
+    document.getElementById("preset").onchange = () => applyPreset();
+    document.getElementById("sweepBtn").onclick = () => runSweep();
     document.getElementById("seedBtn").onclick = () => {
-      document.getElementById("endpoint").value = "/api/kaixu-generate";
-      document.getElementById("method").value = "POST";
-      document.getElementById("payload").value = JSON.stringify({
-        ws_id: new URLSearchParams(window.location.search).get("ws_id") || "primary-workspace",
-        activePath: "/API-Playground/index.html",
-        prompt: "Seeded gateway smoke prompt",
-      }, null, 2);
+      document.getElementById("preset").value = "generate";
+      applyPreset();
     };
     document.getElementById("exportBtn").onclick = () => {
       const blob = new Blob([JSON.stringify(readLogs(), null, 2)], { type: "application/json" });
@@ -244,6 +358,9 @@
       setStatus("Ledger cleared.");
     };
 
+    document.getElementById("token").value = localStorage.getItem("kx.api.accessToken") || "";
+    document.getElementById("tokenEmail").value = localStorage.getItem("kx.api.tokenEmail") || localStorage.getItem("kx.auth.user") || "";
+    applyPreset();
     renderLedger();
   </script>
 </body>

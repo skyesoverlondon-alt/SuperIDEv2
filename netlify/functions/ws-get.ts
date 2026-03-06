@@ -16,5 +16,8 @@ export const handler = async (event: any) => {
   if (r.rows[0].org_id !== u.org_id) return forbid();
   const canRead = await canReadWorkspace(u.org_id as string, u.user_id, id);
   if (!canRead) return json(403, { error: "Forbidden: no workspace access." });
-  return json(200, { files: r.rows[0].files_json || [] });
+  return json(200, {
+    files: r.rows[0].files_json || [],
+    revision: r.rows[0].updated_at || null,
+  });
 };

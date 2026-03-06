@@ -2,6 +2,14 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import Editor from "@monaco-editor/react";
 import { redactDiagnosticsValue } from "./redaction";
 import { filterSknoreFiles, isSknoreProtected, normalizeSknorePatterns } from "./sknore/policy";
+import { buildFilePreviewDocument, getPreviewHealthState, resolvePreviewUrl } from "./lib/providers/previewProvider";
+import {
+  fetchWorkspaceFile,
+  fetchWorkspaceFiles,
+  fetchWorkspaceTree,
+  persistWorkspaceFiles,
+  serializeWorkspaceFiles,
+} from "./lib/providers/workspaceFileProvider";
 
 type Message = {
   id: string;
@@ -13,6 +21,13 @@ type Message = {
 type WorkspaceFile = {
   path: string;
   content: string;
+};
+
+type IdeDiagnostic = {
+  id: string;
+  level: "info" | "warn" | "error";
+  message: string;
+  at: string;
 };
 
 type HealthPayload = {
@@ -787,6 +802,8 @@ export function App() {
   });
   const [previewDevice, setPreviewDevice] = useState<"desktop" | "mobile">("desktop");
   const [previewPane, setPreviewPane] = useState<"split" | "code" | "preview">("split");
+  const [ideRailTab, setIdeRailTab] = useState<"explorer" | "search" | "git" | "run" | "extensions">("explorer");
+  const [ideFileSearch, setIdeFileSearch] = useState("");
   const [workspaceSidebarWidth, setWorkspaceSidebarWidth] = useState(() => {
     const raw = Number(localStorage.getItem("kx.layout.sidebar.width"));
     if (!Number.isFinite(raw)) return 420;
@@ -885,6 +902,10 @@ export function App() {
   const [appSearch, setAppSearch] = useState("");
   const [authUser, setAuthUser] = useState(() => localStorage.getItem("kx.auth.user") || "founder@skye.local");
   const [authRole, setAuthRole] = useState<AuthRole>(() => (localStorage.getItem("kx.auth.role") as AuthRole) || "owner");
+  const [authPassword, setAuthPassword] = useState("");
+  const [authOrgName, setAuthOrgName] = useState("Skye Workspace");
+  const [isAuthSubmitting, setIsAuthSubmitting] = useState(false);
+  const [authResult, setAuthResult] = useState("");
 
   const [sheetsModel, setSheetsModel] = useState<SheetsModel>(() => {
     const raw = localStorage.getItem("kx.skye.sheets.model");
@@ -1127,6 +1148,13 @@ export function App() {
   const [newFilePath, setNewFilePath] = useState("src/new-file.ts");
   const [ideCommitMessage, setIdeCommitMessage] = useState("SuperIDE workspace update");
   const [ideOpsResult, setIdeOpsResult] = useState("");
+  const [previewRuntimeMode, setPreviewRuntimeMode] = useState<"quick" | "project">("quick");
+  const [autoSaveEnabled, setAutoSaveEnabled] = useState(() => localStorage.getItem("kx.workspace.autosave") !== "0");
+  const [workspaceSavedHash, setWorkspaceSavedHash] = useState("");
+  const [workspaceRevision, setWorkspaceRevision] = useState("");
+  const [workspaceUnloadedPaths, setWorkspaceUnloadedPaths] = useState<string[]>([]);
+  const [workspaceConflict, setWorkspaceConflict] = useState<{ detectedAt: string; serverHash: string; message: string } | null>(null);
+  const [ideDiagnostics, setIdeDiagnostics] = useState<IdeDiagnostic[]>([]);
   const [isSavingWorkspace, setIsSavingWorkspace] = useState(false);
   const [isLoadingWorkspace, setIsLoadingWorkspace] = useState(false);
   const [isGitPushing, setIsGitPushing] = useState(false);
@@ -1176,10 +1204,39 @@ export function App() {
     return () => window.removeEventListener("keydown", onShellHotkey);
   }, [selectedSkyeApp]);
 
+  const [previewFrameError, setPreviewFrameError] = useState("");
+  const [previewReloadToken, setPreviewReloadToken] = useState(0);
   const healthUrl = useMemo(() => `${normalizeBaseUrl(workerUrl)}/health`, [workerUrl]);
   const activeFile = useMemo(() => files.find((file) => file.path === activePath) || files[0], [files, activePath]);
-  const previewDocument = useMemo(() => buildPreviewDocument(activeFile), [activeFile]);
+  const workspaceCurrentHash = useMemo(() => serializeWorkspaceFiles(files), [files]);
+  const workspaceDirty = useMemo(() => workspaceSavedHash !== "" && workspaceCurrentHash !== workspaceSavedHash, [workspaceCurrentHash, workspaceSavedHash]);
+  const ideVisibleFiles = useMemo(() => {
+    const q = ideFileSearch.trim().toLowerCase();
+    if (!q) return files;
+    return files.filter((file) => file.path.toLowerCase().includes(q));
+  }, [files, ideFileSearch]);
+  const previewDocument = useMemo(
+    () => buildFilePreviewDocument(activeFile, typeof window !== "undefined" ? window.location.origin : ""),
+    [activeFile]
+  );
   const livePreviewUrl = useMemo(() => buildAppSurfaceUrl(selectedSkyeApp, workspaceId), [selectedSkyeApp, workspaceId]);
+  const fallbackPreviewUrl = useMemo(() => buildAppSurfaceUrl("SkyeDocs", workspaceId), [workspaceId]);
+  const resolvedPreviewUrl = useMemo(
+    () => resolvePreviewUrl(livePreviewUrl, fallbackPreviewUrl, "/SkyeDocs/index.html"),
+    [livePreviewUrl, fallbackPreviewUrl]
+  );
+  const effectivePreviewDocument = useMemo(
+    () => (previewRuntimeMode === "quick" ? previewDocument : null),
+    [previewRuntimeMode, previewDocument]
+  );
+  const effectivePreviewUrl = useMemo(
+    () => (previewRuntimeMode === "project" ? resolvedPreviewUrl : resolvedPreviewUrl),
+    [previewRuntimeMode, resolvedPreviewUrl]
+  );
+  const previewHealth = useMemo(
+    () => getPreviewHealthState(effectivePreviewDocument, effectivePreviewUrl, previewFrameError),
+    [effectivePreviewDocument, effectivePreviewUrl, previewFrameError]
+  );
   const sknorePatterns = useMemo(() => normalizeSknorePatterns(sknoreText.split("\n")), [sknoreText]);
   const sknoreBlockedCount = useMemo(
     () => files.filter((file) => isSknoreProtected(file.path, sknorePatterns)).length,
@@ -1277,6 +1334,22 @@ export function App() {
   }, [activePath]);
 
   useEffect(() => {
+    localStorage.setItem("kx.workspace.autosave", autoSaveEnabled ? "1" : "0");
+  }, [autoSaveEnabled]);
+
+  useEffect(() => {
+    if (!workspaceSavedHash) setWorkspaceSavedHash(workspaceCurrentHash);
+  }, [workspaceCurrentHash, workspaceSavedHash]);
+
+  useEffect(() => {
+    if (!autoSaveEnabled || !workspaceDirty || !workspaceId.trim() || isSavingWorkspace) return;
+    const timer = setTimeout(() => {
+      void saveWorkspaceNow();
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [autoSaveEnabled, workspaceDirty, workspaceId, isSavingWorkspace, files]);
+
+  useEffect(() => {
     localStorage.setItem("kx.smoke.ledger", JSON.stringify(smokeLedger));
   }, [smokeLedger]);
 
@@ -1291,6 +1364,16 @@ export function App() {
   useEffect(() => {
     localStorage.setItem("kx.skye.spotlight.dismissed", JSON.stringify(dismissedSpotlightByApp));
   }, [dismissedSpotlightByApp]);
+
+  function pushIdeDiagnostic(level: "info" | "warn" | "error", message: string) {
+    const entry: IdeDiagnostic = {
+      id: makeId(),
+      level,
+      message,
+      at: new Date().toISOString(),
+    };
+    setIdeDiagnostics((old) => [entry, ...old].slice(0, 12));
+  }
 
   useEffect(() => {
     localStorage.setItem("kx.sknore.patterns", sknoreText);
@@ -1362,6 +1445,17 @@ export function App() {
   useEffect(() => {
     void loadTeamMembers();
   }, []);
+
+  useEffect(() => {
+    void refreshAuthSession();
+  }, []);
+
+  useEffect(() => {
+    const target = activePath.trim();
+    if (!target) return;
+    if (!workspaceUnloadedPaths.includes(target)) return;
+    void hydrateWorkspaceFile(target);
+  }, [activePath, workspaceUnloadedPaths, workspaceId]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -1462,6 +1556,7 @@ export function App() {
 
   function updateActiveFileContent(content: string) {
     setFiles((old) => old.map((file) => (file.path === activeFile.path ? { ...file, content } : file)));
+    setWorkspaceUnloadedPaths((old) => old.filter((path) => path !== activeFile.path));
   }
 
   function addWorkspaceFile() {
@@ -1490,11 +1585,47 @@ export function App() {
     }
     const nextFiles = files.filter((file) => file.path !== target);
     setFiles(nextFiles);
+    setWorkspaceUnloadedPaths((old) => old.filter((path) => path !== target));
     setActivePath(nextFiles[0].path);
     setIdeOpsResult(`Deleted file: ${target}`);
   }
 
-  async function saveWorkspaceNow() {
+  async function hydrateWorkspaceFile(path: string, force = false) {
+    const targetPath = String(path || "").trim().replace(/^\/+/, "");
+    if (!workspaceId.trim() || !targetPath) return;
+    if (!force && !workspaceUnloadedPaths.includes(targetPath)) return;
+
+    try {
+      const payload = await fetchWorkspaceFile(workspaceId.trim(), targetPath);
+      setFiles((old) => old.map((file) => (file.path === targetPath ? { ...file, content: payload.content } : file)));
+      if (payload.revision) setWorkspaceRevision(payload.revision);
+      setWorkspaceUnloadedPaths((old) => old.filter((entry) => entry !== targetPath));
+    } catch (error: any) {
+      pushIdeDiagnostic("warn", `Lazy load failed for ${targetPath}: ${error?.message || "unknown error"}`);
+    }
+  }
+
+  async function hydrateAllWorkspaceFiles() {
+    if (!workspaceId.trim() || !workspaceUnloadedPaths.length) return;
+    const pending = [...workspaceUnloadedPaths];
+    const loaded = await Promise.all(
+      pending.map(async (path) => {
+        const file = await fetchWorkspaceFile(workspaceId.trim(), path);
+        return file;
+      })
+    );
+
+    const contentByPath = new Map(loaded.map((file) => [file.path, file.content]));
+    setFiles((old) =>
+      old.map((file) => (contentByPath.has(file.path) ? { ...file, content: contentByPath.get(file.path) || "" } : file))
+    );
+
+    const newestRevision = loaded.map((file) => file.revision).find((value) => Boolean(value));
+    if (newestRevision) setWorkspaceRevision(newestRevision);
+    setWorkspaceUnloadedPaths([]);
+  }
+
+  async function saveWorkspaceNow(force = false) {
     if (!workspaceId.trim()) {
       setIdeOpsResult("Workspace ID is required.");
       return;
@@ -1502,19 +1633,40 @@ export function App() {
     setIsSavingWorkspace(true);
     setIdeOpsResult("");
     try {
-      const res = await fetch("/api/ws-save", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: workspaceId.trim(), files }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setIdeOpsResult(data?.error || `Workspace save failed (${res.status}).`);
+      await hydrateAllWorkspaceFiles();
+      const serverSnapshot = await fetchWorkspaceFiles(workspaceId.trim());
+      const serverFiles = serverSnapshot.files;
+      const serverHash = serializeWorkspaceFiles(serverFiles);
+      const hasConflict = workspaceSavedHash !== "" && serverHash !== workspaceSavedHash && workspaceDirty;
+      if (hasConflict && !force) {
+        const message = "Conflict detected: server workspace changed since your last sync. Reload or Force Save.";
+        setWorkspaceConflict({ detectedAt: new Date().toISOString(), serverHash, message });
+        setIdeOpsResult(message);
+        pushIdeDiagnostic("warn", message);
         return;
       }
+
+      const saveResult = await persistWorkspaceFiles(workspaceId.trim(), files, {
+        expectedRevision: workspaceRevision || serverSnapshot.revision || "",
+        force,
+      });
+      setWorkspaceSavedHash(serializeWorkspaceFiles(files));
+      if (saveResult.revision) setWorkspaceRevision(saveResult.revision);
+      setWorkspaceConflict(null);
       setIdeOpsResult(`Workspace saved (${files.length} files).`);
+      pushIdeDiagnostic("info", `Workspace saved (${files.length} files).`);
     } catch (error: any) {
-      setIdeOpsResult(error?.message || "Workspace save failed.");
+      const isConflict = Number(error?.status || 0) === 409;
+      if (isConflict) {
+        const serverRevision = String(error?.conflict?.current_revision || "");
+        const message = "Conflict detected: server revision changed. Reload or Force Save.";
+        setWorkspaceConflict({ detectedAt: new Date().toISOString(), serverHash: serverRevision || "unknown", message });
+        setIdeOpsResult(message);
+        pushIdeDiagnostic("warn", message);
+      } else {
+        setIdeOpsResult(error?.message || "Workspace save failed.");
+        pushIdeDiagnostic("error", error?.message || "Workspace save failed.");
+      }
     } finally {
       setIsSavingWorkspace(false);
     }
@@ -1528,23 +1680,28 @@ export function App() {
     setIsLoadingWorkspace(true);
     setIdeOpsResult("");
     try {
-      const qs = new URLSearchParams({ id: workspaceId.trim() });
-      const res = await fetch(`/api/ws-get?${qs.toString()}`, { method: "GET" });
-      const data = await res.json();
-      if (!res.ok) {
-        setIdeOpsResult(data?.error || `Workspace load failed (${res.status}).`);
-        return;
-      }
-      const loaded = Array.isArray(data?.files) ? (data.files as WorkspaceFile[]) : [];
-      if (!loaded.length) {
+      const tree = await fetchWorkspaceTree(workspaceId.trim());
+      if (!tree.files.length) {
         setIdeOpsResult("Workspace loaded (no files found). Keeping current editor state.");
+        pushIdeDiagnostic("warn", "Workspace load returned no files.");
         return;
       }
-      setFiles(loaded);
-      setActivePath(loaded[0].path);
-      setIdeOpsResult(`Workspace loaded (${loaded.length} files).`);
+
+      const skeletonFiles = tree.files.map((file) => ({ path: file.path, content: "" }));
+      setFiles(skeletonFiles);
+      setWorkspaceUnloadedPaths(tree.files.map((file) => file.path));
+      setWorkspaceRevision(tree.revision || "");
+      setActivePath(tree.files[0].path);
+      await hydrateWorkspaceFile(tree.files[0].path, true);
+
+      const snapshot = await fetchWorkspaceFiles(workspaceId.trim());
+      setWorkspaceSavedHash(serializeWorkspaceFiles(snapshot.files));
+      setWorkspaceConflict(null);
+      setIdeOpsResult(`Workspace loaded (${tree.files.length} files).`);
+      pushIdeDiagnostic("info", `Workspace loaded (${tree.files.length} files).`);
     } catch (error: any) {
       setIdeOpsResult(error?.message || "Workspace load failed.");
+      pushIdeDiagnostic("error", error?.message || "Workspace load failed.");
     } finally {
       setIsLoadingWorkspace(false);
     }
@@ -2461,19 +2618,110 @@ export function App() {
     }
   }
 
+  async function refreshAuthSession() {
+    try {
+      const res = await fetch("/api/auth-me", { method: "GET", credentials: "include" });
+      const data = await res.json();
+      if (!res.ok || !data?.email) {
+        setAssistantAuthStatus("unauthorized");
+        return false;
+      }
+
+      setAuthUser(String(data.email || authUser));
+      if (data?.role && ["owner", "admin", "member", "viewer"].includes(String(data.role))) {
+        setAuthRole(data.role as AuthRole);
+      }
+      setAssistantAuthStatus("ok");
+      return true;
+    } catch {
+      setAssistantAuthStatus("unauthorized");
+      return false;
+    }
+  }
+
+  async function submitAuthFlow(mode: "login" | "signup") {
+    if (!authUser.trim() || !authPassword.trim()) {
+      setAuthResult("Email and password are required.");
+      return;
+    }
+
+    if (mode === "signup" && !authOrgName.trim()) {
+      setAuthResult("Organization name is required for signup.");
+      return;
+    }
+
+    setIsAuthSubmitting(true);
+    setAuthResult("");
+    try {
+      const payload: Record<string, unknown> = {
+        email: authUser.trim().toLowerCase(),
+        password: authPassword,
+      };
+      if (mode === "signup") payload.orgName = authOrgName.trim();
+
+      const res = await fetch(mode === "signup" ? "/api/auth-signup" : "/api/auth-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setAuthResult(data?.error || `${mode} failed (${res.status}).`);
+        return;
+      }
+
+      if (mode === "signup" && data?.kaixu_token?.token) {
+        setApiAccessToken(String(data.kaixu_token.token));
+        setApiTokenEmail(String(data.kaixu_token.locked_email || authUser.trim().toLowerCase()));
+      }
+
+      setAuthPassword("");
+      await refreshAuthSession();
+      setAuthResult(mode === "signup" ? "Signup complete. Session + kAIxU key are active." : "Login complete. Session restored.");
+    } catch (error: any) {
+      setAuthResult(error?.message || `${mode} failed.`);
+    } finally {
+      setIsAuthSubmitting(false);
+    }
+  }
+
+  async function logoutAuthSession() {
+    setIsAuthSubmitting(true);
+    try {
+      await fetch("/api/auth-logout", { method: "POST", credentials: "include" });
+      setAssistantAuthStatus("unauthorized");
+      setAuthPassword("");
+      setAuthResult("Signed out of browser session.");
+    } catch (error: any) {
+      setAuthResult(error?.message || "Logout failed.");
+    } finally {
+      setIsAuthSubmitting(false);
+    }
+  }
+
   function openDetachedPreview() {
-    if (livePreviewUrl) {
-      window.open(livePreviewUrl, "_blank", "noopener,noreferrer");
+    if (effectivePreviewUrl) {
+      window.open(effectivePreviewUrl, "_blank", "noopener,noreferrer");
+      pushIdeDiagnostic("info", `Opened detached ${previewRuntimeMode} preview.`);
       return;
     }
-    if (!previewDocument) {
+    if (!effectivePreviewDocument) {
       setIdeOpsResult("Preview unavailable for this file type.");
+      pushIdeDiagnostic("warn", "Detached preview unavailable for current context.");
       return;
     }
-    const blob = new Blob([previewDocument], { type: "text/html" });
+    const blob = new Blob([effectivePreviewDocument], { type: "text/html" });
     const url = URL.createObjectURL(blob);
     window.open(url, "_blank", "noopener,noreferrer");
     setTimeout(() => URL.revokeObjectURL(url), 5000);
+    pushIdeDiagnostic("info", "Opened detached in-memory preview document.");
+  }
+
+  function retryPreview() {
+    setPreviewFrameError("");
+    setPreviewReloadToken((old) => old + 1);
+    pushIdeDiagnostic("info", `Retry requested for ${previewRuntimeMode} preview.`);
   }
 
   async function notifySkyeChat() {
@@ -4383,6 +4631,47 @@ export function App() {
         </button>
       </section>
 
+      <section className="auth-session-bar">
+        <label htmlFor="auth-email">Email</label>
+        <input
+          id="auth-email"
+          value={authUser}
+          onChange={(event) => setAuthUser(event.target.value)}
+          placeholder="owner@company.com"
+        />
+        <label htmlFor="auth-password">Password</label>
+        <input
+          id="auth-password"
+          type="password"
+          value={authPassword}
+          onChange={(event) => setAuthPassword(event.target.value)}
+          placeholder="********"
+        />
+        <label htmlFor="auth-org">Org (signup)</label>
+        <input
+          id="auth-org"
+          value={authOrgName}
+          onChange={(event) => setAuthOrgName(event.target.value)}
+          placeholder="Skye Workspace"
+        />
+        <button className="ghost" type="button" onClick={() => void submitAuthFlow("login")} disabled={isAuthSubmitting}>
+          {isAuthSubmitting ? "Working..." : "Sign In"}
+        </button>
+        <button className="ghost" type="button" onClick={() => void submitAuthFlow("signup")} disabled={isAuthSubmitting}>
+          {isAuthSubmitting ? "Working..." : "Sign Up"}
+        </button>
+        <button className="ghost" type="button" onClick={() => void refreshAuthSession()} disabled={isAuthSubmitting}>
+          Session Sync
+        </button>
+        <button className="ghost" type="button" onClick={() => void logoutAuthSession()} disabled={isAuthSubmitting}>
+          Sign Out
+        </button>
+        <span className="telemetry-chip">Revision: {workspaceRevision || "n/a"}</span>
+        <span className="telemetry-chip">Lazy: {workspaceUnloadedPaths.length} pending</span>
+      </section>
+
+      {authResult && <section className="auth-session-feedback">{authResult}</section>}
+
       {showFailSafeBanner && (
         <section className="smoke-warning" style={{ margin: "10px 12px 0 12px" }}>
           <strong>Fail-Safe Mode Active</strong>
@@ -4564,7 +4853,7 @@ export function App() {
                   </div>
                 </section>
 
-                {[topWorkspaceApp, middleWorkspaceApp, bottomWorkspaceApp, "Smokehouse-Standalone", "API-Playground"].map((app, index) => {
+                {([topWorkspaceApp, middleWorkspaceApp, bottomWorkspaceApp, "Smokehouse-Standalone", "API-Playground"] as WorkspaceStageApp[]).map((app, index) => {
                   const slot =
                     index === 0
                       ? "Top Workspace"
@@ -4624,83 +4913,261 @@ export function App() {
                 </div>
                 <input id="skye-import-input" type="file" accept=".skye" style={{ display: "none" }} onChange={onImportSkyeFile} />
                 {ideOpsResult && <p className="muted-copy">{ideOpsResult}</p>}
-                <div className="preview-head">
-                  <strong>Code + Live Preview</strong>
-                  <div className="tool-actions left">
-                    <button className="ghost" type="button" onClick={() => setPreviewPane("split")} disabled={previewPane === "split"}>Split</button>
-                    <button className="ghost" type="button" onClick={() => setPreviewPane("code")} disabled={previewPane === "code"}>Code</button>
-                    <button className="ghost" type="button" onClick={() => setPreviewPane("preview")} disabled={previewPane === "preview"}>Preview</button>
-                    <button className="ghost" type="button" onClick={() => setPreviewDevice("desktop")} disabled={previewDevice === "desktop"}>Desktop</button>
-                    <button className="ghost" type="button" onClick={() => setPreviewDevice("mobile")} disabled={previewDevice === "mobile"}>Mobile</button>
-                    <button className="ghost" type="button" onClick={openDetachedPreview}>Detach</button>
-                  </div>
-                </div>
-                <div className={`ide-workbench ${previewPane}`}>
-                  {previewPane === "split" ? (
-                    <div className="ide-split-resizable" ref={ideSplitRef}>
-                      <div className="ide-code-col" style={{ width: `${ideSplitRatio}%` }}>
-                        <div className="editor-head">{activeFile?.path || "No file"}</div>
-                        <Editor
-                          height="72vh"
-                          theme="vs-dark"
-                          path={activeFile?.path}
-                          value={activeFile?.content || ""}
-                          onChange={(value) => updateActiveFileContent(value || "")}
-                          options={{ minimap: { enabled: false }, fontSize: 13, wordWrap: "on", automaticLayout: true }}
+                <div className="ide-super-shell">
+                  <aside className="ide-super-rail" aria-label="Workbench rail">
+                    <button className={`ghost ${ideRailTab === "explorer" ? "active" : ""}`} type="button" onClick={() => setIdeRailTab("explorer")}>Files</button>
+                    <button className={`ghost ${ideRailTab === "search" ? "active" : ""}`} type="button" onClick={() => setIdeRailTab("search")}>Search</button>
+                    <button className={`ghost ${ideRailTab === "git" ? "active" : ""}`} type="button" onClick={() => setIdeRailTab("git")}>Git</button>
+                    <button className={`ghost ${ideRailTab === "run" ? "active" : ""}`} type="button" onClick={() => setIdeRailTab("run")}>Run</button>
+                    <button className={`ghost ${ideRailTab === "extensions" ? "active" : ""}`} type="button" onClick={() => setIdeRailTab("extensions")}>Ext</button>
+                  </aside>
+
+                  <aside className="ide-super-sidebar" aria-label="Workbench sidebar">
+                    {ideRailTab === "explorer" && (
+                      <>
+                        <h3>Workspace Files</h3>
+                        <div className="ide-sidebar-list">
+                          {files.map((file) => (
+                            <button
+                              key={`explorer-${file.path}`}
+                              type="button"
+                              className={`ghost ide-sidebar-item ${activePath === file.path ? "active" : ""}`}
+                              onClick={() => setActivePath(file.path)}
+                            >
+                              {file.path}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+
+                    {ideRailTab === "search" && (
+                      <>
+                        <h3>Find File</h3>
+                        <input
+                          value={ideFileSearch}
+                          onChange={(event) => setIdeFileSearch(event.target.value)}
+                          placeholder="Search by path..."
                         />
-                      </div>
-                      <div
-                        className="panel-resizer vertical"
-                        role="separator"
-                        aria-label="Resize code and preview"
-                        onPointerDown={(event) => beginResize("ide-split", event)}
-                      />
-                      <div className="preview-shell" style={{ width: `${100 - ideSplitRatio}%` }}>
-                        {previewDocument ? (
-                          <div className={`preview-frame-wrap ${previewDevice}`}>
-                            <iframe key={`${activeFile?.path || "file"}-${previewDocument.length}`} title="IDE File Preview" className="preview-frame" srcDoc={previewDocument} sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-downloads" />
+                        <div className="ide-sidebar-list">
+                          {ideVisibleFiles.map((file) => (
+                            <button
+                              key={`search-${file.path}`}
+                              type="button"
+                              className={`ghost ide-sidebar-item ${activePath === file.path ? "active" : ""}`}
+                              onClick={() => setActivePath(file.path)}
+                            >
+                              {file.path}
+                            </button>
+                          ))}
+                          {!ideVisibleFiles.length && <p className="muted-copy">No files match that path filter.</p>}
+                        </div>
+                      </>
+                    )}
+
+                    {ideRailTab === "git" && (
+                      <>
+                        <h3>Git Actions</h3>
+                        <p className="muted-copy">Commit and push from the same workspace shell.</p>
+                        {workspaceConflict && (
+                          <div className="smoke-warning">
+                            <strong>Save Conflict</strong>
+                            <div>{workspaceConflict.message}</div>
+                            <div className="tool-actions left">
+                              <button className="ghost" type="button" onClick={() => void loadWorkspaceNow()} disabled={isLoadingWorkspace}>
+                                Reload Server Copy
+                              </button>
+                              <button className="ghost" type="button" onClick={() => void saveWorkspaceNow(true)} disabled={isSavingWorkspace}>
+                                Force Save
+                              </button>
+                            </div>
                           </div>
-                        ) : livePreviewUrl ? (
-                          <div className={`preview-frame-wrap ${previewDevice}`}>
-                            <iframe key={livePreviewUrl} title="IDE Live Preview" className="preview-frame" src={livePreviewUrl} sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-downloads" />
-                          </div>
-                        ) : (
-                          <p className="muted-copy">Preview supports live app surfaces and `.html`, `.htm`, `.svg`, `.md` file rendering.</p>
                         )}
+                        <div className="tool-actions left">
+                          <button className="ghost" type="button" onClick={() => void saveWorkspaceNow()} disabled={isSavingWorkspace}>
+                            {isSavingWorkspace ? "Saving..." : "Save"}
+                          </button>
+                          <button className="ghost" type="button" onClick={() => void pushWorkspaceToGitHub()} disabled={isGitPushing}>
+                            {isGitPushing ? "Pushing..." : "Push"}
+                          </button>
+                        </div>
+                      </>
+                    )}
+
+                    {ideRailTab === "run" && (
+                      <>
+                        <h3>Run + Deploy</h3>
+                        <p className="muted-copy">Preview is available inline. Deploy remains one-click here.</p>
+                        <div className="tool-actions left">
+                          <button className="ghost" type="button" onClick={() => setAutoSaveEnabled((old) => !old)}>
+                            Autosave: {autoSaveEnabled ? "ON" : "OFF"}
+                          </button>
+                          <button className="ghost" type="button" onClick={() => void saveWorkspaceNow()} disabled={isSavingWorkspace}>
+                            {isSavingWorkspace ? "Saving..." : "Save Now"}
+                          </button>
+                        </div>
+                        <div className="tool-actions left">
+                          <button className="ghost" type="button" onClick={retryPreview}>Retry Preview</button>
+                          <button className="ghost" type="button" onClick={openDetachedPreview}>Open Preview</button>
+                          <button className="ghost" type="button" onClick={() => void deployWorkspaceNow()} disabled={isDeployingWorkspace}>
+                            {isDeployingWorkspace ? "Deploying..." : "Deploy"}
+                          </button>
+                        </div>
+                      </>
+                    )}
+
+                    {ideRailTab === "extensions" && (
+                      <>
+                        <h3>Workbench Status</h3>
+                        <p className="muted-copy">Drop-in shell is wired into SuperIDE. This stays in the same app runtime and identity context.</p>
+                        <p className="muted-copy">Current file: {activeFile?.path || "none"}</p>
+                      </>
+                    )}
+                  </aside>
+
+                  <div className="ide-super-main">
+                    <div className="preview-head">
+                      <strong>Code + Live Preview</strong>
+                      <div className="tool-actions left">
+                        <span className="telemetry-chip">Runtime: {previewRuntimeMode}</span>
+                        <button className="ghost" type="button" onClick={() => setPreviewRuntimeMode("quick")} disabled={previewRuntimeMode === "quick"}>Quick</button>
+                        <button className="ghost" type="button" onClick={() => setPreviewRuntimeMode("project")} disabled={previewRuntimeMode === "project"}>Project</button>
+                        <span className="telemetry-chip">Autosave: {autoSaveEnabled ? "on" : "off"}</span>
+                        <span className="telemetry-chip">Files: {workspaceDirty ? "Dirty" : "Saved"}</span>
+                        <span className="telemetry-chip">Preview Health: {previewHealth}</span>
+                        <button className="ghost" type="button" onClick={() => setPreviewPane("split")} disabled={previewPane === "split"}>Split</button>
+                        <button className="ghost" type="button" onClick={() => setPreviewPane("code")} disabled={previewPane === "code"}>Code</button>
+                        <button className="ghost" type="button" onClick={() => setPreviewPane("preview")} disabled={previewPane === "preview"}>Preview</button>
+                        <button className="ghost" type="button" onClick={() => setPreviewDevice("desktop")} disabled={previewDevice === "desktop"}>Desktop</button>
+                        <button className="ghost" type="button" onClick={() => setPreviewDevice("mobile")} disabled={previewDevice === "mobile"}>Mobile</button>
+                        <button className="ghost" type="button" onClick={retryPreview}>Retry</button>
+                        <button className="ghost" type="button" onClick={openDetachedPreview}>Detach</button>
                       </div>
                     </div>
-                  ) : (
-                    <>
-                      {previewPane !== "preview" && (
-                        <div className="ide-code-col">
-                          <div className="editor-head">{activeFile?.path || "No file"}</div>
-                          <Editor
-                            height="76vh"
-                            theme="vs-dark"
-                            path={activeFile?.path}
-                            value={activeFile?.content || ""}
-                            onChange={(value) => updateActiveFileContent(value || "")}
-                            options={{ minimap: { enabled: false }, fontSize: 13, wordWrap: "on", automaticLayout: true }}
+                    <div className={`ide-workbench ${previewPane}`}>
+                      {previewPane === "split" ? (
+                        <div className="ide-split-resizable" ref={ideSplitRef}>
+                          <div className="ide-code-col" style={{ width: `${ideSplitRatio}%` }}>
+                            <div className="editor-head">{activeFile?.path || "No file"}</div>
+                            <Editor
+                              height="72vh"
+                              theme="vs-dark"
+                              path={activeFile?.path}
+                              value={activeFile?.content || ""}
+                              onChange={(value) => updateActiveFileContent(value || "")}
+                              options={{ minimap: { enabled: false }, fontSize: 13, wordWrap: "on", automaticLayout: true }}
+                            />
+                          </div>
+                          <div
+                            className="panel-resizer vertical"
+                            role="separator"
+                            aria-label="Resize code and preview"
+                            onPointerDown={(event) => beginResize("ide-split", event)}
                           />
+                          <div className="preview-shell" style={{ width: `${100 - ideSplitRatio}%` }}>
+                            {effectivePreviewDocument ? (
+                              <div className={`preview-frame-wrap ${previewDevice}`}>
+                                <iframe key={`${activeFile?.path || "file"}-${effectivePreviewDocument.length}-${previewRuntimeMode}`} title="IDE File Preview" className="preview-frame" srcDoc={effectivePreviewDocument} sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-downloads" />
+                              </div>
+                            ) : effectivePreviewUrl ? (
+                              <div className={`preview-frame-wrap ${previewDevice}`}>
+                                <iframe
+                                  key={`${effectivePreviewUrl}-${previewReloadToken}-${previewRuntimeMode}`}
+                                  title="IDE Live Preview"
+                                  className="preview-frame"
+                                  src={effectivePreviewUrl}
+                                  sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-downloads"
+                                  onLoad={() => {
+                                    setPreviewFrameError("");
+                                    pushIdeDiagnostic("info", `${previewRuntimeMode} preview loaded.`);
+                                  }}
+                                  onError={() => {
+                                    const message = `Preview failed for ${effectivePreviewUrl}`;
+                                    setPreviewFrameError(message);
+                                    pushIdeDiagnostic("error", message);
+                                  }}
+                                />
+                                {previewFrameError && (
+                                  <p className="muted-copy">
+                                    {previewFrameError}. <button className="ghost" type="button" onClick={openDetachedPreview}>Open in new tab</button>
+                                  </p>
+                                )}
+                              </div>
+                            ) : (
+                              <p className="muted-copy">Preview supports live app surfaces and `.html`, `.htm`, `.svg`, `.md` file rendering.</p>
+                            )}
+                          </div>
                         </div>
-                      )}
-                      {previewPane !== "code" && (
-                        <div className="preview-shell">
-                          {previewDocument ? (
-                            <div className={`preview-frame-wrap ${previewDevice}`}>
-                              <iframe key={`${activeFile?.path || "file"}-${previewDocument.length}`} title="IDE File Preview" className="preview-frame" srcDoc={previewDocument} sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-downloads" />
+                      ) : (
+                        <>
+                          {previewPane !== "preview" && (
+                            <div className="ide-code-col">
+                              <div className="editor-head">{activeFile?.path || "No file"}</div>
+                              <Editor
+                                height="76vh"
+                                theme="vs-dark"
+                                path={activeFile?.path}
+                                value={activeFile?.content || ""}
+                                onChange={(value) => updateActiveFileContent(value || "")}
+                                options={{ minimap: { enabled: false }, fontSize: 13, wordWrap: "on", automaticLayout: true }}
+                              />
                             </div>
-                          ) : livePreviewUrl ? (
-                            <div className={`preview-frame-wrap ${previewDevice}`}>
-                              <iframe key={livePreviewUrl} title="IDE Live Preview" className="preview-frame" src={livePreviewUrl} sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-downloads" />
-                            </div>
-                          ) : (
-                            <p className="muted-copy">Preview supports live app surfaces and `.html`, `.htm`, `.svg`, `.md` file rendering.</p>
                           )}
-                        </div>
+                          {previewPane !== "code" && (
+                            <div className="preview-shell">
+                              {effectivePreviewDocument ? (
+                                <div className={`preview-frame-wrap ${previewDevice}`}>
+                                  <iframe key={`${activeFile?.path || "file"}-${effectivePreviewDocument.length}-${previewRuntimeMode}`} title="IDE File Preview" className="preview-frame" srcDoc={effectivePreviewDocument} sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-downloads" />
+                                </div>
+                              ) : effectivePreviewUrl ? (
+                                <div className={`preview-frame-wrap ${previewDevice}`}>
+                                  <iframe
+                                    key={`${effectivePreviewUrl}-${previewReloadToken}-${previewRuntimeMode}`}
+                                    title="IDE Live Preview"
+                                    className="preview-frame"
+                                    src={effectivePreviewUrl}
+                                    sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-downloads"
+                                    onLoad={() => {
+                                      setPreviewFrameError("");
+                                      pushIdeDiagnostic("info", `${previewRuntimeMode} preview loaded.`);
+                                    }}
+                                    onError={() => {
+                                      const message = `Preview failed for ${effectivePreviewUrl}`;
+                                      setPreviewFrameError(message);
+                                      pushIdeDiagnostic("error", message);
+                                    }}
+                                  />
+                                  {previewFrameError && (
+                                    <p className="muted-copy">
+                                      {previewFrameError}. <button className="ghost" type="button" onClick={openDetachedPreview}>Open in new tab</button>
+                                    </p>
+                                  )}
+                                </div>
+                              ) : (
+                                <p className="muted-copy">Preview supports live app surfaces and `.html`, `.htm`, `.svg`, `.md` file rendering.</p>
+                              )}
+                            </div>
+                          )}
+                        </>
                       )}
-                    </>
-                  )}
+                    </div>
+                    <div className="ide-diagnostics">
+                      <div className="ide-diagnostics-head">
+                        <strong>Diagnostics</strong>
+                        <button className="ghost" type="button" onClick={() => setIdeDiagnostics([])}>Clear</button>
+                      </div>
+                      <div className="ide-diagnostics-list">
+                        {!ideDiagnostics.length && <p className="muted-copy">No diagnostics yet.</p>}
+                        {ideDiagnostics.map((entry) => (
+                          <div key={entry.id} className={`ide-diagnostic-row ${entry.level}`}>
+                            <span className="telemetry-chip">{entry.level.toUpperCase()}</span>
+                            <span>{entry.message}</span>
+                            <small>{new Date(entry.at).toLocaleTimeString()}</small>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </section>
               </>

@@ -23,6 +23,16 @@
     Permissions-Policy = "geolocation=(), microphone=(), camera=()"
 
 [[redirects]]
+  from = "/api/ide/tree"
+  to = "/.netlify/functions/ide-tree"
+  status = 200
+
+[[redirects]]
+  from = "/api/ide/file"
+  to = "/.netlify/functions/ide-file"
+  status = 200
+
+[[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"
   status = 200
