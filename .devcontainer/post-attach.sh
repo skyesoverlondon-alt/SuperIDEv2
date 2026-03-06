@@ -20,7 +20,7 @@ if ! command -v node >/dev/null 2>&1 && command -v nvm >/dev/null 2>&1; then
 fi
 
 if command -v npm >/dev/null 2>&1 && ! command -v wrangler >/dev/null 2>&1; then
-  npm install -g wrangler || true
+  npm install -g wrangler@4 || true
 fi
 
 NODE_STATE="missing"

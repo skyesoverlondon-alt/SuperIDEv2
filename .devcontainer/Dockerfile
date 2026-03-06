@@ -32,8 +32,9 @@ RUN apt-get update \
         vim \
         wget \
         curl \
+        git-lfs \
         ca-certificates \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-RUN npm install -g @devcontainers/cli
+    RUN npm install -g @devcontainers/cli wrangler@4 pnpm yarn

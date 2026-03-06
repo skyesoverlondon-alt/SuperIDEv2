@@ -27,7 +27,7 @@ ensure_node_toolchain() {
   fi
 
   if command -v npm >/dev/null 2>&1; then
-    npm install -g wrangler || true
+    npm install -g wrangler@4 || true
   else
     echo "[fat-wizard] warning: npm not found; skipping global wrangler install" >&2
   fi
@@ -68,6 +68,10 @@ if [ -f package.json ]; then
   else
     npm install
   fi
+fi
+
+if [ -f worker/package.json ]; then
+  npm --prefix worker install --save-dev wrangler@^4.71.0 || true
 fi
 
 if [ -f requirements-dev.txt ]; then
