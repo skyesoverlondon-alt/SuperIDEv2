@@ -2,24 +2,71 @@
   "name": "superide-fat-wizard",
   "dockerComposeFile": "docker-compose.yaml",
   "service": "app",
-  "runServices": ["app", "db", "redis", "mailpit", "minio"],
-  "workspaceFolder": "/workspace",
+  "runServices": [
+    "app"
+  ],
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
   "remoteUser": "vscode",
   "updateRemoteUserUID": true,
   "shutdownAction": "stopCompose",
-  "forwardPorts": [3000, 5173, 5432, 6379, 8000, 8025, 9000, 9001, 8787, 9229, 11434],
+  "forwardPorts": [
+    3000,
+    5173,
+    5432,
+    6379,
+    8000,
+    8025,
+    9000,
+    9001,
+    8787,
+    9229,
+    11434
+  ],
   "portsAttributes": {
-    "3000": { "label": "App / Next / Node", "onAutoForward": "openBrowser" },
-    "5173": { "label": "Vite Frontend", "onAutoForward": "openBrowser" },
-    "5432": { "label": "PostgreSQL / pgvector", "onAutoForward": "silent" },
-    "6379": { "label": "Redis", "onAutoForward": "silent" },
-    "8000": { "label": "Python Backend", "onAutoForward": "openBrowser" },
-    "8025": { "label": "Mailpit UI", "onAutoForward": "openBrowser" },
-    "9000": { "label": "MinIO API", "onAutoForward": "silent" },
-    "9001": { "label": "MinIO Console", "onAutoForward": "openBrowser" },
-    "8787": { "label": "Worker / Dev Server", "onAutoForward": "notify" },
-    "9229": { "label": "Node Debugger", "onAutoForward": "silent" },
-    "11434": { "label": "Optional Ollama API", "onAutoForward": "silent" }
+    "3000": {
+      "label": "App / Next / Node",
+      "onAutoForward": "openBrowser"
+    },
+    "5173": {
+      "label": "Vite Frontend",
+      "onAutoForward": "openBrowser"
+    },
+    "5432": {
+      "label": "PostgreSQL / pgvector",
+      "onAutoForward": "silent"
+    },
+    "6379": {
+      "label": "Redis",
+      "onAutoForward": "silent"
+    },
+    "8000": {
+      "label": "Python Backend",
+      "onAutoForward": "openBrowser"
+    },
+    "8025": {
+      "label": "Mailpit UI",
+      "onAutoForward": "openBrowser"
+    },
+    "9000": {
+      "label": "MinIO API",
+      "onAutoForward": "silent"
+    },
+    "9001": {
+      "label": "MinIO Console",
+      "onAutoForward": "openBrowser"
+    },
+    "8787": {
+      "label": "Worker / Dev Server",
+      "onAutoForward": "notify"
+    },
+    "9229": {
+      "label": "Node Debugger",
+      "onAutoForward": "silent"
+    },
+    "11434": {
+      "label": "Optional Ollama API",
+      "onAutoForward": "silent"
+    }
   },
   "containerEnv": {
     "PYTHONUNBUFFERED": "1",
@@ -91,6 +138,7 @@
       }
     }
   },
-  "postCreateCommand": "bash .devcontainer/post-create.sh || bash 1.devcontainer/post-create.sh",
-  "postAttachCommand": "bash .devcontainer/post-attach.sh || bash 1.devcontainer/post-attach.sh"
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+  "postAttachCommand": "bash .devcontainer/post-attach.sh",
+  "postStartCommand": "echo \"[fat-wizard] optional infra: docker compose -f .devcontainer/docker-compose.yaml up -d db redis mailpit minio\""
 }
