@@ -3407,7 +3407,12 @@ export function App() {
       qs.set("ws_id", workspaceId || DEFAULT_WS_ID);
       return `/Neural-Space-Pro/index.html?${qs.toString()}`;
     }
-    return buildAppSurfaceUrl(app, workspaceId) || "/";
+    const base = buildAppSurfaceUrl(app, workspaceId) || "/";
+    if (app === "Smokehouse-Standalone") {
+      const join = base.includes("?") ? "&" : "?";
+      return `${base}${join}auto_smoke=1&smoke_interval_ms=45000`;
+    }
+    return base;
   }
 
   function renderTutorialPanel(appId: SkyeAppId) {
@@ -4510,7 +4515,7 @@ export function App() {
                 <section className="app-module workspace-stage-settings">
                   <header>
                     <h2>Primary Workspace Stack</h2>
-                    <p>DocxPro-first full app workspace. Scroll each full section to move through Top, Middle, and Bottom apps.</p>
+                    <p>Five vertical full-workspace embeds: 3 user-configurable workspaces plus fixed Smokehouse and API Playground validation rails.</p>
                   </header>
                   <div className="tool-row split">
                     <div>
@@ -4543,20 +4548,39 @@ export function App() {
                       </select>
                     </div>
                     <div>
-                      <label>Default Focus</label>
+                      <label>Configured User Stack</label>
                       <input readOnly value={`${workspaceStageLabel(topWorkspaceApp)} -> ${workspaceStageLabel(middleWorkspaceApp)} -> ${workspaceStageLabel(bottomWorkspaceApp)}`} />
+                    </div>
+                  </div>
+                  <div className="tool-row split">
+                    <div>
+                      <label>Fixed Validation Rail 1</label>
+                      <input readOnly value="Smokehouse-Standalone (periodic smoke)" />
+                    </div>
+                    <div>
+                      <label>Fixed Validation Rail 2</label>
+                      <input readOnly value="API-Playground" />
                     </div>
                   </div>
                 </section>
 
-                {[topWorkspaceApp, middleWorkspaceApp, bottomWorkspaceApp].map((app, index) => {
-                  const slot = index === 0 ? "Top Workspace" : index === 1 ? "Middle Workspace" : "Bottom Workspace";
+                {[topWorkspaceApp, middleWorkspaceApp, bottomWorkspaceApp, "Smokehouse-Standalone", "API-Playground"].map((app, index) => {
+                  const slot =
+                    index === 0
+                      ? "Top Workspace"
+                      : index === 1
+                        ? "Middle Workspace"
+                        : index === 2
+                          ? "Bottom Workspace"
+                          : index === 3
+                            ? "Validation Workspace: Smokehouse"
+                            : "Validation Workspace: API Playground";
                   const src = workspaceStageUrl(app);
                   return (
                     <section key={`stack-${slot}-${app}`} className="app-module workspace-stage-block">
                       <header>
                         <h2>{slot}: {workspaceStageLabel(app)}</h2>
-                        <p>1:1 embedded surface in the primary container workspace.</p>
+                        <p>{index >= 3 ? "Fixed 1:1 validation guard rail." : "1:1 embedded surface in the primary container workspace."}</p>
                       </header>
                       <div className="tool-actions left">
                         <a className="ghost" href={src} target="_blank" rel="noreferrer">Open Standalone</a>

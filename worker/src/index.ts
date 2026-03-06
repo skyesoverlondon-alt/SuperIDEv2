@@ -257,7 +257,9 @@ export default {
           return j({ error: "Unauthorized (Cloudflare Access JWT invalid)." }, 401, corsHeaders(env, req));
         }
       }
-      return await router.fetch(req, env);
+      const out = await router.fetch(req, env);
+      if (out instanceof Response) return out;
+      return j({ error: "Not found." }, 404, corsHeaders(env, req));
     } catch (e: any) {
       // On error, return JSON with the error message.  Do not
       // disclose secrets.  Attach CORS headers if available.
