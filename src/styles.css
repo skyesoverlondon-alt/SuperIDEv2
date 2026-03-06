@@ -12,6 +12,11 @@
   --border-soft: rgba(191, 238, 255, 0.2);
   --gold: #ffcb47;
   --cyan: #2ce6ff;
+  --teal: #00b6b8;
+  --text: #f6fbff;
+  --muted: #9cb8c6;
+}
+
 .cine-logo {
   width: clamp(122px, 14vw, 166px);
   height: clamp(122px, 14vw, 166px);
