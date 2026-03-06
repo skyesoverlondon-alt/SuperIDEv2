@@ -2,10 +2,9 @@
   "name": "superide-fat-wizard",
   "dockerComposeFile": "docker-compose.yaml",
   "service": "app",
-  "runServices": [
-    "app"
-  ],
+  "runServices": ["app", "db", "redis", "mailpit", "minio"],
   "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+  "initializeCommand": "bash .devcontainer/prepare-host.sh || bash 1.devcontainer/prepare-host.sh",
   "remoteUser": "vscode",
   "updateRemoteUserUID": true,
   "shutdownAction": "stopCompose",

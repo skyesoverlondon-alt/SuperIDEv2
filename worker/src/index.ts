@@ -30,6 +30,13 @@ function j(body: any, status = 200, headers: Record<string, string> = {}): Respo
   });
 }
 
+function h(body: string, status = 200, headers: Record<string, string> = {}): Response {
+  return new Response(body, {
+    status,
+    headers: { "Content-Type": "text/html; charset=utf-8", ...headers },
+  });
+}
+
 // Cloudflare Workers don't guarantee Node's Buffer API.
 function bytesToBase64(bytes: Uint8Array): string {
   let bin = "";
@@ -61,6 +68,261 @@ router.options("*", (req: Request, env: any) => {
 // Health check endpoint for monitoring
 router.get("/health", (req: Request, env: any) => {
   return j({ ok: true, name: "kaixu-superide-runner" }, 200, corsHeaders(env, req));
+});
+
+// Public landing page: this worker is an API runner, not the app UI.
+router.get("/", (req: Request, env: any) => {
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>kAIxu SuperIDE Runner | SkyesSOL</title>
+  <style>
+    :root {
+      --bg-deep: #0b0914;
+      --bg-panel: rgba(20, 17, 36, 0.88);
+      --border: rgba(138, 79, 255, 0.28);
+      --text-main: #f7f7ff;
+      --text-muted: #a8afc6;
+      --purple: #8a4fff;
+      --purple-soft: rgba(138, 79, 255, 0.16);
+      --gold: #ffd700;
+      --gold-soft: rgba(255, 215, 0, 0.12);
+      --glow-purple: rgba(138, 79, 255, 0.34);
+      --glow-gold: rgba(255, 215, 0, 0.34);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "Inter", "Segoe UI", Arial, sans-serif;
+      color: var(--text-main);
+      background-color: var(--bg-deep);
+      background-image:
+        radial-gradient(circle at 12% 18%, rgba(138, 79, 255, 0.2) 0%, transparent 42%),
+        radial-gradient(circle at 84% 10%, rgba(255, 215, 0, 0.12) 0%, transparent 36%),
+        linear-gradient(180deg, #0a0812 0%, #0e0b1c 100%);
+      min-height: 100vh;
+      padding: 34px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    main {
+      width: 100%;
+      max-width: 1020px;
+      background: linear-gradient(180deg, rgba(28, 22, 52, 0.94) 0%, var(--bg-panel) 100%);
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      overflow: hidden;
+      box-shadow: 0 26px 80px rgba(0, 0, 0, 0.45), 0 0 40px var(--glow-purple);
+    }
+
+    .hero {
+      padding: 34px 30px 22px;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(120deg, rgba(138, 79, 255, 0.14) 0%, rgba(255, 215, 0, 0.06) 100%);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      top: -130px;
+      right: -80px;
+      width: 320px;
+      height: 320px;
+      border-radius: 999px;
+      background: radial-gradient(circle, rgba(255, 215, 0, 0.2) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .badge {
+      display: inline-block;
+      margin-bottom: 14px;
+      padding: 7px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 215, 0, 0.32);
+      background: var(--gold-soft);
+      color: var(--gold);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      box-shadow: 0 0 18px var(--glow-gold);
+    }
+
+    h1 {
+      font-size: clamp(29px, 5.4vw, 48px);
+      line-height: 1.02;
+      letter-spacing: -0.02em;
+      max-width: 760px;
+      margin-bottom: 14px;
+      text-shadow: 0 0 24px var(--glow-purple);
+    }
+
+    .sub {
+      max-width: 760px;
+      color: var(--text-muted);
+      font-size: 15px;
+      line-height: 1.55;
+      margin-bottom: 22px;
+    }
+
+    .cta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+      border-radius: 10px;
+      border: 1px solid transparent;
+      font-size: 13px;
+      font-weight: 700;
+      padding: 10px 14px;
+      transition: all 0.2s ease;
+    }
+
+    .btn-primary {
+      background: var(--purple);
+      border-color: var(--purple);
+      color: #fff;
+      box-shadow: 0 0 20px var(--glow-purple);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      background: #9b66ff;
+    }
+
+    .btn-ghost {
+      background: rgba(255, 255, 255, 0.03);
+      border-color: var(--border);
+      color: var(--text-main);
+    }
+
+    .btn-ghost:hover {
+      border-color: var(--gold);
+      color: var(--gold);
+      box-shadow: 0 0 15px var(--glow-gold);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+      padding: 20px;
+    }
+
+    .card {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      background: linear-gradient(180deg, rgba(20, 19, 33, 0.9) 0%, rgba(16, 15, 28, 0.9) 100%);
+      min-height: 132px;
+    }
+
+    .card h2 {
+      margin-bottom: 8px;
+      font-size: 15px;
+      color: var(--gold);
+      letter-spacing: 0.02em;
+    }
+
+    .card p {
+      color: var(--text-muted);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .card a {
+      color: #9bd4ff;
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .card a:hover { text-decoration: underline; }
+
+    code {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 2px 7px;
+      color: #efe7ff;
+      font-size: 12px;
+    }
+
+    .footer {
+      border-top: 1px solid var(--border);
+      padding: 14px 20px 18px;
+      color: #858cad;
+      font-size: 11px;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+
+    @media (min-width: 760px) {
+      .grid { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="hero">
+      <div class="badge">SkyesSOL Infrastructure Node</div>
+      <h1>kAIxu SuperIDE Runner Is Online</h1>
+      <p class="sub">
+        This endpoint is the secure backend plane for kAIxu SuperIDE operations. It handles protected
+        API workloads, evidence routing, and deployment automation. Product UI lives in the app surface,
+        while this Worker powers the engine underneath.
+      </p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="https://skyesol.netlify.app/kaixu/requestkaixuapikey" target="_blank" rel="noopener noreferrer">Request kAIxu Key</a>
+        <a class="btn btn-ghost" href="https://skyesol.netlify.app/" target="_blank" rel="noopener noreferrer">Visit SkyesSOL</a>
+      </div>
+    </section>
+    <div class="grid">
+      <section class="card">
+        <h2>Company</h2>
+        <p>
+          Built and operated by SkyesSOL.<br />
+          Site: <a href="https://skyesol.netlify.app/" target="_blank" rel="noopener noreferrer">skyesol.netlify.app</a>
+        </p>
+      </section>
+      <section class="card">
+        <h2>Get Access</h2>
+        <p>
+          Platform access requires an approved kAIxu key.<br />
+          Apply: <a href="https://skyesol.netlify.app/kaixu/requestkaixuapikey" target="_blank" rel="noopener noreferrer">Request kAIxu API Key</a>
+        </p>
+      </section>
+      <section class="card">
+        <h2>Health Probe</h2>
+        <p>
+          Operational status endpoint:
+          <a href="/health"><code>/health</code></a>
+        </p>
+      </section>
+      <section class="card">
+        <h2>Security</h2>
+        <p>
+          Protected routes enforce Cloudflare Access JWT and runner signatures.
+        </p>
+      </section>
+    </div>
+    <div class="footer">kAIxu SuperIDE Runner • SkyesSOL Systems</div>
+  </main>
+</body>
+</html>`;
+  return h(html, 200, corsHeaders(env, req));
 });
 
 // Browser probes should never throw and should be cheap.
@@ -257,7 +519,7 @@ export default {
   async fetch(req: Request, env: any): Promise<Response> {
     try {
       const path = new URL(req.url).pathname;
-      const isPublicProbe = path === "/health" || path === "/favicon.ico";
+      const isPublicProbe = path === "/" || path === "/health" || path === "/favicon.ico";
       if (env.ACCESS_AUD && req.method !== "OPTIONS" && !isPublicProbe) {
         const ok = await verifyAccessJwt(req, env);
         if (!ok) {

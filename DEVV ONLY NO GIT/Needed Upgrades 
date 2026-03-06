@@ -1,201 +1,151 @@
-SUPERIDEV2 NEXT ROUND UPGRADE LIST (ROUND 2)
-Date: 2026-03-05
-Owner intent: Skye Standard plus enterprise hardening.
-Constraint: Do NOT modify SkyeDocxPro, Skye-ID, SKYEMAIL-GEN.
+SUPERIDEV2 UPGRADE PLAN (POST UI-DROPIN + PREVIEW STABILIZATION)
+Date: 2026-03-06
+Owner intent: Fix IDE preview reliability, unify workspace experience, and ship a cohesive SuperIDE upgrade path.
+Constraint: Do NOT modify SkyeDocxPro, Skye-ID, SKYEMAIL-GEN internals.
 
 ==================================================
-0) ROUND 2 MISSION
+0) WHAT WAS FIXED RIGHT NOW
 ==================================================
 
-- [ ] Move from feature-complete to release-hardened.
-- [ ] Standardize reliability, observability, and security behavior across all app surfaces.
-- [ ] Convert manual quality checks into enforceable automated gates.
-- [ ] Prepare production-grade handoff artifacts for procurement and enterprise review.
+[IDE PREVIEW STABILIZATION]
+- [x] Updated `src/App.tsx` preview lane to use a resilient preview URL fallback path.
+- [x] Added explicit iframe preview load/error handling so preview failures are visible (not silent blank panes).
+- [x] Added clearer fallback behavior so the IDE preview pane always has a valid target instead of collapsing to "nothing".
 
-
-==================================================
-1) GLOBAL PLATFORM HARDENING
-==================================================
-
-[RELIABILITY]
-- [x] Define uptime and latency SLO targets per app class (interactive, AI, export, admin).
-- [x] Add shared retry/backoff utility for gateway calls in all standalone apps.
-- [x] Add idempotency keys for write-heavy workflows (mail send, chat notify, task updates, vault rotations).
-- [x] Add cross-app fail-safe mode banner when core dependencies degrade.
-
-[OBSERVABILITY]
-- [x] Add unified client telemetry envelope (app, action, duration, outcome, error code, ws_id).
-- [x] Add frontend error fingerprinting with user-safe reporting IDs.
-- [x] Add correlation IDs from UI to Netlify function logs.
-- [x] Add per-app health snapshot export for support diagnostics.
-
-[SECURITY]
-- [x] Enforce gateway-only AI call path validation in CI.
-- [x] Add token misuse detection (email mismatch, expired token, scope mismatch) with explicit UX states.
-- [x] Add sensitive field redaction policy for all exported diagnostics.
-- [x] Add secure defaults check script for headers, CSP notes, and storage handling.
-
-[QUALITY GATES]
-- [x] Add smoke contract matrix file with blocking/non-blocking checks.
-- [x] Add policy gate ensuring no forbidden provider strings in gateway-only surfaces.
-- [x] Add schema version validator for all `.skye` import paths.
-- [x] Add release checklist runner that emits pass/fail JSON artifact.
+What this accomplishes:
+- Prevents the "preview not rendering at all" silent failure pattern.
+- Gives immediate user feedback when a specific app surface fails to load.
+- Keeps the workspace usable while deeper integration work is completed.
 
 
 ==================================================
-2) SUPERIDE SHELL ROUND 2
+1) STRATEGIC UPGRADE GOAL (NXT LEVEL)
 ==================================================
 
-- [x] Add release cockpit panel with live gate status per app.
-- [x] Add app readiness score (auth, smoke, export, tutorial, policy, mobile).
-- [x] Add workspace-level dependency status panel (gateway, auth, storage, functions).
-- [x] Add one-click "Run App Proof" flow that opens app, executes smoke probes, and stores result.
-- [x] Add signed build metadata block in shell footer for traceability.
-- [x] Add keyboard command palette for app-specific quick actions.
+- [ ] Move SuperIDE from "many separate app pages" to one unified workspace shell.
+- [ ] Use `SUPERIDE-UI-Dropin` as the standard workbench frame (editor + preview + console + file tree + status model).
+- [ ] Introduce two preview lanes:
+  - Quick Preview (in-memory/demo runtime for instant UX reliability)
+  - Project Preview (real app/runtime surface for production-accurate behavior)
+- [ ] Standardize save/run/preview/git/diagnostics behavior so every surface feels like one product.
 
-
-==================================================
-3) STANDALONE APP ROUND 2 TARGETS
-==================================================
-
-APP: SkyeBookx
-- [x] Add chapter consistency analyzer (tone drift, tense drift, duplicated beats).
-- [x] Add scene card navigator with reorder and impact preview.
-- [x] Add manuscript export pack (PDF + JSON manifest + checksum).
-- [x] Add recovery mode for oversized cloud payload fallback to local pack.
-
-APP: SkyePlatinum
-- [x] Add directive workflow states (new, accepted, delegated, completed).
-- [x] Add financial anomaly trend panel with confidence scoring.
-- [x] Add executive report export with source references.
-- [x] Add role-based action lock for high-risk ledger updates.
-
-APP: SkyeCalendar
-- [x] Add drag-and-drop scheduling interactions with conflict auto-suggestions.
-- [x] Add dependency chain timeline and slip impact panel.
-- [x] Add meeting workload heatmap by owner/team.
-- [x] Add reminder delivery audit trail panel.
-
-APP: SkyeTasks
-- [x] Add dependency graph view with blocked root-cause highlighting.
-- [x] Add SLA breach escalation routing templates.
-- [x] Add workload balancing suggestions per assignee.
-- [x] Add completion quality checklist templates by task type.
-
-APP: SkyeMail
-- [x] Add send policy preflight (recipient risk, missing data, content class warnings).
-- [x] Add delivery queue monitor with retry backoff controls.
-- [x] Add message template library with approval tags.
-- [x] Add outbound audit export with correlation IDs.
-
-APP: SkyeChat
-- [x] Add decision extraction into Tasks and Calendar with provenance links.
-- [x] Add moderation timeline with reversible actions.
-- [x] Add channel quality signals (response lag, unresolved count, action debt).
-- [x] Add digest export with structured summary schema.
-
-APP: SKNore
-- [x] Add policy compiler with severity tiers.
-- [x] Add rule overlap visualization and risk scoring.
-- [x] Add policy test suite presets for common enterprise profiles.
-- [x] Add policy pack signing and verification flow.
-
-APP: Neural Space Pro
-- [x] Add multi-stage run pipeline (ingest, reason, compose, verify, publish).
-- [x] Add checkpoint restore with deterministic replay notes.
-- [x] Add context budget inspector and citation confidence panel.
-- [x] Add direct publish bridges to Docs, Tasks, Slides, Calendar with receipts.
-
-APP: SkyeDrive
-- [ ] Add immutable artifact mode with retention policy tags.
-- [ ] Add share-link governance (expiry, revoke, download cap).
-- [ ] Add content integrity verify-on-open path.
-- [ ] Add storage pressure predictor and cleanup assistant.
-
-APP: SkyeVault
-- [ ] Add secret access approval workflow.
-- [ ] Add usage attestation logging for secret consumers.
-- [ ] Add rotation playbooks by scope profile.
-- [ ] Add emergency break-glass session auditing.
-
-APP: SkyeForms
-- [ ] Add workflow routing from responses to Tasks and Mail actions.
-- [ ] Add anti-abuse heuristics and suspicious submission flags.
-- [ ] Add form versioning with rollback support.
-- [ ] Add certified response archive bundle export.
-
-APP: SkyeNotes
-- [ ] Add linked knowledge graph with action extraction.
-- [ ] Add stale-note detection and refresh prompts.
-- [ ] Add canonical source pinning and conflict warnings.
-- [ ] Add decision-to-task conversion helper.
-
-APP: SkyeSlides
-- [ ] Add narrative coherence scoring and pacing hints.
-- [ ] Add slide policy checks for sensitive text patterns.
-- [ ] Add speaker timeline rehearsal report.
-- [ ] Add approved export pipeline with presentation manifest.
-
-APP: SkyeSheets
-- [ ] Add dependency-aware formula audit map.
-- [ ] Add row-level validation rules and exception report.
-- [ ] Add branded scheduled report generation.
-- [ ] Add signed workbook export with integrity summary.
-
-APP: SkyeAnalytics
-- [ ] Add metric confidence scoring from freshness and completeness.
-- [ ] Add anomaly classifier with explainability notes.
-- [ ] Add executive mode dashboards with saved profiles.
-- [ ] Add KPI source lineage explorer.
-
-APP: SkyeAdmin
-- [ ] Add access review campaign engine.
-- [ ] Add org policy templates with enforcement preview.
-- [ ] Add risky action approval queue.
-- [ ] Add admin audit pack export with filters.
+What this accomplishes:
+- A consistent user mental model.
+- Faster debug and verification loop.
+- Less preview fragility due to explicit runtime modes.
 
 
 ==================================================
-4) ENGINEERING AND CI ROUND 2
+2) IMPLEMENTATION PHASES
 ==================================================
 
-- [ ] Add static scan to block direct external AI endpoint usage.
-- [ ] Add fixture-based tests for gateway response shape tolerance.
-- [ ] Add regression test suite for key auth flows across standalone apps.
-- [ ] Add schema tests for all export/import payloads.
-- [ ] Add deterministic smoke script output snapshots.
-- [ ] Add release artifact generator bundling smoke, policy, and build metadata.
+PHASE 1: PREVIEW RELIABILITY BASELINE (NOW)
+- [x] Keep current IDE live preview pane operational via fallback URL strategy.
+- [x] Add visible preview error state in workspace preview frame.
+- [x] Add "Preview Health" indicator chip in header/status area.
+- [x] Add one-click "Open Preview in New Tab" fallback action near error state.
+- [x] Add preview retry control that forces iframe refresh without losing editor state.
+
+Outcome:
+- Preview failures become diagnosable and recoverable immediately.
+
+
+PHASE 2: DROPIN-POWERED WORKBENCH INTEGRATION
+- [x] Mount `SUPERIDE-UI-Dropin` workbench pattern directly inside the existing SuperIDE IDE workspace (in-app, not standalone route).
+- [ ] Reuse existing SuperIDE auth + workspace identity context.
+- [ ] Keep design language aligned with `src/styles.css` tokens while preserving drop-in workbench ergonomics.
+
+Outcome:
+- Shared workbench shell across core SuperIDE workflows.
+
+
+PHASE 3: REAL FILE MODEL INTEGRATION
+- [x] Replace drop-in `defaultFiles` path with actual workspace file provider wiring (`/api/ws-get`, `/api/ws-save`) in the integrated IDE shell.
+- [x] Add dirty state tracking with save-state chip and stable workspace hashing.
+- [x] Add conflict-aware save semantics with reload/force-save controls.
+
+Suggested API contracts:
+- `GET /api/ide/tree`
+- `GET /api/ide/file?path=...`
+- `PUT /api/ide/file?path=...`
+- `POST /api/ide/files/batch-save`
+
+Outcome:
+- IDE becomes source-of-truth editor, not a demo shell.
+
+
+PHASE 4: RUN + PREVIEW COHESION
+- [x] Add runtime selector: `Quick Preview` vs `Project Preview`.
+- [x] Surface runtime mode visibly in IDE controls/status chips.
+- [x] Route logs/errors into a unified preview diagnostics area.
+
+Outcome:
+- Users know exactly what preview they are looking at and why.
+
+
+PHASE 5: CROSS-RUNTIME QUALITY GATES
+- [ ] Enforce release gate flow before production pushes.
+- [ ] Run/check sequence consistently via `/release-gate` prompt.
+- [ ] Track pass/fail artifacts for procurement and enterprise handoff.
+
+Outcome:
+- Fewer regressions from drift between frontend/functions/worker behavior.
 
 
 ==================================================
-5) RELEASE GATES ROUND 2
+3) HOW NEW UI CODE IS USED DIRECTLY
 ==================================================
 
-GATE A: Security Integrity
-- [ ] Gateway-only enforcement check passes.
-- [ ] Token/authorization hardening checks pass.
-- [ ] Sensitive export redaction checks pass.
+`SUPERIDE-UI-Dropin` now acts as:
+- Workbench UX template (layout, pane behavior, preview mode controls)
+- Integration seam for real providers (file, preview, git)
+- Fast path to cohesive UI upgrades without rewriting shell patterns repeatedly
 
-GATE B: Reliability Integrity
-- [ ] Smoke matrix all critical checks passing.
-- [ ] Retry/idempotency behavior validated for critical writes.
-- [ ] Degraded-mode UX behavior validated.
-
-GATE C: Data Integrity
-- [ ] `.skye` schema validation pass across apps.
-- [ ] Export/import round-trip pass for all primary surfaces.
-- [ ] Audit trace integrity validated.
-
-GATE D: Executive Readiness
-- [ ] Release cockpit shows all target apps green.
-- [ ] Procurement handoff packet regenerated.
-- [ ] Final risk register closed or explicitly accepted.
+Primary integration targets:
+- `SUPERIDE-UI-Dropin/src/components/SuperIDEWorkbench.jsx`
+- `SUPERIDE-UI-Dropin/src/lib/defaultFiles.js`
+- `SUPERIDE-UI-Dropin/src/styles.css`
 
 
 ==================================================
-6) PROTECTED APPS (NO TOUCH)
+4) DEFINITION OF SUCCESS
 ==================================================
 
-- [ ] SkyeDocxPro
-- [ ] Skye-ID
-- [ ] SKYEMAIL-GEN
+
+- [ ] Preview renders reliably in all normal IDE workflows.
+- [x] Preview failure states are visible and actionable (never silent).
+- [x] User can switch preview runtime modes intentionally.
+- [x] Workspace edit/save/preview loop is consistent across app surfaces.
+- [ ] Release gate checks are run in a predictable sequence before deploy.
+
+
+==================================================
+5) IMMEDIATE NEXT EXECUTION (ORDERED)
+==================================================
+
+1. [x] Add preview health chip + explicit retry/open actions in IDE header.
+2. [x] Introduce `previewProvider` abstraction (quick vs project runtime).
+3. [x] Embed/mount `SUPERIDE-UI-Dropin` workbench pattern inside existing IDE workspace.
+4. [x] Wire real file tree/file content provider into drop-in shell.
+5. [ ] Run release-gate sequence and capture artifact snapshot.
+
+
+==================================================
+6) MASS EXECUTION TODO (FAT LIST)
+==================================================
+
+- [x] Keep AI calls gateway-only (`/api/kaixu-generate`) with no direct provider bypass.
+- [x] Keep existing SuperIDE runtime and identity context (no separate app split).
+- [x] Replace IDE shell with integrated drop-in rail/sidebar/editor/preview model.
+- [x] Add provider-backed file load/save path (`/api/ws-get`, `/api/ws-save`).
+- [x] Add stable file hashing for deterministic dirty/conflict checks.
+- [x] Add conflict detection before save when server copy drifts.
+- [x] Add force-save and reload-server conflict recovery actions.
+- [x] Add debounced autosave toggle and persistence.
+- [x] Add runtime switch controls for quick vs project preview.
+- [x] Add diagnostics feed for preview/save/load events and failures.
+- [x] Add preview retry telemetry and detached preview tracing.
+- [ ] Add endpoint-level lazy file tree (`/api/ide/tree`) to reduce initial payloads.
+- [ ] Add path-level file get/save endpoints for true on-demand hydration.
+- [ ] Add release-gate run + artifacts capture and attach proof output.
+

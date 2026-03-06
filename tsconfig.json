@@ -9,5 +9,5 @@
     "skipLibCheck": true,
     "types": ["vite/client"]
   },
-  "include": ["src", "vite.config.ts"]
+  "include": ["src", "vite.config.ts", "SUPERIDE-UI-Dropin/vite.config.js"]
 }

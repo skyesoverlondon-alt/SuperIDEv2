@@ -1,0 +1,169 @@
+SuperIDE Devcontainer - Exact Build + Usage
+Generated: 2026-03-06
+
+What you just created (exactly)
+
+You created a multi-service Dev Container platform under `/workspaces/SuperIDEv2/.devcontainer` with these files:
+
+- `devcontainer.json`
+- `Dockerfile`
+- `docker-compose.yaml`
+- `optional-ollama-compose.yaml`
+- `post-create.sh`
+- `post-attach.sh`
+
+This gives SuperIDE a reproducible, full local stack (not only an editor container).
+
+Devcontainer definition (`devcontainer.json`)
+
+- Name: `superide-fat-wizard`
+- Runtime: Docker Compose (`docker-compose.yaml`)
+- Primary service: `app`
+- Auto-start services: `app`, `db`, `redis`, `mailpit`, `minio`
+- Workspace inside container: `/workspace`
+- Remote user: `vscode` with UID sync enabled
+- Shutdown behavior: `stopCompose`
+
+Forwarded ports
+
+- `3000` App / Next / Node
+- `5173` Vite frontend
+- `5432` PostgreSQL / pgvector
+- `6379` Redis
+- `8000` Python backend
+- `8025` Mailpit UI
+- `9000` MinIO API
+- `9001` MinIO Console
+- `8787` Worker / dev server
+- `9229` Node debugger
+- `11434` optional Ollama API
+
+Prewired container environment variables
+
+- DB: `PGHOST=db`, `PGPORT=5432`, `PGUSER=admin`, `PGPASSWORD=postgres`, `PGDATABASE=app`, `DATABASE_URL=postgresql://admin:postgres@db:5432/app`
+- Redis: `REDIS_HOST=redis`, `REDIS_PORT=6379`, `REDIS_URL=redis://redis:6379`
+- SMTP: `SMTP_HOST=mailpit`, `SMTP_PORT=1025`
+- MinIO: `MINIO_ENDPOINT=http://minio:9000`, `MINIO_ROOT_USER=minio`, `MINIO_ROOT_PASSWORD=minio123`, `MINIO_CONSOLE_URL=http://localhost:9001`
+- Ollama target: `OLLAMA_HOST=http://localhost:11434`
+- Python runtime flags: `PYTHONUNBUFFERED=1`, `PIP_DISABLE_PIP_VERSION_CHECK=1`
+- Runtime lock mitigation: `XDG_RUNTIME_DIR=/tmp/vscode-runtime`, `VSCODE_DOTNET_RUNTIME_DISABLE_MUTEX=true`
+
+Installed Dev Container features
+
+- Docker-in-Docker feature
+- GitHub CLI
+- Azure CLI
+- Azure Developer CLI (`azd`)
+
+Bundled VS Code extensions (inside container)
+
+- Docker, GitHub Actions, Copilot, Copilot Chat
+- ESLint, Prettier, Tailwind, EditorConfig, YAML
+- Python, Pylance, debugpy, Python env tools, Ruff
+- SQLTools (+ Postgres driver), Rainbow CSV, GitLens
+
+Image and toolchain (`Dockerfile`)
+
+- Base image: `mcr.microsoft.com/devcontainers/javascript-node:4-24-trixie`
+- Added system/runtime tools include:
+	`python3`, `python3-pip`, `python3-venv`, `build-essential`, `libpq-dev`, `postgresql-client`, `redis-tools`, `sqlite3`, `jq`, `ripgrep`, `fd-find`, `netcat-openbsd`, `lsof`, `tmux`, `tree`, `vim`, `curl`, `wget`
+- Global npm tool added: `@devcontainers/cli`
+
+Service topology (`docker-compose.yaml`)
+
+- `app`: built from `.devcontainer/Dockerfile`, mounts repo at `/workspace`, command `sleep infinity`
+- `db`: `pgvector/pgvector:pg16`, database `app`, user `admin`, password `postgres`, healthcheck enabled, persistent volume `postgres-data`
+- `redis`: `redis:7-alpine`, AOF enabled, persistent volume `redis-data`
+- `mailpit`: SMTP + inbox UI (`1025`/`8025`)
+- `minio`: object store + console (`9000`/`9001`), persistent volume `minio-data`
+
+Bootstrap behavior (`post-create.sh`)
+
+When container is created, it does all of this:
+
+- Enables `corepack`
+- Installs global package managers `pnpm` and `yarn`
+- Upgrades Python packaging tools and installs `uv`
+- Seeds env files when available:
+	`.env.sample -> .env` and `.env.example -> .env.local`
+- Installs JS dependencies by lockfile priority:
+	`pnpm-lock.yaml` -> `yarn.lock` -> `package-lock.json`/`npm-shrinkwrap.json` -> fallback `npm install`
+- Installs Python dependencies from:
+	`requirements-dev.txt`, `requirements.txt`, `pyproject.toml`, and `src/backend/pyproject.toml` when present
+
+Attach guidance (`post-attach.sh`)
+
+Every attach prints:
+
+- service endpoints summary
+- quick health/test commands
+- common start commands
+- one-line command to enable optional Ollama lane
+
+It also now enforces a writable runtime directory for socket-based extension locks:
+
+- creates `XDG_RUNTIME_DIR` (default `/tmp/vscode-runtime`)
+- applies `chmod 700`
+- reduces .NET runtime installer lock conflicts in container sessions
+
+Optional local AI lane (`optional-ollama-compose.yaml`)
+
+- Adds service `ollama` (`ollama/ollama:latest`)
+- Container name: `superide-ollama`
+- Port: `11434`
+- Persistent model cache volume: `ollama-data`
+
+How this is used for your Project and SuperIDE
+
+1. Single command environment parity
+
+All contributors and future environments can run the same stack with the same ports/envs, reducing setup drift.
+
+2. Real local infrastructure for SuperIDE features
+
+- Postgres/pgvector for relational + vector-backed flows
+- Redis for cache/session/queue-like workflows
+- MinIO for object/file workflows
+- Mailpit for safe email UX testing
+
+3. Faster integration and release validation
+
+You can validate cross-service behavior locally before smoke/release scripts in `scripts/` and `artifacts/` gates.
+
+4. Multi-lane development in one place
+
+- Node/Vite UI lane
+- Worker lane (`8787`)
+- Python lane (`8000`)
+- Optional local inference lane (`11434`)
+
+5. Better debugging ergonomics
+
+Port forwarding labels and the `9229` debug port make Node debugging and service verification straightforward.
+
+Daily workflow
+
+1. Reopen in Dev Container
+
+- VS Code command: `Dev Containers: Reopen in Container`
+
+2. Verify core services
+
+- `psql postgresql://admin:postgres@db:5432/app -c 'select version();'`
+- `redis-cli -h redis ping`
+- `curl http://mailpit:8025/api/v1/info`
+- `curl http://minio:9000/minio/health/live`
+
+3. Start app lanes as needed
+
+- Frontend: `npm run dev`
+- Worker lane: `cd worker && npx wrangler dev --port 8787`
+- Python lane: `python3 -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000`
+
+4. Enable optional local AI
+
+- `docker compose -f .devcontainer/optional-ollama-compose.yaml up -d`
+
+Bottom line
+
+You built a "fat" but practical SuperIDE dev platform: one reproducible containerized workspace plus real supporting services, ready for feature development, integration testing, and release confidence.
