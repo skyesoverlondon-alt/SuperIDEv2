@@ -63,6 +63,11 @@ router.get("/health", (req: Request, env: any) => {
   return j({ ok: true, name: "kaixu-superide-runner" }, 200, corsHeaders(env, req));
 });
 
+// Browser probes should never throw and should be cheap.
+router.get("/favicon.ico", (req: Request, env: any) => {
+  return new Response(null, { status: 204, headers: corsHeaders(env, req) });
+});
+
 // Download endpoint for streaming evidence from R2.  The signed
 // URL includes the object key, expiration and signature.  This
 // handler verifies the signature and expiry before streaming the
@@ -251,7 +256,9 @@ router.all("*", (req: Request, env: any) => {
 export default {
   async fetch(req: Request, env: any): Promise<Response> {
     try {
-      if (env.ACCESS_AUD && req.method !== "OPTIONS") {
+      const path = new URL(req.url).pathname;
+      const isPublicProbe = path === "/health" || path === "/favicon.ico";
+      if (env.ACCESS_AUD && req.method !== "OPTIONS" && !isPublicProbe) {
         const ok = await verifyAccessJwt(req, env);
         if (!ok) {
           return j({ error: "Unauthorized (Cloudflare Access JWT invalid)." }, 401, corsHeaders(env, req));
