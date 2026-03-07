@@ -1,6 +1,8 @@
 import { json } from "./_shared/response";
 import { requireUser, forbid } from "./_shared/auth";
 import { q } from "./_shared/neon";
+import { canReadWorkspace } from "./_shared/rbac";
+import { buildSknoreReleasePlan } from "./_shared/sknore";
 
 export const handler = async (event: any) => {
   if (String(event?.httpMethod || "GET").toUpperCase() !== "GET") {
@@ -28,6 +30,7 @@ export const handler = async (event: any) => {
   );
 
   const row = result.rows[0] || null;
+  const wsId = String(event?.queryStringParameters?.ws_id || "").trim();
   const updatedAt = row?.updated_at || null;
   const githubRepo = String(row?.github_repo || "").trim();
   const githubBranch = String(row?.github_branch || "main").trim() || "main";
@@ -37,6 +40,22 @@ export const handler = async (event: any) => {
   const skyeDriveTitle = String(row?.skyedrive_title || "").trim();
   const netlifySiteId = String(row?.netlify_site_id || "").trim();
   const netlifySiteName = String(row?.netlify_site_name || "").trim() || null;
+
+  let sknore: any = null;
+  if (wsId) {
+    const allowed = await canReadWorkspace(u.org_id as string, u.user_id, wsId);
+    if (!allowed) return json(403, { error: "Workspace read denied." });
+    const releasePlan = await buildSknoreReleasePlan(u.org_id as string, wsId);
+    sknore = {
+      connected: releasePlan.patterns.length > 0,
+      patterns: releasePlan.patterns,
+      patterns_count: releasePlan.patterns.length,
+      blocked_count: releasePlan.blockedPaths.length,
+      blocked_paths: releasePlan.blockedPaths,
+      included_count: releasePlan.releaseFiles.length,
+      total_count: releasePlan.files.length,
+    };
+  }
 
   return json(200, {
     github: {
@@ -60,5 +79,6 @@ export const handler = async (event: any) => {
       site_name: netlifySiteName,
       updated_at: updatedAt,
     },
+    sknore,
   });
 };

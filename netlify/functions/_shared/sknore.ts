@@ -33,6 +33,60 @@ export function filterSknoreFiles<T extends { path: string }>(files: T[], patter
   return (files || []).filter((f) => !isSknoreProtected(f.path, patterns));
 }
 
+export type WorkspaceTextFile = {
+  path: string;
+  content: string;
+};
+
+export function normalizeWorkspaceTextFiles(files: any[]): WorkspaceTextFile[] {
+  return (Array.isArray(files) ? files : [])
+    .map((file: any) => ({
+      path: String(file?.path || "").replace(/^\/+/, ""),
+      content: typeof file?.content === "string" ? file.content : "",
+    }))
+    .filter((file) => file.path);
+}
+
+export async function buildSknoreReleasePlan(orgId: string, wsId: string, rawFiles?: any[]): Promise<{
+  workspaceName: string | null;
+  files: WorkspaceTextFile[];
+  releaseFiles: WorkspaceTextFile[];
+  blockedPaths: string[];
+  patterns: string[];
+}> {
+  const workspace = await q(
+    `select org_id, name, files_json
+       from workspaces
+      where id=$1
+      limit 1`,
+    [wsId]
+  );
+
+  if (!workspace.rows.length) {
+    throw new Error("Workspace not found.");
+  }
+  if (workspace.rows[0].org_id !== orgId) {
+    throw new Error("Forbidden.");
+  }
+
+  const files = normalizeWorkspaceTextFiles(
+    Array.isArray(rawFiles) ? rawFiles : workspace.rows[0].files_json || []
+  );
+  const patterns = await loadSknorePolicy(orgId, wsId);
+  const blockedPaths = files
+    .filter((file) => isSknoreProtected(file.path, patterns))
+    .map((file) => file.path);
+  const releaseFiles = filterSknoreFiles(files, patterns);
+
+  return {
+    workspaceName: workspace.rows[0].name || null,
+    files,
+    releaseFiles,
+    blockedPaths,
+    patterns,
+  };
+}
+
 export async function loadSknorePolicy(orgId: string, wsId: string | null): Promise<string[]> {
   const scoped = wsId
     ? await q(

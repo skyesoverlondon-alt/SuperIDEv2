@@ -3,6 +3,7 @@ import { requireUser, forbid } from "./_shared/auth";
 import { q } from "./_shared/neon";
 import { audit } from "./_shared/audit";
 import { canWriteWorkspace } from "./_shared/rbac";
+import { buildSknoreReleasePlan } from "./_shared/sknore";
 
 export const handler = async (event: any) => {
   if (String(event?.httpMethod || "POST").toUpperCase() !== "POST") {
@@ -31,50 +32,31 @@ export const handler = async (event: any) => {
   const allowed = await canWriteWorkspace(u.org_id, u.user_id, wsId);
   if (!allowed) return json(403, { error: "Workspace write denied." });
 
-  const workspaceResult = await q(
-    `select id, name, files_json, updated_at
-       from workspaces
-      where id=$1 and org_id=$2
-      limit 1`,
-    [wsId, u.org_id]
-  );
-
-  const workspace = workspaceResult.rows[0];
-  if (!workspace) return json(404, { error: "Workspace not found." });
-
   const incomingFiles = Array.isArray(body.files) ? body.files : null;
 
-  const files = Array.isArray(incomingFiles)
-    ? incomingFiles
-        .map((file: any) => ({
-          path: String(file?.path || "").replace(/^\/+/, ""),
-          content: typeof file?.content === "string" ? file.content : "",
-        }))
-        .filter((file: any) => file.path)
-    : Array.isArray(workspace.files_json)
-    ? workspace.files_json
-        .map((file: any) => ({
-          path: String(file?.path || "").replace(/^\/+/, ""),
-          content: typeof file?.content === "string" ? file.content : "",
-        }))
-        .filter((file: any) => file.path)
-    : [];
-
-  if (!files.length) {
+  const releasePlan = await buildSknoreReleasePlan(u.org_id, wsId, incomingFiles || undefined);
+  if (!releasePlan.files.length) {
     return json(400, { error: "Workspace has no files to push into SkyeDrive." });
   }
+  if (!releasePlan.releaseFiles.length) {
+    return json(400, { error: "All workspace files are SKNore-protected. Nothing can be pushed into SkyeDrive." });
+  }
 
-  const snapshotTitle = title || `${workspace.name || "SkyDex Workspace"} · SkyeDrive Snapshot`;
+  const snapshotTitle = title || `${releasePlan.workspaceName || "SkyDex Workspace"} · SkyeDrive Snapshot`;
   const payload = {
     kind: "workspace-source",
     source: "SkyDex4.6",
     source_kind: sourceKind,
     source_name: sourceName || null,
     note: note || null,
-    workspace_name: workspace.name || null,
-    workspace_revision: workspace.updated_at || null,
-    file_count: files.length,
-    files,
+    workspace_name: releasePlan.workspaceName || null,
+    workspace_revision: new Date().toISOString(),
+    file_count: releasePlan.releaseFiles.length,
+    files: releasePlan.releaseFiles,
+    sknore: {
+      patterns_count: releasePlan.patterns.length,
+      blocked_paths: releasePlan.blockedPaths,
+    },
   };
 
   const inserted = await q(
@@ -100,19 +82,26 @@ export const handler = async (event: any) => {
   await audit(u.email, u.org_id, wsId, "skyedrive.push.ok", {
     record_id: recordId,
     title: snapshotTitle,
-    files: files.length,
+    files: releasePlan.releaseFiles.length,
     source_kind: sourceKind,
     source_name: sourceName || null,
     note: note || null,
+    sknore_blocked: releasePlan.blockedPaths.length,
   });
 
   return json(200, {
     ok: true,
     record_id: recordId,
     title: snapshotTitle,
-    file_count: files.length,
+    file_count: releasePlan.releaseFiles.length,
     source_kind: sourceKind,
     source_name: sourceName || null,
     updated_at: inserted.rows[0]?.updated_at || null,
+    sknore: {
+      included_count: releasePlan.releaseFiles.length,
+      blocked_count: releasePlan.blockedPaths.length,
+      blocked_paths: releasePlan.blockedPaths,
+      patterns_count: releasePlan.patterns.length,
+    },
   });
 };

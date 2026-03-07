@@ -68,9 +68,12 @@ export async function netlifyDeployFromWorkspace(
   token: string,
   ws_id: string,
   site_id: string,
-  title: string
+  title: string,
+  filesOverride?: Array<{ path: string; content: string }>
 ): Promise<{ ok: true; deploy_id: string; url: string | null; required: number }> {
-  const ws = await q(env, "select files_json from workspaces where id=$1", [ws_id]);
+  const ws = Array.isArray(filesOverride)
+    ? { rows: [{ files_json: filesOverride }] }
+    : await q(env, "select files_json from workspaces where id=$1", [ws_id]);
   if (!ws.rows.length) throw new Error("Workspace not found.");
   const files: { path: string; content: string }[] = ws.rows[0].files_json || [];
   if (!files.length) throw new Error("Workspace is empty.");

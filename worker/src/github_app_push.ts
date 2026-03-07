@@ -52,12 +52,15 @@ export async function githubAppPushFromWorkspace(
   ws_id: string,
   repo: string,
   branch: string,
-  message: string
-): Promise<{ ok: true; commit_sha: string; ref: string }> {
+  message: string,
+  filesOverride?: Array<{ path: string; content: string }>
+): Promise<{ ok: true; commit_sha: string; ref: string; included_count: number }> {
   const token = await getInstallationToken(env, installation_id);
   // Load workspace files from Neon.  The files_json column holds
   // an array of objects with "path" and "content" fields.
-  const ws = await q(env, "select files_json from workspaces where id=$1", [ws_id]);
+  const ws = Array.isArray(filesOverride)
+    ? { rows: [{ files_json: filesOverride }] }
+    : await q(env, "select files_json from workspaces where id=$1", [ws_id]);
   if (!ws.rows.length) throw new Error("Workspace not found.");
   const files: { path: string; content: string }[] = ws.rows[0].files_json || [];
   if (!files.length) throw new Error("Workspace is empty.");
@@ -97,5 +100,5 @@ export async function githubAppPushFromWorkspace(
     sha: newCommit.sha,
     force: false,
   });
-  return { ok: true, commit_sha: newCommit.sha, ref: `refs/heads/${branch}` };
+  return { ok: true, commit_sha: newCommit.sha, ref: `refs/heads/${branch}`, included_count: tree.length };
 }

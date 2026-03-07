@@ -506,14 +506,22 @@ router.post("/v1/ws/export", async (req: Request, env: any) => {
 router.post("/v1/github/app/push", async (req: Request, env: any) => {
   const { text, json: body } = await readBody(req);
   await requireRunnerAuth(env, req, "/v1/github/app/push", text);
-  const { user_id, org_id, ws_id, repo, branch, installation_id, message } = body;
+  const { user_id, org_id, ws_id, repo, branch, installation_id, message, files } = body;
   if (!user_id || !org_id || !ws_id || !repo || !installation_id) return j({ error: "Missing fields." }, 400, corsHeaders(env, req));
   // Guard: ensure the workspace belongs to the org
   const ws = await q(env, "select org_id from workspaces where id=$1", [ws_id]);
   if (!ws.rows.length) return j({ error: "Workspace not found." }, 404, corsHeaders(env, req));
   if (ws.rows[0].org_id !== org_id) return j({ error: "Forbidden." }, 403, corsHeaders(env, req));
   try {
-    const out = await githubAppPushFromWorkspace(env, Number(installation_id), String(ws_id), String(repo), String(branch || "main"), String(message || "kAIxU update"));
+    const out = await githubAppPushFromWorkspace(
+      env,
+      Number(installation_id),
+      String(ws_id),
+      String(repo),
+      String(branch || "main"),
+      String(message || "kAIxU update"),
+      Array.isArray(files) ? files : undefined
+    );
     return j(out, 200, corsHeaders(env, req));
   } catch (e: any) {
     return j({ error: e?.message || "GitHub push failed." }, 500, corsHeaders(env, req));
@@ -527,7 +535,7 @@ router.post("/v1/github/app/push", async (req: Request, env: any) => {
 router.post("/v1/netlify/deploy", async (req: Request, env: any) => {
   const { text, json: body } = await readBody(req);
   await requireRunnerAuth(env, req, "/v1/netlify/deploy", text);
-  const { user_id, org_id, ws_id, site_id, title } = body;
+  const { user_id, org_id, ws_id, site_id, title, files } = body;
   if (!user_id || !org_id || !ws_id || !site_id) return j({ error: "Missing fields." }, 400, corsHeaders(env, req));
   const raw = await env.KX_SECRETS_KV.get(`netlify:${user_id}`);
   if (!raw) return j({ error: "Netlify not vaulted for user." }, 400, corsHeaders(env, req));
@@ -539,7 +547,14 @@ router.post("/v1/netlify/deploy", async (req: Request, env: any) => {
   if (!ws.rows.length) return j({ error: "Workspace not found." }, 404, corsHeaders(env, req));
   if (ws.rows[0].org_id !== org_id) return j({ error: "Forbidden." }, 403, corsHeaders(env, req));
   try {
-    const out = await netlifyDeployFromWorkspace(env, String(token), String(ws_id), String(site_id), String(title || "kAIxU deploy"));
+    const out = await netlifyDeployFromWorkspace(
+      env,
+      String(token),
+      String(ws_id),
+      String(site_id),
+      String(title || "kAIxU deploy"),
+      Array.isArray(files) ? files : undefined
+    );
     return j(out, 200, corsHeaders(env, req));
   } catch (e: any) {
     return j({ error: e?.message || "Netlify deploy failed." }, 500, corsHeaders(env, req));
