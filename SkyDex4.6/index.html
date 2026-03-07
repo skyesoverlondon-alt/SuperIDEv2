@@ -734,6 +734,19 @@
         </div>
 
         <div class="rail-block field-stack">
+          <div class="eyebrow">Restore Points</div>
+          <div class="integration-status" id="restorePointStatus">
+            <strong>Restore points</strong>
+            <div class="muted">No restore points loaded yet.</div>
+          </div>
+          <div class="diff-summary-list" id="restorePointList"></div>
+          <div class="action-stack">
+            <button class="ghost" type="button" id="createRestorePointBtn">Create Restore Point</button>
+            <button class="ghost" type="button" id="restoreLatestPointBtn">Restore Latest Point</button>
+          </div>
+        </div>
+
+        <div class="rail-block field-stack">
           <div class="eyebrow">GitHub Connect + Push</div>
           <div class="integration-status" id="githubConnectionStatus">
             <strong>GitHub status</strong>
@@ -839,6 +852,7 @@
       },
       skyedriveSources: [],
       baselineFiles: [],
+      sourceBaselineFiles: [],
     };
 
     const defaultFiles = [
@@ -897,22 +911,52 @@
       return new Map(cloneFiles(files).map((file) => [file.path, file.content]));
     }
 
-    function computeSnapshotDiff() {
+    function countLines(value) {
+      const text = typeof value === "string" ? value : "";
+      if (!text) return 0;
+      return text.split("\n").length;
+    }
+
+    function computeSnapshotDiff(baselineFiles = state.baselineFiles) {
       const current = buildFileMap(state.files);
-      const baseline = buildFileMap(state.baselineFiles);
+      const baseline = buildFileMap(baselineFiles);
       const changed = [];
       const untracked = [];
       const deleted = [];
+      let addedLines = 0;
+      let removedLines = 0;
+      let touchedLines = 0;
 
       current.forEach((content, path) => {
-        if (!baseline.has(path)) untracked.push(path);
-        else if (baseline.get(path) !== content) changed.push(path);
+        if (!baseline.has(path)) {
+          untracked.push(path);
+          addedLines += countLines(content);
+          touchedLines += countLines(content);
+        } else if (baseline.get(path) !== content) {
+          changed.push(path);
+          const beforeLines = countLines(baseline.get(path));
+          const afterLines = countLines(content);
+          addedLines += Math.max(0, afterLines - beforeLines);
+          removedLines += Math.max(0, beforeLines - afterLines);
+          touchedLines += Math.max(beforeLines, afterLines);
+        }
       });
       baseline.forEach((_, path) => {
-        if (!current.has(path)) deleted.push(path);
+        if (!current.has(path)) {
+          deleted.push(path);
+          removedLines += countLines(baseline.get(path));
+          touchedLines += countLines(baseline.get(path));
+        }
       });
 
-      return { changed, untracked, deleted };
+      return { changed, untracked, deleted, addedLines, removedLines, touchedLines };
+    }
+
+    function activeSourceBaselineFiles() {
+      if (state.integrationStatus.skyedrive?.connected && Array.isArray(state.sourceBaselineFiles) && state.sourceBaselineFiles.length) {
+        return state.sourceBaselineFiles;
+      }
+      return state.baselineFiles;
     }
 
     function fileStatus(path) {
@@ -981,10 +1025,11 @@
     }
 
     function renderSnapshotDiff() {
-      const diff = computeSnapshotDiff();
+      const sourceAware = Boolean(state.integrationStatus.skyedrive?.connected && state.sourceBaselineFiles.length);
+      const diff = computeSnapshotDiff(activeSourceBaselineFiles());
       const list = $("snapshotDiffList");
-      $("snapshotDiffTitle").textContent = state.integrationStatus.skyedrive?.connected ? "SkyeDrive diff" : "Workspace diff";
-      $("snapshotDiffBody").textContent = `changed=${diff.changed.length} · untracked=${diff.untracked.length} · deleted=${diff.deleted.length}`;
+      $("snapshotDiffTitle").textContent = sourceAware ? "SkyeDrive source diff" : (state.integrationStatus.skyedrive?.connected ? "SkyeDrive diff" : "Workspace diff");
+      $("snapshotDiffBody").textContent = `changed=${diff.changed.length} · untracked=${diff.untracked.length} · deleted=${diff.deleted.length} · +${diff.addedLines} / -${diff.removedLines} lines · touched=${diff.touchedLines}`;
       list.innerHTML = "";
       const rows = [
         ...diff.changed.slice(0, 4).map((path) => ({ label: "changed", path })),
@@ -1000,6 +1045,34 @@
         item.className = "diff-summary-item";
         item.textContent = `${row.label}: ${row.path}`;
         list.appendChild(item);
+      });
+    }
+
+    function renderRestorePoints() {
+      const statusBox = $("restorePointStatus");
+      const list = $("restorePointList");
+      const records = (Array.isArray(state.skyedriveSources) ? state.skyedriveSources : []).filter((record) => {
+        const kind = String(record?.source_kind || "workspace-save").trim();
+        return kind === "restore-point" || kind === "workspace-save" || kind === "zip-import" || kind === "folder-import";
+      }).slice(0, 6);
+      list.innerHTML = "";
+      if (!records.length) {
+        statusBox.innerHTML = "<strong>Restore points</strong><div class='muted'>No restore-capable snapshots exist yet. Create one after your next save.</div>";
+        list.innerHTML = "<div class='diff-summary-item'>No restore points yet.</div>";
+        return;
+      }
+      statusBox.innerHTML = "<strong>Restore points</strong><div class='muted'>" + records.length + " recent source snapshots are ready for compare or restore.</div>";
+      records.forEach((record) => {
+        const row = document.createElement("div");
+        row.className = "diff-summary-item";
+        row.innerHTML = "<strong>" + escapeHtml(record.title || "workspace-source") + "</strong> · "
+          + escapeHtml(String(record.source_kind || "workspace-save"))
+          + " · " + escapeHtml(String(record.file_count || 0)) + " files"
+          + (record.note ? " · " + escapeHtml(record.note) : "")
+          + " <button class='ghost' type='button' data-record-id='" + escapeHtml(String(record.id || "")) + "'>Restore</button>";
+        const button = row.querySelector("button");
+        if (button) button.addEventListener("click", () => runAction(() => openSkyeDriveSource(record.id)));
+        list.appendChild(row);
       });
     }
 
@@ -1026,7 +1099,7 @@
       const aiTouchpoints = state.files.filter((file) => /\/api\/kaixu-generate|api\.openai\.com|generativelanguage\.googleapis\.com|anthropic/i.test(file.content)).length;
       const docCount = paths.filter((path) => path.startsWith("docs/") || /\.md$/.test(path)).length;
       const testCount = paths.filter((path) => /(^|\/)(test|tests|spec|scripts)\//.test(path) || /(\.test|\.spec)\./.test(path)).length;
-      const diff = computeSnapshotDiff();
+      const diff = computeSnapshotDiff(activeSourceBaselineFiles());
       const risks = [];
       if (state.dirty || diff.changed.length || diff.untracked.length || diff.deleted.length) {
         risks.push("Save the workspace before release actions so SkyeDrive, GitHub, and Netlify use the latest snapshot.");
@@ -1355,6 +1428,7 @@
       const payload = await jsonRequest("/api/skyedrive-source-list?ws_id=" + encodeURIComponent(state.workspaceId), "GET");
       state.skyedriveSources = Array.isArray(payload.records) ? payload.records : [];
       renderSkyedriveSources();
+      renderRestorePoints();
     }
 
     async function saveWorkspace() {
@@ -1390,6 +1464,7 @@
         .map((file) => ({ path: String(file.path || "").replace(/^\/+/, ""), content: typeof file.content === "string" ? file.content : "" }))
         .filter((file) => file.path);
       state.baselineFiles = cloneFiles(state.files);
+      state.sourceBaselineFiles = cloneFiles(state.files);
       state.activePath = state.files[0]?.path || "";
       state.workspaceName = String(payload.title || state.workspaceName || "SkyDex Workspace").trim();
       state.dirty = true;
@@ -1407,6 +1482,7 @@
       renderFiles();
       if (state.activePath) openFile(state.activePath);
       renderIntegrationStatus();
+      renderRestorePoints();
       setStatus("SkyeDrive source opened", "Loaded " + state.files.length + " files from " + (payload.title || "selected source") + ". Save when ready to persist this into the workspace lane.", "success");
     }
 
@@ -1415,6 +1491,24 @@
         title: $("skyedriveTitleInput").value.trim(),
         note: $("skyedriveNoteInput").value.trim(),
       });
+    }
+
+    async function createRestorePoint() {
+      const stamp = new Date().toISOString().replace("T", " ").slice(0, 16);
+      await pushSkyeDriveSourceFiles(null, {
+        title: $("skyedriveTitleInput").value.trim() || `${state.workspaceName} · Restore Point · ${stamp}`,
+        note: $("skyedriveNoteInput").value.trim() || "Manual restore point captured from the active workspace.",
+        sourceKind: "restore-point",
+        sourceName: state.workspaceName,
+      });
+      setStatus("Restore point created", "Current workspace snapshot was saved as a restore point in SkyeDrive.", "success");
+    }
+
+    async function restoreLatestPoint() {
+      if (!state.skyedriveSources.length) await loadSkyeDriveSources();
+      const candidate = state.skyedriveSources.find((record) => String(record?.source_kind || "") === "restore-point") || state.skyedriveSources[0];
+      if (!candidate) throw new Error("No restore point is available yet.");
+      await openSkyeDriveSource(candidate.id);
     }
 
     async function pushSkyeDriveSourceFiles(sourceFiles, options) {
@@ -1435,6 +1529,7 @@
         record_id: payload.record_id || null,
         title: payload.title || title || null,
       };
+      state.sourceBaselineFiles = cloneFiles(state.files);
       const nextQuery = new URLSearchParams(window.location.search);
       nextQuery.set("ws_id", state.workspaceId);
       if (payload.record_id) nextQuery.set("drive_record_id", String(payload.record_id));
@@ -1442,6 +1537,7 @@
       window.history.replaceState({}, "", window.location.pathname + "?" + nextQuery.toString());
       await loadSkyeDriveSources();
       renderIntegrationStatus();
+      renderRestorePoints();
       setStatus("SkyeDrive sync complete", "Saved workspace snapshot into SkyeDrive as " + (payload.title || title || "workspace-source") + ".", "success");
     }
 
@@ -1741,6 +1837,8 @@
       $("refreshSkyedriveBtn").addEventListener("click", () => runAction(loadSkyeDriveSources));
       $("openSkyedriveBtn").addEventListener("click", () => runAction(openSkyeDriveSource));
       $("pushSkyedriveBtn").addEventListener("click", () => runAction(pushSkyeDrive));
+      $("createRestorePointBtn").addEventListener("click", () => runAction(createRestorePoint));
+      $("restoreLatestPointBtn").addEventListener("click", () => runAction(restoreLatestPoint));
       $("importZipSourceBtn").addEventListener("click", () => $("importZipSourceInput").click());
       $("importFolderSourceBtn").addEventListener("click", () => $("importFolderSourceInput").click());
       $("importZipSourceInput").addEventListener("change", (event) => {

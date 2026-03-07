@@ -559,7 +559,7 @@
                 const gatewayFetch = (window.SkyeGateway && window.SkyeGateway.fetchWithRetry) || fetch;
                 const callGemini = async (prompt) => {
                     const headers = { 'Content-Type': 'application/json' };
-                    const key = (apiKeyOpenAI.value || localStorage.getItem('kx.api.accessToken') || '').trim();
+                    const key = (apiKeyOpenAI.value || window.SkyeStandaloneSession?.readToken?.() || window.SkyeAuthUnlock?.readToken?.() || '').trim();
                     if (key) headers.Authorization = 'Bearer ' + key;
                     const response = await gatewayFetch('/api/kaixu-generate', {
                         method: 'POST',

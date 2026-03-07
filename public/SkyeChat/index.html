@@ -490,8 +490,8 @@
 
     function getAccessAuthHeaders() {
       if (standaloneSession?.authHeaders) return standaloneSession.authHeaders('skychat');
-      const token = (localStorage.getItem('kx.api.accessToken') || '').trim();
-      const email = (localStorage.getItem('kx.api.tokenEmail') || '').trim().toLowerCase();
+      const token = (window.SkyeAuthUnlock?.readToken?.() || '').trim();
+      const email = (window.SkyeAuthUnlock?.readTokenEmail?.() || '').trim().toLowerCase();
       const corr = window.SkyeCorrelation && window.SkyeCorrelation.next ? window.SkyeCorrelation.next('skychat') : '';
       const headers = {};
       if (token) headers.Authorization = `Bearer ${token}`;
@@ -505,8 +505,8 @@
         standaloneSession.hydrateInputs('apiKey', 'tokenEmail');
         return;
       }
-      document.getElementById('apiKey').value = localStorage.getItem('kx.api.accessToken') || '';
-      document.getElementById('tokenEmail').value = localStorage.getItem('kx.api.tokenEmail') || '';
+      document.getElementById('apiKey').value = window.SkyeAuthUnlock?.readToken?.() || '';
+      document.getElementById('tokenEmail').value = window.SkyeAuthUnlock?.readTokenEmail?.() || '';
     }
 
     function saveAuthInputs() {

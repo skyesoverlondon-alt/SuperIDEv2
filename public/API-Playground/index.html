@@ -4,6 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>API Playground | SuperIDE</title>
+  <script src="/_shared/auth-unlock.js"></script>
+  <script src="/_shared/standalone-session.js"></script>
   <script src="/_shared/gateway-retry.js"></script>
   <style>
     :root {
@@ -358,8 +360,12 @@
       setStatus("Ledger cleared.");
     };
 
-    document.getElementById("token").value = localStorage.getItem("kx.api.accessToken") || "";
-    document.getElementById("tokenEmail").value = localStorage.getItem("kx.api.tokenEmail") || localStorage.getItem("kx.auth.user") || "";
+    if (window.SkyeStandaloneSession?.hydrateInputs) {
+      window.SkyeStandaloneSession.hydrateInputs("token", "tokenEmail");
+    } else {
+      document.getElementById("token").value = window.SkyeAuthUnlock?.readToken?.() || "";
+      document.getElementById("tokenEmail").value = window.SkyeAuthUnlock?.readTokenEmail?.() || localStorage.getItem("kx.auth.user") || "";
+    }
     applyPreset();
     renderLedger();
   </script>

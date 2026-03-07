@@ -441,7 +441,7 @@
         }
         function getGatewayHeaders() {
             const keyInput = document.getElementById('openai-key');
-            const raw = (state.openaiKey || (keyInput && keyInput.value) || localStorage.getItem('kx.api.accessToken') || '').trim();
+            const raw = (state.openaiKey || (keyInput && keyInput.value) || window.SkyeStandaloneSession?.readToken?.() || window.SkyeAuthUnlock?.readToken?.() || '').trim();
             const headers = { 'Content-Type': 'application/json' };
             if (raw) headers.Authorization = 'Bearer ' + raw;
             if (window.SkyeCorrelation && typeof window.SkyeCorrelation.nextId === 'function') {

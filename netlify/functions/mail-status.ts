@@ -39,6 +39,33 @@ export const handler = async (event: any) => {
     }
   }
 
+  const warnings: string[] = [];
+  const mailboxEmail = String(account?.mailbox_email || "").trim().toLowerCase();
+  const outboundReady = Boolean(status.configured && account?.outbound_enabled && mailboxEmail);
+  const inboundReady = Boolean(ingestSecretConfigured && account?.inbound_enabled && mailboxEmail);
+
+  if (!status.active_provider) {
+    warnings.push("No outbound provider is configured. Set SMTP_* or RESEND_API_KEY.");
+  }
+  if (status.active_provider && !status.from) {
+    warnings.push("Mail sender identity is missing. Configure MAIL_FROM, SKYE_MAIL_FROM, RESEND_FROM, or a full SMTP_USER email.");
+  }
+  if (!account) {
+    warnings.push("No SkyeMail mailbox account is provisioned for this user yet.");
+  }
+  if (account && !account.outbound_enabled) {
+    warnings.push("Outbound mail is disabled for this mailbox account.");
+  }
+  if (account && !account.inbound_enabled) {
+    warnings.push("Inbound mail is disabled for this mailbox account.");
+  }
+  if (!ingestSecretConfigured) {
+    warnings.push("MAIL_INGEST_SECRET is missing, so inbound delivery cannot be accepted by the ingest endpoint.");
+  }
+  if (syncState?.error) {
+    warnings.push(`Mailbox sync reports an error: ${String(syncState.error)}`);
+  }
+
   return json(200, {
     configured: status.configured,
     active_provider: status.active_provider,
@@ -47,6 +74,10 @@ export const handler = async (event: any) => {
     smtp: status.smtp,
     resend: status.resend,
     ingest_secret_configured: ingestSecretConfigured,
+    inbound_endpoint_path: "/api/skymail-inbound-ingest",
+    outbound_ready: outboundReady,
+    inbound_ready: inboundReady,
+    warnings,
     account: account
       ? {
           mailbox_email: account.mailbox_email,

@@ -256,8 +256,8 @@
 
     function getAccessAuthHeaders() {
       if (standaloneSession?.authHeaders) return standaloneSession.authHeaders('skyemail');
-      const token = (localStorage.getItem('kx.api.accessToken') || '').trim();
-      const email = (localStorage.getItem('kx.api.tokenEmail') || '').trim().toLowerCase();
+      const token = (window.SkyeAuthUnlock?.readToken?.() || '').trim();
+      const email = (window.SkyeAuthUnlock?.readTokenEmail?.() || '').trim().toLowerCase();
       const corr = window.SkyeCorrelation && window.SkyeCorrelation.next ? window.SkyeCorrelation.next('skyemail') : '';
       const headers = {};
       if (token) headers.Authorization = `Bearer ${token}`;
@@ -271,8 +271,8 @@
         standaloneSession.hydrateInputs('apiKey', 'tokenEmail');
         return;
       }
-      document.getElementById('apiKey').value = localStorage.getItem('kx.api.accessToken') || '';
-      document.getElementById('tokenEmail').value = localStorage.getItem('kx.api.tokenEmail') || '';
+      document.getElementById('apiKey').value = window.SkyeAuthUnlock?.readToken?.() || '';
+      document.getElementById('tokenEmail').value = window.SkyeAuthUnlock?.readTokenEmail?.() || '';
     }
 
     function saveAuthInputs() {
@@ -581,11 +581,11 @@
       setMailDiagnosticValue('mailDiagSyncStatus', syncState?.status || 'no sync row');
       setMailDiagnosticValue('mailDiagLastSync', syncState?.last_synced_at || 'never');
       setMailDiagnosticValue('mailDiagCursor', syncState?.last_cursor || 'n/a');
-      setMailDiagnosticValue('mailDiagSyncError', syncState?.error || 'none');
+      setMailDiagnosticValue('mailDiagSyncError', (Array.isArray(data?.warnings) && data.warnings.length ? data.warnings.join(' | ') : (syncState?.error || 'none')));
 
       mailDiagnosticsSummary.textContent = data?.configured
-        ? `Mail diagnostics: ${provider} is configured, sender is ${sender}, mailbox is ${mailbox}.`
-        : `Mail diagnostics: provider not configured${data?.error ? ` (${data.error})` : ''}.`;
+        ? `Mail diagnostics: provider=${provider}, sender=${sender}, mailbox=${mailbox}, outbound=${data?.outbound_ready ? 'ready' : 'blocked'}, inbound=${data?.inbound_ready ? 'ready' : 'blocked'}, ingest=${data?.inbound_endpoint_path || '/api/skymail-inbound-ingest'}.`
+        : `Mail diagnostics: provider not configured. ${Array.isArray(data?.warnings) && data.warnings.length ? data.warnings.join(' | ') : ''}`.trim();
     }
 
     function initTemplates() {

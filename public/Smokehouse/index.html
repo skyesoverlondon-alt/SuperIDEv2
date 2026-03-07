@@ -4,6 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Smokehouse | SuperIDE</title>
+  <script src="/_shared/auth-unlock.js"></script>
+  <script src="/_shared/standalone-session.js"></script>
   <script src="/_shared/gateway-retry.js"></script>
   <style>
     :root { --bg:#140f21; --card:#231a36; --ink:#f4f0ff; --muted:#b7abcf; --good:#22c55e; --bad:#ef4444; --accent:#f97316; }
@@ -230,8 +232,12 @@
 
     document.getElementById("baseUrl").value = location.origin;
     document.getElementById("workerUrl").value = localStorage.getItem("kx.worker.url") || "";
-    document.getElementById("token").value = localStorage.getItem("kx.api.accessToken") || "";
-    document.getElementById("tokenEmail").value = localStorage.getItem("kx.api.tokenEmail") || localStorage.getItem("kx.auth.user") || "";
+    if (window.SkyeStandaloneSession?.hydrateInputs) {
+      window.SkyeStandaloneSession.hydrateInputs("token", "tokenEmail");
+    } else {
+      document.getElementById("token").value = window.SkyeAuthUnlock?.readToken?.() || "";
+      document.getElementById("tokenEmail").value = window.SkyeAuthUnlock?.readTokenEmail?.() || localStorage.getItem("kx.auth.user") || "";
+    }
     document.getElementById("runBtn").onclick = () => runSmoke();
     document.getElementById("exportBtn").onclick = () => {
       const blob = new Blob([JSON.stringify(readRuns(), null, 2)], { type: "application/json" });

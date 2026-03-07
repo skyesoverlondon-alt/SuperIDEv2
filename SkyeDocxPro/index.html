@@ -4055,19 +4055,41 @@
     </script>
     <script>
         (() => {
+            const unlockHelperScript = document.createElement('script');
+            unlockHelperScript.src = '/_shared/auth-unlock.js';
+            document.head.appendChild(unlockHelperScript);
+            const standaloneSessionScript = document.createElement('script');
+            standaloneSessionScript.src = '/_shared/standalone-session.js';
+            document.head.appendChild(standaloneSessionScript);
             const wsId = new URLSearchParams(window.location.search).get('ws_id') || 'primary-workspace';
             const appId = (document.title || '').toLowerCase().includes('blog') ? 'SkyeBlog' : 'SkyeDocxPro';
+            const standaloneSession = window.SkyeStandaloneSession || null;
 
             function authHeaders() {
+                if (standaloneSession && standaloneSession.authHeaders) {
+                    return standaloneSession.authHeaders(appId.toLowerCase());
+                }
                 const headers = { 'Content-Type': 'application/json' };
-                const token = (localStorage.getItem('kx.api.accessToken') || '').trim();
-                const email = (localStorage.getItem('kx.api.tokenEmail') || '').trim().toLowerCase();
+                const token = (window.SkyeAuthUnlock?.readToken?.() || '').trim();
+                const email = (window.SkyeAuthUnlock?.readTokenEmail?.() || '').trim().toLowerCase();
                 if (token) headers.Authorization = `Bearer ${token}`;
                 if (email) headers['X-Token-Email'] = email;
                 return headers;
             }
 
             async function api(path, body) {
+                if (standaloneSession && standaloneSession.request) {
+                    return standaloneSession.request(path, {
+                        method: 'POST',
+                        credentials: 'include',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(body || {}),
+                    }, {
+                        appId: appId.toLowerCase(),
+                        labelPrefix: 'docxpro-session',
+                        prompt: true,
+                    });
+                }
                 const res = await fetch(path, {
                     method: 'POST',
                     credentials: 'include',
@@ -4081,6 +4103,13 @@
             }
 
             async function ensureSignedIn() {
+                if (standaloneSession && standaloneSession.ensureSignedIn) {
+                    await standaloneSession.ensureSignedIn({
+                        appId: appId.toLowerCase(),
+                        labelPrefix: 'docxpro-session',
+                        prompt: true,
+                    });
+                }
                 const res = await fetch('/api/auth-me', { credentials: 'include' });
                 const me = await res.json().catch(() => ({}));
                 if (!res.ok || !me?.email) {

@@ -252,9 +252,12 @@
 
         function getUnifiedStoredKey() {
             if (window.SkyeStandaloneSession?.readToken) {
-                return window.SkyeStandaloneSession.readToken() || localStorage.getItem('kaixu_api_key') || '';
+                return window.SkyeStandaloneSession.readToken() || '';
             }
-            return localStorage.getItem('kx.api.accessToken') || localStorage.getItem('kaixu_api_key') || '';
+            if (window.SkyeAuthUnlock?.readToken) {
+                return window.SkyeAuthUnlock.readToken() || '';
+            }
+            return localStorage.getItem('kaixu_api_key') || '';
         }
 
         function refreshRuntimeHealth() {
@@ -290,8 +293,8 @@
             if (apiKeyEl) {
                 const newKey = apiKeyEl.value.trim();
                 if (window.SkyeStandaloneSession?.saveManualToken) window.SkyeStandaloneSession.saveManualToken(newKey, '');
+                else if (window.SkyeAuthUnlock?.persistUnlockedToken) window.SkyeAuthUnlock.persistUnlockedToken(newKey, '');
                 else {
-                    localStorage.setItem('kx.api.accessToken', newKey);
                     localStorage.setItem('kaixu_api_key', newKey);
                 }
                 apiKey = newKey;
