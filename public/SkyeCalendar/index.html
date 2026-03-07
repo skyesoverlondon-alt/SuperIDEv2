@@ -4,6 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SkyeCalendar Platform</title>
+  <script src="/_shared/auth-unlock.js"></script>
+  <script src="/_shared/standalone-session.js"></script>
   <style>
     @import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Space+Grotesk:wght@400;500;600&display=swap");
     :root { --bg:#060d13; --panel:#09151d; --line:rgba(44,230,255,.32); --text:#edf7ff; --muted:#9bb8c7; --gold:#ffcb47; }
@@ -162,6 +164,9 @@ let reminderAuditLog = [];
 
 function setStatus(t){ statusEl.textContent = t; }
 async function call(path, options = {}) {
+  if (window.SkyeStandaloneSession?.request) {
+    return window.SkyeStandaloneSession.request(path, options, { appId:'skyecalendar', prompt:false });
+  }
   const r = await fetch(path, { credentials:'include', ...options });
   const t = await r.text();
   let d = {}; try { d = t ? JSON.parse(t) : {}; } catch { d = { raw: t }; }
@@ -173,16 +178,10 @@ async function ensureAuth(){
   const email = document.getElementById('email').value.trim();
   const password = document.getElementById('password').value;
   const org = document.getElementById('org').value.trim() || 'SkyeCalendar Org';
-  if (!email || !password) throw new Error('Enter email and password.');
-  try {
-    await call('/api/auth-login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ email, password }) });
-  } catch {
-    const signup = await call('/api/auth-signup', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ email, password, orgName: org }) });
-    if (signup?.kaixu_token?.token) {
-      localStorage.setItem('kx.api.accessToken', signup.kaixu_token.token);
-      localStorage.setItem('kx.api.tokenEmail', signup.kaixu_token.locked_email || email.toLowerCase());
-    }
+  if (window.SkyeStandaloneSession?.ensureSignedIn) {
+    return window.SkyeStandaloneSession.ensureSignedIn({ appId:'skyecalendar', email, password, orgName:org, labelPrefix:'skyecalendar' });
   }
+  if (!email || !password) throw new Error('Enter email and password.');
 }
 
 async function load(){

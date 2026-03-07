@@ -15,6 +15,9 @@ export const handler = async (event: any) => {
             github_owner,
             github_branch,
             github_installation_id,
+            skyedrive_ws_id,
+            skyedrive_record_id,
+            skyedrive_title,
             netlify_site_id,
             netlify_site_name,
             updated_at
@@ -29,6 +32,9 @@ export const handler = async (event: any) => {
   const githubRepo = String(row?.github_repo || "").trim();
   const githubBranch = String(row?.github_branch || "main").trim() || "main";
   const githubInstallationId = row?.github_installation_id ? Number(row.github_installation_id) : null;
+  const skyeDriveWsId = String(row?.skyedrive_ws_id || "").trim();
+  const skyeDriveRecordId = String(row?.skyedrive_record_id || "").trim();
+  const skyeDriveTitle = String(row?.skyedrive_title || "").trim();
   const netlifySiteId = String(row?.netlify_site_id || "").trim();
   const netlifySiteName = String(row?.netlify_site_name || "").trim() || null;
 
@@ -39,6 +45,13 @@ export const handler = async (event: any) => {
       owner: String(row?.github_owner || "").trim() || null,
       branch: githubRepo ? githubBranch : null,
       installation_id: githubInstallationId,
+      updated_at: updatedAt,
+    },
+    skyedrive: {
+      connected: Boolean(skyeDriveWsId && skyeDriveRecordId),
+      ws_id: skyeDriveWsId || null,
+      record_id: skyeDriveRecordId || null,
+      title: skyeDriveTitle || null,
       updated_at: updatedAt,
     },
     netlify: {

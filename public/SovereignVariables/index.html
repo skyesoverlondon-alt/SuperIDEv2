@@ -6,6 +6,8 @@
     <title>Config Packager — Sovereign</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="/_shared/auth-unlock.js"></script>
+    <script src="/_shared/standalone-session.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&family=Playfair+Display:ital,wght@0,700;1,700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -366,14 +368,20 @@
 
         async function getAuthHeaders() {
             const headers = { 'Content-Type': 'application/json' };
-            const token = (localStorage.getItem('kx.api.accessToken') || '').trim();
-            const email = (localStorage.getItem('kx.api.tokenEmail') || '').trim().toLowerCase();
-            if (token) headers.Authorization = `Bearer ${token}`;
-            if (email) headers['X-Token-Email'] = email;
+            if (window.SkyeStandaloneSession?.authHeaders) {
+                return { ...headers, ...window.SkyeStandaloneSession.authHeaders('sovereignvariables') };
+            }
             return headers;
         }
 
         async function callApi(path, body) {
+            if (window.SkyeStandaloneSession?.request) {
+                return window.SkyeStandaloneSession.request(path, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body || {})
+                }, { appId: 'sovereignvariables' });
+            }
             const res = await fetch(path, {
                 method: 'POST',
                 credentials: 'include',

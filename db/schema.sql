@@ -17,12 +17,16 @@ create table if not exists users (
   id uuid primary key default gen_random_uuid(),
   email text not null unique,
   recovery_email text,
+  pin_hash text,
+  pin_updated_at timestamptz,
   password_hash text not null,
   org_id uuid references orgs(id),
   created_at timestamptz not null default now()
 );
 
 alter table if exists users add column if not exists recovery_email text;
+alter table if exists users add column if not exists pin_hash text;
+alter table if exists users add column if not exists pin_updated_at timestamptz;
 
 create index if not exists idx_users_recovery_email on users(lower(recovery_email));
 
@@ -69,10 +73,17 @@ create table if not exists integrations (
   github_owner text,
   github_branch text default 'main',
   github_installation_id bigint,
+  skyedrive_ws_id uuid,
+  skyedrive_record_id uuid,
+  skyedrive_title text,
   netlify_site_id text,
   netlify_site_name text,
   updated_at timestamptz not null default now()
 );
+
+alter table if exists integrations add column if not exists skyedrive_ws_id uuid;
+alter table if exists integrations add column if not exists skyedrive_record_id uuid;
+alter table if exists integrations add column if not exists skyedrive_title text;
 
 -- Shared auth + RBAC memberships across all Skye apps
 create table if not exists org_memberships (

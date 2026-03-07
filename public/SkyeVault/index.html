@@ -4,6 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SkyeVault Platform</title>
+  <script src="/_shared/auth-unlock.js"></script>
+  <script src="/_shared/standalone-session.js"></script>
   <style>
     @import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Space+Grotesk:wght@400;500;600&display=swap");
     :root { --bg:#060d13; --bg2:#0d1d27; --line:rgba(44,230,255,.34); --line2:rgba(191,238,255,.2); --text:#f6fbff; --muted:#9ab6c4; --gold:#ffcb47; }
@@ -52,8 +54,8 @@ const approvalInfo=document.getElementById('approvalInfo');
 const attestationInfo=document.getElementById('attestationInfo');
 const breakGlassInfo=document.getElementById('breakGlassInfo');
 const playbookByScope={workspace:30,org:14,deploy:7};
-async function call(path,opt={}){const r=await fetch(path,{credentials:'include',...opt});const t=await r.text();let d={};try{d=t?JSON.parse(t):{}}catch{d={raw:t}}if(!r.ok)throw new Error(d.error||path+' failed ('+r.status+')');return d}
-async function auth(){const email=document.getElementById('email').value.trim();const password=document.getElementById('password').value;const org=document.getElementById('org').value.trim()||'SkyeVault Org';if(!email||!password)throw new Error('email/password required');try{await call('/api/auth-login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})})}catch{const signup=await call('/api/auth-signup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password,orgName:org})});if(signup?.kaixu_token?.token){localStorage.setItem('kx.api.accessToken',signup.kaixu_token.token);localStorage.setItem('kx.api.tokenEmail',signup.kaixu_token.locked_email||email.toLowerCase())}}}
+async function call(path,opt={}){if(window.SkyeStandaloneSession?.request)return window.SkyeStandaloneSession.request(path,opt,{appId:'skyevault',prompt:false});const r=await fetch(path,{credentials:'include',...opt});const t=await r.text();let d={};try{d=t?JSON.parse(t):{}}catch{d={raw:t}}if(!r.ok)throw new Error(d.error||path+' failed ('+r.status+')');return d}
+async function auth(){const email=document.getElementById('email').value.trim();const password=document.getElementById('password').value;const org=document.getElementById('org').value.trim()||'SkyeVault Org';if(window.SkyeStandaloneSession?.ensureSignedIn)return window.SkyeStandaloneSession.ensureSignedIn({appId:'skyevault',email,password,orgName:org,labelPrefix:'skyevault'});if(!email||!password)throw new Error('email/password required')}
 async function load(){await auth();const ws=document.getElementById('ws').value.trim();const d=await call('/api/app-record-list?ws_id='+encodeURIComponent(ws)+'&app=SkyeVault&limit=1');secrets=Array.isArray(d.records)&&d.records[0]&&d.records[0].payload&&Array.isArray(d.records[0].payload.secrets)?d.records[0].payload.secrets:[];render();setStatus('Loaded vault model.')}
 async function save(){await auth();const ws=document.getElementById('ws').value.trim();await call('/api/app-record-save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ws_id:ws,app:'SkyeVault',title:'SkyeVault Secrets',model:{secrets}})});setStatus('Saved vault model.')}
 function add(){const label=document.getElementById('label').value.trim();if(!label)return setStatus('label required');const intervalDays=Math.max(1,Number(document.getElementById('rotationDays').value||30));secrets.unshift({id:'vault-'+Date.now(),label,scope:document.getElementById('scope').value,owner:'owner',last_rotated:new Date().toISOString().slice(0,10),status:'active',redacted_value:'****',rotation_days:intervalDays,next_due:new Date(Date.now()+intervalDays*86400000).toISOString().slice(0,10)});document.getElementById('label').value='';render()}

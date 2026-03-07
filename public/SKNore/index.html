@@ -4,6 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SKNore Policy Console</title>
+  <script src="/_shared/auth-unlock.js"></script>
+  <script src="/_shared/standalone-session.js"></script>
   <style>
     :root {
       --bg: #07060f;
@@ -167,11 +169,8 @@ secrets/**
     function setStatus(text) { statusEl.textContent = text || ''; }
 
     function getAccessAuthHeaders() {
-      const token = (localStorage.getItem('kx.api.accessToken') || '').trim();
-      const email = (localStorage.getItem('kx.api.tokenEmail') || '').trim().toLowerCase();
+      if (window.SkyeStandaloneSession?.authHeaders) return window.SkyeStandaloneSession.authHeaders('sknore');
       const headers = {};
-      if (token) headers.Authorization = `Bearer ${token}`;
-      if (email) headers['X-Token-Email'] = email;
       return headers;
     }
 
@@ -311,14 +310,12 @@ secrets/**
     function saveKeyLocally() {
       const token = document.getElementById('apiKey').value.trim();
       const email = document.getElementById('tokenEmail').value.trim().toLowerCase();
-      localStorage.setItem('kx.api.accessToken', token);
-      localStorage.setItem('kx.api.tokenEmail', email);
+      if (window.SkyeStandaloneSession?.saveManualToken) window.SkyeStandaloneSession.saveManualToken(token, email);
       setStatus('Saved key + token email to local auth context.');
     }
 
     function clearKeyLocally() {
-      localStorage.removeItem('kx.api.accessToken');
-      localStorage.removeItem('kx.api.tokenEmail');
+      if (window.SkyeStandaloneSession?.clearToken) window.SkyeStandaloneSession.clearToken();
       document.getElementById('apiKey').value = '';
       document.getElementById('tokenEmail').value = '';
       setStatus('Cleared local auth context.');
@@ -335,8 +332,12 @@ secrets/**
     }
 
     function hydrateAuthInputs() {
-      document.getElementById('apiKey').value = localStorage.getItem('kx.api.accessToken') || '';
-      document.getElementById('tokenEmail').value = localStorage.getItem('kx.api.tokenEmail') || '';
+      if (window.SkyeStandaloneSession?.hydrateInputs) {
+        window.SkyeStandaloneSession.hydrateInputs('apiKey', 'tokenEmail');
+        return;
+      }
+      document.getElementById('apiKey').value = '';
+      document.getElementById('tokenEmail').value = '';
     }
 
     function runSimulation() {
@@ -416,8 +417,9 @@ secrets/**
         body: JSON.stringify({ email, password, orgName }),
       });
       if (signup?.kaixu_token?.token) {
-        localStorage.setItem('kx.api.accessToken', signup.kaixu_token.token);
-        localStorage.setItem('kx.api.tokenEmail', signup.kaixu_token.locked_email || email.toLowerCase());
+        if (window.SkyeStandaloneSession?.saveManualToken) {
+          window.SkyeStandaloneSession.saveManualToken(signup.kaixu_token.token, signup.kaixu_token.locked_email || email.toLowerCase());
+        }
       }
       await refreshMe();
       await loadPolicy();
@@ -432,6 +434,9 @@ secrets/**
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
+      if (window.SkyeAuthUnlock?.ensureUnlockedAccess) {
+        await window.SkyeAuthUnlock.ensureUnlockedAccess({ labelPrefix: 'sknore-login' });
+      }
       await refreshMe();
       await loadPolicy();
       await loadEvents();

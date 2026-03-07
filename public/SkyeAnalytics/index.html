@@ -1,6 +1,8 @@
 <!doctype html>
 <html lang="en"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>SkyeAnalytics Platform</title>
+<script src="/_shared/auth-unlock.js"></script>
+<script src="/_shared/standalone-session.js"></script>
 <style>
 @import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Space+Grotesk:wght@400;500;600&display=swap");
 :root{--bg:#060d13;--panel:#09151d;--line:rgba(44,230,255,.32);--text:#eff9ff;--muted:#9eb8c8;--gold:#ffcb47}*{box-sizing:border-box}
@@ -29,8 +31,8 @@ const qs=new URLSearchParams(location.search);document.getElementById('ws').valu
 let executiveMode=false;
 function setStatus(t){status.textContent=t}
 function freshnessHours(iso){if(!iso)return Number.POSITIVE_INFINITY;const ms=Date.now()-new Date(iso).getTime();return ms/36e5}
-async function call(path,opt={}){const r=await fetch(path,{credentials:'include',...opt});const t=await r.text();let d={};try{d=t?JSON.parse(t):{}}catch{d={raw:t}}if(!r.ok)throw new Error(d.error||path+' failed ('+r.status+')');return d}
-async function auth(){const email=document.getElementById('email').value.trim();const password=document.getElementById('password').value;const org=document.getElementById('org').value.trim()||'SkyeAnalytics Org';if(!email||!password)throw new Error('email/password required');try{await call('/api/auth-login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})})}catch{const signup=await call('/api/auth-signup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password,orgName:org})});if(signup?.kaixu_token?.token){localStorage.setItem('kx.api.accessToken',signup.kaixu_token.token);localStorage.setItem('kx.api.tokenEmail',signup.kaixu_token.locked_email||email.toLowerCase())}}}
+async function call(path,opt={}){if(window.SkyeStandaloneSession?.request)return window.SkyeStandaloneSession.request(path,opt,{appId:'skyeanalytics',prompt:false});const r=await fetch(path,{credentials:'include',...opt});const t=await r.text();let d={};try{d=t?JSON.parse(t):{}}catch{d={raw:t}}if(!r.ok)throw new Error(d.error||path+' failed ('+r.status+')');return d}
+async function auth(){const email=document.getElementById('email').value.trim();const password=document.getElementById('password').value;const org=document.getElementById('org').value.trim()||'SkyeAnalytics Org';if(window.SkyeStandaloneSession?.ensureSignedIn)return window.SkyeStandaloneSession.ensureSignedIn({appId:'skyeanalytics',email,password,orgName:org,labelPrefix:'skyeanalytics'});if(!email||!password)throw new Error('email/password required')}
 async function refresh(){
   await auth();
   const ws=document.getElementById('ws').value.trim();

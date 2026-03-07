@@ -1,6 +1,6 @@
 import { json } from "./_shared/response";
 import { q } from "./_shared/neon";
-import { hashPassword, createSession, setSessionCookie, ensureUserRecoveryEmailColumn } from "./_shared/auth";
+import { hashPassword, createSession, setSessionCookie, ensureUserRecoveryEmailColumn, ensureUserPinColumns } from "./_shared/auth";
 import { audit } from "./_shared/audit";
 import { mintApiToken, tokenHash } from "./_shared/api_tokens";
 import { hasMailDeliveryConfig, sendMail } from "./_shared/mailer";
@@ -10,6 +10,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export const handler = async (event: any) => {
   try {
     await ensureUserRecoveryEmailColumn();
+    await ensureUserPinColumns();
 
     const { email, password, orgName, recoveryEmail, recovery_email } = JSON.parse(event.body || "{}");
     const normalizedEmail = String(email || "").trim().toLowerCase();
@@ -167,6 +168,7 @@ export const handler = async (event: any) => {
           recovery_email: normalizedRecoveryEmail,
           org_id: orgId,
           role: "owner",
+          has_pin: false,
         },
         warning: "kAIxU token is shown once on signup. Store it now.",
       },

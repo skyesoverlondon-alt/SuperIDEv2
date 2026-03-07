@@ -6,7 +6,7 @@ import { canWriteWorkspace } from "./_shared/rbac";
 import { readIdempotencyKey } from "./_shared/idempotency";
 import { readCorrelationId } from "./_shared/correlation";
 
-const ALLOWED_APPS = new Set(["SkyeCalendar", "SkyeDrive", "SkyeVault", "SkyeForms", "SkyeNotes"]);
+const ALLOWED_APPS = new Set(["SkyeCalendar", "SkyeDrive", "SkyeVault", "SkyeForms", "SkyeNotes", "SkyeBlog"]);
 
 export const handler = async (event: any) => {
   const u = await requireUser(event);

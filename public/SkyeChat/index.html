@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SkyeChat Workspace</title>
   <script src="/_shared/correlation.js"></script>
+  <script src="/_shared/auth-unlock.js"></script>
+  <script src="/_shared/standalone-session.js"></script>
   <style>
     @import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Space+Grotesk:wght@400;500;600&display=swap");
     :root {
@@ -484,7 +486,10 @@
       setStatus(`Extracted ${decisions.length} decision(s) to SkyeTasks and SkyeCalendar with provenance links.`);
     }
 
+    const standaloneSession = window.SkyeStandaloneSession || null;
+
     function getAccessAuthHeaders() {
+      if (standaloneSession?.authHeaders) return standaloneSession.authHeaders('skychat');
       const token = (localStorage.getItem('kx.api.accessToken') || '').trim();
       const email = (localStorage.getItem('kx.api.tokenEmail') || '').trim().toLowerCase();
       const corr = window.SkyeCorrelation && window.SkyeCorrelation.next ? window.SkyeCorrelation.next('skychat') : '';
@@ -496,6 +501,10 @@
     }
 
     function hydrateAuthInputs() {
+      if (standaloneSession?.hydrateInputs) {
+        standaloneSession.hydrateInputs('apiKey', 'tokenEmail');
+        return;
+      }
       document.getElementById('apiKey').value = localStorage.getItem('kx.api.accessToken') || '';
       document.getElementById('tokenEmail').value = localStorage.getItem('kx.api.tokenEmail') || '';
     }
@@ -503,19 +512,60 @@
     function saveAuthInputs() {
       const token = document.getElementById('apiKey').value.trim();
       const email = document.getElementById('tokenEmail').value.trim().toLowerCase();
-      localStorage.setItem('kx.api.accessToken', token);
-      localStorage.setItem('kx.api.tokenEmail', email);
+      if (standaloneSession?.saveManualToken) standaloneSession.saveManualToken(token, email);
+      else {
+        localStorage.setItem('kx.api.accessToken', token);
+        localStorage.setItem('kx.api.tokenEmail', email);
+      }
       setStatus('Saved kAIxU key context for SkyeChat.');
     }
 
     function clearAuthInputs() {
-      localStorage.removeItem('kx.api.accessToken');
-      localStorage.removeItem('kx.api.tokenEmail');
+      if (standaloneSession?.clearToken) standaloneSession.clearToken();
+      else if (window.SkyeAuthUnlock && window.SkyeAuthUnlock.clearUnlockedToken) {
+        window.SkyeAuthUnlock.clearUnlockedToken();
+      } else {
+        localStorage.removeItem('kx.api.accessToken');
+        localStorage.removeItem('kx.api.tokenEmail');
+      }
       hydrateAuthInputs();
       setStatus('Cleared kAIxU key context.');
     }
 
+    async function ensureWorkspaceAccess(labelPrefix = 'chat-session') {
+      if (standaloneSession?.ensureSignedIn) {
+        const unlocked = await standaloneSession.ensureSignedIn({
+          appId: 'skychat',
+          labelPrefix,
+          prompt: true,
+        });
+        hydrateAuthInputs();
+        return unlocked;
+      }
+      if (window.SkyeAuthUnlock && window.SkyeAuthUnlock.ensureUnlockedAccess) {
+        const unlocked = await window.SkyeAuthUnlock.ensureUnlockedAccess({
+          labelPrefix,
+          pinPrompt: 'Enter your session PIN to unlock SkyeChat access',
+        });
+        hydrateAuthInputs();
+        return unlocked;
+      }
+      return null;
+    }
+
     async function call(path, options = {}) {
+      const bypassUnlock = /^\/api\/auth-(login|signup|logout)$/.test(path);
+      if (standaloneSession?.request) {
+        return standaloneSession.request(path, {
+          credentials: 'include',
+          ...options,
+        }, {
+          appId: 'skychat',
+          labelPrefix: 'chat-session',
+          skipUnlock: bypassUnlock,
+          prompt: !bypassUnlock,
+        });
+      }
       const authHeaders = getAccessAuthHeaders();
       const mergedHeaders = { ...(options.headers || {}), ...authHeaders };
       const res = await fetch(path, { credentials: 'include', ...options, headers: mergedHeaders });
@@ -689,10 +739,14 @@
     }
 
     async function refreshMe() {
+      try {
+        await ensureWorkspaceAccess('chat-refresh');
+      } catch {
+      }
       const me = await call('/api/auth-me');
       if (me?.email) {
         document.getElementById('email').value = me.email;
-        setStatus(`Signed in as ${me.email}`);
+        setStatus(me?.has_pin ? `Signed in as ${me.email}. Session PIN is configured for shared unlock.` : `Signed in as ${me.email}`);
       } else {
         setStatus('Not signed in. Create account or login to use SkyeChat workspace.');
       }
@@ -708,8 +762,11 @@
         body: JSON.stringify({ email, password, orgName }),
       });
       if (signup?.kaixu_token?.token) {
-        localStorage.setItem('kx.api.accessToken', signup.kaixu_token.token);
-        localStorage.setItem('kx.api.tokenEmail', signup.kaixu_token.locked_email || email.toLowerCase());
+        if (standaloneSession?.saveManualToken) standaloneSession.saveManualToken(signup.kaixu_token.token, signup.kaixu_token.locked_email || email.toLowerCase());
+        else {
+          localStorage.setItem('kx.api.accessToken', signup.kaixu_token.token);
+          localStorage.setItem('kx.api.tokenEmail', signup.kaixu_token.locked_email || email.toLowerCase());
+        }
         hydrateAuthInputs();
       }
       await refreshMe();
@@ -726,19 +783,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
-      if (!(localStorage.getItem('kx.api.accessToken') || '').trim()) {
-        const tokenData = await call('/api/token-issue', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ count: 1, ttl_preset: 'quarter', label_prefix: 'chat-login-auto', locked_email: email.toLowerCase() }),
-        });
-        const issued = tokenData?.issued?.[0];
-        if (issued?.token) {
-          localStorage.setItem('kx.api.accessToken', issued.token);
-          localStorage.setItem('kx.api.tokenEmail', issued.locked_email || email.toLowerCase());
-          hydrateAuthInputs();
-        }
-      }
+      await ensureWorkspaceAccess('chat-login-auto');
       await refreshMe();
       await loadProfile();
       await loadChannels();

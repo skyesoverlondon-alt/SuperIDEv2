@@ -10,6 +10,8 @@
   <script src="/_shared/telemetry.js"></script>
   <script src="/_shared/error-fingerprint.js"></script>
   <script src="/_shared/correlation.js"></script>
+  <script src="/_shared/auth-unlock.js"></script>
+  <script src="/_shared/standalone-session.js"></script>
   <style>
     ::selection { background: rgba(99,102,241,.25); }
     textarea { tab-size: 2; }
@@ -199,27 +201,23 @@
       }
 
       function getAccessAuthHeaders() {
-        const token = (localStorage.getItem('kx.api.accessToken') || '').trim();
-        const email = (localStorage.getItem('kx.api.tokenEmail') || '').trim().toLowerCase();
-        const corr = window.SkyeCorrelation && window.SkyeCorrelation.next ? window.SkyeCorrelation.next('react2html') : '';
-        const headers = {};
-        if (token) headers.Authorization = `Bearer ${token}`;
-        if (email) headers['X-Token-Email'] = email;
-        if (corr) headers['X-Correlation-Id'] = corr;
-        return headers;
+        if (window.SkyeStandaloneSession?.authHeaders) return window.SkyeStandaloneSession.authHeaders('react2html');
+        return {};
       }
 
       function hydrateAuthInputs() {
-        keyInput.value = localStorage.getItem('kx.api.accessToken') || localStorage.getItem('kaixu_api_key') || '';
-        emailInput.value = localStorage.getItem('kx.api.tokenEmail') || '';
+        if (window.SkyeStandaloneSession?.hydrateInputs) {
+          window.SkyeStandaloneSession.hydrateInputs(keyInput, emailInput);
+          return;
+        }
+        keyInput.value = '';
+        emailInput.value = '';
       }
 
       function saveAuthInputs() {
         const token = (keyInput.value || '').trim();
         const email = (emailInput.value || '').trim().toLowerCase();
-        localStorage.setItem('kx.api.accessToken', token);
-        localStorage.setItem('kaixu_api_key', token);
-        localStorage.setItem('kx.api.tokenEmail', email);
+        if (window.SkyeStandaloneSession?.saveManualToken) window.SkyeStandaloneSession.saveManualToken(token, email);
       }
 
       async function refreshAuthBadge() {
@@ -338,6 +336,9 @@
         const prompt = `You are an expert web developer compiler. Convert the provided React code into a single, functional Vanilla HTML/JS file.\n\nCRITICAL RULES:\n1. OUTPUT ONLY RAW HTML. Do NOT include markdown backticks.\n2. Include <!DOCTYPE html>, <html>, <head>, and <body> tags.\n3. Include Tailwind CSS via CDN.\n4. Translate React state/event handlers into Vanilla JavaScript.\n5. Place ALL JavaScript in one <script> tag at the end of <body>.\n6. Wrap JavaScript in document.addEventListener('DOMContentLoaded', () => { ... });\n\nReact code:\n${inputCode}`;
 
         try {
+          if (window.SkyeStandaloneSession?.ensureSignedIn) {
+            await window.SkyeStandaloneSession.ensureSignedIn({ appId: 'react2html', labelPrefix: 'react2html' });
+          }
           const authHeaders = getAccessAuthHeaders();
           const res = await gatewayFetch('/api/kaixu-generate', {
             method: 'POST',
@@ -419,9 +420,7 @@
       });
       saveAuthBtn.addEventListener('click', async () => { saveAuthInputs(); await refreshAuthBadge(); });
       clearAuthBtn.addEventListener('click', async () => {
-        localStorage.removeItem('kx.api.accessToken');
-        localStorage.removeItem('kaixu_api_key');
-        localStorage.removeItem('kx.api.tokenEmail');
+        if (window.SkyeStandaloneSession?.clearToken) window.SkyeStandaloneSession.clearToken();
         hydrateAuthInputs();
         await refreshAuthBadge();
       });

@@ -9,6 +9,10 @@
     
     <!-- Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="/_shared/correlation.js"></script>
+    <script src="/_shared/auth-unlock.js"></script>
+    <script src="/_shared/standalone-session.js"></script>
+    <script src="/_shared/kaixu-provider-bridge.js"></script>
 
     <!-- Firebase -->
     <script type="module">
@@ -264,16 +268,8 @@
 
         const { initializeApp, getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged, getFirestore, doc, setDoc, onSnapshot } = window.fb;
         const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
-        let auth = null, db = null;
-        try {
-            if (firebaseConfig && typeof firebaseConfig === 'object' && Object.keys(firebaseConfig).length > 0) {
-                const app = initializeApp(firebaseConfig);
-                auth = getAuth(app);
-                db = getFirestore(app);
-            }
-        } catch (err) {
-            console.warn('kAIxu Persona Firebase bootstrap disabled', err);
-        }
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app), db = getFirestore(app);
 
         // --- Neon Three.js Soul Spheres ---
         function initThreeJS() {
@@ -332,7 +328,11 @@
         async function init() {
             initThreeJS();
             document.getElementById('proj-title-input').addEventListener('input', e => { state.title = e.target.value; debouncedSave(); });
-            document.getElementById('openai-key').addEventListener('input', e => { state.openaiKey = e.target.value; debouncedSave(); });
+            document.getElementById('openai-key').addEventListener('input', e => {
+                state.openaiKey = e.target.value;
+                if (window.SkyeStandaloneSession?.saveManualToken) window.SkyeStandaloneSession.saveManualToken(e.target.value, '');
+                debouncedSave();
+            });
             document.getElementById('persona-name').addEventListener('input', e => { 
                 const p = state.profiles.find(x => x.id === state.activeProfileId);
                 if(p) { p.name = e.target.value; renderSidebar(); debouncedSave(); }
@@ -355,16 +355,13 @@
             });
             document.getElementById('import-input').addEventListener('change', handleImport);
 
-            if (auth) {
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token);
-                else await signInAnonymously(auth);
-                onAuthStateChanged(auth, u => { user = u; if(user) syncCloud(); });
-            }
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token);
+            else await signInAnonymously(auth);
+            onAuthStateChanged(auth, u => { user = u; if(user) syncCloud(); });
             renderNav();
         }
 
         async function syncCloud() {
-            if (!user || !db) return;
             onSnapshot(doc(db, 'artifacts', appId, 'users', user.uid, 'persona', 'current'), snap => {
                 if (snap.exists() && !isSaving) {
                     const data = snap.data();
@@ -378,7 +375,7 @@
         function debouncedSave() { clearTimeout(saveTimeout); saveTimeout = setTimeout(saveToCloud, 2000); }
 
         async function saveToCloud() {
-            if (!user || !db) return;
+            if (!user) return;
             isSaving = true;
             document.getElementById('sync-status').innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> <span>Syncing...</span>';
             try {
@@ -418,7 +415,7 @@
 
         function refreshUI() {
             document.getElementById('proj-title-input').value = state.title;
-            document.getElementById('openai-key').value = state.openaiKey || "";
+            document.getElementById('openai-key').value = state.openaiKey || window.SkyeStandaloneSession?.readToken?.() || "";
             const p = state.profiles.find(x => x.id === state.activeProfileId) || state.profiles[0];
             document.getElementById('persona-name').value = p.name;
             document.getElementById('persona-bio').value = p.bio;
@@ -472,46 +469,24 @@
         window.generatePDF = () => { window.focus(); window.print(); };
 
         // --- kAIxu AI Logic ---
-        const gatewayFetch = (window.SkyeGateway && window.SkyeGateway.fetchWithRetry) || fetch;
-        function wsId() {
-            return new URLSearchParams(window.location.search).get('ws_id') || 'primary-workspace';
-        }
-        function gatewayHeaders() {
-            const bearer = (state.openaiKey || document.getElementById('openai-key')?.value || localStorage.getItem('kx.api.accessToken') || '').trim();
-            const h = { 'Content-Type': 'application/json' };
-            if (bearer) h.Authorization = `Bearer ${bearer}`;
-            if (window.SkyeCorrelation && typeof window.SkyeCorrelation.nextId === 'function') {
-                h['x-correlation-id'] = window.SkyeCorrelation.nextId('kaixu-persona');
-            }
-            return h;
-        }
-        async function callGatewayText(prompt, system) {
-            const res = await gatewayFetch('/api/kaixu-generate', {
+        async function callGemini(prompt, system) {
+            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
                 method: 'POST',
-                credentials: 'include',
-                headers: gatewayHeaders(),
-                body: JSON.stringify({
-                    ws_id: wsId(),
-                    activePath: window.location.pathname,
-                    prompt: `${String(system || '').trim()}\n\n${String(prompt || '').trim()}`,
-                }),
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], systemInstruction: { parts: [{ text: system }] } })
             });
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok) throw new Error(data?.error || data?.message || `Gateway failure (${res.status})`);
-            return data?.text || data?.output || data?.message || '';
+            const data = await res.json();
+            return data.candidates?.[0]?.content?.parts?.[0]?.text;
         }
-        function renderPortraitFromPrompt(text) {
-            const esc = (s) => String(s || '').replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
-            const body = esc(String(text || '').slice(0, 540));
-            const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">'
-                + '<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#0f172a"/><stop offset="100%" stop-color="#312e81"/></linearGradient></defs>'
-                + '<rect width="1024" height="1024" fill="url(#g)"/>'
-                + '<rect x="44" y="44" width="936" height="936" rx="24" fill="none" stroke="#facc15" stroke-opacity="0.55" stroke-width="4"/>'
-                + '<text x="72" y="118" fill="#facc15" font-size="34" font-family="Arial,sans-serif" font-weight="700">kAIxu Persona Render</text>'
-                + '<foreignObject x="72" y="168" width="880" height="780"><div xmlns="http://www.w3.org/1999/xhtml" style="font-family:Arial,sans-serif;color:#e2e8f0;font-size:28px;line-height:1.35;white-space:pre-wrap;">'
-                + body
-                + '</div></foreignObject></svg>';
-            return `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`;
+
+        async function callOpenAI(prompt, system) {
+            const res = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${state.openaiKey}` },
+                body: JSON.stringify({ model: "gpt-4o", messages: [{ role: "system", content: system }, { role: "user", content: prompt }] })
+            });
+            const data = await res.json();
+            return data.choices[0].message.content;
         }
 
         window.processAI = async (type) => {
@@ -521,7 +496,7 @@
 
             try {
                 const prompt = `Create a deep psychological profile and secrets for the character: ${p.name}. Context: ${p.bio}`;
-                const result = await callGatewayText(prompt, "You are a master character designer.");
+                const result = state.openaiKey ? await callOpenAI(prompt, "You are a master character designer.") : await callGemini(prompt, "System: kAIxu Psychologist.");
                 p.bio += "\n\n" + result;
                 showToast("Mental Scan Complete!", "success");
                 refreshUI(); debouncedSave();
@@ -537,9 +512,26 @@
             if (overlay) overlay.classList.remove('hidden');
             if (txt) txt.innerText = "kAIxu Portrait Rendering...";
             try {
-                const prompt = `Character portrait headshot direction, cinematic neon movie still, high detail: ${p.name}. ${p.bio.slice(0,300)}`;
-                const renderBrief = await callGatewayText(prompt, 'You are a visual art director. Return compact portrait direction text only.');
-                p.image = renderPortraitFromPrompt(renderBrief || `${p.name} portrait`);
+                const prompt = `Character portrait headshot, cinematic neon movie still, high detailed: ${p.name}. ${p.bio.slice(0,300)}`;
+                let imageUrl = "";
+                if (state.openaiKey) {
+                    const res = await fetch('https://api.openai.com/v1/images/generations', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${state.openaiKey}` },
+                        body: JSON.stringify({ model: "dall-e-3", prompt, n: 1, response_format: "b64_json" })
+                    });
+                    const data = await res.json();
+                    imageUrl = `data:image/png;base64,${data.data[0].b64_json}`;
+                } else {
+                    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${apiKey}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ instances: { prompt }, parameters: { sampleCount: 1 } })
+                    });
+                    const result = await res.json();
+                    imageUrl = `data:image/png;base64,${result.predictions[0].bytesBase64Encoded}`;
+                }
+                p.image = imageUrl;
                 refreshUI(); debouncedSave();
                 showToast("Visual Rendered!", "success");
             } catch (err) { showToast("Render failed", "error"); }

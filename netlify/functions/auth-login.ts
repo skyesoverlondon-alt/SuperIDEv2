@@ -1,6 +1,6 @@
 import { json } from "./_shared/response";
 import { q } from "./_shared/neon";
-import { verifyPassword, createSession, setSessionCookie, ensureUserRecoveryEmailColumn } from "./_shared/auth";
+import { verifyPassword, createSession, setSessionCookie, ensureUserRecoveryEmailColumn, ensureUserPinColumns } from "./_shared/auth";
 import { audit } from "./_shared/audit";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -8,6 +8,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export const handler = async (event: any) => {
   try {
     await ensureUserRecoveryEmailColumn();
+    await ensureUserPinColumns();
 
     const { email, password } = JSON.parse(event.body || "{}");
     const normalizedEmail = String(email || "").trim().toLowerCase();
@@ -22,7 +23,7 @@ export const handler = async (event: any) => {
     }
 
     const res = await q(
-      "select id,email,recovery_email,password_hash,org_id from users where email=$1",
+      "select id,email,recovery_email,pin_hash,password_hash,org_id from users where email=$1",
       [normalizedEmail]
     );
     if (!res.rows.length) {
@@ -62,9 +63,11 @@ export const handler = async (event: any) => {
           email: user.email,
           recovery_email: user.recovery_email || "",
           org_id: user.org_id,
+          has_pin: Boolean(String(user.pin_hash || "").trim()),
         },
         onboarding: {
           key_required: true,
+          pin_configured: Boolean(String(user.pin_hash || "").trim()),
           message: "Issue a kAIxU key at login if no active key is loaded in this client.",
         },
       },

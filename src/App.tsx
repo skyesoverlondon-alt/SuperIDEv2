@@ -397,6 +397,8 @@ const AUTH_CENTER_AUTO_OPENED_SESSION_KEY = "kx.authCenter.autoOpened";
 const APP_BRIDGE_EVENT_KEY = "kx.app.bridge";
 const DRIVE_DROP_LATEST_KEY = "kx.drive.drop.latest";
 const COMMAND_FEED_KEY = "kx.command.feed";
+const AUTH_HAS_PIN_KEY = "kx.auth.hasPin";
+const AUTH_PIN_UNLOCKED_AT_KEY = "kx.auth.pinUnlockedAt";
 
 const SKYE_APPS: SkyeAppDefinition[] = [
   { id: "SkyeDocs", summary: "Collaborative document workspace.", mvp: ["Rich text", "Markdown mode", "Autosave"] },
@@ -1330,6 +1332,14 @@ export function App() {
   const [isIssuingTesterToken, setIsIssuingTesterToken] = useState(false);
   const [apiAccessToken, setApiAccessToken] = useState(() => localStorage.getItem("kx.api.accessToken") || "");
   const [apiTokenEmail, setApiTokenEmail] = useState(() => localStorage.getItem("kx.api.tokenEmail") || "");
+  const [hasSessionPin, setHasSessionPin] = useState(() => localStorage.getItem(AUTH_HAS_PIN_KEY) === "1");
+  const [pinUnlockedAt, setPinUnlockedAt] = useState(() => localStorage.getItem(AUTH_PIN_UNLOCKED_AT_KEY) || "");
+  const [authPinDraft, setAuthPinDraft] = useState("");
+  const [authPinConfirmDraft, setAuthPinConfirmDraft] = useState("");
+  const [authPinUnlockDraft, setAuthPinUnlockDraft] = useState("");
+  const [pinOpsResult, setPinOpsResult] = useState("");
+  const [isSavingAuthPin, setIsSavingAuthPin] = useState(false);
+  const [isUnlockingAuthPin, setIsUnlockingAuthPin] = useState(false);
   const [tokenLabelPrefix, setTokenLabelPrefix] = useState("ide-key");
   const [tokenTtlPreset, setTokenTtlPreset] = useState("day");
   const [tokenInventory, setTokenInventory] = useState<TokenInventoryItem[]>([]);
@@ -2028,6 +2038,8 @@ export function App() {
     function syncCrossWindowAuthState() {
       setApiAccessToken(localStorage.getItem("kx.api.accessToken") || "");
       setApiTokenEmail(localStorage.getItem("kx.api.tokenEmail") || "");
+      setHasSessionPin(localStorage.getItem(AUTH_HAS_PIN_KEY) === "1");
+      setPinUnlockedAt(localStorage.getItem(AUTH_PIN_UNLOCKED_AT_KEY) || "");
       setAuthUser(localStorage.getItem("kx.auth.user") || "founder@skye.local");
       setRecoveryEmail(localStorage.getItem("kx.auth.recoveryEmail") || "");
       setAuthOrgName(localStorage.getItem(AUTH_ORG_NAME_KEY) || "Skye Workspace");
@@ -2043,6 +2055,8 @@ export function App() {
       if (
         event.key === "kx.api.accessToken" ||
         event.key === "kx.api.tokenEmail" ||
+        event.key === AUTH_HAS_PIN_KEY ||
+        event.key === AUTH_PIN_UNLOCKED_AT_KEY ||
         event.key === "kx.auth.user" ||
         event.key === "kx.auth.recoveryEmail" ||
         event.key === "kx.auth.role" ||
@@ -2062,6 +2076,15 @@ export function App() {
     localStorage.setItem("kx.api.tokenEmail", apiTokenEmail);
     if (apiAccessToken.trim()) localStorage.setItem("kaixu_api_key", apiAccessToken.trim());
   }, [apiAccessToken, apiTokenEmail]);
+
+  useEffect(() => {
+    localStorage.setItem(AUTH_HAS_PIN_KEY, hasSessionPin ? "1" : "0");
+  }, [hasSessionPin]);
+
+  useEffect(() => {
+    if (pinUnlockedAt) localStorage.setItem(AUTH_PIN_UNLOCKED_AT_KEY, pinUnlockedAt);
+    else localStorage.removeItem(AUTH_PIN_UNLOCKED_AT_KEY);
+  }, [pinUnlockedAt]);
 
   useEffect(() => {
     if (!apiTokenEmail.trim()) {
@@ -3704,11 +3727,12 @@ export function App() {
 
       setAuthUser(String(data.email || authUser));
       setRecoveryEmail(String(data.recovery_email || ""));
+      setHasSessionPin(Boolean(data?.has_pin));
       if (data?.role && ["owner", "admin", "member", "viewer"].includes(String(data.role))) {
         setAuthRole(data.role as AuthRole);
       }
       setAssistantAuthStatus("ok");
-      return true;
+      return data;
     } catch {
       setAssistantAuthStatus("unauthorized");
       return false;
@@ -3759,6 +3783,7 @@ export function App() {
 
       setApiAccessToken(token);
       if (tokenEmail) setApiTokenEmail(tokenEmail);
+      setPinUnlockedAt(new Date().toISOString());
       return { ok: true, reused: false, token, locked_email: tokenEmail || null };
     } catch (error: any) {
       return { ok: false, error: error?.message || "Key issue failed." };
@@ -3776,6 +3801,86 @@ export function App() {
 
     const lockedEmail = String(ensured.locked_email || apiTokenEmail.trim().toLowerCase() || authUser.trim().toLowerCase() || "current user");
     setAuthResult(`kAIxU key minted and loaded for ${lockedEmail}. It is populated into the workspace auth state now.`);
+  }
+
+  async function saveSessionPin() {
+    const pin = authPinDraft.trim();
+    const confirmPin = authPinConfirmDraft.trim();
+    if (!/^[A-Za-z0-9]{4,12}$/.test(pin)) {
+      setPinOpsResult("PIN must be 4-12 letters and numbers only.");
+      return;
+    }
+    if (pin !== confirmPin) {
+      setPinOpsResult("PIN confirmation does not match.");
+      return;
+    }
+
+    setIsSavingAuthPin(true);
+    setPinOpsResult("");
+    try {
+      const res = await fetch("/api/auth-pin-set", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ pin, confirm_pin: confirmPin }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setPinOpsResult(data?.error || `PIN setup failed (${res.status}).`);
+        return;
+      }
+      setHasSessionPin(true);
+      setAuthPinDraft("");
+      setAuthPinConfirmDraft("");
+      setPinOpsResult("Session PIN saved. Future app unlocks can use this PIN instead of reminting visible keys.");
+      pushCommandFeed("Auth Center", "Session PIN saved for cross-app unlock.", "ok", "SkyeAdmin");
+    } catch (error: any) {
+      setPinOpsResult(error?.message || "PIN setup failed.");
+    } finally {
+      setIsSavingAuthPin(false);
+    }
+  }
+
+  async function unlockSessionAccess() {
+    const pin = authPinUnlockDraft.trim();
+    if (!/^[A-Za-z0-9]{4,12}$/.test(pin)) {
+      setPinOpsResult("Enter your 4-12 character session PIN to unlock access.");
+      return;
+    }
+
+    setIsUnlockingAuthPin(true);
+    setPinOpsResult("");
+    try {
+      const res = await fetch("/api/auth-pin-unlock", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ pin, label_prefix: "session-unlock", ttl_preset: "day" }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setPinOpsResult(data?.error || `Unlock failed (${res.status}).`);
+        return;
+      }
+      const token = String(data?.token || "");
+      const lockedEmail = String(data?.locked_email || authUser.trim().toLowerCase());
+      if (!token) {
+        setPinOpsResult("Unlock succeeded but no token was returned.");
+        return;
+      }
+      setApiAccessToken(token);
+      setApiTokenEmail(lockedEmail);
+      setPinUnlockedAt(new Date().toISOString());
+      setAuthPinUnlockDraft("");
+      setAssistantAuthStatus("token");
+      setPinOpsResult(`Session unlocked for ${lockedEmail}. Standalone apps on this origin can reuse it immediately.`);
+      pushCommandFeed("Auth Center", `Session unlocked for ${lockedEmail}.`, "ok", "SkyeAdmin");
+      await loadTokenInventory();
+    } catch (error: any) {
+      setPinOpsResult(error?.message || "Unlock failed.");
+    } finally {
+      setIsUnlockingAuthPin(false);
+    }
   }
 
   async function persistOnboardingShowcase(emailForAuth: string, mode: "login" | "signup") {
@@ -4014,13 +4119,15 @@ export function App() {
       if (mode === "signup" && data?.kaixu_token?.token) {
         setApiAccessToken(String(data.kaixu_token.token));
         setApiTokenEmail(String(data.kaixu_token.locked_email || normalizedAuthEmail));
+        setPinUnlockedAt(new Date().toISOString());
       }
 
       setAuthPassword("");
-      await refreshAuthSession();
+      const sessionMeta = await refreshAuthSession();
 
       const hasTokenFromAuth = Boolean(data?.kaixu_token?.token);
-      if (!hasTokenFromAuth) {
+      const pinConfigured = Boolean(data?.user?.has_pin || (typeof sessionMeta === "object" && (sessionMeta as any)?.has_pin));
+      if (!hasTokenFromAuth && !pinConfigured) {
         const ensured = await ensureOnboardingKey({ labelPrefix: mode === "signup" ? "signup-auto" : "login-auto" });
         if (!ensured.ok) {
           setAuthResult(
@@ -4028,6 +4135,8 @@ export function App() {
           );
           return;
         }
+      } else if (!hasTokenFromAuth && pinConfigured) {
+        setPinUnlockedAt("");
       }
 
       const profileSync = await persistOnboardingShowcase(normalizedAuthEmail, mode);
@@ -4041,7 +4150,9 @@ export function App() {
       setAuthResult(
         mode === "signup"
           ? `Signup complete. Session active, key minted, and onboarding is ready.${workspaceSyncNote}${recoveryNote}${profileSync ? ` ${profileSync}.` : ""}`
-          : `Login complete. Session restored and key is active.${workspaceSyncNote}${recoveryNote}${profileSync ? ` ${profileSync}.` : ""}`
+          : pinConfigured
+            ? `Login complete. Session restored. Use your PIN once to unlock kAIxU access across the bench and standalone apps.${workspaceSyncNote}${recoveryNote}${profileSync ? ` ${profileSync}.` : ""}`
+            : `Login complete. Session restored and key is active.${workspaceSyncNote}${recoveryNote}${profileSync ? ` ${profileSync}.` : ""}`
       );
     } catch (error: any) {
       setAuthResult(error?.message || `${mode} failed.`);
@@ -4056,6 +4167,9 @@ export function App() {
       await fetch("/api/auth-logout", { method: "POST", credentials: "include" });
       setAssistantAuthStatus("unauthorized");
       setAuthPassword("");
+      setApiAccessToken("");
+      setApiTokenEmail("");
+      setPinUnlockedAt("");
       setAuthResult("Signed out of browser session.");
     } catch (error: any) {
       setAuthResult(error?.message || "Logout failed.");
@@ -4116,10 +4230,10 @@ export function App() {
 
           <section className="auth-session-feedback auth-key-card">
             <strong>Loaded kAIxU Key</strong>
-            <div>This key should populate automatically after signup or Mint Key. It is the same value used by the workspace auth path.</div>
+            <div>This access lane is shared across the main bench and standalone apps. If a session PIN exists, unlock once and the origin reuses the access path until logout.</div>
             <div className="tool-row" style={{ marginTop: 8 }}>
               <label>kAIxU Access Key</label>
-              <input value={apiAccessToken} readOnly placeholder="Key will appear here after mint" />
+              <input value={apiAccessToken.trim() ? `${apiAccessToken.slice(0, 12)}...${apiAccessToken.slice(-6)}` : ""} readOnly placeholder="Key will appear here after mint or unlock" />
             </div>
             <div className="tool-row split" style={{ marginTop: 8 }}>
               <div>
@@ -4131,11 +4245,50 @@ export function App() {
                 <input value={assistantAuthStatus} readOnly />
               </div>
             </div>
+            <div className="tool-row split" style={{ marginTop: 8 }}>
+              <div>
+                <label>Session PIN</label>
+                <input value={hasSessionPin ? "configured" : "not configured"} readOnly />
+              </div>
+              <div>
+                <label>Last Unlock</label>
+                <input value={pinUnlockedAt || "not unlocked yet"} readOnly />
+              </div>
+            </div>
             <div className="tool-actions left" style={{ marginTop: 8 }}>
               <button className="ghost" type="button" onClick={() => void copyLoadedKey()}>Copy Key</button>
               <button className="ghost" type="button" onClick={() => void checkAssistantAuth()}>Validate Auth Path</button>
               <button className="ghost" type="button" onClick={() => { setApiAccessToken(""); setApiTokenEmail(""); setAssistantAuthStatus("unknown"); }}>Clear Key</button>
             </div>
+            <div className="tool-row split" style={{ marginTop: 12 }}>
+              <div>
+                <label>Set Session PIN</label>
+                <input type="password" value={authPinDraft} onChange={(event) => setAuthPinDraft(event.target.value)} placeholder="4-12 letters or numbers" />
+              </div>
+              <div>
+                <label>Confirm PIN</label>
+                <input type="password" value={authPinConfirmDraft} onChange={(event) => setAuthPinConfirmDraft(event.target.value)} placeholder="Confirm PIN" />
+              </div>
+            </div>
+            <div className="tool-row split" style={{ marginTop: 8 }}>
+              <div>
+                <label>Unlock With PIN</label>
+                <input type="password" value={authPinUnlockDraft} onChange={(event) => setAuthPinUnlockDraft(event.target.value)} placeholder="Enter PIN once per session" />
+              </div>
+              <div>
+                <label>Cross-App Propagation</label>
+                <input value="same-origin localStorage + session cookie" readOnly />
+              </div>
+            </div>
+            <div className="tool-actions left" style={{ marginTop: 8 }}>
+              <button className="ghost" type="button" onClick={() => void saveSessionPin()} disabled={isSavingAuthPin || isAuthSubmitting}>
+                {isSavingAuthPin ? "Saving PIN..." : "Save Session PIN"}
+              </button>
+              <button className="ghost" type="button" onClick={() => void unlockSessionAccess()} disabled={isUnlockingAuthPin || isAuthSubmitting}>
+                {isUnlockingAuthPin ? "Unlocking..." : "Unlock Session Access"}
+              </button>
+            </div>
+            {pinOpsResult && <p className="muted-copy" style={{ marginTop: 8 }}>{pinOpsResult}</p>}
           </section>
 
           <section className="auth-session-bar auth-session-bar-standalone">
@@ -5541,16 +5694,22 @@ export function App() {
     const steps = APP_TUTORIALS[appId] || [];
     const completed = steps.filter((step) => tutorialChecks[makeTutorialKey(appId, step)]).length;
     return (
-      <section className="app-module">
-        <header>
-          <h2>{appId} Guided Checklist</h2>
-          <p>{completed}/{steps.length} checklist steps complete</p>
-        </header>
-        <div className="list-stack">
+      <div className="tutorial-overlay" onClick={() => setShowTutorialPanel(false)}>
+        <section className="tutorial-dialog" onClick={(event) => event.stopPropagation()}>
+          <header>
+            <h2>{appId} Guided Checklist</h2>
+            <p>{completed}/{steps.length} checklist steps complete</p>
+          </header>
+          <div className="tool-actions left">
+            <button className="ghost" type="button" onClick={() => setShowTutorialPanel(false)}>Close Tutorial</button>
+            <button className="ghost" type="button" onClick={exportAppHealthSnapshot}>Export Health Snapshot</button>
+            <button className="ghost" type="button" onClick={resetSelectedAppDemoState}>Reset App Demo State</button>
+          </div>
+          <div className="list-stack">
           {steps.map((step) => {
             const checked = Boolean(tutorialChecks[makeTutorialKey(appId, step)]);
             return (
-              <label key={`${appId}-${step}`} className="list-item" style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <label key={`${appId}-${step}`} className="list-item tutorial-step">
                 <input
                   type="checkbox"
                   checked={checked}
@@ -5560,8 +5719,9 @@ export function App() {
               </label>
             );
           })}
-        </div>
-      </section>
+          </div>
+        </section>
+      </div>
     );
   }
 
@@ -7331,10 +7491,10 @@ export function App() {
               </>
             ) : (
               <>
-                <section className="app-module" style={{ marginBottom: 10 }}>
+                <section className="app-quickstart-bar">
                   <header>
                     <h2>{selectedSkyeApp} Quick Start</h2>
-                    <p>Launch the guided checklist directly from the active module surface.</p>
+                    <p>Interactive tutorial is available on demand without taking over the workspace.</p>
                   </header>
                   {!dismissedSpotlightByApp[selectedSkyeApp] && (
                     <div className="smoke-warning">
@@ -7350,9 +7510,6 @@ export function App() {
                   <div className="tool-actions left">
                     <button className="ghost" type="button" onClick={() => setShowTutorialPanel(true)}>
                       Start Tutorial
-                    </button>
-                    <button className="ghost" type="button" onClick={() => setShowTutorialPanel((old) => !old)}>
-                      {showTutorialPanel ? "Hide Tutorial" : "Toggle Tutorial"}
                     </button>
                     <button className="ghost" type="button" onClick={exportAppHealthSnapshot}>
                       Export Health Snapshot

@@ -3125,6 +3125,9 @@
     </script>
     <script>
         (() => {
+            const unlockHelperScript = document.createElement('script');
+            unlockHelperScript.src = '/_shared/auth-unlock.js';
+            document.head.appendChild(unlockHelperScript);
             const wsId = new URLSearchParams(window.location.search).get('ws_id') || 'primary-workspace';
             const appId = 'SkyeBlog';
 
@@ -3154,6 +3157,9 @@
             }
 
             function authHeaders() {
+                if (window.SkyeAuthUnlock && window.SkyeAuthUnlock.authHeaders) {
+                    return window.SkyeAuthUnlock.authHeaders();
+                }
                 const headers = { 'Content-Type': 'application/json' };
                 const token = (localStorage.getItem('kx.api.accessToken') || '').trim();
                 const email = (localStorage.getItem('kx.api.tokenEmail') || '').trim().toLowerCase();
@@ -3176,6 +3182,12 @@
             }
 
             async function ensureSignedIn() {
+                if (window.SkyeAuthUnlock && window.SkyeAuthUnlock.ensureUnlockedAccess) {
+                    await window.SkyeAuthUnlock.ensureUnlockedAccess({
+                        labelPrefix: 'blog-session',
+                        pinPrompt: 'Enter your session PIN to unlock SkyeBlog publishing access',
+                    });
+                }
                 const res = await fetch('/api/auth-me', { credentials: 'include' });
                 const me = await res.json().catch(() => ({}));
                 if (!res.ok || !me?.email) {
@@ -3249,6 +3261,20 @@
                     subject: String(subject).trim(),
                     text: `${excerpt}\n\nSent from ${appId}. Export options remain available: .skye / HTML ZIP / PDF.`,
                 });
+                await api('/api/app-record-save', {
+                    ws_id: wsId,
+                    app: appId,
+                    title,
+                    model: {
+                        title,
+                        html: getDocSnapshot().html,
+                        text: getDocSnapshot().text,
+                        mailed_at: new Date().toISOString(),
+                        mail_record_id: result?.mail_record_id || null,
+                        recipient: String(to).trim().toLowerCase(),
+                        source_app: appId,
+                    },
+                });
                 publishBridgeEvent({
                     appId: 'SkyeMail',
                     note: `Delivered ${title} via SkyeMail to ${String(to).trim().toLowerCase()}${result?.mail_record_id ? ` (mail_record_id=${result.mail_record_id})` : ''}.`,
@@ -3282,13 +3308,17 @@
                 const data = await api('/api/kaixu-generate', {
                     ws_id: wsId,
                     activePath: `${appId}/editor`,
-                    files: [],
+                    files: [{ path: `${appId}/draft.html`, content: getDocSnapshot().html || getDocSnapshot().text || '' }],
                     prompt: `Create a polished long-form article for ${appId}. Output HTML only with headings, sections, bullets, and a concise CTA. Prompt: ${String(prompt).trim()}`,
                 });
                 const html = String(data?.text || '').trim();
                 if (!html) throw new Error('AI did not return content.');
                 const cleanHtml = (window.DOMPurify ? window.DOMPurify.sanitize(html) : html);
                 window.App.quill.clipboard.dangerouslyPasteHTML(cleanHtml);
+                publishBridgeEvent({
+                    appId: 'SkyeChat',
+                    note: `AI draft generated inside ${appId} and inserted into the editor.`,
+                });
                 window.App.showToast('AI draft inserted into editor.');
                 window.App.debouncedSave();
             }

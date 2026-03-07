@@ -4,6 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SkyeNotes Platform</title>
+  <script src="/_shared/auth-unlock.js"></script>
+  <script src="/_shared/standalone-session.js"></script>
   <style>
     @import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Space+Grotesk:wght@400;500;600&display=swap");
     :root { --bg:#060d13; --bg2:#0d1d27; --line:rgba(44,230,255,.34); --line2:rgba(191,238,255,.2); --text:#f6fbff; --muted:#9ab6c4; --gold:#ffcb47; }
@@ -85,6 +87,9 @@ const taskInfo = document.getElementById('taskInfo');
 function setStatus(t){ status.textContent = t; }
 
 async function call(path, opt = {}) {
+  if (window.SkyeStandaloneSession?.request) {
+    return window.SkyeStandaloneSession.request(path, opt, { appId:'skyenotes', prompt:false });
+  }
   const res = await fetch(path, { credentials:'include', ...opt });
   const txt = await res.text();
   let data = {};
@@ -97,16 +102,10 @@ async function auth() {
   const email = document.getElementById('email').value.trim();
   const password = document.getElementById('password').value;
   const org = document.getElementById('org').value.trim() || 'SkyeNotes Org';
-  if (!email || !password) throw new Error('email/password required');
-  try {
-    await call('/api/auth-login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ email, password }) });
-  } catch {
-    const signup = await call('/api/auth-signup', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ email, password, orgName: org }) });
-    if (signup?.kaixu_token?.token) {
-      localStorage.setItem('kx.api.accessToken', signup.kaixu_token.token);
-      localStorage.setItem('kx.api.tokenEmail', signup.kaixu_token.locked_email || email.toLowerCase());
-    }
+  if (window.SkyeStandaloneSession?.ensureSignedIn) {
+    return window.SkyeStandaloneSession.ensureSignedIn({ appId:'skyenotes', email, password, orgName:org, labelPrefix:'skyenotes' });
   }
+  if (!email || !password) throw new Error('email/password required');
 }
 
 async function load() {

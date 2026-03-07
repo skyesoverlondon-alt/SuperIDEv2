@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SkyeMail Workspace</title>
     <script src="/_shared/correlation.js"></script>
+    <script src="/_shared/auth-unlock.js"></script>
+    <script src="/_shared/standalone-session.js"></script>
   <style>
     @import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Space+Grotesk:wght@400;500;600&display=swap");
     :root {
@@ -40,6 +42,10 @@
     .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     .status { font-size: 12px; color: var(--gold); margin-top: 8px; white-space: pre-wrap; }
     .diag { font-size: 11px; color: var(--muted); border: 1px solid rgba(191,238,255,0.2); border-radius: 8px; padding: 8px; margin-top: 8px; }
+    .diag-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+    .diag-stat { border: 1px solid rgba(191,238,255,0.18); border-radius: 10px; padding: 9px 10px; background: rgba(255,255,255,0.03); }
+    .diag-stat strong { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: var(--gold); margin-bottom: 4px; }
+    .diag-stat span { font-size: 12px; color: var(--text); word-break: break-word; }
     .warn { color: #ffb6b6; }
     .ok { color: #bff0c8; }
   </style>
@@ -85,6 +91,22 @@
         <input id="displayName" placeholder="Your Name" />
         <div class="actions">
           <button id="saveProfileBtn" type="button">Save Mailbox Profile</button>
+        </div>
+
+        <h2 style="margin-top:14px;">Mail Diagnostics</h2>
+        <div class="actions">
+          <button id="refreshMailDiagnosticsBtn" type="button">Refresh Diagnostics</button>
+        </div>
+        <div class="diag" id="mailDiagnosticsSummary">Mail diagnostics: waiting for signed-in status.</div>
+        <div class="diag-grid" id="mailDiagnosticsGrid">
+          <div class="diag-stat"><strong>Provider</strong><span id="mailDiagProvider">unknown</span></div>
+          <div class="diag-stat"><strong>Sender</strong><span id="mailDiagSender">unknown</span></div>
+          <div class="diag-stat"><strong>Mailbox</strong><span id="mailDiagMailbox">not configured</span></div>
+          <div class="diag-stat"><strong>Inbound</strong><span id="mailDiagInbound">unknown</span></div>
+          <div class="diag-stat"><strong>Sync Status</strong><span id="mailDiagSyncStatus">unknown</span></div>
+          <div class="diag-stat"><strong>Last Sync</strong><span id="mailDiagLastSync">never</span></div>
+          <div class="diag-stat"><strong>Cursor</strong><span id="mailDiagCursor">n/a</span></div>
+          <div class="diag-stat"><strong>Sync Error</strong><span id="mailDiagSyncError">none</span></div>
         </div>
 
         <h2 style="margin-top:14px;">.skye Package</h2>
@@ -188,6 +210,7 @@
     const deliveryPanel = document.getElementById('deliveryPanel');
     const preflightPanel = document.getElementById('preflightPanel');
     const templateTagPanel = document.getElementById('templateTagPanel');
+    const mailDiagnosticsSummary = document.getElementById('mailDiagnosticsSummary');
     const query = new URLSearchParams(window.location.search);
 
     if (query.get('embed') === '1') {
@@ -229,7 +252,10 @@
       return `${prefix}:${Math.abs(hash)}`;
     }
 
+    const standaloneSession = window.SkyeStandaloneSession || null;
+
     function getAccessAuthHeaders() {
+      if (standaloneSession?.authHeaders) return standaloneSession.authHeaders('skyemail');
       const token = (localStorage.getItem('kx.api.accessToken') || '').trim();
       const email = (localStorage.getItem('kx.api.tokenEmail') || '').trim().toLowerCase();
       const corr = window.SkyeCorrelation && window.SkyeCorrelation.next ? window.SkyeCorrelation.next('skyemail') : '';
@@ -241,6 +267,10 @@
     }
 
     function hydrateAuthInputs() {
+      if (standaloneSession?.hydrateInputs) {
+        standaloneSession.hydrateInputs('apiKey', 'tokenEmail');
+        return;
+      }
       document.getElementById('apiKey').value = localStorage.getItem('kx.api.accessToken') || '';
       document.getElementById('tokenEmail').value = localStorage.getItem('kx.api.tokenEmail') || '';
     }
@@ -248,19 +278,60 @@
     function saveAuthInputs() {
       const token = document.getElementById('apiKey').value.trim();
       const email = document.getElementById('tokenEmail').value.trim().toLowerCase();
-      localStorage.setItem('kx.api.accessToken', token);
-      localStorage.setItem('kx.api.tokenEmail', email);
+      if (standaloneSession?.saveManualToken) standaloneSession.saveManualToken(token, email);
+      else {
+        localStorage.setItem('kx.api.accessToken', token);
+        localStorage.setItem('kx.api.tokenEmail', email);
+      }
       setStatus('Saved kAIxU key context for SkyeMail.');
     }
 
     function clearAuthInputs() {
-      localStorage.removeItem('kx.api.accessToken');
-      localStorage.removeItem('kx.api.tokenEmail');
+      if (standaloneSession?.clearToken) standaloneSession.clearToken();
+      else if (window.SkyeAuthUnlock && window.SkyeAuthUnlock.clearUnlockedToken) {
+        window.SkyeAuthUnlock.clearUnlockedToken();
+      } else {
+        localStorage.removeItem('kx.api.accessToken');
+        localStorage.removeItem('kx.api.tokenEmail');
+      }
       hydrateAuthInputs();
       setStatus('Cleared kAIxU key context.');
     }
 
+    async function ensureWorkspaceAccess(labelPrefix = 'mail-session') {
+      if (standaloneSession?.ensureSignedIn) {
+        const unlocked = await standaloneSession.ensureSignedIn({
+          appId: 'skyemail',
+          labelPrefix,
+          prompt: true,
+        });
+        hydrateAuthInputs();
+        return unlocked;
+      }
+      if (window.SkyeAuthUnlock && window.SkyeAuthUnlock.ensureUnlockedAccess) {
+        const unlocked = await window.SkyeAuthUnlock.ensureUnlockedAccess({
+          labelPrefix,
+          pinPrompt: 'Enter your session PIN to unlock SkyeMail access',
+        });
+        hydrateAuthInputs();
+        return unlocked;
+      }
+      return null;
+    }
+
     async function call(path, options = {}) {
+      const bypassUnlock = /^\/api\/auth-(login|signup|logout)$/.test(path);
+      if (standaloneSession?.request) {
+        return standaloneSession.request(path, {
+          credentials: 'include',
+          ...options,
+        }, {
+          appId: 'skyemail',
+          labelPrefix: 'mail-session',
+          skipUnlock: bypassUnlock,
+          prompt: !bypassUnlock,
+        });
+      }
       const authHeaders = getAccessAuthHeaders();
       const mergedHeaders = { ...(options.headers || {}), ...authHeaders };
       const res = await fetch(path, { credentials: 'include', ...options, headers: mergedHeaders });
@@ -435,10 +506,15 @@
     }
 
     async function refreshMe() {
+      try {
+        await ensureWorkspaceAccess('mail-refresh');
+      } catch {
+        // Session may still exist without an unlocked token; continue and report auth state below.
+      }
       const me = await call('/api/auth-me');
       state.me = me;
       if (me?.email) {
-        setStatus(`Signed in as ${me.email}`);
+        setStatus(me?.has_pin ? `Signed in as ${me.email}. Session PIN is configured for shared unlock.` : `Signed in as ${me.email}`);
         document.getElementById('email').value = me.email;
       } else {
         setStatus('Not signed in. Create account or login to use SkyeMail workspace.');
@@ -478,6 +554,38 @@
         if (search && !search.value.trim()) search.value = profile.mailbox_email;
       }
       if (profile?.display_name) document.getElementById('displayName').value = profile.display_name;
+    }
+
+    function setMailDiagnosticValue(id, value) {
+      const node = document.getElementById(id);
+      if (node) node.textContent = value || 'unknown';
+    }
+
+    async function loadMailDiagnostics() {
+      const data = await call('/api/mail-status', { method: 'GET' });
+      const account = data?.account || null;
+      const syncState = data?.sync_state || null;
+      const provider = data?.active_provider || account?.provider || 'not configured';
+      const sender = data?.from || data?.sender_source || 'not configured';
+      const mailbox = account?.mailbox_email || 'not configured';
+      const inboundBits = [
+        `ingest_secret=${data?.ingest_secret_configured ? 'present' : 'missing'}`,
+        `account_inbound=${account ? (account.inbound_enabled ? 'enabled' : 'disabled') : 'n/a'}`,
+        `account_outbound=${account ? (account.outbound_enabled ? 'enabled' : 'disabled') : 'n/a'}`,
+      ];
+
+      setMailDiagnosticValue('mailDiagProvider', provider);
+      setMailDiagnosticValue('mailDiagSender', sender);
+      setMailDiagnosticValue('mailDiagMailbox', mailbox);
+      setMailDiagnosticValue('mailDiagInbound', inboundBits.join(' | '));
+      setMailDiagnosticValue('mailDiagSyncStatus', syncState?.status || 'no sync row');
+      setMailDiagnosticValue('mailDiagLastSync', syncState?.last_synced_at || 'never');
+      setMailDiagnosticValue('mailDiagCursor', syncState?.last_cursor || 'n/a');
+      setMailDiagnosticValue('mailDiagSyncError', syncState?.error || 'none');
+
+      mailDiagnosticsSummary.textContent = data?.configured
+        ? `Mail diagnostics: ${provider} is configured, sender is ${sender}, mailbox is ${mailbox}.`
+        : `Mail diagnostics: provider not configured${data?.error ? ` (${data.error})` : ''}.`;
     }
 
     function initTemplates() {
@@ -710,12 +818,16 @@
         body: JSON.stringify({ email, password, orgName }),
       });
       if (signup?.kaixu_token?.token) {
-        localStorage.setItem('kx.api.accessToken', signup.kaixu_token.token);
-        localStorage.setItem('kx.api.tokenEmail', signup.kaixu_token.locked_email || email.toLowerCase());
+        if (standaloneSession?.saveManualToken) standaloneSession.saveManualToken(signup.kaixu_token.token, signup.kaixu_token.locked_email || email.toLowerCase());
+        else {
+          localStorage.setItem('kx.api.accessToken', signup.kaixu_token.token);
+          localStorage.setItem('kx.api.tokenEmail', signup.kaixu_token.locked_email || email.toLowerCase());
+        }
         hydrateAuthInputs();
       }
       await refreshMe();
       await loadProfile();
+      await loadMailDiagnostics();
       await loadInbox();
     }
 
@@ -727,21 +839,10 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
-      if (!(localStorage.getItem('kx.api.accessToken') || '').trim()) {
-        const tokenData = await call('/api/token-issue', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ count: 1, ttl_preset: 'quarter', label_prefix: 'mail-login-auto', locked_email: email.toLowerCase() }),
-        });
-        const issued = tokenData?.issued?.[0];
-        if (issued?.token) {
-          localStorage.setItem('kx.api.accessToken', issued.token);
-          localStorage.setItem('kx.api.tokenEmail', issued.locked_email || email.toLowerCase());
-          hydrateAuthInputs();
-        }
-      }
+      await ensureWorkspaceAccess('mail-login-auto');
       await refreshMe();
       await loadProfile();
+      await loadMailDiagnostics();
       await loadInbox();
     }
 
@@ -768,7 +869,8 @@
 
     document.getElementById('signupBtn').onclick = () => signup().catch((e) => setStatus(e.message));
     document.getElementById('loginBtn').onclick = () => login().catch((e) => setStatus(e.message));
-    document.getElementById('meBtn').onclick = () => refreshMe().then(loadProfile).catch((e) => setStatus(e.message));
+    document.getElementById('meBtn').onclick = () => refreshMe().then(loadProfile).then(loadMailDiagnostics).catch((e) => setStatus(e.message));
+    document.getElementById('refreshMailDiagnosticsBtn').onclick = () => loadMailDiagnostics().catch((e) => setStatus(e.message));
     document.getElementById('saveKeyBtn').onclick = () => saveAuthInputs();
     document.getElementById('clearKeyBtn').onclick = () => clearAuthInputs();
     document.getElementById('sendBtn').onclick = () => sendMail().catch((e) => setStatus(e.message));
@@ -810,7 +912,7 @@
             setStatus(err?.message || String(err));
           }
         });
-    document.getElementById('saveProfileBtn').onclick = () => saveProfile().catch((e) => setStatus(e.message));
+    document.getElementById('saveProfileBtn').onclick = () => saveProfile().then(loadMailDiagnostics).catch((e) => setStatus(e.message));
     document.getElementById('logoutBtn').onclick = () => logout().catch((e) => setStatus(e.message));
     document.getElementById('exportSkyeBtn').onclick = () => exportSkyeFile().catch((e) => setStatus(e.message));
     document.getElementById('importSkyeBtn').onclick = () => document.getElementById('importSkyeInput').click();
@@ -824,7 +926,7 @@
     initTemplates();
     renderDeliveryPanel();
     runSendPreflight();
-    refreshMe().then(loadProfile).then(() => loadInbox(false)).catch((e) => setStatus(e.message));
+    refreshMe().then(loadProfile).then(loadMailDiagnostics).then(() => loadInbox(false)).catch((e) => setStatus(e.message));
   </script>
 <button id="skye-tutorial-fab" type="button" style="position:fixed;right:16px;bottom:16px;z-index:10000;padding:10px 14px;border-radius:999px;border:1px solid rgba(191,238,255,.42);background:rgba(44,230,255,.2);color:#eff9ff;font-weight:700;cursor:pointer;">Start Tutorial</button>
 <div id="skye-tutorial-modal" style="display:none;position:fixed;inset:0;z-index:10001;background:rgba(2,6,23,.72);"></div>

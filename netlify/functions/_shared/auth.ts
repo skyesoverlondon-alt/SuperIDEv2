@@ -101,6 +101,11 @@ export async function ensureUserRecoveryEmailColumn() {
   await q("create index if not exists idx_users_recovery_email on users(lower(recovery_email))", []);
 }
 
+export async function ensureUserPinColumns() {
+  await q("alter table if exists users add column if not exists pin_hash text", []);
+  await q("alter table if exists users add column if not exists pin_updated_at timestamptz", []);
+}
+
 export function setSessionCookie(token: string, expires: Date): string {
   return `${COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax; Secure; Expires=${expires.toUTCString()}`;
 }
