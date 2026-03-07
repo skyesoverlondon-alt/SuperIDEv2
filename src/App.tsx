@@ -949,6 +949,9 @@ export function App() {
   const [isAuthSubmitting, setIsAuthSubmitting] = useState(false);
   const [authResult, setAuthResult] = useState("");
   const [isEnsuringOnboardingKey, setIsEnsuringOnboardingKey] = useState(false);
+  const [resetToken, setResetToken] = useState("");
+  const [resetNewPassword, setResetNewPassword] = useState("");
+  const [isResetSubmitting, setIsResetSubmitting] = useState(false);
   const [onboardingEmailDraft, setOnboardingEmailDraft] = useState<OnboardingEmailDraft | null>(null);
   const [onboardingIdentityDraft, setOnboardingIdentityDraft] = useState<OnboardingIdentityDraft | null>(null);
 
@@ -1504,6 +1507,15 @@ export function App() {
     if (inviteAcceptEmail.trim()) return;
     setInviteAcceptEmail(authUser.trim().toLowerCase());
   }, [inviteToken, inviteAcceptEmail, authUser]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const resetEmail = String(params.get("reset_email") || "").trim().toLowerCase();
+    const token = String(params.get("reset_token") || "").trim();
+    if (resetEmail && !authUser.trim()) setAuthUser(resetEmail);
+    if (resetEmail) setAuthUser(resetEmail);
+    if (token) setResetToken(token);
+  }, []);
 
   useEffect(() => {
     localStorage.setItem("kx.skye.sheets.model", JSON.stringify(sheetsModel));
@@ -2883,6 +2895,66 @@ export function App() {
       setAuthOrgName(`${onboardingIdentityDraft.name} Workspace`);
     }
     setAuthResult(`Linked generated identity (${onboardingIdentityDraft.name}) to onboarding context.`);
+  }
+
+  async function requestPasswordReset() {
+    const email = authUser.trim().toLowerCase();
+    if (!email) {
+      setAuthResult("Enter your account email first, then request a reset link.");
+      return;
+    }
+    setIsResetSubmitting(true);
+    try {
+      const res = await fetch("/api/auth-password-reset-request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setAuthResult(data?.error || `Password reset request failed (${res.status}).`);
+        return;
+      }
+      setAuthResult(data?.message || "If that account exists, a reset link has been sent.");
+    } catch (error: any) {
+      setAuthResult(error?.message || "Password reset request failed.");
+    } finally {
+      setIsResetSubmitting(false);
+    }
+  }
+
+  async function confirmPasswordReset() {
+    const email = authUser.trim().toLowerCase();
+    const token = resetToken.trim();
+    const newPassword = resetNewPassword;
+    if (!email || !token || !newPassword) {
+      setAuthResult("Email, reset token, and new password are required.");
+      return;
+    }
+    if (newPassword.length < 8) {
+      setAuthResult("New password must be at least 8 characters.");
+      return;
+    }
+    setIsResetSubmitting(true);
+    try {
+      const res = await fetch("/api/auth-password-reset-confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, token, newPassword }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setAuthResult(data?.error || `Password reset failed (${res.status}).`);
+        return;
+      }
+      setResetNewPassword("");
+      setAuthPassword("");
+      setAuthResult(data?.message || "Password reset complete. Sign in with your new password.");
+    } catch (error: any) {
+      setAuthResult(error?.message || "Password reset failed.");
+    } finally {
+      setIsResetSubmitting(false);
+    }
   }
 
   async function submitAuthFlow(mode: "login" | "signup") {
@@ -4956,6 +5028,40 @@ export function App() {
         </button>
         <span className="telemetry-chip">Revision: {workspaceRevision || "n/a"}</span>
         <span className="telemetry-chip">Lazy: {workspaceUnloadedPaths.length} pending</span>
+      </section>
+
+      <section className="auth-session-feedback">
+        <strong>Password Recovery</strong>
+        <div>Use this if you are locked out. Reset links and tokens are single-use and expire quickly.</div>
+        <div className="tool-actions left" style={{ marginTop: 8 }}>
+          <button className="ghost" type="button" onClick={() => void requestPasswordReset()} disabled={isResetSubmitting}>
+            {isResetSubmitting ? "Requesting..." : "Send Reset Link"}
+          </button>
+        </div>
+        <div className="tool-row split" style={{ marginTop: 8 }}>
+          <div>
+            <label>Reset Token</label>
+            <input
+              value={resetToken}
+              onChange={(event) => setResetToken(event.target.value)}
+              placeholder="Paste token from email"
+            />
+          </div>
+          <div>
+            <label>New Password</label>
+            <input
+              type="password"
+              value={resetNewPassword}
+              onChange={(event) => setResetNewPassword(event.target.value)}
+              placeholder="At least 8 characters"
+            />
+          </div>
+        </div>
+        <div className="tool-actions left" style={{ marginTop: 8 }}>
+          <button className="ghost" type="button" onClick={() => void confirmPasswordReset()} disabled={isResetSubmitting}>
+            {isResetSubmitting ? "Resetting..." : "Reset Password"}
+          </button>
+        </div>
       </section>
 
       <section className="auth-session-feedback">
