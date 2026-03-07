@@ -33,14 +33,33 @@
     th, td { border-bottom: 1px solid #27415c; padding: 8px; text-align: left; vertical-align: top; }
     .ok { color: var(--ok); }
     .bad { color: var(--bad); }
+    .warn { color: var(--warn); }
     .muted { color: var(--muted); }
-    @media (max-width: 900px) { .row { grid-template-columns: 1fr; } .btns { grid-template-columns: repeat(2, 1fr); } }
+    .truthbar { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin:14px 0 16px; }
+    .truth { background:rgba(255,255,255,.03); border:1px solid #27415c; border-radius:12px; padding:10px 12px; }
+    .truth strong { display:block; font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin-bottom:4px; }
+    .truth span { font-weight:700; font-size:13px; }
+    .status-panel { margin-top:10px; padding:10px 12px; border-radius:12px; border:1px solid #27415c; background:rgba(255,255,255,.03); min-height:64px; line-height:1.5; }
+    .status-panel[data-tone="ok"] { border-color:rgba(34,197,94,.45); }
+    .status-panel[data-tone="fail"] { border-color:rgba(239,68,68,.45); }
+    .status-panel[data-tone="warn"] { border-color:rgba(245,158,11,.45); }
+    .auth-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-top:14px; }
+    .auth-actions { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:10px; }
+    .proof-links { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+    .proof-links a { display:inline-flex; align-items:center; justify-content:center; text-decoration:none; border-radius:10px; border:1px solid #2c4b69; background:#0d2032; color:var(--ink); padding:10px 12px; font-weight:700; }
+    @media (max-width: 900px) { .row, .truthbar, .auth-grid, .auth-actions { grid-template-columns: 1fr; } .btns { grid-template-columns: repeat(2, 1fr); } }
   </style>
 </head>
 <body>
   <div class="shell">
     <h1>API Playground</h1>
     <p class="muted">Gateway-only request testing with persistent hash-chained ledger history.</p>
+    <div class="truthbar">
+      <div class="truth"><strong>Session</strong><span id="truthSession" class="muted">Checking</span></div>
+      <div class="truth"><strong>Key</strong><span id="truthKey" class="muted">Missing</span></div>
+      <div class="truth"><strong>Last Request</strong><span id="truthRequest" class="muted">Not sent</span></div>
+      <div class="truth"><strong>Gateway</strong><span id="truthGateway" class="muted">Unknown</span></div>
+    </div>
 
     <div class="row">
       <section class="card">
@@ -75,7 +94,38 @@
           <button id="exportBtn">Export Logs</button>
           <button id="clearBtn">Clear Logs</button>
         </div>
-        <p id="status" class="muted">Idle.</p>
+        <div class="proof-links">
+          <a href="/Smokehouse/index.html?auto_smoke=1&smoke_interval_ms=45000" target="_blank" rel="noopener">Open Live Smoke</a>
+          <a href="/pricing.html#proof" target="_blank" rel="noopener">Investor Proof Page</a>
+        </div>
+        <h3 style="margin:16px 0 0;">Session + Key Flow</h3>
+        <div class="auth-grid">
+          <div>
+            <label>Email</label>
+            <input id="authEmail" type="email" placeholder="founder@company.com" />
+          </div>
+          <div>
+            <label>Org Name</label>
+            <input id="authOrgName" placeholder="Skye Workspace" />
+          </div>
+          <div>
+            <label>Password</label>
+            <input id="authPassword" type="password" placeholder="Your password" />
+          </div>
+          <div>
+            <label>Session PIN</label>
+            <input id="authPin" type="password" placeholder="4-12 chars" />
+          </div>
+        </div>
+        <div class="auth-actions">
+          <button id="loginBtn">Login</button>
+          <button id="signupBtn">Create Account</button>
+          <button id="unlockPinBtn">Unlock PIN</button>
+          <button id="requestKeyBtn">Request 30-Day Key</button>
+          <button id="refreshSessionBtn">Refresh Session</button>
+          <button id="clearSessionBtn">Clear Session</button>
+        </div>
+        <div id="status" class="status-panel" data-tone="idle">Idle.</div>
       </section>
 
       <section class="card">
@@ -104,6 +154,11 @@
     const LOG_KEY = "superide.apiplayground.hashlogs.v1";
     const LEDGER_VERSION = 2;
     const gatewayFetch = (window.SkyeGateway && window.SkyeGateway.fetchWithRetry) || fetch;
+    const truthSessionEl = document.getElementById("truthSession");
+    const truthKeyEl = document.getElementById("truthKey");
+    const truthRequestEl = document.getElementById("truthRequest");
+    const truthGatewayEl = document.getElementById("truthGateway");
+    const statusEl = document.getElementById("status");
 
     async function sha256(text) {
       const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
@@ -190,7 +245,133 @@
       document.getElementById("chainState").className = ok ? "ok" : "bad";
     }
 
-    function setStatus(msg) { document.getElementById("status").textContent = msg; }
+    function setTruth(el, label, tone) {
+      el.textContent = label;
+      el.className = tone === "ok" ? "ok" : tone === "fail" ? "bad" : tone === "warn" ? "warn" : "muted";
+    }
+
+    function renderTruth() {
+      const token = window.SkyeStandaloneSession?.readToken?.() || window.SkyeAuthUnlock?.readToken?.() || "";
+      const email = window.SkyeStandaloneSession?.readTokenEmail?.() || window.SkyeAuthUnlock?.readTokenEmail?.() || "";
+      setTruth(truthKeyEl, token ? `Loaded${email ? ` · ${email}` : ""}` : "Missing", token ? "ok" : "fail");
+    }
+
+    function setStatus(msg, tone = "idle") {
+      statusEl.textContent = msg;
+      statusEl.dataset.tone = tone;
+    }
+
+    async function parseJsonResponse(response, fallback) {
+      const text = await response.text();
+      try {
+        return text ? JSON.parse(text) : {};
+      } catch {
+        return { error: text || fallback || "Unknown response" };
+      }
+    }
+
+    async function refreshSessionStatus() {
+      try {
+        const res = await fetch("/api/auth-me", { method: "GET", credentials: "include" });
+        const data = await parseJsonResponse(res, "auth-me failed");
+        if (!res.ok || !data?.email) {
+          setTruth(truthSessionEl, "Not signed in", "fail");
+          renderTruth();
+          return null;
+        }
+        document.getElementById("authEmail").value = data.email || "";
+        setTruth(truthSessionEl, data.has_pin ? "Signed in · PIN ready" : "Signed in · no PIN", "ok");
+        renderTruth();
+        return data;
+      } catch (error) {
+        setTruth(truthSessionEl, "Session check failed", "fail");
+        setStatus(error?.message || "Session check failed.", "fail");
+        return null;
+      }
+    }
+
+    async function authRequest(path, body) {
+      const res = await fetch(path, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body || {}),
+      });
+      const data = await parseJsonResponse(res, `${path} failed`);
+      if (!res.ok) throw new Error(data?.error || `${path} failed (${res.status})`);
+      return data;
+    }
+
+    async function login() {
+      const email = String(document.getElementById("authEmail").value || "").trim().toLowerCase();
+      const password = String(document.getElementById("authPassword").value || "");
+      if (!email || !password) return setStatus("Email and password are required.", "fail");
+      setStatus(`Logging in ${email}...`, "warn");
+      try {
+        await authRequest("/api/auth-login", { email, password });
+        await refreshSessionStatus();
+        setStatus(`Signed in as ${email}.`, "ok");
+      } catch (error) {
+        setStatus(error.message || "Login failed.", "fail");
+      }
+    }
+
+    async function signup() {
+      const email = String(document.getElementById("authEmail").value || "").trim().toLowerCase();
+      const password = String(document.getElementById("authPassword").value || "");
+      const orgName = String(document.getElementById("authOrgName").value || "").trim() || "Skye Workspace";
+      if (!email || !password) return setStatus("Email and password are required.", "fail");
+      setStatus(`Creating account for ${email}...`, "warn");
+      try {
+        const data = await authRequest("/api/auth-signup", { email, password, orgName });
+        if (data?.kaixu_token?.token && window.SkyeStandaloneSession?.saveManualToken) {
+          window.SkyeStandaloneSession.saveManualToken(data.kaixu_token.token, data.kaixu_token.locked_email || email);
+        }
+        if (window.SkyeStandaloneSession?.hydrateInputs) window.SkyeStandaloneSession.hydrateInputs("token", "tokenEmail");
+        await refreshSessionStatus();
+        setStatus(`Account created for ${email}.`, "ok");
+      } catch (error) {
+        setStatus(error.message || "Signup failed.", "fail");
+      }
+    }
+
+    async function unlockPin() {
+      const pin = String(document.getElementById("authPin").value || "").trim();
+      if (!pin) return setStatus("Enter your session PIN first.", "fail");
+      setStatus("Unlocking session PIN...", "warn");
+      try {
+        const data = await authRequest("/api/auth-pin-unlock", { pin, label_prefix: "playground-unlock", ttl_preset: "day" });
+        if (window.SkyeStandaloneSession?.saveManualToken) window.SkyeStandaloneSession.saveManualToken(data.token, data.locked_email || "");
+        if (window.SkyeStandaloneSession?.hydrateInputs) window.SkyeStandaloneSession.hydrateInputs("token", "tokenEmail");
+        await refreshSessionStatus();
+        setStatus(`Session unlocked for ${data.locked_email || "current user"}.`, "ok");
+      } catch (error) {
+        setStatus(error.message || "PIN unlock failed.", "fail");
+      }
+    }
+
+    async function requestStarterKey() {
+      setStatus("Requesting 30-day starter key...", "warn");
+      try {
+        const data = await authRequest("/api/token-issue", { count: 1, ttl_preset: "month", label_prefix: "playground-starter" });
+        const issued = Array.isArray(data?.issued) ? data.issued[0] : null;
+        if (!issued?.token) throw new Error("Token issue succeeded but no key was returned.");
+        if (window.SkyeStandaloneSession?.saveManualToken) window.SkyeStandaloneSession.saveManualToken(issued.token, issued.locked_email || "");
+        if (window.SkyeStandaloneSession?.hydrateInputs) window.SkyeStandaloneSession.hydrateInputs("token", "tokenEmail");
+        renderTruth();
+        setStatus(`30-day starter key loaded for ${issued.locked_email || "current user"}.`, "ok");
+      } catch (error) {
+        setStatus(error.message || "Key request failed.", "fail");
+      }
+    }
+
+    function clearSession() {
+      if (window.SkyeStandaloneSession?.clearToken) window.SkyeStandaloneSession.clearToken();
+      document.getElementById("token").value = "";
+      document.getElementById("tokenEmail").value = "";
+      renderTruth();
+      setStatus("Cleared local key context for API Playground.", "warn");
+    }
 
     async function send() {
       const endpoint = document.getElementById("endpoint").value.trim();
@@ -219,11 +400,15 @@
         status = res.status;
         bodyText = await res.text();
         document.getElementById("response").textContent = bodyText || "(empty)";
-        setStatus(`Done: ${status}`);
+        setTruth(truthRequestEl, `${status}`, status >= 200 && status < 300 ? "ok" : status === 401 || status === 403 ? "warn" : "fail");
+        setTruth(truthGatewayEl, status >= 200 && status < 500 ? "Reached" : "Failing", status >= 200 && status < 500 ? "ok" : "fail");
+        setStatus(`Done: ${status}`, status >= 200 && status < 300 ? "ok" : status === 401 || status === 403 ? "warn" : "fail");
       } catch (e) {
         bodyText = String(e?.message || e);
         document.getElementById("response").textContent = bodyText;
-        setStatus(`Failed: ${bodyText}`);
+        setTruth(truthRequestEl, "Failed", "fail");
+        setTruth(truthGatewayEl, "Failing", "fail");
+        setStatus(`Failed: ${bodyText}`, "fail");
       }
 
       await appendLog({
@@ -335,11 +520,19 @@
         });
       }
 
-      setStatus(`Sweep complete: ${passed}/${sweep.length} returned 2xx.`);
+      setTruth(truthRequestEl, `${passed}/${sweep.length} 2xx`, passed === sweep.length ? "ok" : passed > 0 ? "warn" : "fail");
+      setTruth(truthGatewayEl, passed > 0 ? "Reached" : "Failing", passed > 0 ? "ok" : "fail");
+      setStatus(`Sweep complete: ${passed}/${sweep.length} returned 2xx.`, passed === sweep.length ? "ok" : passed > 0 ? "warn" : "fail");
       document.getElementById("response").textContent = `Sweep complete: ${passed}/${sweep.length} returned 2xx. Inspect ledger for endpoint-level details.`;
     }
 
     document.getElementById("sendBtn").onclick = () => send();
+    document.getElementById("loginBtn").onclick = () => login();
+    document.getElementById("signupBtn").onclick = () => signup();
+    document.getElementById("unlockPinBtn").onclick = () => unlockPin();
+    document.getElementById("requestKeyBtn").onclick = () => requestStarterKey();
+    document.getElementById("refreshSessionBtn").onclick = () => refreshSessionStatus();
+    document.getElementById("clearSessionBtn").onclick = () => clearSession();
     document.getElementById("preset").onchange = () => applyPreset();
     document.getElementById("sweepBtn").onclick = () => runSweep();
     document.getElementById("seedBtn").onclick = () => {
@@ -368,6 +561,8 @@
     }
     applyPreset();
     renderLedger();
+    renderTruth();
+    refreshSessionStatus();
   </script>
 </body>
 </html>

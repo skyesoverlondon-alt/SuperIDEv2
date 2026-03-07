@@ -16,6 +16,8 @@
 
     <!-- Three.js Library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="/_shared/auth-unlock.js"></script>
+    <script src="/_shared/standalone-session.js"></script>
     <script src="/_shared/gateway-retry.js"></script>
     <script src="/_shared/telemetry.js"></script>
     <script src="/_shared/error-fingerprint.js"></script>
@@ -83,6 +85,22 @@
             backdrop-filter: blur(8px);
             border: 1px solid rgba(99, 102, 241, 0.1) !important;
         }
+        .truth-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 10px;
+            border-radius: 999px;
+            border: 1px solid rgba(99, 102, 241, 0.22);
+            background: rgba(15, 23, 42, 0.55);
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+        .truth-chip.ok { color: #86efac; border-color: rgba(134,239,172,.32); }
+        .truth-chip.fail { color: #fca5a5; border-color: rgba(252,165,165,.32); }
+        .truth-chip.warn { color: #fcd34d; border-color: rgba(252,211,77,.32); }
     </style>
 </head>
 <body class="text-slate-100 h-screen flex flex-col overflow-hidden font-sans">
@@ -113,6 +131,11 @@
         <div class="flex items-center gap-4">
             <div id="sync-status" class="text-[10px] font-bold uppercase tracking-widest text-indigo-300 flex items-center gap-2">
                 <i class="fa-solid fa-cloud"></i> <span>Initializing...</span>
+            </div>
+            <div class="flex items-center gap-2 no-print">
+                <div id="bookx-auth-truth" class="truth-chip warn">Auth Checking</div>
+                <div id="bookx-bridge-truth" class="truth-chip warn">Bridge Partial</div>
+                <div id="bookx-drive-truth" class="truth-chip fail">Drive Missing</div>
             </div>
             <div class="flex items-center gap-2" id="nav-actions">
                 <!-- Buttons injected via JS -->
@@ -328,8 +351,17 @@
         async function init() {
             initThreeJS();
 
+            if (!state.kaixuKey && standaloneSession?.readToken) {
+                state.kaixuKey = standaloneSession.readToken() || '';
+            }
+            renderWorkflowTruth();
+
             document.getElementById('kaixu-key').addEventListener('input', (e) => {
                 state.kaixuKey = e.target.value;
+                if (standaloneSession?.saveManualToken) {
+                    standaloneSession.saveManualToken(state.kaixuKey, standaloneSession.readTokenEmail?.() || '');
+                }
+                renderWorkflowTruth();
                 debouncedSave();
             });
             document.getElementById('book-title-input').addEventListener('input', (e) => { 
@@ -355,6 +387,7 @@
 
             setupDragAndDrop();
             renderNav();
+            renderWorkflowTruth();
 
             if (auth) {
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) { await signInWithCustomToken(auth, __initial_auth_token); } 
@@ -437,6 +470,7 @@
             linkElement.setAttribute('download', exportFileDefaultName);
             linkElement.click();
             showToast("Project exported to device!", "success");
+            publishBridgeEvent({ kind: 'open-app', appId: 'SkyeDrive', note: `SkyeBookX exported ${exportFileDefaultName}. Standalone Drive upload is not wired yet.` });
         };
 
         function refreshUI() {
@@ -536,13 +570,42 @@
         const gatewayFetch = (window.SkyeGateway && window.SkyeGateway.fetchWithRetry) || fetch;
         const telemetryEmit = (window.SkyeTelemetry && window.SkyeTelemetry.emit) || (async () => {});
         const errorFingerprint = (window.SkyeError && window.SkyeError.fingerprint) || (() => 'E-UNKNOWN');
+        const standaloneSession = window.SkyeStandaloneSession || null;
+
+        function setTruth(id, label, tone) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.textContent = label;
+            el.className = `truth-chip ${tone || 'warn'}`;
+        }
+
+        function renderWorkflowTruth() {
+            const token = (standaloneSession?.readToken?.() || state.kaixuKey || '').trim();
+            setTruth('bookx-auth-truth', token ? 'Auth Ready' : 'Auth Missing', token ? 'ok' : 'fail');
+            setTruth('bookx-bridge-truth', 'Bridge Partial', 'warn');
+            setTruth('bookx-drive-truth', 'Drive Missing', 'fail');
+        }
+
+        function publishBridgeEvent(payload) {
+            const envelope = {
+                type: 'kx.app.bridge',
+                payload: {
+                    source: 'SkyeBookX',
+                    at: new Date().toISOString(),
+                    ...payload,
+                },
+            };
+            try { localStorage.setItem('kx.app.bridge', JSON.stringify(envelope)); } catch {}
+            try { window.postMessage(envelope, window.location.origin); } catch {}
+        }
 
         function getGatewayHeaders() {
             const headers = { 'Content-Type': 'application/json' };
             const corr = window.SkyeCorrelation && window.SkyeCorrelation.next ? window.SkyeCorrelation.next('skyebookx') : '';
-            if (state.kaixuKey && state.kaixuKey.trim()) {
-                headers['Authorization'] = `Bearer ${state.kaixuKey.trim()}`;
-            }
+            const token = (state.kaixuKey && state.kaixuKey.trim()) || standaloneSession?.readToken?.() || '';
+            const email = standaloneSession?.readTokenEmail?.() || '';
+            if (token && String(token).trim()) headers['Authorization'] = `Bearer ${String(token).trim()}`;
+            if (email) headers['X-Token-Email'] = String(email).trim().toLowerCase();
             if (corr) headers['X-Correlation-Id'] = corr;
             return headers;
         }
@@ -610,6 +673,7 @@
                     context: { chapter_id: chapter.id }
                 });
                 showToast("kAIxU processing complete", "success");
+                publishBridgeEvent({ kind: 'action', appId: 'SkyeChat', tone: 'ok', detail: `SkyeBookX updated chapter ${chapter.title || chapter.id} with AI content.` });
             } catch (err) {
                 console.error(err);
                 const errorId = errorFingerprint(err, { app: 'SkyeBookx', action: `process_ai_${action}` });
@@ -647,6 +711,7 @@
                     ws_id: new URLSearchParams(window.location.search).get('ws_id') || '',
                 });
                 showToast("kAIxU Artwork generated!", "success");
+                publishBridgeEvent({ kind: 'action', appId: 'SkyeChat', tone: 'ok', detail: `SkyeBookX generated artwork for ${chapter.title || chapter.id}.` });
             } catch (err) {
                 console.error(err);
                 const errorId = errorFingerprint(err, { app: 'SkyeBookx', action: 'generate_visual' });
@@ -880,6 +945,7 @@
                 a.click();
                 setTimeout(() => URL.revokeObjectURL(a.href), 2000);
                 showToast('Export pack generated (PDF + manifest + checksum).', 'success');
+                publishBridgeEvent({ kind: 'open-app', appId: 'SkyeDrive', note: `SkyeBookX generated export pack ${a.download}. Dedicated Drive upload is still missing.` });
             } catch (error) {
                 console.error(error);
                 showToast('Export pack failed.', 'error');
