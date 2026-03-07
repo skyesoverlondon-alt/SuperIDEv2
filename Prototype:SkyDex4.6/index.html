@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Skye DocX Workstation</title>
+  <style>
+    :root{
+      --bg:#070611;
+      --bg2:#0d0a1d;
+      --panel:#110f23;
+      --panel2:#15122a;
+      --panel3:#1c1835;
+      --line:#2e2750;
+      --line2:#3c3266;
+      --text:#f3f0ff;
+      --muted:#9f97c7;
+      --gold:#f3cb51;
+      --gold2:#ffd977;
+      --purple:#8f5bff;
+      --purple2:#b788ff;
+      --ok:#56d39b;
+      --danger:#ff6b6b;
+      --leftW:240px;
+      --rightW:230px;
+      --split:58%;
+      --topH:62px;
+      --editorFont:15px;
+      --docFont:'Merriweather', Georgia, serif;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;overflow:hidden;background:radial-gradient(circle at top center,#1a1237 0%,#0b0918 35%,#05050b 100%);color:var(--text);font-family:Inter,system-ui,Segoe UI,Arial,sans-serif}
+    a{color:inherit;text-decoration:none}
+    button,input,select,textarea{font:inherit}
+
+    .app{
+      height:100%;
+      display:grid;
+      grid-template-columns:var(--leftW) 1fr var(--rightW);
+      grid-template-rows:var(--topH) 1fr;
+      background:
+        radial-gradient(circle at 50% -20%, rgba(143,91,255,.15), transparent 42%),
+        linear-gradient(180deg, rgba(255,255,255,.02), transparent 30%),
+        linear-gradient(180deg, #0b0917, #05050b);
+    }
+
+    .topbar{
+      grid-column:1 / 4;
+      display:flex;align-items:center;justify-content:space-between;
+      padding:10px 18px;
+      border-bottom:1px solid var(--line2);
+      background:rgba(10,8,22,.88);
+      backdrop-filter:blur(12px);
+      box-shadow:0 8px 24px rgba(0,0,0,.25);
+      min-width:0;
+    }
+    .brandWrap{display:flex;align-items:center;min-width:0}
+    .brand{
+      display:flex;align-items:center;gap:10px;
+      padding-right:18px;margin-right:18px;
+      border-right:1px solid var(--line);
+      min-width:0;
+    }
+    .brand img{
+      width:24px;height:24px;object-fit:contain;
+      filter:drop-shadow(0 0 8px rgba(255,217,119,.45));
+      animation:pulseFloat 4.4s ease-in-out infinite;
+    }
+    .brandTitle{font-weight:900;letter-spacing:.02em;font-size:15px;white-space:nowrap}
+    .brandTitle .skye{color:var(--purple2)}
+    .brandTitle .docx{color:var(--gold)}
+    .workspaceName{font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:44vw}
+
+    .topActions{display:flex;gap:10px;align-items:center;min-width:0}
+    .iconBtn,.actionBtn,.ghostBtn{
+      border:1px solid var(--line2);background:rgba(255,255,255,.03);color:var(--text);
+      border-radius:10px;padding:10px 12px;cursor:pointer;transition:.18s ease;
+    }
+    .iconBtn{width:40px;height:40px;display:grid;place-items:center;padding:0;font-size:16px}
+    .actionBtn{font-weight:700}
+    .actionBtn.primary{background:linear-gradient(135deg,#7c4dff,#a16eff);box-shadow:0 0 22px rgba(143,91,255,.18)}
+    .actionBtn:hover,.ghostBtn:hover,.iconBtn:hover{transform:translateY(-1px);border-color:#5f4da3;background:rgba(255,255,255,.06)}
+
+    .sidebar,.rightbar{
+      min-height:0;overflow:auto;background:linear-gradient(180deg, rgba(17,15,35,.98), rgba(10,9,20,.98));
+    }
+    .sidebar{border-right:1px solid var(--line2)}
+    .rightbar{border-left:1px solid var(--line2);position:relative}
+    .panelSection{padding:14px 14px 12px;border-bottom:1px solid var(--line)}
+    .panelTitle{display:flex;justify-content:space-between;align-items:center;margin:0 0 12px;font-size:12px;font-weight:900;letter-spacing:.16em;color:#b2abd6;text-transform:uppercase}
+    .tinyActions{display:flex;gap:8px;align-items:center}
+    .tinyIcon{width:22px;height:22px;display:grid;place-items:center;border-radius:6px;border:1px solid var(--line);background:#120f24;color:var(--muted);cursor:pointer}
+    .searchWrap{position:relative}
+    .searchWrap input{width:100%;background:#090b15;border:1px solid var(--line);border-radius:10px;padding:11px 14px 11px 36px;color:var(--text)}
+    .searchWrap span{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:14px}
+
+    .fileList{display:grid;gap:8px}
+    .fileItem{
+      width:100%;text-align:left;padding:12px 12px;border-radius:10px;border:1px solid transparent;
+      background:transparent;color:var(--text);cursor:pointer;display:flex;align-items:flex-start;gap:10px;
+    }
+    .fileItem:hover,.fileItem.active{background:rgba(255,255,255,.03);border-color:var(--line2)}
+    .fileGlyph{color:var(--purple2);font-size:14px;line-height:1.2;padding-top:2px}
+    .fileMeta{min-width:0}
+    .fileName{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .fileTime{font-size:12px;color:var(--muted);margin-top:4px}
+
+    .leftFooter{
+      margin-top:auto;padding:14px;border-top:1px solid var(--line);position:sticky;bottom:0;
+      background:linear-gradient(180deg, rgba(17,15,35,.55), rgba(10,9,20,.97));
+    }
+    .leftFooter .toolbar{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    .smallBtn{border:1px solid var(--line2);background:#120f24;color:var(--text);border-radius:10px;padding:10px 12px;cursor:pointer}
+    .leftLogo{display:flex;justify-content:center;align-items:center;padding:16px 0 8px}
+    .leftLogo img{width:112px;opacity:.18;filter:drop-shadow(0 0 12px rgba(255,217,119,.25))}
+    .saveState{padding-top:10px;font-size:12px;color:var(--muted);display:flex;gap:8px;align-items:center}
+    .dot{width:8px;height:8px;border-radius:999px;background:linear-gradient(135deg,var(--purple),var(--gold));box-shadow:0 0 10px rgba(143,91,255,.55)}
+
+    .workspace{
+      min-width:0;min-height:0;display:grid;grid-template-rows:44px 1fr;
+      background:linear-gradient(180deg,#090812,#06060b);
+    }
+    .workspaceToolbar{
+      display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--line);
+      background:rgba(9,8,18,.98);overflow:auto;white-space:nowrap;
+    }
+    .toolbarSelect,.toolbarMini,.toolbarSpacer{
+      border:1px solid transparent;background:transparent;color:var(--text);padding:7px 8px;border-radius:8px;
+    }
+    .toolbarSelect:hover,.toolbarMini:hover{background:rgba(255,255,255,.03);border-color:var(--line)}
+    .toolbarMini{font-weight:700;min-width:32px;cursor:pointer}
+    .toolbarSpacer{padding:0 4px;color:var(--line2)}
+
+    .centerShell{
+      min-height:0;min-width:0;
+      display:grid;grid-template-columns:1fr 12px 1fr;
+      grid-template-areas:"code splitter preview";
+    }
+    .codePane,.previewPane{min-width:0;min-height:0;display:grid;grid-template-rows:42px 1fr;background:#07070e}
+    .codePane{grid-area:code}
+    .previewPane{grid-area:preview;border-left:1px solid var(--line)}
+    .paneHeader{
+      display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid var(--line);
+      background:linear-gradient(180deg, rgba(21,18,42,.96), rgba(14,12,28,.96));
+    }
+    .paneTitle{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:#b7afd9;font-weight:900}
+    .paneActions{display:flex;gap:8px;align-items:center}
+    .paneBtn{border:1px solid var(--line);background:#120f24;color:var(--text);border-radius:9px;padding:8px 10px;cursor:pointer}
+    .paneBtn:hover{border-color:#5a4a96;background:#17132b}
+    #editor{width:100%;height:100%}
+
+    .splitter{
+      grid-area:splitter;position:relative;background:linear-gradient(180deg,#130f25,#0d0a1a);cursor:col-resize;border-left:1px solid var(--line);border-right:1px solid var(--line)
+    }
+    .splitter::before{
+      content:"";position:absolute;inset:50% auto auto 50%;transform:translate(-50%,-50%);
+      width:4px;height:60px;border-radius:999px;background:linear-gradient(180deg,var(--gold),var(--purple));opacity:.85;
+      box-shadow:0 0 10px rgba(143,91,255,.45)
+    }
+    .splitter:hover{background:linear-gradient(180deg,#1a1432,#130f25)}
+
+    .docViewport{
+      overflow:auto;background:#0b0916;display:flex;justify-content:center;align-items:flex-start;padding:28px 28px 80px;
+      background-image:radial-gradient(circle at center, rgba(143,91,255,.05), transparent 42%);
+    }
+    .docPage{
+      width:min(100%,820px);min-height:1080px;background:#f5f3f2;color:#222;box-shadow:0 0 0 1px rgba(0,0,0,.08), 0 18px 48px rgba(0,0,0,.35);
+      padding:64px 84px;font-family:var(--docFont);font-size:18px;line-height:1.55;
+    }
+    .docPage h1,.docPage h2,.docPage h3{font-family:var(--docFont)}
+    .docPage p{margin:0 0 1.2em}
+
+    .previewViewport{position:relative;background:#05050b;overflow:hidden}
+    #previewFrame{width:100%;height:100%;border:0;background:white}
+    .watermark{
+      position:absolute;right:14px;bottom:14px;width:140px;opacity:.22;pointer-events:none;
+      filter:drop-shadow(0 0 12px rgba(255,215,119,.35));
+      animation:pulseFloat 4.6s ease-in-out infinite;
+    }
+
+    .outlineEmpty{color:var(--muted);font-size:14px;padding-top:8px;line-height:1.5}
+    .outlineList{display:grid;gap:8px}
+    .outlineItem{padding:8px 10px;border-radius:8px;background:rgba(255,255,255,.03);border:1px solid transparent;font-size:13px;color:#d3cef0;cursor:pointer}
+    .outlineItem:hover{border-color:var(--line2)}
+    .formGrid{display:grid;gap:10px}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    label{display:block;font-size:12px;color:var(--muted);margin-bottom:5px}
+    input,textarea,select{width:100%;background:#090b15;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+    textarea{resize:vertical;min-height:90px}
+    .muted{color:var(--muted);font-size:12px;line-height:1.5}
+    .status{padding:10px 12px;border-radius:10px;background:#0b0d17;border:1px solid var(--line);font-size:12px;color:var(--muted)}
+    .log{margin-top:10px;background:#0a0d16;border:1px solid var(--line);border-radius:12px;padding:10px;white-space:pre-wrap;font-family:ui-monospace,SFMono-Regular,monospace;font-size:12px;max-height:180px;overflow:auto}
+    .pill{display:inline-block;padding:6px 10px;border-radius:999px;background:#111728;border:1px solid var(--line);font-size:12px;color:var(--muted);margin:2px 4px 0 0}
+
+    .resizeLeft,.resizeRight{display:none}
+
+    @keyframes pulseFloat{
+      0%,100%{transform:translateY(0);filter:drop-shadow(0 0 8px rgba(255,217,119,.4))}
+      50%{transform:translateY(-3px);filter:drop-shadow(0 0 14px rgba(255,217,119,.55))}
+    }
+
+    @media (max-width:1180px){
+      :root{--leftW:220px;--rightW:210px}
+      .docPage{padding:52px 58px}
+    }
+    @media (max-width:980px){
+      html,body{overflow:auto}
+      .app{grid-template-columns:1fr;grid-template-rows:var(--topH) auto auto auto}
+      .topbar{grid-column:1/2}
+      .sidebar,.rightbar{border:none;border-top:1px solid var(--line2)}
+      .centerShell{grid-template-columns:1fr;grid-template-areas:"code" "preview"}
+      .splitter{display:none}
+      .previewPane{border-left:none;border-top:1px solid var(--line)}
+      .workspaceName{max-width:38vw}
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <div class="brandWrap">
+      <div class="brand">
+        <img src="assets/logo-skye.png" alt="Skyes Over London logo" />
+        <div class="brandTitle"><span class="skye">Skye</span> <span class="docx">DocX</span></div>
+      </div>
+      <div class="workspaceName" id="workspaceLabel">31 Demonic Keys</div>
+    </div>
+    <div class="topActions">
+      <button class="actionBtn ghostBtn" id="networkBtn">🌐 SOLE Network</button>
+      <button class="iconBtn" id="globalSearchBtn" title="Search">⌕</button>
+      <button class="iconBtn" id="focusBtn" title="Focus">⤢</button>
+      <button class="actionBtn ghostBtn" id="downloadPdfBtn">🖨 PDF</button>
+      <button class="actionBtn ghostBtn" id="openProjectBtn">🗂 Open</button>
+      <button class="actionBtn primary" id="saveAsTopBtn">💾 Save As...</button>
+    </div>
+  </div>
+
+  <aside class="sidebar">
+    <div class="panelSection">
+      <div class="panelTitle">
+        <span>Documents</span>
+        <div class="tinyActions">
+          <button class="tinyIcon" id="folderBtn" title="Project">🗀</button>
+          <button class="tinyIcon" id="newFileBtn" title="New file">＋</button>
+        </div>
+      </div>
+      <div class="searchWrap">
+        <span>⌕</span>
+        <input id="fileSearch" placeholder="Search files..." />
+      </div>
+    </div>
+
+    <div class="panelSection" style="padding-top:10px">
+      <div id="fileList" class="fileList"></div>
+    </div>
+
+    <div class="leftLogo">
+      <img src="assets/logo-skye.png" alt="Skye watermark" />
+    </div>
+
+    <div class="leftFooter">
+      <div class="toolbar">
+        <button class="smallBtn" id="saveLocalBtn">⛁ Backup</button>
+        <button class="smallBtn" id="loadLocalBtn">⤴ Restore</button>
+      </div>
+      <div class="saveState"><span>Ready</span><span class="dot"></span><span>All changes saved locally</span></div>
+    </div>
+  </aside>
+
+  <main class="workspace">
+    <div class="workspaceToolbar">
+      <select class="toolbarSelect" id="fontFamilySelect">
+        <option value="Merriweather, Georgia, serif">Merriweather</option>
+        <option value="Georgia, serif">Georgia</option>
+        <option value="'Times New Roman', serif">Times New Roman</option>
+      </select>
+      <select class="toolbarSelect" id="docZoomSelect">
+        <option value="18">Normal</option>
+        <option value="16">Small</option>
+        <option value="20">Large</option>
+      </select>
+      <select class="toolbarSelect" id="codeZoomSelect">
+        <option value="15">Normal</option>
+        <option value="13">Compact</option>
+        <option value="17">Large</option>
+      </select>
+      <span class="toolbarSpacer">|</span>
+      <button class="toolbarMini" id="boldBtn">B</button>
+      <button class="toolbarMini" id="italicBtn"><em>I</em></button>
+      <button class="toolbarMini" id="underlineBtn"><u>U</u></button>
+      <button class="toolbarMini" id="strikeBtn"><s>S</s></button>
+      <button class="toolbarMini" id="quoteBtn">❞</button>
+      <button class="toolbarMini" id="linkBtn">🔗</button>
+      <button class="toolbarMini" id="imageBtn">🖼</button>
+      <button class="toolbarMini" id="codeBtn">&lt;/&gt;</button>
+      <button class="toolbarMini" id="syncPreviewBtn">↻</button>
+    </div>
+
+    <div class="centerShell" id="centerShell">
+      <section class="codePane">
+        <div class="paneHeader">
+          <div class="paneTitle">Code</div>
+          <div class="paneActions">
+            <button class="paneBtn" id="newProjectBtn">New</button>
+            <button class="paneBtn" id="downloadJsonBtn">JSON</button>
+            <button class="paneBtn" id="downloadZipBtn">ZIP</button>
+          </div>
+        </div>
+        <div id="editor"></div>
+      </section>
+
+      <div class="splitter" id="mainSplitter" aria-label="Resize code and preview"></div>
+
+      <section class="previewPane">
+        <div class="paneHeader">
+          <div class="paneTitle">Preview</div>
+          <div class="paneActions">
+            <button class="paneBtn" id="refreshPreviewBtn">Refresh</button>
+            <button class="paneBtn" id="openPreviewBtn">Open Tab</button>
+          </div>
+        </div>
+        <div class="previewViewport">
+          <iframe id="previewFrame" sandbox="allow-scripts allow-modals"></iframe>
+          <img class="watermark" src="assets/logo-skye.png" alt="Skyes Over London watermark" />
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <aside class="rightbar">
+    <div class="panelSection">
+      <div class="panelTitle"><span>Document Outline</span><span>☰</span></div>
+      <div id="outlineBox" class="outlineEmpty">No headers detected.</div>
+    </div>
+
+    <div class="panelSection">
+      <div class="panelTitle"><span>Workstation Config</span></div>
+      <div class="formGrid">
+        <div><label>Workspace name</label><input id="projectName" placeholder="Project name" /></div>
+        <div class="row">
+          <div><label>Repo Owner</label><input id="ghOwner" placeholder="your-org-or-user" /></div>
+          <div><label>Repo Name</label><input id="ghRepo" placeholder="your-repo" /></div>
+        </div>
+        <div class="row">
+          <div><label>Branch</label><input id="ghBranch" placeholder="main" /></div>
+          <div><label>Base Path</label><input id="ghBasePath" placeholder="optional/subfolder" /></div>
+        </div>
+        <div><label>Commit Message</label><input id="ghMessage" placeholder="Update from Skye DocX" /></div>
+        <div class="row">
+          <div><label>Site ID</label><input id="netlifySiteId" placeholder="Netlify site id" /></div>
+          <div><label>Publish Dir</label><input id="netlifyPublishDir" placeholder="/ or folder" /></div>
+        </div>
+        <div><label>Codex Model Override</label><input id="codexModelOverride" placeholder="leave blank for server default" /></div>
+        <div><label>Instruction</label><textarea id="codexPrompt" placeholder="Describe the edit or ask for a file."></textarea></div>
+      </div>
+    </div>
+
+    <div class="panelSection">
+      <div class="panelTitle"><span>Actions</span></div>
+      <div class="formGrid">
+        <button class="smallBtn" id="sendCodexBtn">Run Codex Prompt</button>
+        <button class="smallBtn" id="testGithubBtn">Test GitHub</button>
+        <button class="smallBtn" id="pushGithubBtn">Push to GitHub</button>
+        <button class="smallBtn" id="testNetlifyBtn">Test Netlify</button>
+        <button class="smallBtn" id="deployNetlifyBtn">Deploy to Netlify</button>
+      </div>
+      <p class="muted" style="margin:10px 0 0">Secret-bearing config stays server-side. This UI only carries the non-secret target settings and the prompt lane. Much less clown energy. ⚡</p>
+    </div>
+
+    <div class="panelSection">
+      <div class="panelTitle"><span>Server Env Status</span></div>
+      <div id="envSummary" class="muted">Loading config…</div>
+    </div>
+
+    <div class="panelSection">
+      <div class="panelTitle"><span>Status + Logs</span></div>
+      <div id="statusBox" class="status">Ready.</div>
+      <div id="logBox" class="log"></div>
+    </div>
+  </aside>
+</div>
+
+<script>
+const state = {
+  projectName: '31 Demonic Keys',
+  activeFile: 'index.html',
+  fileTimes: {},
+  files: {
+    'SECRETS_SCAN_ENABLED.md': `# Secrets Scan Enabled\n\nKeep secret-bearing values server-side.\n\n## Guardrails\n\n- OpenAI key stays in env\n- GitHub token stays in env\n- Netlify token stays in env\n- UI only stores non-secret target settings\n\n## Notes\n\nThis workstation is styled to mirror your Skye DocX lane while preserving a real code + preview workflow.`,
+    'Gateway13 Contract.md': `# Gateway13 Contract\n\nThis lane should speak through your gateway contract and not directly leak provider keys.\n\n## Endpoints\n\n### Health\nUse the env-backed config route to verify lane status.\n\n### Generate\nThe Codex prompt route should run through server functions.`,
+    'Cloudflare Worker Base.txt': `Worker posture notes:\n- keep auth enforced\n- keep openGate false by default\n- respect route contract\n- keep logs branded for Skyes Over London and kAIxu only`,
+    'index.html': `<!DOCTYPE html>\n<html>\n<head>\n  <meta charset="UTF-8"/>\n  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>\n  <title>Skye Project</title>\n  <link rel="stylesheet" href="styles.css"/>\n</head>\n<body>\n  <main class="wrap">\n    <h1>Skye Codex IDE</h1>\n    <p>Edit files, preview them, then push or deploy through server-side env plumbing.</p>\n    <button id="helloBtn">Click me</button>\n  </main>\n  <script src="app.js"></script>\n</body>\n</html>`,
+    'styles.css': `body{font-family:Arial,sans-serif;background:#0b1020;color:#eef2ff;margin:0} .wrap{max-width:860px;margin:80px auto;padding:24px} button{padding:12px 16px;border-radius:12px;border:none;background:#8b5cf6;color:#fff;font-weight:700}`,
+    'app.js': `document.getElementById('helloBtn')?.addEventListener('click',()=>alert('Skye Codex IDE preview is alive.'));`
+  },
+  editor: null,
+  serverConfig: null,
+  filter: ''
+};
+
+const $ = (id) => document.getElementById(id);
+function log(msg){ const box=$('logBox'); const line=`[${new Date().toLocaleTimeString()}] ${msg}`; box.textContent = line + "\n" + box.textContent; }
+function status(msg){ $('statusBox').textContent = msg; log(msg); }
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m])); }
+function updateWorkspaceTitle(){ const name = $('projectName').value.trim() || state.projectName || 'Untitled Workspace'; $('workspaceLabel').textContent = name; document.title = `${name} · Skye DocX`; }
+function stampFile(name){ state.fileTimes[name] = new Date().toISOString(); }
+Object.keys(state.files).forEach(stampFile);
+
+function formatTime(iso){
+  if(!iso) return 'Unsaved';
+  const d = new Date(iso);
+  const date = d.toLocaleDateString();
+  const time = d.toLocaleTimeString([], {hour:'numeric', minute:'2-digit'});
+  return `${date} ${time}`;
+}
+
+function saveLocal(){
+  collectCurrent();
+  const cfg={
+    ghOwner:$('ghOwner').value,ghRepo:$('ghRepo').value,ghBranch:$('ghBranch').value,ghBasePath:$('ghBasePath').value,ghMessage:$('ghMessage').value,
+    netlifySiteId:$('netlifySiteId').value,netlifyPublishDir:$('netlifyPublishDir').value,
+    codexModelOverride:$('codexModelOverride').value,
+    projectName:$('projectName').value,
+    fontFamily:$('fontFamilySelect').value,
+    docZoom:$('docZoomSelect').value,
+    codeZoom:$('codeZoomSelect').value,
+    split:getComputedStyle(document.documentElement).getPropertyValue('--split').trim()
+  };
+  localStorage.setItem('skyeCodexIDEEnv.config', JSON.stringify(cfg));
+  localStorage.setItem('skyeCodexIDEEnv.project', JSON.stringify({projectName:state.projectName, files:state.files, fileTimes:state.fileTimes}));
+  status('Local non-secret config and project saved.');
+}
+function loadLocal(){
+  const cfg=JSON.parse(localStorage.getItem('skyeCodexIDEEnv.config')||'{}');
+  const proj=JSON.parse(localStorage.getItem('skyeCodexIDEEnv.project')||'{}');
+  for(const [k,v] of Object.entries(cfg)){ const el=$(k); if(el) el.value=v||''; }
+  if(cfg.split) document.documentElement.style.setProperty('--split', cfg.split);
+  if(proj.files){ state.files=proj.files; state.projectName=proj.projectName||state.projectName; state.fileTimes = proj.fileTimes || state.fileTimes; }
+  $('projectName').value = state.projectName;
+  updateWorkspaceTitle();
+}
+
+function renderFiles(){
+  const list=$('fileList');
+  const q = state.filter.trim().toLowerCase();
+  list.innerHTML='';
+  Object.keys(state.files)
+    .filter(name=>!q || name.toLowerCase().includes(q))
+    .forEach(name=>{
+      const el=document.createElement('button');
+      el.className='fileItem'+(name===state.activeFile?' active':'');
+      el.innerHTML=`<span class="fileGlyph">◫</span><span class="fileMeta"><div class="fileName">${escapeHtml(name)}</div><div class="fileTime">${formatTime(state.fileTimes[name])}</div></span>`;
+      el.onclick=()=>openFile(name);
+      list.appendChild(el);
+    });
+}
+function languageFor(name){ if(name.endsWith('.html')) return 'html'; if(name.endsWith('.css')) return 'css'; if(name.endsWith('.js')) return 'javascript'; if(name.endsWith('.json')) return 'json'; if(name.endsWith('.md')) return 'markdown'; if(name.endsWith('.txt')) return 'plaintext'; return 'plaintext'; }
+function createModel(name, content){ return monaco.editor.createModel(content || '', languageFor(name)); }
+function applyDocStyle(){
+  const fam = $('fontFamilySelect').value;
+  const zoom = $('docZoomSelect').value;
+  document.documentElement.style.setProperty('--docFont', fam);
+  const doc = $('docPreviewDoc');
+  if(doc) doc.style.fontSize = `${zoom}px`;
+}
+function applyCodeStyle(){
+  const size = Number($('codeZoomSelect').value || 15);
+  document.documentElement.style.setProperty('--editorFont', `${size}px`);
+  if(state.editor) state.editor.updateOptions({ fontSize:size });
+}
+
+function openFile(name){
+  if(state.editor && state.activeFile){ state.files[state.activeFile]=state.editor.getValue(); stampFile(state.activeFile); }
+  state.activeFile=name;
+  const model=createModel(name, state.files[name] || '');
+  if(state.editor){ state.editor.setModel(model); } else {
+    state.editor=monaco.editor.create($('editor'), { model, theme:'vs-dark', automaticLayout:true, minimap:{enabled:false}, fontSize:Number($('codeZoomSelect').value||15), smoothScrolling:true, padding:{top:14}, scrollBeyondLastLine:false });
+    state.editor.onDidChangeModelContent(()=>{
+      state.files[state.activeFile]=state.editor.getValue();
+      stampFile(state.activeFile);
+      renderFiles();
+      if(['index.html','styles.css','app.js'].includes(state.activeFile)) refreshPreview(false);
+      if(state.activeFile.endsWith('.md') || state.activeFile.endsWith('.txt') || state.activeFile.endsWith('.html')) renderDocPreview();
+    });
+  }
+  renderFiles();
+  renderDocPreview();
+}
+
+function collectCurrent(){
+  if(state.editor) {
+    state.files[state.activeFile]=state.editor.getValue();
+    stampFile(state.activeFile);
+  }
+  state.projectName=$('projectName').value.trim()||'31 Demonic Keys';
+  updateWorkspaceTitle();
+}
+
+function markdownToHtml(md){
+  let html = escapeHtml(md)
+    .replace(/^###\s+(.*)$/gm,'<h3>$1</h3>')
+    .replace(/^##\s+(.*)$/gm,'<h2>$1</h2>')
+    .replace(/^#\s+(.*)$/gm,'<h1>$1</h1>')
+    .replace(/^>\s?(.*)$/gm,'<blockquote>$1</blockquote>')
+    .replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g,'<em>$1</em>')
+    .replace(/`([^`]+)`/g,'<code>$1</code>');
+  html = html.split(/\n\n+/).map(chunk=>{
+    if(/^<h\d|^<blockquote/.test(chunk.trim())) return chunk;
+    return `<p>${chunk.replace(/\n/g,'<br/>')}</p>`;
+  }).join('');
+  return html;
+}
+
+function renderDocPreview(){
+  const name = state.activeFile;
+  const src = state.files[name] || '';
+  let content = '';
+  if(name.endsWith('.md')) content = markdownToHtml(src);
+  else if(name.endsWith('.html')) content = src;
+  else content = `<p>${escapeHtml(src).replace(/\n/g,'<br/>')}</p>`;
+  const shell = `<!DOCTYPE html><html><head><style>
+    body{margin:0;background:#0b0916;font-family:var(--docFont, Georgia, serif)}
+    .docViewport{overflow:auto;background:#0b0916;display:flex;justify-content:center;align-items:flex-start;padding:28px 28px 80px;background-image:radial-gradient(circle at center, rgba(143,91,255,.05), transparent 42%)}
+    .docPage{width:min(100%,820px);min-height:1080px;background:#f5f3f2;color:#222;box-shadow:0 0 0 1px rgba(0,0,0,.08), 0 18px 48px rgba(0,0,0,.35);padding:64px 84px;font-family:var(--docFont, Georgia, serif);font-size:${$('docZoomSelect').value || 18}px;line-height:1.55}
+    h1,h2,h3{font-family:var(--docFont, Georgia, serif);margin:0 0 .65em}
+    p{margin:0 0 1.2em}
+    blockquote{margin:0 0 1.2em;padding-left:16px;border-left:4px solid #8f5bff;color:#444}
+    code{background:#ece8f7;padding:2px 6px;border-radius:6px}
+  </style></head><body><div class="docViewport"><article class="docPage" id="docPreviewDoc">${content}</article></div></body></html>`;
+  $('previewFrame').srcdoc = shell;
+  setTimeout(updateOutlineFromPreview, 50);
+}
+
+function buildPreviewHtml(){
+  collectCurrent();
+  const html = state.files['index.html'] || '<h1>No index.html</h1>';
+  const css = state.files['styles.css'] || '';
+  const js = state.files['app.js'] || '';
+  return html
+    .replace(/<link[^>]+href=["']styles\.css["'][^>]*>/i, `<style>${css}</style>`)
+    .replace(/<script[^>]+src=["']app\.js["'][^>]*><\/script>/i, `<script>${js}<\/script>`);
+}
+function refreshPreview(announce=true){
+  const isCodeProject = ['index.html','styles.css','app.js'].some(k=>state.files[k]);
+  if(isCodeProject && ['index.html','styles.css','app.js'].includes(state.activeFile)) {
+    $('previewFrame').srcdoc = buildPreviewHtml();
+  } else {
+    renderDocPreview();
+  }
+  if(announce) status('Preview refreshed.');
+}
+
+function updateOutlineFromPreview(){
+  const box = $('outlineBox');
+  const doc = $('previewFrame').contentDocument;
+  if(!doc){ box.textContent = 'No headers detected.'; return; }
+  const headers = [...doc.querySelectorAll('h1,h2,h3')].slice(0,18);
+  if(!headers.length){ box.className='outlineEmpty'; box.textContent='No headers detected.'; return; }
+  box.className='outlineList';
+  box.innerHTML='';
+  headers.forEach((h, idx)=>{
+    if(!h.id) h.id = `outline-${idx}`;
+    const item=document.createElement('button');
+    item.className='outlineItem';
+    item.style.marginLeft = h.tagName==='H2' ? '10px' : h.tagName==='H3' ? '20px' : '0';
+    item.textContent = h.textContent.trim();
+    item.onclick = ()=> h.scrollIntoView({behavior:'smooth', block:'start'});
+    box.appendChild(item);
+  });
+}
+
+async function fileMapToZipBlob(){
+  collectCurrent();
+  const files=state.files;
+  function crc32(buf){ let c=~0; const table=crc32.table||(crc32.table=Array.from({length:256},(_,n)=>{let c=n; for(let k=0;k<8;k++) c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1); return c>>>0;})); for(let i=0;i<buf.length;i++) c=table[(c^buf[i])&255]^(c>>>8); return (~c)>>>0; }
+  const enc=new TextEncoder(); const local=[]; const central=[]; let offset=0;
+  const entries=Object.entries(files);
+  for(const [name,content] of entries){
+    const nameBytes=enc.encode(name); const data=enc.encode(content); const crc=crc32(data);
+    const lh=new Uint8Array(30+nameBytes.length); const dv=new DataView(lh.buffer); dv.setUint32(0,0x04034b50,true); dv.setUint16(4,20,true); dv.setUint16(8,0,true); dv.setUint16(10,0,true); dv.setUint32(14,crc,true); dv.setUint32(18,data.length,true); dv.setUint32(22,data.length,true); dv.setUint16(26,nameBytes.length,true); lh.set(nameBytes,30); local.push(lh,data);
+    const ch=new Uint8Array(46+nameBytes.length); const cv=new DataView(ch.buffer); cv.setUint32(0,0x02014b50,true); cv.setUint16(4,20,true); cv.setUint16(6,20,true); cv.setUint16(10,0,true); cv.setUint16(12,0,true); cv.setUint32(16,crc,true); cv.setUint32(20,data.length,true); cv.setUint32(24,data.length,true); cv.setUint16(28,nameBytes.length,true); cv.setUint32(42,offset,true); ch.set(nameBytes,46); central.push(ch); offset += lh.length + data.length;
+  }
+  let csize=0; central.forEach(c=>csize+=c.length);
+  const end=new Uint8Array(22); const ev=new DataView(end.buffer); ev.setUint32(0,0x06054b50,true); ev.setUint16(8,entries.length,true); ev.setUint16(10,entries.length,true); ev.setUint32(12,csize,true); ev.setUint32(16,offset,true);
+  return new Blob([...local,...central,end],{type:'application/zip'});
+}
+function download(name, blob){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),2000); }
+async function exportZip(){ const blob=await fileMapToZipBlob(); download(`${state.projectName}.zip`, blob); status('ZIP exported.'); }
+function exportJson(){ collectCurrent(); download(`${state.projectName}.json`, new Blob([JSON.stringify({projectName:state.projectName, files:state.files},null,2)],{type:'application/json'})); status('JSON exported.'); }
+
+async function callApi(path, options={}){
+  const res = await fetch(path, {
+    method: options.method || 'POST',
+    headers: { 'Content-Type':'application/json', ...(options.headers||{}) },
+    body: options.body ? JSON.stringify(options.body) : undefined
+  });
+  let data=null;
+  try { data = await res.json(); } catch { data = { ok:false, error:'Non-JSON response from server.' }; }
+  if(!res.ok || data.ok===false){ throw new Error(data.error || `${res.status} ${res.statusText}`); }
+  return data;
+}
+
+function parseCodexText(payload){
+  if(typeof payload === 'string') return payload;
+  if(payload.output_text) return payload.output_text;
+  if(Array.isArray(payload.output)){
+    return payload.output.map(o => {
+      if(typeof o === 'string') return o;
+      if(Array.isArray(o.content)) return o.content.map(c => c.text || c.input_text || '').join('\n');
+      return o.text || '';
+    }).join('\n');
+  }
+  return JSON.stringify(payload,null,2);
+}
+
+async function loadServerConfig(){
+  try{
+    const data = await fetch('/.netlify/functions/config').then(r=>r.json());
+    state.serverConfig = data;
+    const flags = [
+      ['OpenAI key', data.hasOpenAIKey],
+      ['GitHub token', data.hasGitHubToken],
+      ['Netlify token', data.hasNetlifyToken],
+      ['Functions online', true]
+    ];
+    $('envSummary').innerHTML = flags.map(([name,ok])=>`<span class="pill">${name}: ${ok ? 'yes' : 'no'}</span>`).join('') + `<div style="margin-top:10px">Server default model: <strong>${escapeHtml(data.defaultCodexModel || 'not set')}</strong></div>`;
+    if(data.defaults){
+      if(data.defaults.ghOwner) $('ghOwner').value ||= data.defaults.ghOwner;
+      if(data.defaults.ghRepo) $('ghRepo').value ||= data.defaults.ghRepo;
+      if(data.defaults.ghBranch) $('ghBranch').value ||= data.defaults.ghBranch;
+      if(data.defaults.netlifySiteId) $('netlifySiteId').value ||= data.defaults.netlifySiteId;
+    }
+  }catch(err){
+    $('envSummary').textContent = 'Config function not reachable. This app needs Netlify Functions to use env-backed Codex/GitHub/Netlify lanes.';
+    log(`Config load failed: ${err.message}`);
+  }
+}
+
+async function runCodex(){
+  const prompt=$('codexPrompt').value.trim();
+  const modelOverride=$('codexModelOverride').value.trim();
+  if(!prompt){ status('Codex prompt is empty.'); return; }
+  collectCurrent();
+  status('Calling Codex lane through server function...');
+  try{
+    const data = await callApi('/.netlify/functions/codex', {
+      body: { modelOverride, prompt, projectName: state.projectName, files: state.files }
+    });
+    const text=parseCodexText(data.response || data);
+    log(text);
+    const match=text.match(/FILE:\s*([^\n]+)\n([\s\S]*)$/m);
+    if(match){
+      const name=match[1].trim(); const content=match[2]; state.files[name]=content; stampFile(name); openFile(name); status(`Applied Codex output to ${name}.`);
+    } else {
+      status('Codex replied. No auto-apply pattern found; see logs.');
+    }
+  }catch(err){ status(`Codex failed: ${err.message}`); }
+}
+
+async function testGithub(){
+  try{
+    const data = await callApi('/.netlify/functions/github-test', { body: { owner:$('ghOwner').value.trim(), repo:$('ghRepo').value.trim(), branch:$('ghBranch').value.trim()||'main' } });
+    status(`GitHub access test passed for ${data.full_name} @ ${data.branch}.`);
+  }catch(err){ status(`GitHub access failed: ${err.message}`); }
+}
+async function pushGithub(){
+  collectCurrent();
+  try{
+    const data = await callApi('/.netlify/functions/github-push', {
+      body: { owner:$('ghOwner').value.trim(), repo:$('ghRepo').value.trim(), branch:$('ghBranch').value.trim()||'main', basePath:$('ghBasePath').value.trim(), message:$('ghMessage').value.trim()||'Update from Skye DocX', files: state.files }
+    });
+    status(`GitHub push complete. ${data.pushed} files pushed.`);
+    if(Array.isArray(data.paths)) log(data.paths.join('\n'));
+  }catch(err){ status(`GitHub push failed: ${err.message}`); }
+}
+async function testNetlify(){
+  try{
+    const data = await callApi('/.netlify/functions/netlify-test', { body: { siteId:$('netlifySiteId').value.trim() } });
+    status(`Netlify site access test passed for ${data.name || data.site_id}.`);
+  }catch(err){ status(`Netlify site access failed: ${err.message}`); }
+}
+async function deployNetlify(){
+  collectCurrent();
+  try{
+    const data = await callApi('/.netlify/functions/netlify-deploy', { body: { siteId:$('netlifySiteId').value.trim(), publishDir:$('netlifyPublishDir').value.trim() || '/', files: state.files } });
+    status('Netlify deploy created successfully.');
+    log(JSON.stringify(data, null, 2));
+  }catch(err){ status(`Netlify deploy failed: ${err.message}`); }
+}
+
+function newProject(){
+  if(confirm('Start a new project?')){
+    state.projectName='31 Demonic Keys';
+    $('projectName').value=state.projectName;
+    state.files={
+      'index.html':'<!DOCTYPE html>\n<html><head><title>New Project</title></head><body><h1>New Project</h1></body></html>',
+      'styles.css':'body{font-family:Arial,sans-serif;}',
+      'app.js':'console.log("new project");'
+    };
+    state.fileTimes = {}; Object.keys(state.files).forEach(stampFile);
+    openFile('index.html'); renderFiles(); refreshPreview(); status('New project created.');
+  }
+}
+function newFile(){ const name=prompt('New file name, like component.js or notes.md'); if(!name) return; if(state.files[name]) return status('File already exists.'); state.files[name]=''; stampFile(name); openFile(name); renderFiles(); status(`Created ${name}.`); }
+
+function setSplit(pct){
+  const clamped = Math.max(28, Math.min(72, pct));
+  document.documentElement.style.setProperty('--split', `${clamped}%`);
+  $('centerShell').style.gridTemplateColumns = `minmax(340px, var(--split)) 12px minmax(280px, calc(100% - var(--split)))`;
+  if(state.editor) state.editor.layout();
+}
+function initSplitter(){
+  const splitter = $('mainSplitter');
+  const shell = $('centerShell');
+  setSplit(parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--split')) || 58);
+  let dragging = false;
+  splitter.addEventListener('mousedown', ()=> dragging = true);
+  window.addEventListener('mouseup', ()=> dragging = false);
+  window.addEventListener('mousemove', (e)=>{
+    if(!dragging) return;
+    const rect = shell.getBoundingClientRect();
+    const pct = ((e.clientX - rect.left) / rect.width) * 100;
+    setSplit(pct);
+  });
+}
+
+window.addEventListener('DOMContentLoaded', ()=>{
+  loadLocal();
+  require.config({paths:{vs:'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs'}});
+  require(['vs/editor/editor.main'], ()=>{
+    renderFiles();
+    openFile(state.activeFile);
+    refreshPreview(false);
+    applyDocStyle();
+    applyCodeStyle();
+  });
+  loadServerConfig();
+  initSplitter();
+
+  $('refreshPreviewBtn').onclick=()=>refreshPreview(true);
+  $('syncPreviewBtn').onclick=()=>refreshPreview(true);
+  $('openPreviewBtn').onclick=()=>{ const w=window.open(); w.document.write(buildPreviewHtml()); w.document.close(); };
+  $('downloadJsonBtn').onclick=exportJson;
+  $('downloadZipBtn').onclick=exportZip;
+  $('saveLocalBtn').onclick=saveLocal;
+  $('loadLocalBtn').onclick=()=>{loadLocal(); renderFiles(); openFile(state.activeFile); refreshPreview(false); applyDocStyle(); applyCodeStyle(); status('Loaded local non-secret config/project.');};
+  $('sendCodexBtn').onclick=runCodex;
+  $('pushGithubBtn').onclick=pushGithub;
+  $('testGithubBtn').onclick=testGithub;
+  $('testNetlifyBtn').onclick=testNetlify;
+  $('deployNetlifyBtn').onclick=deployNetlify;
+  $('newProjectBtn').onclick=newProject;
+  $('newFileBtn').onclick=newFile;
+  $('folderBtn').onclick=()=>status('Project lane ready. Add folder import next if you want the beast to eat whole repos.');
+  $('saveAsTopBtn').onclick=saveLocal;
+  $('openProjectBtn').onclick=()=>status('Use Restore to load your saved local workstation state.');
+  $('downloadPdfBtn').onclick=()=>window.print();
+  $('networkBtn').onclick=()=>window.open('https://skyesol.netlify.app/','_blank');
+  $('focusBtn').onclick=()=>document.body.requestFullscreen?.();
+  $('globalSearchBtn').onclick=()=>$('fileSearch').focus();
+  $('projectName').addEventListener('input',()=>{ state.projectName=$('projectName').value.trim()||state.projectName; updateWorkspaceTitle(); });
+  $('fileSearch').addEventListener('input',e=>{ state.filter=e.target.value; renderFiles(); });
+  $('fontFamilySelect').addEventListener('change',()=>{ applyDocStyle(); saveLocal(); refreshPreview(false); });
+  $('docZoomSelect').addEventListener('change',()=>{ applyDocStyle(); saveLocal(); refreshPreview(false); });
+  $('codeZoomSelect').addEventListener('change',()=>{ applyCodeStyle(); saveLocal(); });
+
+  const wrapWith = (left,right='')=>{
+    if(!state.editor) return;
+    const sel = state.editor.getSelection();
+    const model = state.editor.getModel();
+    const text = model.getValueInRange(sel);
+    state.editor.executeEdits('toolbar', [{ range: sel, text: `${left}${text}${right}` }]);
+    state.editor.focus();
+  };
+  $('boldBtn').onclick=()=>wrapWith('**','**');
+  $('italicBtn').onclick=()=>wrapWith('*','*');
+  $('underlineBtn').onclick=()=>wrapWith('<u>','</u>');
+  $('strikeBtn').onclick=()=>wrapWith('~~','~~');
+  $('quoteBtn').onclick=()=>wrapWith('> ');
+  $('linkBtn').onclick=()=>wrapWith('[','](https://)');
+  $('imageBtn').onclick=()=>wrapWith('![alt text](',' )');
+  $('codeBtn').onclick=()=>wrapWith('`','`');
+});
+</script>
+</body>
+</html>

@@ -42,6 +42,10 @@ To deploy this solution you need:
 
 ## Configuration
 
+Canonical env checklist: [docs/ENVIRONMENT_VARIABLES.md](docs/ENVIRONMENT_VARIABLES.md)
+Netlify example env file: [.env.netlify.example](.env.netlify.example)
+Worker example env file: [worker/.dev.vars.example](worker/.dev.vars.example)
+
 ### Netlify environment variables
 
 Set the following environment variables in your Netlify site settings:

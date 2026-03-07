@@ -65,6 +65,7 @@ type ToolTab = "assistant" | "smokehouse" | "playground";
 
 type SkyeAppId =
   | "SkyeDocs"
+  | "SkyDex4.6"
   | "SkyeDocxPro"
   | "SkyeBlog"
   | "SovereignVariables"
@@ -322,6 +323,7 @@ const ONBOARDING_WORKSPACE_EMAIL_KEY = "kx.onboarding.workspaceEmail";
 
 const SKYE_APPS: SkyeAppDefinition[] = [
   { id: "SkyeDocs", summary: "Collaborative document workspace.", mvp: ["Rich text", "Markdown mode", "Autosave"] },
+  { id: "SkyDex4.6", summary: "Secure codex IDE surface wired to workspace, gateway, GitHub, and Netlify flows.", mvp: ["Workspace editing", "Gateway prompt lane", "Push + deploy controls"] },
   { id: "SkyeDocxPro", summary: "Full document production suite integrated into SuperIDE.", mvp: ["Advanced editor", "Offline-ready workflows", "Production-grade exports"] },
   { id: "SkyeBlog", summary: "AI-first blog studio with direct community publishing flows.", mvp: ["AI draft generation", "Editorial workspace", "Push to chat/mail"] },
   { id: "SovereignVariables", summary: "Secure environment variable vault with portable exports.", mvp: ["Project/env management", "Encrypted .skye export", "Push to chat/mail"] },
@@ -378,6 +380,7 @@ const PLATFORM_INTRO_PILLARS = [
 
 const APP_SURFACE_PATHS: Partial<Record<SkyeAppId, string>> = {
   SkyeDocs: "/SkyeDocs/index.html",
+  "SkyDex4.6": "/SkyDex4.6/index.html",
   SkyeDocxPro: "/SkyeDocxPro/index.html",
   SkyeBlog: "/SkyeBlog/index.html",
   SovereignVariables: "/SovereignVariables/index.html",
@@ -430,6 +433,11 @@ const APP_TUTORIALS: Record<SkyeAppId, string[]> = {
     "Edit content in Monaco and verify syntax highlighting.",
     "Use Assistant tab to generate/refactor with SKNore enforcement.",
     "Share progress to team via Project Share panel.",
+  ],
+  "SkyDex4.6": [
+    "Load the current workspace snapshot directly from the secure workspace API.",
+    "Edit files in the embedded editor and save the full snapshot before release actions.",
+    "Use the kAIxU prompt deck for gateway-routed generation, then connect GitHub or Netlify from the right rail as needed.",
   ],
   SkyeDocxPro: [
     "Launch DocxPro in embedded mode from SuperIDE.",
@@ -611,7 +619,7 @@ const APP_TUTORIALS: Record<SkyeAppId, string[]> = {
   ],
 };
 
-const FEATURED_APP_IDS: SkyeAppId[] = ["SkyeBookx", "REACT2HTML", "SKYEMAIL-GEN", "Skye-ID", "SkyePlatinum"];
+const FEATURED_APP_IDS: SkyeAppId[] = ["SkyDex4.6", "SkyeBookx", "REACT2HTML", "SKYEMAIL-GEN", "Skye-ID", "SkyePlatinum"];
 
 const DEFAULT_FILES: WorkspaceFile[] = [
   {
@@ -4404,6 +4412,7 @@ export function App() {
     }
 
     if (
+      selectedSkyeApp === "SkyDex4.6" ||
       selectedSkyeApp === "REACT2HTML" ||
       selectedSkyeApp === "SKYEMAIL-GEN" ||
       selectedSkyeApp === "Skye-ID" ||

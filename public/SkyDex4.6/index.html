@@ -1,0 +1,1374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SkyDex 4.6</title>
+  <style>
+    :root {
+      --bg: #080511;
+      --bg-2: #120a22;
+      --panel: rgba(20, 13, 36, 0.92);
+      --panel-2: rgba(28, 18, 49, 0.94);
+      --line: rgba(201, 164, 79, 0.18);
+      --line-strong: rgba(232, 198, 117, 0.4);
+      --text: #f6f0ff;
+      --muted: #b6abcf;
+      --purple: #8f5bff;
+      --purple-soft: #c9b6ff;
+      --gold: #efc764;
+      --gold-soft: #ffe39b;
+      --success: #66d39d;
+      --danger: #ff7979;
+      --shadow: 0 22px 60px rgba(0, 0, 0, 0.38);
+      --topbar-h: 72px;
+      --sidebar-w: 280px;
+      --rail-w: 360px;
+      --editor-font: 14px;
+      --doc-font: Georgia, serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    html,
+    body {
+      margin: 0;
+      height: 100%;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 16% 0%, rgba(143, 91, 255, 0.26), transparent 34%),
+        radial-gradient(circle at 100% 12%, rgba(239, 199, 100, 0.16), transparent 30%),
+        linear-gradient(180deg, #0d0718 0%, #06050b 100%);
+      color: var(--text);
+      font-family: "Segoe UI", system-ui, sans-serif;
+    }
+
+    body.embed .shell-header { display: none; }
+    body.embed .shell { grid-template-rows: 1fr; }
+
+    button,
+    input,
+    select,
+    textarea { font: inherit; }
+
+    button { cursor: pointer; }
+
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.95em;
+    }
+
+    .shell {
+      height: 100%;
+      display: grid;
+      grid-template-rows: var(--topbar-h) 1fr;
+    }
+
+    .shell-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 20px;
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(17, 11, 31, 0.96), rgba(11, 8, 22, 0.82));
+      backdrop-filter: blur(18px);
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.24);
+      min-width: 0;
+    }
+
+    .brand-block {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      min-width: 0;
+    }
+
+    .brand-mark {
+      width: 42px;
+      height: 42px;
+      border-radius: 14px;
+      background:
+        radial-gradient(circle at 35% 30%, rgba(255, 227, 155, 0.96), transparent 32%),
+        linear-gradient(135deg, rgba(143, 91, 255, 0.9), rgba(239, 199, 100, 0.82));
+      box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.18),
+        0 0 24px rgba(143, 91, 255, 0.34);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .brand-mark::after {
+      content: "SD";
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      color: #170d2b;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      font-size: 13px;
+    }
+
+    .brand-copy { min-width: 0; }
+    .brand-title { margin: 0; font-size: 18px; letter-spacing: 0.02em; white-space: nowrap; }
+    .brand-title .sky { color: var(--purple-soft); }
+    .brand-title .dex { color: var(--gold-soft); }
+
+    .brand-subtitle {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 46vw;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .chip,
+    .ghost,
+    .primary {
+      border-radius: 12px;
+      border: 1px solid transparent;
+      padding: 10px 14px;
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.04);
+      transition: 150ms ease;
+      text-decoration: none;
+    }
+
+    .chip {
+      font-size: 12px;
+      color: var(--muted);
+      border-color: var(--line);
+    }
+
+    .ghost:hover,
+    .primary:hover,
+    .chip:hover {
+      transform: translateY(-1px);
+      border-color: var(--line-strong);
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .primary {
+      background: linear-gradient(135deg, rgba(143, 91, 255, 0.92), rgba(239, 199, 100, 0.78));
+      color: #160d26;
+      font-weight: 800;
+      box-shadow: 0 0 24px rgba(143, 91, 255, 0.22);
+    }
+
+    .workspace-shell {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: var(--sidebar-w) 1fr var(--rail-w);
+      gap: 14px;
+      padding: 14px;
+    }
+
+    .panel {
+      min-height: 0;
+      min-width: 0;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: linear-gradient(180deg, var(--panel), rgba(9, 8, 16, 0.94));
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(30, 20, 52, 0.8), rgba(17, 12, 30, 0.76));
+    }
+
+    .panel-header h2,
+    .panel-header h3,
+    .panel-header p { margin: 0; }
+
+    .eyebrow {
+      font-size: 11px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .panel-title { font-size: 18px; }
+
+    .panel-subtitle {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 6px;
+      line-height: 1.4;
+    }
+
+    .sidebar {
+      display: grid;
+      grid-template-rows: auto auto 1fr auto;
+    }
+
+    .sidebar-block,
+    .rail-block {
+      padding: 16px 18px;
+      border-bottom: 1px solid rgba(201, 164, 79, 0.12);
+    }
+
+    .sidebar-block:last-child,
+    .rail-block:last-child { border-bottom: none; }
+
+    .field-stack,
+    .action-stack,
+    .file-list,
+    .log-list,
+    .summary-stack {
+      display: grid;
+      gap: 10px;
+    }
+
+    .field-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .field label {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 6px;
+    }
+
+    .field input,
+    .field textarea,
+    .field select,
+    .search-input {
+      width: 100%;
+      min-width: 0;
+      border: 1px solid rgba(201, 164, 79, 0.18);
+      border-radius: 14px;
+      background: rgba(6, 6, 10, 0.7);
+      color: var(--text);
+      padding: 11px 13px;
+    }
+
+    .field textarea {
+      min-height: 120px;
+      resize: vertical;
+    }
+
+    .search-input { margin-top: 12px; }
+
+    .muted {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .file-list {
+      min-height: 0;
+      overflow: auto;
+      padding: 14px;
+    }
+
+    .file-item {
+      display: grid;
+      gap: 4px;
+      width: 100%;
+      text-align: left;
+      border: 1px solid transparent;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.02);
+      padding: 12px 14px;
+      color: var(--text);
+    }
+
+    .file-item:hover,
+    .file-item.active {
+      border-color: var(--line-strong);
+      background: linear-gradient(135deg, rgba(143, 91, 255, 0.12), rgba(239, 199, 100, 0.08));
+    }
+
+    .file-path { font-weight: 700; word-break: break-word; }
+    .file-meta { color: var(--muted); font-size: 12px; }
+
+    .workspace-panel {
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+
+    .workspace-toolbar {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(17, 11, 30, 0.86);
+    }
+
+    .workspace-toolbar .field {
+      min-width: 140px;
+      flex: 1 1 140px;
+    }
+
+    .workspace-toolbar .field label { margin-bottom: 4px; }
+
+    .editor-shell {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 56% 12px calc(44% - 12px);
+      grid-template-areas: "editor splitter preview";
+    }
+
+    .editor-pane,
+    .preview-pane {
+      min-height: 0;
+      min-width: 0;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      background: rgba(5, 5, 8, 0.72);
+    }
+
+    .editor-pane { grid-area: editor; }
+
+    .preview-pane {
+      grid-area: preview;
+      border-left: 1px solid var(--line);
+    }
+
+    .splitter {
+      grid-area: splitter;
+      position: relative;
+      background: linear-gradient(180deg, rgba(26, 18, 45, 0.94), rgba(11, 8, 21, 0.94));
+      cursor: col-resize;
+    }
+
+    .splitter::before {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 4px;
+      height: 74px;
+      transform: translate(-50%, -50%);
+      border-radius: 999px;
+      background: linear-gradient(180deg, var(--gold), var(--purple));
+      box-shadow: 0 0 16px rgba(143, 91, 255, 0.34);
+    }
+
+    .subheader {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(27, 18, 48, 0.82), rgba(15, 11, 28, 0.88));
+    }
+
+    .subheader-title {
+      margin: 0;
+      font-size: 13px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .subheader-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .mini {
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text);
+    }
+
+    #editor { width: 100%; height: 100%; }
+
+    .preview-viewport {
+      position: relative;
+      min-height: 0;
+      background: linear-gradient(180deg, rgba(10, 8, 17, 0.98), rgba(4, 4, 7, 1));
+    }
+
+    #previewFrame {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      background: white;
+    }
+
+    .watermark {
+      position: absolute;
+      right: 16px;
+      bottom: 16px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(201, 164, 79, 0.18);
+      background: rgba(17, 11, 30, 0.74);
+      color: var(--gold-soft);
+      font-size: 11px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      pointer-events: none;
+    }
+
+    .rail {
+      min-height: 0;
+      overflow: auto;
+      background: linear-gradient(180deg, var(--panel-2), rgba(8, 7, 14, 0.98));
+    }
+
+    .status-card,
+    .log-entry,
+    .outline-entry,
+    .integration-status {
+      border: 1px solid rgba(201, 164, 79, 0.14);
+      border-radius: 16px;
+      padding: 12px 14px;
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .status-card strong,
+    .integration-status strong {
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    .outline-stack {
+      display: grid;
+      gap: 8px;
+    }
+
+    .outline-entry {
+      width: 100%;
+      text-align: left;
+      color: var(--text);
+    }
+
+    .outline-entry[data-depth="2"] { margin-left: 14px; }
+    .outline-entry[data-depth="3"] { margin-left: 28px; }
+
+    .pill-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .pill {
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(201, 164, 79, 0.14);
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .success { color: var(--success); }
+    .danger { color: var(--danger); }
+
+    @media (max-width: 1320px) {
+      :root { --sidebar-w: 250px; --rail-w: 330px; }
+    }
+
+    @media (max-width: 1120px) {
+      html,
+      body { overflow: auto; }
+      .workspace-shell { grid-template-columns: 1fr; }
+      .editor-shell {
+        grid-template-columns: 1fr;
+        grid-template-areas: "editor" "preview";
+      }
+      .splitter { display: none; }
+      .preview-pane {
+        border-left: none;
+        border-top: 1px solid var(--line);
+      }
+    }
+
+    @media (max-width: 760px) {
+      .shell-header { padding: 14px; }
+      .brand-subtitle { max-width: 70vw; }
+      .field-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
+</head>
+<body>
+  <div class="shell">
+    <header class="shell-header">
+      <div class="brand-block">
+        <div class="brand-mark" aria-hidden="true"></div>
+        <div class="brand-copy">
+          <h1 class="brand-title"><span class="sky">SkyDex</span> <span class="dex">4.6</span></h1>
+          <p class="brand-subtitle" id="workspaceLabel">Secure workspace lane for gateway, GitHub, and Netlify release flow</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <span class="chip" id="workspaceChip">workspace: loading</span>
+        <span class="chip" id="revisionChip">revision: none</span>
+        <button class="ghost" type="button" id="openAdminBtn">Open Key Control</button>
+        <button class="ghost" type="button" id="reloadWorkspaceBtn">Reload Workspace</button>
+        <button class="primary" type="button" id="saveWorkspaceBtn">Save Workspace</button>
+      </div>
+    </header>
+
+    <div class="workspace-shell">
+      <aside class="panel sidebar">
+        <div class="panel-header">
+          <div>
+            <div class="eyebrow">Workspace Files</div>
+            <h2 class="panel-title">Snapshot Editor</h2>
+            <p class="panel-subtitle">Edits save into the same workspace snapshot used by GitHub push and Netlify deploy.</p>
+          </div>
+        </div>
+        <div class="sidebar-block field-stack">
+          <div class="field">
+            <label for="projectName">Project name</label>
+            <input id="projectName" placeholder="Project name" />
+          </div>
+          <div class="field">
+            <label for="newFilePath">New file path</label>
+            <input id="newFilePath" placeholder="src/main.js or docs/notes.md" />
+          </div>
+          <div class="action-stack">
+            <button class="ghost" type="button" id="newFileBtn">Create File</button>
+            <button class="ghost" type="button" id="duplicateFileBtn">Duplicate Active File</button>
+          </div>
+          <input class="search-input" id="fileSearch" placeholder="Filter files" />
+        </div>
+        <div class="file-list" id="fileList"></div>
+        <div class="sidebar-block summary-stack">
+          <div class="status-card">
+            <strong id="saveStateTitle">Workspace state</strong>
+            <div class="muted" id="saveStateBody">Waiting for workspace load.</div>
+          </div>
+          <div class="pill-row">
+            <span class="pill" id="fileCountPill">0 files</span>
+            <span class="pill" id="dirtyPill">clean</span>
+          </div>
+          <p class="muted">SkyDex 4.6 stays on the secured runtime path: workspace APIs, kAIxU gateway, GitHub App push, and vaulted Netlify deploy.</p>
+        </div>
+      </aside>
+
+      <main class="panel workspace-panel">
+        <div class="workspace-toolbar">
+          <div class="field">
+            <label for="docFontSelect">Document font</label>
+            <select id="docFontSelect">
+              <option value="Georgia, serif">Georgia</option>
+              <option value="'Times New Roman', serif">Times New Roman</option>
+              <option value="'Palatino Linotype', serif">Palatino</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="docZoomSelect">Preview size</label>
+            <select id="docZoomSelect">
+              <option value="18">Normal</option>
+              <option value="16">Compact</option>
+              <option value="20">Large</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="codeZoomSelect">Editor size</label>
+            <select id="codeZoomSelect">
+              <option value="14">Normal</option>
+              <option value="12">Compact</option>
+              <option value="16">Large</option>
+            </select>
+          </div>
+          <div class="action-stack" style="grid-auto-flow: column; align-items: end;">
+            <button class="ghost" type="button" id="refreshPreviewBtn">Refresh Preview</button>
+            <button class="ghost" type="button" id="downloadJsonBtn">Export JSON</button>
+            <button class="ghost" type="button" id="downloadZipBtn">Export ZIP</button>
+          </div>
+        </div>
+
+        <div class="editor-shell" id="editorShell">
+          <section class="editor-pane">
+            <div class="subheader">
+              <h3 class="subheader-title" id="activeFileLabel">No file selected</h3>
+              <div class="subheader-actions">
+                <button class="mini" type="button" id="renameFileBtn">Rename</button>
+                <button class="mini" type="button" id="deleteFileBtn">Delete</button>
+              </div>
+            </div>
+            <div id="editor"></div>
+          </section>
+          <div class="splitter" id="mainSplitter" aria-hidden="true"></div>
+          <section class="preview-pane">
+            <div class="subheader">
+              <h3 class="subheader-title">Live Preview</h3>
+              <div class="subheader-actions">
+                <button class="mini" type="button" id="openPreviewTabBtn">Open Tab</button>
+              </div>
+            </div>
+            <div class="preview-viewport">
+              <iframe id="previewFrame" sandbox="allow-scripts allow-same-origin allow-modals"></iframe>
+              <div class="watermark">SkyDex Secure Lane</div>
+            </div>
+          </section>
+        </div>
+      </main>
+
+      <aside class="panel rail">
+        <div class="panel-header">
+          <div>
+            <div class="eyebrow">Command Deck</div>
+            <h2 class="panel-title">kAIxU + Release Controls</h2>
+            <p class="panel-subtitle">Run prompts through the protected gateway, then push or deploy the same saved snapshot.</p>
+          </div>
+        </div>
+
+        <div class="rail-block summary-stack">
+          <div class="integration-status">
+            <strong>Audit Findings</strong>
+            <div class="muted">Frontend push and deploy are real, but connect UX was still rough. SkyDex 4.6 exposes GitHub and Netlify connect forms directly so setup and release happen in one place.</div>
+          </div>
+          <div class="integration-status">
+            <strong>Save Path</strong>
+            <div class="muted">Every save writes the full workspace snapshot through <code>/api/ws-save</code>. Push and deploy run against that saved workspace, not a separate local shadow copy.</div>
+          </div>
+        </div>
+
+        <div class="rail-block field-stack">
+          <div class="eyebrow">kAIxU Prompt Lane</div>
+          <div class="field">
+            <label for="modelInput">Model override</label>
+            <input id="modelInput" placeholder="Leave blank for server default" />
+          </div>
+          <div class="field">
+            <label for="promptInput">Prompt</label>
+            <textarea id="promptInput" placeholder="Ask for a refactor, generate a file, or describe the next change."></textarea>
+          </div>
+          <div class="action-stack">
+            <button class="primary" type="button" id="runPromptBtn">Run kAIxU Prompt</button>
+            <button class="ghost" type="button" id="savePromptOutputBtn">Save Prompt Output As File</button>
+          </div>
+        </div>
+
+        <div class="rail-block field-stack">
+          <div class="eyebrow">GitHub Connect + Push</div>
+          <div class="integration-status" id="githubConnectionStatus">
+            <strong>GitHub status</strong>
+            <div class="muted">Checking current connection state.</div>
+          </div>
+          <div class="field-grid">
+            <div class="field">
+              <label for="githubRepoInput">Repository</label>
+              <input id="githubRepoInput" placeholder="owner/repo" />
+            </div>
+            <div class="field">
+              <label for="githubInstallationInput">Installation ID</label>
+              <input id="githubInstallationInput" placeholder="12345678" />
+            </div>
+          </div>
+          <div class="field-grid">
+            <div class="field">
+              <label for="githubBranchInput">Branch</label>
+              <input id="githubBranchInput" placeholder="main" value="main" />
+            </div>
+            <div class="field">
+              <label for="githubMessageInput">Commit message</label>
+              <input id="githubMessageInput" placeholder="Ship SkyDex updates" />
+            </div>
+          </div>
+          <div class="action-stack">
+            <button class="ghost" type="button" id="connectGithubBtn">Connect GitHub App</button>
+            <button class="ghost" type="button" id="pushGithubBtn">Save Then Push</button>
+          </div>
+        </div>
+
+        <div class="rail-block field-stack">
+          <div class="eyebrow">Netlify Connect + Deploy</div>
+          <div class="integration-status" id="netlifyConnectionStatus">
+            <strong>Netlify status</strong>
+            <div class="muted">Checking current connection state.</div>
+          </div>
+          <div class="field-grid">
+            <div class="field">
+              <label for="netlifySiteIdInput">Site ID</label>
+              <input id="netlifySiteIdInput" placeholder="Netlify site id" />
+            </div>
+            <div class="field">
+              <label for="netlifySiteNameInput">Site name</label>
+              <input id="netlifySiteNameInput" placeholder="Optional label" />
+            </div>
+          </div>
+          <div class="field-grid">
+            <div class="field">
+              <label for="netlifyTokenInput">Connect token</label>
+              <input id="netlifyTokenInput" type="password" placeholder="Used once to vault the site token" />
+            </div>
+            <div class="field">
+              <label for="netlifyTitleInput">Deploy title</label>
+              <input id="netlifyTitleInput" placeholder="SkyDex 4.6 release" />
+            </div>
+          </div>
+          <div class="action-stack">
+            <button class="ghost" type="button" id="connectNetlifyBtn">Connect Netlify Site</button>
+            <button class="ghost" type="button" id="deployNetlifyBtn">Save Then Deploy</button>
+          </div>
+        </div>
+
+        <div class="rail-block">
+          <div class="eyebrow">Outline</div>
+          <div class="outline-stack" id="outlineBox">
+            <div class="muted">No headings detected.</div>
+          </div>
+        </div>
+
+        <div class="rail-block summary-stack">
+          <div class="status-card">
+            <strong id="statusTitle">Status</strong>
+            <div class="muted" id="statusBody">Booting SkyDex 4.6.</div>
+          </div>
+          <div class="log-list" id="logBox"></div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <script>
+    const qs = new URLSearchParams(window.location.search);
+    const workspaceId = (qs.get("ws_id") || "primary-workspace").trim();
+    const isEmbed = qs.get("embed") === "1";
+    if (isEmbed) document.body.classList.add("embed");
+
+    const state = {
+      workspaceId,
+      workspaceName: "SkyDex Workspace",
+      revision: "",
+      files: [],
+      activePath: "",
+      dirty: false,
+      editor: null,
+      promptOutput: "",
+      filter: "",
+      integrationStatus: {
+        github: { connected: false, repo: null, branch: null, installation_id: null },
+        netlify: { connected: false, site_id: null, site_name: null },
+      },
+    };
+
+    const defaultFiles = [
+      {
+        path: "index.html",
+        content: "<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\" />\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n  <title>SkyDex 4.6 Workspace</title>\n  <link rel=\"stylesheet\" href=\"styles.css\" />\n</head>\n<body>\n  <main class=\"shell\">\n    <h1>SkyDex 4.6</h1>\n    <p>Secure workspace saved through SuperIDE APIs.</p>\n    <button id=\"actionBtn\">Launch</button>\n  </main>\n  <script src=\"app.js\"><\\/script>\n</body>\n</html>",
+      },
+      {
+        path: "styles.css",
+        content: "body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: radial-gradient(circle at top, #2d164d 0%, #120a22 45%, #080511 100%); color: #f6f0ff; font-family: 'Segoe UI', system-ui, sans-serif; }\n.shell { width: min(92vw, 760px); padding: 40px; border-radius: 28px; background: rgba(255,255,255,0.06); box-shadow: 0 30px 80px rgba(0,0,0,0.35); border: 1px solid rgba(239,199,100,0.18); }\nh1 { margin-top: 0; font-size: clamp(2.4rem, 6vw, 4.4rem); }\nbutton { border: 0; border-radius: 999px; padding: 12px 18px; font-weight: 700; background: linear-gradient(135deg, #8f5bff, #efc764); color: #190d29; }",
+      },
+      {
+        path: "app.js",
+        content: "document.getElementById('actionBtn')?.addEventListener('click', () => {\n  alert('SkyDex 4.6 preview is live.');\n});",
+      },
+      {
+        path: "docs/notes.md",
+        content: "# SkyDex 4.6\n\nThis lane uses the shared workspace snapshot APIs.\n\n## Release Path\n\n1. Save workspace\n2. Connect GitHub and Netlify if needed\n3. Push or deploy from the same saved snapshot\n",
+      },
+    ];
+
+    const $ = (id) => document.getElementById(id);
+
+    function log(message, tone = "info") {
+      const entry = document.createElement("div");
+      entry.className = "log-entry";
+      const time = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+      const toneClass = tone === "error" ? "danger" : tone === "success" ? "success" : "";
+      entry.innerHTML = "<strong class='" + toneClass + "'>" + time + "</strong><div class='muted'></div>";
+      entry.querySelector(".muted").textContent = message;
+      const box = $("logBox");
+      box.prepend(entry);
+      while (box.children.length > 12) box.removeChild(box.lastChild);
+    }
+
+    function setStatus(title, body, tone = "info") {
+      $("statusTitle").textContent = title;
+      $("statusBody").textContent = body;
+      $("statusTitle").className = tone === "error" ? "danger" : tone === "success" ? "success" : "";
+      log(title + ": " + body, tone);
+    }
+
+    function escapeHtml(value) {
+      return String(value || "").replace(/[&<>\"']/g, (match) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[match]));
+    }
+
+    function getFile(path) {
+      return state.files.find((file) => file.path === path) || null;
+    }
+
+    function fileLanguage(path) {
+      if (/\.tsx?$/.test(path)) return "typescript";
+      if (/\.jsx$/.test(path)) return "javascript";
+      if (/\.json$/.test(path)) return "json";
+      if (/\.css$/.test(path)) return "css";
+      if (/\.html?$/.test(path)) return "html";
+      if (/\.md$/.test(path)) return "markdown";
+      if (/\.sql$/.test(path)) return "sql";
+      if (/\.ya?ml$/.test(path)) return "yaml";
+      if (/\.js$/.test(path)) return "javascript";
+      return "plaintext";
+    }
+
+    function updateHeader() {
+      $("workspaceChip").textContent = "workspace: " + state.workspaceId;
+      $("revisionChip").textContent = "revision: " + (state.revision || "none");
+      $("workspaceLabel").textContent = state.workspaceName + " · secure workspace, gateway, GitHub, and Netlify release flow";
+      $("projectName").value = state.workspaceName;
+      $("fileCountPill").textContent = state.files.length + " files";
+      $("dirtyPill").textContent = state.dirty ? "unsaved" : "clean";
+      $("saveStateTitle").textContent = state.dirty ? "Unsaved edits present" : "Workspace in sync";
+      $("saveStateBody").textContent = state.dirty
+        ? "Save before push or deploy so release actions run against the latest snapshot."
+        : "Current files are aligned with the latest saved workspace revision.";
+    }
+
+    function renderFiles() {
+      const q = state.filter.trim().toLowerCase();
+      const box = $("fileList");
+      box.innerHTML = "";
+      state.files
+        .slice()
+        .sort((a, b) => a.path.localeCompare(b.path))
+        .filter((file) => !q || file.path.toLowerCase().includes(q))
+        .forEach((file) => {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "file-item" + (file.path === state.activePath ? " active" : "");
+          button.innerHTML = "<div class='file-path'>" + escapeHtml(file.path) + "</div><div class='file-meta'>" + fileLanguage(file.path) + " file</div>";
+          button.addEventListener("click", () => openFile(file.path));
+          box.appendChild(button);
+        });
+      if (!box.children.length) {
+        const empty = document.createElement("div");
+        empty.className = "muted";
+        empty.textContent = "No files match the current filter.";
+        box.appendChild(empty);
+      }
+      updateHeader();
+    }
+
+    function renderIntegrationStatus() {
+      const githubBox = $("githubConnectionStatus");
+      const netlifyBox = $("netlifyConnectionStatus");
+      const github = state.integrationStatus.github || {};
+      const netlify = state.integrationStatus.netlify || {};
+
+      githubBox.innerHTML = github.connected
+        ? "<strong>GitHub status</strong><div class='muted'>Connected to <code>" + escapeHtml(github.repo || "") + "</code> on <code>" + escapeHtml(github.branch || "main") + "</code> with installation <code>" + escapeHtml(String(github.installation_id || "")) + "</code>.</div>"
+        : "<strong>GitHub status</strong><div class='muted'>No GitHub App connection is stored for this user yet.</div>";
+
+      netlifyBox.innerHTML = netlify.connected
+        ? "<strong>Netlify status</strong><div class='muted'>Connected to site <code>" + escapeHtml(netlify.site_id || "") + "</code>" + (netlify.site_name ? " (" + escapeHtml(netlify.site_name) + ")" : "") + ".</div>"
+        : "<strong>Netlify status</strong><div class='muted'>No Netlify site is stored for this user yet.</div>";
+    }
+
+    function upsertFile(path, content) {
+      const existing = getFile(path);
+      if (existing) existing.content = content;
+      else state.files.push({ path, content });
+      state.dirty = true;
+      renderFiles();
+    }
+
+    function removeFile(path) {
+      const index = state.files.findIndex((file) => file.path === path);
+      if (index >= 0) state.files.splice(index, 1);
+      if (state.activePath === path) state.activePath = state.files[0]?.path || "";
+      state.dirty = true;
+      renderFiles();
+      if (state.activePath) openFile(state.activePath);
+      else if (state.editor) state.editor.setValue("");
+    }
+
+    function collectCurrentEditor() {
+      if (!state.editor || !state.activePath) return;
+      const current = getFile(state.activePath);
+      if (current) current.content = state.editor.getValue();
+    }
+
+    function markdownToHtml(source) {
+      const escaped = escapeHtml(source)
+        .replace(/^###\s+(.*)$/gm, "<h3>$1</h3>")
+        .replace(/^##\s+(.*)$/gm, "<h2>$1</h2>")
+        .replace(/^#\s+(.*)$/gm, "<h1>$1</h1>")
+        .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+        .replace(/\*(.*?)\*/g, "<em>$1</em>")
+        .replace(/`([^`]+)`/g, "<code>$1</code>");
+      return escaped
+        .split(/\n\n+/)
+        .map((block) => (/^<h\d/.test(block.trim()) ? block : "<p>" + block.replace(/\n/g, "<br />") + "</p>"))
+        .join("");
+    }
+
+    function buildRuntimePreview() {
+      const htmlFile = getFile("index.html");
+      if (!htmlFile) return null;
+      const cssFile = getFile("styles.css");
+      const jsFile = getFile("app.js");
+      let html = htmlFile.content;
+      if (cssFile) {
+        if (/<link[^>]+href=["']styles\.css["'][^>]*>/i.test(html)) {
+          html = html.replace(/<link[^>]+href=["']styles\.css["'][^>]*>/i, "<style>" + cssFile.content + "</style>");
+        } else {
+          html = html.replace(/<\/head>/i, "<style>" + cssFile.content + "</style></head>");
+        }
+      }
+      if (jsFile) {
+        if (/<script[^>]+src=["']app\.js["'][^>]*><\/script>/i.test(html)) {
+          html = html.replace(/<script[^>]+src=["']app\.js["'][^>]*><\/script>/i, "<script>" + jsFile.content + "<\\/script>");
+        } else {
+          html = html.replace(/<\/body>/i, "<script>" + jsFile.content + "<\\/script></body>");
+        }
+      }
+      return html;
+    }
+
+    function renderPreview() {
+      collectCurrentEditor();
+      const frame = $("previewFrame");
+      const active = getFile(state.activePath);
+      const runtimeHtml = buildRuntimePreview();
+      if (runtimeHtml && ["index.html", "styles.css", "app.js"].includes(state.activePath)) {
+        frame.srcdoc = runtimeHtml;
+        setTimeout(renderOutline, 80);
+        return;
+      }
+      if (!active) {
+        frame.srcdoc = "<body style='font-family:sans-serif;padding:24px'>No file selected.</body>";
+        renderOutline();
+        return;
+      }
+      let body = "";
+      if (/\.md$/.test(active.path)) body = markdownToHtml(active.content);
+      else if (/\.html?$/.test(active.path)) body = active.content;
+      else body = "<pre style='white-space:pre-wrap;font-family:ui-monospace,monospace'>" + escapeHtml(active.content) + "</pre>";
+      const docZoom = Number($("docZoomSelect").value || 18);
+      const docFont = $("docFontSelect").value || "Georgia, serif";
+      frame.srcdoc = "<!DOCTYPE html><html><head><style>body{margin:0;background:#f7f3ef;color:#231a2e;font-family:" + docFont + ";}main{max-width:860px;margin:0 auto;padding:56px 64px;font-size:" + docZoom + "px;line-height:1.65}h1,h2,h3{font-family:" + docFont + ";}code{background:#ece4fa;padding:2px 6px;border-radius:6px}pre{background:#201630;color:#f8f1ff;padding:18px;border-radius:18px;overflow:auto}</style></head><body><main>" + body + "</main></body></html>";
+      setTimeout(renderOutline, 80);
+    }
+
+    function renderOutline() {
+      const box = $("outlineBox");
+      box.innerHTML = "";
+      const doc = $("previewFrame").contentDocument;
+      if (!doc) {
+        box.innerHTML = "<div class='muted'>No headings detected.</div>";
+        return;
+      }
+      const headers = Array.from(doc.querySelectorAll("h1,h2,h3")).slice(0, 20);
+      if (!headers.length) {
+        box.innerHTML = "<div class='muted'>No headings detected.</div>";
+        return;
+      }
+      headers.forEach((header, index) => {
+        if (!header.id) header.id = "outline-" + index;
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "outline-entry";
+        button.dataset.depth = header.tagName === "H1" ? "1" : header.tagName === "H2" ? "2" : "3";
+        button.textContent = header.textContent || "Untitled section";
+        button.addEventListener("click", () => header.scrollIntoView({ behavior: "smooth", block: "start" }));
+        box.appendChild(button);
+      });
+    }
+
+    function openFile(path) {
+      collectCurrentEditor();
+      const file = getFile(path);
+      if (!file || !state.editor) return;
+      state.activePath = path;
+      $("activeFileLabel").textContent = path;
+      const model = monaco.editor.createModel(file.content, fileLanguage(path));
+      const oldModel = state.editor.getModel();
+      state.editor.setModel(model);
+      if (oldModel) oldModel.dispose();
+      renderFiles();
+      renderPreview();
+    }
+
+    async function jsonRequest(url, method, body) {
+      const response = await fetch(url, {
+        method,
+        headers: body ? { "Content-Type": "application/json" } : undefined,
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload?.error || method + " " + url + " failed.");
+      return payload;
+    }
+
+    async function loadWorkspace() {
+      setStatus("Loading", "Fetching workspace snapshot.");
+      const payload = await jsonRequest("/api/ws-get?id=" + encodeURIComponent(state.workspaceId), "GET");
+      const files = Array.isArray(payload.files) && payload.files.length ? payload.files : defaultFiles.slice();
+      state.files = files
+        .map((file) => ({ path: String(file.path || "").replace(/^\/+/, ""), content: typeof file.content === "string" ? file.content : "" }))
+        .filter((file) => file.path);
+      state.revision = typeof payload.revision === "string" ? payload.revision : "";
+      state.activePath = state.activePath && getFile(state.activePath) ? state.activePath : (state.files[0]?.path || "");
+      state.dirty = false;
+      renderFiles();
+      if (state.activePath) openFile(state.activePath);
+      updateHeader();
+      setStatus("Workspace loaded", "Workspace snapshot is ready for editing.", "success");
+    }
+
+    async function loadIntegrationStatus() {
+      const payload = await jsonRequest("/api/integrations-status", "GET");
+      state.integrationStatus = {
+        github: payload.github || { connected: false },
+        netlify: payload.netlify || { connected: false },
+      };
+
+      if (state.integrationStatus.github?.repo) {
+        $("githubRepoInput").value = state.integrationStatus.github.repo;
+      }
+      if (state.integrationStatus.github?.branch) {
+        $("githubBranchInput").value = state.integrationStatus.github.branch;
+      }
+      if (state.integrationStatus.github?.installation_id) {
+        $("githubInstallationInput").value = String(state.integrationStatus.github.installation_id);
+      }
+      if (state.integrationStatus.netlify?.site_id) {
+        $("netlifySiteIdInput").value = state.integrationStatus.netlify.site_id;
+      }
+      if (state.integrationStatus.netlify?.site_name) {
+        $("netlifySiteNameInput").value = state.integrationStatus.netlify.site_name;
+      }
+
+      renderIntegrationStatus();
+    }
+
+    async function saveWorkspace() {
+      collectCurrentEditor();
+      state.workspaceName = $("projectName").value.trim() || state.workspaceName || "SkyDex Workspace";
+      const payload = await jsonRequest("/api/ws-save", "POST", {
+        id: state.workspaceId,
+        files: state.files,
+        expected_revision: state.revision || "",
+        force: false,
+      });
+      state.revision = typeof payload.revision === "string" ? payload.revision : state.revision;
+      state.dirty = false;
+      updateHeader();
+      setStatus("Workspace saved", "Full snapshot persisted before release actions.", "success");
+    }
+
+    async function saveBeforeRelease() {
+      if (state.dirty) await saveWorkspace();
+    }
+
+    async function connectGithub() {
+      const repo = $("githubRepoInput").value.trim();
+      const installationId = $("githubInstallationInput").value.trim();
+      const branch = $("githubBranchInput").value.trim() || "main";
+      await jsonRequest("/api/github-app-connect", "POST", {
+        repo,
+        installation_id: installationId,
+        branch,
+      });
+      await loadIntegrationStatus();
+      setStatus("GitHub connected", "GitHub App repository settings were saved.", "success");
+    }
+
+    async function pushGithub() {
+      await saveBeforeRelease();
+      const message = $("githubMessageInput").value.trim();
+      const payload = await jsonRequest("/api/github-push", "POST", {
+        ws_id: state.workspaceId,
+        message,
+      });
+      setStatus("GitHub push complete", "Commit " + (payload.commit_sha || "created") + " was pushed.", "success");
+    }
+
+    async function connectNetlify() {
+      const token = $("netlifyTokenInput").value.trim();
+      const siteId = $("netlifySiteIdInput").value.trim();
+      const siteName = $("netlifySiteNameInput").value.trim();
+      await jsonRequest("/api/netlify-connect", "POST", {
+        token,
+        site_id: siteId,
+        site_name: siteName,
+      });
+      $("netlifyTokenInput").value = "";
+      await loadIntegrationStatus();
+      setStatus("Netlify connected", "Site metadata saved and token vaulted.", "success");
+    }
+
+    async function deployNetlify() {
+      await saveBeforeRelease();
+      const title = $("netlifyTitleInput").value.trim();
+      const payload = await jsonRequest("/api/netlify-deploy", "POST", {
+        ws_id: state.workspaceId,
+        title,
+      });
+      setStatus("Netlify deploy complete", "Deploy " + (payload.deploy_id || "created") + (payload.url ? " · " + payload.url : "") + ".", "success");
+    }
+
+    async function runPrompt() {
+      collectCurrentEditor();
+      const prompt = $("promptInput").value.trim();
+      const model = $("modelInput").value.trim();
+      if (!prompt) throw new Error("Prompt is required.");
+      const payload = await jsonRequest("/api/kaixu-generate", "POST", {
+        ws_id: state.workspaceId,
+        activePath: state.activePath || undefined,
+        files: state.files,
+        prompt,
+        model: model || undefined,
+      });
+      state.promptOutput = String(payload.text || "").trim();
+      setStatus("kAIxU response ready", "Prompt output is available and can be saved as a workspace file.", "success");
+    }
+
+    function savePromptOutput() {
+      if (!state.promptOutput) throw new Error("Run a prompt first.");
+      const stamp = new Date().toISOString().replace(/[.:]/g, "-");
+      const path = "notes/kaixu-output-" + stamp + ".md";
+      upsertFile(path, state.promptOutput);
+      openFile(path);
+      setStatus("Prompt output saved", "Stored the latest kAIxU output as " + path + ".", "success");
+    }
+
+    function downloadBlob(name, blob) {
+      const href = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = href;
+      anchor.download = name;
+      anchor.click();
+      setTimeout(() => URL.revokeObjectURL(href), 1200);
+    }
+
+    function exportJson() {
+      collectCurrentEditor();
+      const blob = new Blob([JSON.stringify({ workspace_id: state.workspaceId, revision: state.revision, files: state.files }, null, 2)], { type: "application/json" });
+      downloadBlob((state.workspaceId || "workspace") + "-snapshot.json", blob);
+      setStatus("Export ready", "JSON snapshot downloaded.", "success");
+    }
+
+    function crc32(buffer) {
+      const table = crc32.table || (crc32.table = Array.from({ length: 256 }, (_, n) => {
+        let c = n;
+        for (let index = 0; index < 8; index += 1) c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1);
+        return c >>> 0;
+      }));
+      let c = ~0;
+      for (let index = 0; index < buffer.length; index += 1) c = table[(c ^ buffer[index]) & 255] ^ (c >>> 8);
+      return (~c) >>> 0;
+    }
+
+    async function exportZip() {
+      collectCurrentEditor();
+      const encoder = new TextEncoder();
+      const local = [];
+      const central = [];
+      let offset = 0;
+      state.files.forEach((file) => {
+        const nameBytes = encoder.encode(file.path);
+        const data = encoder.encode(file.content);
+        const crc = crc32(data);
+        const localHeader = new Uint8Array(30 + nameBytes.length);
+        const localView = new DataView(localHeader.buffer);
+        localView.setUint32(0, 0x04034b50, true);
+        localView.setUint16(4, 20, true);
+        localView.setUint32(14, crc, true);
+        localView.setUint32(18, data.length, true);
+        localView.setUint32(22, data.length, true);
+        localView.setUint16(26, nameBytes.length, true);
+        localHeader.set(nameBytes, 30);
+        local.push(localHeader, data);
+
+        const centralHeader = new Uint8Array(46 + nameBytes.length);
+        const centralView = new DataView(centralHeader.buffer);
+        centralView.setUint32(0, 0x02014b50, true);
+        centralView.setUint16(4, 20, true);
+        centralView.setUint16(6, 20, true);
+        centralView.setUint32(16, crc, true);
+        centralView.setUint32(20, data.length, true);
+        centralView.setUint32(24, data.length, true);
+        centralView.setUint16(28, nameBytes.length, true);
+        centralView.setUint32(42, offset, true);
+        centralHeader.set(nameBytes, 46);
+        central.push(centralHeader);
+        offset += localHeader.length + data.length;
+      });
+
+      const centralSize = central.reduce((sum, chunk) => sum + chunk.length, 0);
+      const end = new Uint8Array(22);
+      const endView = new DataView(end.buffer);
+      endView.setUint32(0, 0x06054b50, true);
+      endView.setUint16(8, state.files.length, true);
+      endView.setUint16(10, state.files.length, true);
+      endView.setUint32(12, centralSize, true);
+      endView.setUint32(16, offset, true);
+      const blob = new Blob([...local, ...central, end], { type: "application/zip" });
+      downloadBlob((state.workspaceId || "workspace") + ".zip", blob);
+      setStatus("Export ready", "ZIP snapshot downloaded.", "success");
+    }
+
+    function wireEvents() {
+      $("projectName").addEventListener("change", () => {
+        state.workspaceName = $("projectName").value.trim() || state.workspaceName;
+        updateHeader();
+      });
+      $("fileSearch").addEventListener("input", (event) => {
+        state.filter = event.target.value;
+        renderFiles();
+      });
+      $("docFontSelect").addEventListener("change", renderPreview);
+      $("docZoomSelect").addEventListener("change", renderPreview);
+      $("codeZoomSelect").addEventListener("change", () => {
+        if (state.editor) state.editor.updateOptions({ fontSize: Number($("codeZoomSelect").value || 14) });
+      });
+      $("reloadWorkspaceBtn").addEventListener("click", () => runAction(loadWorkspace));
+      $("saveWorkspaceBtn").addEventListener("click", () => runAction(saveWorkspace));
+      $("refreshPreviewBtn").addEventListener("click", renderPreview);
+      $("downloadJsonBtn").addEventListener("click", exportJson);
+      $("downloadZipBtn").addEventListener("click", () => runAction(exportZip));
+      $("newFileBtn").addEventListener("click", () => {
+        const path = $("newFilePath").value.trim().replace(/^\/+/, "");
+        if (!path) return setStatus("Missing file path", "Enter a file path before creating a file.", "error");
+        if (getFile(path)) return setStatus("File exists", "Choose a new path.", "error");
+        upsertFile(path, "");
+        openFile(path);
+        $("newFilePath").value = "";
+      });
+      $("duplicateFileBtn").addEventListener("click", () => {
+        if (!state.activePath) return;
+        collectCurrentEditor();
+        const nextPath = window.prompt("Duplicate file to:", state.activePath.replace(/(\.[^./]+)?$/, "-copy$1"));
+        if (!nextPath) return;
+        const file = getFile(state.activePath);
+        if (!file) return;
+        upsertFile(nextPath.trim().replace(/^\/+/, ""), file.content);
+        openFile(nextPath.trim().replace(/^\/+/, ""));
+      });
+      $("renameFileBtn").addEventListener("click", () => {
+        if (!state.activePath) return;
+        collectCurrentEditor();
+        const nextPath = window.prompt("Rename file to:", state.activePath);
+        if (!nextPath) return;
+        const clean = nextPath.trim().replace(/^\/+/, "");
+        if (!clean || clean === state.activePath) return;
+        if (getFile(clean)) return setStatus("File exists", "Choose a different path.", "error");
+        const file = getFile(state.activePath);
+        if (!file) return;
+        file.path = clean;
+        state.activePath = clean;
+        state.dirty = true;
+        renderFiles();
+        openFile(clean);
+      });
+      $("deleteFileBtn").addEventListener("click", () => {
+        if (!state.activePath) return;
+        if (!window.confirm("Delete " + state.activePath + "?")) return;
+        removeFile(state.activePath);
+      });
+      $("openPreviewTabBtn").addEventListener("click", () => {
+        const runtime = buildRuntimePreview() || $("previewFrame").srcdoc || "";
+        const blob = new Blob([runtime], { type: "text/html" });
+        const href = URL.createObjectURL(blob);
+        window.open(href, "_blank", "noopener,noreferrer");
+        setTimeout(() => URL.revokeObjectURL(href), 6000);
+      });
+      $("openAdminBtn").addEventListener("click", () => {
+        window.open("/SkyeAdmin/index.html?ws_id=" + encodeURIComponent(state.workspaceId), "_blank", "noopener,noreferrer");
+      });
+      $("runPromptBtn").addEventListener("click", () => runAction(runPrompt));
+      $("savePromptOutputBtn").addEventListener("click", () => runAction(() => Promise.resolve(savePromptOutput())));
+      $("connectGithubBtn").addEventListener("click", () => runAction(connectGithub));
+      $("pushGithubBtn").addEventListener("click", () => runAction(pushGithub));
+      $("connectNetlifyBtn").addEventListener("click", () => runAction(connectNetlify));
+      $("deployNetlifyBtn").addEventListener("click", () => runAction(deployNetlify));
+      window.addEventListener("beforeunload", (event) => {
+        if (!state.dirty) return;
+        event.preventDefault();
+        event.returnValue = "";
+      });
+    }
+
+    async function runAction(action) {
+      try {
+        await action();
+      } catch (error) {
+        setStatus("Action failed", error?.message || "Unexpected failure.", "error");
+      }
+    }
+
+    function initEditor() {
+      window.require.config({ paths: { vs: "https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs" } });
+      window.require(["vs/editor/editor.main"], () => {
+        state.editor = monaco.editor.create($("editor"), {
+          value: "",
+          language: "plaintext",
+          theme: "vs-dark",
+          automaticLayout: true,
+          minimap: { enabled: false },
+          fontSize: Number($("codeZoomSelect").value || 14),
+          padding: { top: 16 },
+          scrollBeyondLastLine: false,
+        });
+        state.editor.onDidChangeModelContent(() => {
+          collectCurrentEditor();
+          state.dirty = true;
+          updateHeader();
+        });
+        runAction(loadWorkspace);
+        runAction(loadIntegrationStatus);
+      });
+    }
+
+    function initSplitter() {
+      const shell = $("editorShell");
+      const splitter = $("mainSplitter");
+      let startX = 0;
+      let startLeft = 0;
+      splitter.addEventListener("pointerdown", (event) => {
+        startX = event.clientX;
+        startLeft = shell.getBoundingClientRect().width * 0.56;
+        splitter.setPointerCapture(event.pointerId);
+      });
+      splitter.addEventListener("pointermove", (event) => {
+        if (!splitter.hasPointerCapture(event.pointerId)) return;
+        const width = shell.getBoundingClientRect().width;
+        if (!width) return;
+        const delta = event.clientX - startX;
+        const next = Math.max(width * 0.3, Math.min(width * 0.7, startLeft + delta));
+        shell.style.gridTemplateColumns = next + "px 12px calc(100% - " + next + "px - 12px)";
+      });
+      splitter.addEventListener("pointerup", (event) => {
+        if (splitter.hasPointerCapture(event.pointerId)) splitter.releasePointerCapture(event.pointerId);
+      });
+    }
+
+    wireEvents();
+    initSplitter();
+    initEditor();
+  </script>
+</body>
+</html>

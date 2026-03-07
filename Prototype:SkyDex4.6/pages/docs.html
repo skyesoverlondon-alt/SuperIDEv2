@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Skye Codex IDE Docs</title>
+  <style>
+    body{margin:0;font-family:Inter,Arial,sans-serif;background:#0a0c14;color:#eef2ff;line-height:1.6}
+    .wrap{max-width:980px;margin:0 auto;padding:40px 20px}
+    a{color:#f4c95d;text-decoration:none} h1,h2{color:#f4c95d} code,pre{background:#12182b;border:1px solid #2e3552;border-radius:10px} code{padding:2px 6px} pre{padding:16px;overflow:auto}
+    .nav{display:flex;gap:14px;margin-bottom:24px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="nav"><a href="../index.html">IDE</a><a href="about.html">About</a></div>
+    <h1>Skye Codex IDE · Docs</h1>
+    <p>This build uses Netlify Functions so your OpenAI, GitHub, and Netlify tokens stay server-side.</p>
+    <h2>Required env vars</h2>
+    <pre>OPENAI_API_KEY=
+OPENAI_CODEX_MODEL=gpt-5.4
+OPENAI_RESPONSES_URL=https://api.openai.com/v1/responses
+GITHUB_TOKEN=
+DEFAULT_GH_OWNER=
+DEFAULT_GH_REPO=
+DEFAULT_GH_BRANCH=main
+NETLIFY_TOKEN=
+DEFAULT_NETLIFY_SITE_ID=</pre>
+    <h2>Deploy reality</h2>
+    <p>This is not a static drop-only artifact anymore. It needs functions. Put it in Git, import to Netlify, set env vars, deploy, then the Codex/GitHub/Netlify lanes work.</p>
+  </div>
+</body>
+</html>

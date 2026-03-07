@@ -1905,6 +1905,23 @@ a:focus-visible {
   gap: 8px;
 }
 
+.tool-row.split > div {
+  min-width: 0;
+}
+
+.tool-row.split label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.tool-row.split input,
+.tool-row.split textarea,
+.tool-row.split select {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
 .release-cockpit {
   border: 1px solid rgba(168, 106, 255, 0.34);
   border-radius: 12px;

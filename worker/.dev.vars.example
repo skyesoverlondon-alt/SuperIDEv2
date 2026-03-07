@@ -1,0 +1,19 @@
+# Cloudflare Worker local development secrets and vars
+# For deployed production secrets, set these with Wrangler or the Cloudflare dashboard.
+
+NEON_DATABASE_URL=
+RUNNER_SHARED_SECRET=
+GITHUB_APP_ID=
+GITHUB_APP_PRIVATE_KEY=
+NETLIFY_TOKEN_MASTER_KEY=
+EVIDENCE_SIGNING_KEY=
+
+# Optional runtime vars
+ALLOW_ORIGINS=*
+ACCESS_AUD=
+ACCESS_ISSUER=
+ACCESS_JWKS_URL=
+
+# Bindings are configured in worker/wrangler.toml, not in this file:
+# - KX_SECRETS_KV
+# - KX_EVIDENCE_R2
