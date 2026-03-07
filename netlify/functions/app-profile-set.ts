@@ -3,7 +3,7 @@ import { requireUser, forbid } from "./_shared/auth";
 import { q } from "./_shared/neon";
 import { audit } from "./_shared/audit";
 
-const ALLOWED_APPS = new Set(["SkyeMail", "SkyeChat"]);
+const ALLOWED_APPS = new Set(["SkyeMail", "SkyeChat", "SKYEMAIL-GEN", "Skye-ID"]);
 
 function safeTitle(value: unknown, fallback: string): string {
   const next = String(value || "").trim();

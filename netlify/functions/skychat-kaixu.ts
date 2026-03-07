@@ -3,6 +3,12 @@ import { requireUser, forbid } from "./_shared/auth";
 import { q } from "./_shared/neon";
 import { audit } from "./_shared/audit";
 import { must, opt } from "./_shared/env";
+import {
+  canPostToChannel,
+  ensureCoreSkychatChannels,
+  getOrgRole,
+  resolveAccessibleChannel,
+} from "./_shared/skychat";
 
 function normalizeKaixuGatewayEndpoint(raw: string): string {
   const endpoint = String(raw || "").trim();
@@ -40,24 +46,61 @@ export const handler = async (event: any) => {
     body = {};
   }
 
-  const channel = String(body.channel || "general").trim();
+  const channel = String(body.channel || "community").trim();
   const message = String(body.message || "").trim();
   const wsId = String(body.ws_id || "").trim();
   if (!channel || !message) {
     return json(400, { error: "Missing channel or message." });
   }
 
+  await ensureCoreSkychatChannels(u.org_id, u.user_id);
+  const orgRole = await getOrgRole(u.org_id, u.user_id);
+  const channelInfo = await resolveAccessibleChannel(u.org_id, u.user_id, orgRole, channel);
+  if (!channelInfo) return json(403, { error: "Channel access denied." });
+  const canPost = await canPostToChannel(u.org_id, u.user_id, orgRole, channelInfo);
+  if (!canPost) return json(403, { error: "Posting denied for this channel." });
+  const effectiveWsId = channelInfo.kind === "group" ? (wsId || null) : null;
+
   const userRow = await q(
     "insert into app_records(org_id, ws_id, app, title, payload, created_by) values($1,$2,$3,$4,$5::jsonb,$6) returning id",
     [
       u.org_id,
-      wsId || null,
+      effectiveWsId,
       "SkyeChat",
-      `#${channel}`,
-      JSON.stringify({ channel, message, source: "SkyeChat user", role: "user" }),
+      `#${channelInfo.slug}`,
+      JSON.stringify({
+        channel: channelInfo.slug,
+        channel_slug: channelInfo.slug,
+        channel_id: channelInfo.id,
+        channel_kind: channelInfo.kind,
+        message,
+        source: "SkyeChat user",
+        role: "user",
+      }),
       u.user_id,
     ]
   );
+
+  const contextRows = await q(
+    `select payload
+     from app_records
+     where org_id=$1
+       and app='SkyeChat'
+       and lower(coalesce(payload->>'channel_slug', payload->>'channel',''))=$2
+     order by created_at desc
+     limit 10`,
+    [u.org_id, channelInfo.slug]
+  );
+
+  const recentContext = contextRows.rows
+    .map((row) => {
+      const p = row?.payload && typeof row.payload === "object" ? row.payload : {};
+      const src = String(p.source || "user").slice(0, 48);
+      const msg = String(p.message || "").replace(/\s+/g, " ").slice(0, 240);
+      return `${src}: ${msg}`;
+    })
+    .filter(Boolean)
+    .reverse();
 
   const endpoint = normalizeKaixuGatewayEndpoint(must("KAIXU_GATEWAY_ENDPOINT"));
   const token = must("KAIXU_APP_TOKEN");
@@ -68,8 +111,10 @@ export const handler = async (event: any) => {
   const model = String(body.model || modelRaw || "kAIxU-Prime6.7").trim();
   const prompt = [
     `Channel: #${channel}`,
+    `Channel Type: ${channelInfo.kind}`,
     `User: ${u.email}`,
     `Message: ${message}`,
+    recentContext.length ? `Recent Context:\n${recentContext.join("\n")}` : "Recent Context: none",
     "Respond as kAIxU assistant in concise team-chat style.",
   ].join("\n");
 
@@ -134,6 +179,7 @@ export const handler = async (event: any) => {
   if (!aiReply) {
     await audit(u.email, u.org_id, wsId || null, "skychat.kaixu.failed", {
       channel,
+      channel_kind: channelInfo.kind,
       user_record_id: userRow.rows[0]?.id || null,
       gateway_status: lastStatus || null,
       gateway_error: lastErr || null,
@@ -162,16 +208,25 @@ export const handler = async (event: any) => {
     "insert into app_records(org_id, ws_id, app, title, payload, created_by) values($1,$2,$3,$4,$5::jsonb,$6) returning id, created_at",
     [
       u.org_id,
-      wsId || null,
+      effectiveWsId,
       "SkyeChat",
-      `#${channel}`,
-      JSON.stringify({ channel, message: aiReply, source: "kAIxU", role: "assistant" }),
+      `#${channelInfo.slug}`,
+      JSON.stringify({
+        channel: channelInfo.slug,
+        channel_slug: channelInfo.slug,
+        channel_id: channelInfo.id,
+        channel_kind: channelInfo.kind,
+        message: aiReply,
+        source: "kAIxU",
+        role: "assistant",
+      }),
       u.user_id,
     ]
   );
 
-  await audit(u.email, u.org_id, wsId || null, "skychat.kaixu.ok", {
-    channel,
+  await audit(u.email, u.org_id, effectiveWsId, "skychat.kaixu.ok", {
+    channel: channelInfo.slug,
+    channel_kind: channelInfo.kind,
     user_record_id: userRow.rows[0]?.id || null,
     ai_record_id: aiRow.rows[0]?.id || null,
   });

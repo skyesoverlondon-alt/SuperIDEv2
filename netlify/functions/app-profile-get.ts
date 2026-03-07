@@ -2,7 +2,7 @@ import { json } from "./_shared/response";
 import { requireUser, forbid } from "./_shared/auth";
 import { q } from "./_shared/neon";
 
-const ALLOWED_APPS = new Set(["SkyeMail", "SkyeChat"]);
+const ALLOWED_APPS = new Set(["SkyeMail", "SkyeChat", "SKYEMAIL-GEN", "Skye-ID"]);
 
 export const handler = async (event: any) => {
   const u = await requireUser(event);

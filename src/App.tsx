@@ -66,6 +66,8 @@ type ToolTab = "assistant" | "smokehouse" | "playground";
 type SkyeAppId =
   | "SkyeDocs"
   | "SkyeDocxPro"
+  | "SkyeBlog"
+  | "SovereignVariables"
   | "SkyeBookx"
   | "SkyePlatinum"
   | "REACT2HTML"
@@ -257,6 +259,21 @@ type TokenInventoryItem = {
   last_used_at: string | null;
 };
 
+type OnboardingEmailDraft = {
+  email: string;
+  prefix: string;
+  domain: string;
+  source: string;
+  updatedAt: string;
+};
+
+type OnboardingIdentityDraft = {
+  name: string;
+  idNumber: string;
+  source: string;
+  updatedAt: string;
+};
+
 type LegacySkyeEnvelope = {
   format: "skye-v2";
   app: SkyeAppId;
@@ -296,10 +313,14 @@ const KNOWN_WORKER_URL = "https://kaixu-superide-runner.skyesoverlondon.workers.
 const DEFAULT_WS_ID = (import.meta.env.VITE_DEFAULT_WS_ID as string | undefined) || "primary-workspace";
 const DEFAULT_SITE_BASE = (import.meta.env.VITE_SITE_BASE_URL as string | undefined) || window.location.origin;
 const HISTORY_PAGE_SIZE = 50;
+const ONBOARDING_EMAIL_DRAFT_KEY = "kx.onboarding.emailDraft";
+const ONBOARDING_ID_DRAFT_KEY = "kx.onboarding.idDraft";
 
 const SKYE_APPS: SkyeAppDefinition[] = [
   { id: "SkyeDocs", summary: "Collaborative document workspace.", mvp: ["Rich text", "Markdown mode", "Autosave"] },
   { id: "SkyeDocxPro", summary: "Full document production suite integrated into SuperIDE.", mvp: ["Advanced editor", "Offline-ready workflows", "Production-grade exports"] },
+  { id: "SkyeBlog", summary: "AI-first blog studio with direct community publishing flows.", mvp: ["AI draft generation", "Editorial workspace", "Push to chat/mail"] },
+  { id: "SovereignVariables", summary: "Secure environment variable vault with portable exports.", mvp: ["Project/env management", "Encrypted .skye export", "Push to chat/mail"] },
   { id: "SkyeBookx", summary: "AI-native authoring and publishing surface.", mvp: ["Chapter drafting", "AI rewrite", "Compile preview"] },
   { id: "SkyePlatinum", summary: "Executive command hub with kAIxU analysis.", mvp: ["Client registry", "Ledger ops", "AI directives"] },
   { id: "REACT2HTML", summary: "Convert React snippets into standalone HTML outputs.", mvp: ["kAIxU conversion", "Live preview", "Copy output"] },
@@ -336,6 +357,8 @@ const SKYE_APPS: SkyeAppDefinition[] = [
 const APP_SURFACE_PATHS: Partial<Record<SkyeAppId, string>> = {
   SkyeDocs: "/SkyeDocs/index.html",
   SkyeDocxPro: "/SkyeDocxPro/index.html",
+  SkyeBlog: "/SkyeBlog/index.html",
+  SovereignVariables: "/SovereignVariables/index.html",
   SkyeBookx: "/SkyeBookx/index.html",
   SkyePlatinum: "/SkyePlatinum/index.html",
   "REACT2HTML": "/REACT2HTML/index.html",
@@ -395,6 +418,19 @@ const APP_TUTORIALS: Record<SkyeAppId, string[]> = {
     "Store recovery kit separately from passphrase vault and perform one recovery import drill.",
     "Run full export flow (PDF/TXT/HTML ZIP/.skye) and verify artifact integrity.",
     "Share resulting workspace update to team via Project Share.",
+  ],
+  SkyeBlog: [
+    "Open SkyeBlog in embedded mode from SuperIDE.",
+    "Generate a draft from a blank canvas using AI assist.",
+    "Edit and export the post as .skye / HTML / PDF artifacts.",
+    "Push the post directly into SkyeChat community or admin board.",
+    "Send campaign-ready summary to SkyeMail recipients.",
+  ],
+  SovereignVariables: [
+    "Create a project and at least one environment.",
+    "Add/edit variable keys and secure notes.",
+    "Export as .env, JSON, and encrypted .skye package.",
+    "Push selected environment output to SkyeChat and SkyeMail.",
   ],
   SkyeBookx: [
     "Open SkyeBookx and verify workspace context.",
@@ -913,6 +949,8 @@ export function App() {
   const [isAuthSubmitting, setIsAuthSubmitting] = useState(false);
   const [authResult, setAuthResult] = useState("");
   const [isEnsuringOnboardingKey, setIsEnsuringOnboardingKey] = useState(false);
+  const [onboardingEmailDraft, setOnboardingEmailDraft] = useState<OnboardingEmailDraft | null>(null);
+  const [onboardingIdentityDraft, setOnboardingIdentityDraft] = useState<OnboardingIdentityDraft | null>(null);
 
   const [sheetsModel, setSheetsModel] = useState<SheetsModel>(() => {
     const raw = localStorage.getItem("kx.skye.sheets.model");
@@ -1390,6 +1428,64 @@ export function App() {
     localStorage.setItem("kx.auth.user", authUser);
     localStorage.setItem("kx.auth.role", authRole);
   }, [authUser, authRole]);
+
+  useEffect(() => {
+    function readOnboardingDrafts() {
+      try {
+        const emailRaw = localStorage.getItem(ONBOARDING_EMAIL_DRAFT_KEY);
+        if (!emailRaw) {
+          setOnboardingEmailDraft(null);
+        } else {
+          const parsed = JSON.parse(emailRaw) as Partial<OnboardingEmailDraft>;
+          if (parsed?.email && parsed?.prefix && parsed?.domain) {
+            setOnboardingEmailDraft({
+              email: String(parsed.email),
+              prefix: String(parsed.prefix),
+              domain: String(parsed.domain),
+              source: String(parsed.source || "SKYEMAIL-GEN"),
+              updatedAt: String(parsed.updatedAt || new Date().toISOString()),
+            });
+          } else {
+            setOnboardingEmailDraft(null);
+          }
+        }
+
+        const idRaw = localStorage.getItem(ONBOARDING_ID_DRAFT_KEY);
+        if (!idRaw) {
+          setOnboardingIdentityDraft(null);
+        } else {
+          const parsed = JSON.parse(idRaw) as Partial<OnboardingIdentityDraft>;
+          if (parsed?.name && parsed?.idNumber) {
+            setOnboardingIdentityDraft({
+              name: String(parsed.name),
+              idNumber: String(parsed.idNumber),
+              source: String(parsed.source || "Skye-ID"),
+              updatedAt: String(parsed.updatedAt || new Date().toISOString()),
+            });
+          } else {
+            setOnboardingIdentityDraft(null);
+          }
+        }
+      } catch {
+        setOnboardingEmailDraft(null);
+        setOnboardingIdentityDraft(null);
+      }
+    }
+
+    function onStorage(event: StorageEvent) {
+      if (event.key === ONBOARDING_EMAIL_DRAFT_KEY || event.key === ONBOARDING_ID_DRAFT_KEY) {
+        readOnboardingDrafts();
+      }
+    }
+
+    readOnboardingDrafts();
+    window.addEventListener("storage", onStorage);
+    const poller = setInterval(readOnboardingDrafts, 1500);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      clearInterval(poller);
+    };
+  }, []);
 
   useEffect(() => {
     localStorage.setItem("kx.api.accessToken", apiAccessToken);
@@ -2699,6 +2795,96 @@ export function App() {
     }
   }
 
+  async function persistOnboardingShowcase(emailForAuth: string, mode: "login" | "signup") {
+    const notes: string[] = [];
+    if (!onboardingEmailDraft && !onboardingIdentityDraft) return "";
+
+    try {
+      if (onboardingEmailDraft) {
+        const res = await fetch("/api/app-profile-set", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            app: "SKYEMAIL-GEN",
+            title: "SKYEMAIL Onboarding Profile",
+            profile: {
+              generated_email: onboardingEmailDraft.email,
+              prefix: onboardingEmailDraft.prefix,
+              domain: onboardingEmailDraft.domain,
+              source: onboardingEmailDraft.source,
+              captured_at: onboardingEmailDraft.updatedAt,
+              auth_flow: mode,
+              used_for_auth: onboardingEmailDraft.email.toLowerCase() === emailForAuth,
+            },
+          }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          notes.push(`email profile save failed (${data?.error || res.status})`);
+        } else {
+          notes.push("email generator profile saved");
+        }
+      }
+
+      if (onboardingIdentityDraft) {
+        const res = await fetch("/api/app-profile-set", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            app: "Skye-ID",
+            title: "Skye ID Onboarding Profile",
+            profile: {
+              full_name: onboardingIdentityDraft.name,
+              id_number: onboardingIdentityDraft.idNumber,
+              source: onboardingIdentityDraft.source,
+              captured_at: onboardingIdentityDraft.updatedAt,
+              auth_email: emailForAuth,
+              auth_flow: mode,
+            },
+          }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          notes.push(`id profile save failed (${data?.error || res.status})`);
+        } else {
+          notes.push("id generator profile saved");
+        }
+      }
+    } catch (error: any) {
+      notes.push(error?.message || "showcase profile save failed");
+    }
+
+    return notes.join("; ");
+  }
+
+  function openGeneratorApp(appId: "SKYEMAIL-GEN" | "Skye-ID") {
+    setSelectedSkyeApp(appId);
+    setAuthResult(`${appId} opened in top app strip. Generate assets, then return to auth.`);
+  }
+
+  function applyGeneratedEmailToAuth() {
+    if (!onboardingEmailDraft?.email) {
+      setAuthResult("No generated email found yet. Open SKYEMAIL-GEN and generate one first.");
+      return;
+    }
+    setAuthUser(onboardingEmailDraft.email.toLowerCase());
+    setApiTokenEmail(onboardingEmailDraft.email.toLowerCase());
+    setAuthResult(`Applied generated email ${onboardingEmailDraft.email} to auth.`);
+  }
+
+  function applyGeneratedIdentityToOrg() {
+    if (!onboardingIdentityDraft?.name) {
+      setAuthResult("No generated identity found yet. Open Skye-ID and generate one first.");
+      return;
+    }
+    if (!authOrgName.trim() || authOrgName.trim() === "Skye Workspace") {
+      setAuthOrgName(`${onboardingIdentityDraft.name} Workspace`);
+    }
+    setAuthResult(`Linked generated identity (${onboardingIdentityDraft.name}) to onboarding context.`);
+  }
+
   async function submitAuthFlow(mode: "login" | "signup") {
     if (!authUser.trim() || !authPassword.trim()) {
       setAuthResult("Email and password are required.");
@@ -2750,10 +2936,12 @@ export function App() {
         }
       }
 
+      const profileSync = await persistOnboardingShowcase(authUser.trim().toLowerCase(), mode);
+
       setAuthResult(
         mode === "signup"
-          ? "Signup complete. Session active, key minted, and onboarding is ready."
-          : "Login complete. Session restored and key is active."
+          ? `Signup complete. Session active, key minted, and onboarding is ready.${profileSync ? ` ${profileSync}.` : ""}`
+          : `Login complete. Session restored and key is active.${profileSync ? ` ${profileSync}.` : ""}`
       );
     } catch (error: any) {
       setAuthResult(error?.message || `${mode} failed.`);
@@ -4770,6 +4958,32 @@ export function App() {
         <span className="telemetry-chip">Lazy: {workspaceUnloadedPaths.length} pending</span>
       </section>
 
+      <section className="auth-session-feedback">
+        <strong>Generator Onboarding</strong>
+        <div>
+          SKYEMAIL-GEN draft: {onboardingEmailDraft?.email || "none"}
+          {onboardingEmailDraft?.updatedAt ? ` · ${new Date(onboardingEmailDraft.updatedAt).toLocaleString()}` : ""}
+        </div>
+        <div>
+          Skye-ID draft: {onboardingIdentityDraft ? `${onboardingIdentityDraft.name} / ${onboardingIdentityDraft.idNumber}` : "none"}
+          {onboardingIdentityDraft?.updatedAt ? ` · ${new Date(onboardingIdentityDraft.updatedAt).toLocaleString()}` : ""}
+        </div>
+        <div className="tool-actions left" style={{ marginTop: 8 }}>
+          <button className="ghost" type="button" onClick={() => openGeneratorApp("SKYEMAIL-GEN")}>
+            Open SKYEMAIL-GEN
+          </button>
+          <button className="ghost" type="button" onClick={applyGeneratedEmailToAuth}>
+            Use Generated Email
+          </button>
+          <button className="ghost" type="button" onClick={() => openGeneratorApp("Skye-ID")}>
+            Open Skye-ID
+          </button>
+          <button className="ghost" type="button" onClick={applyGeneratedIdentityToOrg}>
+            Link Generated ID
+          </button>
+        </div>
+      </section>
+
       {inviteToken && (
         <section className="auth-session-feedback">
           <strong>Invite Onboarding</strong>
@@ -4826,6 +5040,56 @@ export function App() {
       )}
 
       <div className={`workspace-stack ${isSkyeDocsStackMode ? "workspace-stack-docs" : ""}`}>
+      {appMode === "skyeide" && (
+        <section className="app-strip" aria-label="Skye app switcher">
+          <div className="app-strip-head">
+            <strong>Apps</strong>
+            <input
+              value={appSearch}
+              onChange={(event) => setAppSearch(event.target.value)}
+              placeholder="Search apps..."
+              aria-label="search apps"
+            />
+          </div>
+          <div className="app-strip-list" role="tablist" aria-label="Skye apps">
+            {FEATURED_APP_IDS.map((appId) => {
+              const app = SKYE_APPS.find((entry) => entry.id === appId);
+              if (!app) return null;
+              return (
+                <button
+                  key={`strip-featured-${app.id}`}
+                  type="button"
+                  className={`app-item compact ${selectedSkyeApp === app.id ? "active" : ""}`}
+                  onClick={() => {
+                    setSelectedSkyeApp(app.id);
+                    setAppMode("skyeide");
+                  }}
+                >
+                  <span>{app.id}</span>
+                  <small>featured</small>
+                </button>
+              );
+            })}
+            {filteredApps.map((app) => {
+              const done = app.mvp.filter((item) => mvpChecks[makeMvpKey(app.id, item)]).length;
+              return (
+                <button
+                  key={`strip-${app.id}`}
+                  type="button"
+                  className={`app-item compact ${selectedSkyeApp === app.id ? "active" : ""}`}
+                  onClick={() => {
+                    setSelectedSkyeApp(app.id);
+                    setAppMode("skyeide");
+                  }}
+                >
+                  <span>{app.id}</span>
+                  <small>{done}/{app.mvp.length}</small>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
       <div className="workspace-body" style={{ ["--sidebar-width" as any]: `${workspaceSidebarWidth}px` }}>
         <aside className="file-pane">
           <div className="mode-switch">
@@ -4838,56 +5102,6 @@ export function App() {
 
           {appMode === "skyeide" ? (
             <>
-              <h3>Skye Apps</h3>
-              <input
-                value={appSearch}
-                onChange={(event) => setAppSearch(event.target.value)}
-                placeholder="Search apps and modules..."
-                aria-label="search apps"
-              />
-              <h3>Featured Utilities</h3>
-              <div className="app-list" style={{ maxHeight: 132 }}>
-                {FEATURED_APP_IDS.map((appId) => {
-                  const app = SKYE_APPS.find((entry) => entry.id === appId);
-                  if (!app) return null;
-                  return (
-                    <button
-                      key={`featured-${app.id}`}
-                      type="button"
-                      className={`app-item ${selectedSkyeApp === app.id ? "active" : ""}`}
-                      onClick={() => {
-                        setSelectedSkyeApp(app.id);
-                        setAppMode("skyeide");
-                      }}
-                    >
-                      <span>{app.id}</span>
-                      <small>featured</small>
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="app-list">
-                {filteredApps.map((app) => {
-                  const done = app.mvp.filter((item) => mvpChecks[makeMvpKey(app.id, item)]).length;
-                  return (
-                    <button
-                      key={app.id}
-                      type="button"
-                      className={`app-item ${selectedSkyeApp === app.id ? "active" : ""}`}
-                      onClick={() => {
-                        setSelectedSkyeApp(app.id);
-                        setAppMode("skyeide");
-                      }}
-                    >
-                      <span>{app.id}</span>
-                      <small>
-                        {done}/{app.mvp.length} · ws:{String(workspaceSurfaces[app.id] || DEFAULT_WS_ID).slice(0, 8)}
-                      </small>
-                    </button>
-                  );
-                })}
-              </div>
-
               <div className="suite-progress">
                 Suite MVP Progress: {completeMvpItems}/{totalMvpItems}
               </div>

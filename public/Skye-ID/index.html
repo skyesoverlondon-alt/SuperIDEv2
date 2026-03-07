@@ -230,6 +230,7 @@
 
         let db; // IndexedDB instance
         let uploadedPhotoBase64 = null; // Store base64 of uploaded photo
+        const ONBOARDING_ID_DRAFT_KEY = 'kx.onboarding.idDraft';
 
         // DOM Elements
         const nameInput = document.getElementById('name-input');
@@ -251,6 +252,24 @@
         const dbList = document.getElementById('db-list');
         const btnClearDb = document.getElementById('btn-clear-db');
         const btnExportCsv = document.getElementById('btn-export-csv');
+
+        const publishIdentityDraft = (reason = 'update') => {
+            const name = nameInput.value.trim();
+            const idNumber = numberInput.value.trim();
+            if(!name || !idNumber) return;
+            const draft = {
+                name,
+                idNumber,
+                source: 'Skye-ID',
+                reason,
+                updatedAt: new Date().toISOString()
+            };
+            try {
+                localStorage.setItem(ONBOARDING_ID_DRAFT_KEY, JSON.stringify(draft));
+            } catch (err) {
+                console.warn('Could not publish onboarding identity draft', err);
+            }
+        };
 
         // --- PHOTO UPLOAD LOGIC ---
         photoUpload.addEventListener('change', (event) => {
@@ -402,6 +421,7 @@
             // Get current values from the inputs
             const currentName = nameInput.value.trim() || 'Unknown Entity';
             const currentNum = numberInput.value.trim() || '0000000000';
+            publishIdentityDraft('pdf-export');
 
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
@@ -516,6 +536,7 @@
                 // Update Inputs
                 nameInput.value = newName;
                 numberInput.value = newNumber;
+                publishIdentityDraft('generate');
 
                 // Save to IndexedDB
                 saveToDB();
@@ -564,6 +585,8 @@
         // --- EVENT LISTENERS ---
         btnGenerate.addEventListener('click', generateNew);
         btnExportPdf.addEventListener('click', exportToPDF);
+        nameInput.addEventListener('input', () => publishIdentityDraft('name-input'));
+        numberInput.addEventListener('input', () => publishIdentityDraft('id-input'));
         
         btnCopyName.addEventListener('click', () => copyToClipboard(nameInput.value, btnCopyName));
         btnCopyNumber.addEventListener('click', () => copyToClipboard(numberInput.value, btnCopyNumber));

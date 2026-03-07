@@ -439,6 +439,45 @@ a:focus-visible {
   overflow: hidden;
 }
 
+.app-strip {
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, rgba(8, 16, 24, 0.95), rgba(6, 11, 16, 0.92));
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.app-strip-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.app-strip-head strong {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.app-strip-head input {
+  width: min(360px, 100%);
+  border-radius: 10px;
+  border: 1px solid var(--border-soft);
+  background: rgba(0, 0, 0, 0.34);
+  color: var(--text);
+  padding: 8px 10px;
+}
+
+.app-strip-list {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
 .panel-resizer {
   position: relative;
   background: linear-gradient(180deg, rgba(44, 230, 255, 0.08), rgba(255, 203, 71, 0.08));
@@ -745,6 +784,17 @@ a:focus-visible {
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+
+.app-item.compact {
+  min-width: max-content;
+  padding: 8px 10px;
+  font-size: 0.74rem;
+  gap: 8px;
+}
+
+.app-item.compact small {
+  font-size: 0.67rem;
 }
 
 .app-item small {
@@ -1728,6 +1778,15 @@ a:focus-visible {
 }
 
 @media (max-width: 920px) {
+  .app-strip-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .app-strip-head input {
+    width: 100%;
+  }
+
   .workspace-body {
     grid-template-columns: 1fr;
     grid-template-rows: auto 1fr;

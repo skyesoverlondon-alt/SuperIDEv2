@@ -347,6 +347,7 @@
     let savedEmails = [];
     let copiedIndex = null;
     let uploadedImageDataUrl = null;
+    const ONBOARDING_EMAIL_DRAFT_KEY = 'kx.onboarding.emailDraft';
 
     // --- DOM Elements ---
     const prefixInput = document.getElementById('prefix-input');
@@ -439,6 +440,7 @@
       prefixInput.value = currentPrefix;
       displayPrefix.textContent = currentPrefix || '...';
       updateFullEmailTitle();
+      publishOnboardingDraft('prefix');
       resetMainCopyButton();
     };
 
@@ -448,6 +450,7 @@
       displayDomain.textContent = currentDomain || '...';
       saveBtn.disabled = !currentDomain;
       updateFullEmailTitle();
+      publishOnboardingDraft('domain');
       resetMainCopyButton();
     };
 
@@ -456,6 +459,23 @@
     };
 
     const getFullCurrentEmail = () => `${currentPrefix}@${currentDomain}`;
+
+    const publishOnboardingDraft = (reason = 'update') => {
+      if (!currentPrefix || !currentDomain) return;
+      const draft = {
+        email: getFullCurrentEmail(),
+        prefix: currentPrefix,
+        domain: currentDomain,
+        source: 'SKYEMAIL-GEN',
+        reason,
+        updatedAt: new Date().toISOString(),
+      };
+      try {
+        localStorage.setItem(ONBOARDING_EMAIL_DRAFT_KEY, JSON.stringify(draft));
+      } catch (err) {
+        console.warn('Could not publish onboarding email draft', err);
+      }
+    };
 
     const resetMainCopyButton = () => {
       copyMainIcon.setAttribute('data-lucide', 'copy');
@@ -477,11 +497,13 @@
         saveEmailToDB(newItem);
         renderSavedList();
       }
+      publishOnboardingDraft('save');
     });
 
     copyMainBtn.addEventListener('click', () => {
       if(!currentPrefix) return;
       copyToClipboard(getFullCurrentEmail());
+      publishOnboardingDraft('copy');
       copyMainIcon.setAttribute('data-lucide', 'check');
       copyMainIcon.className = 'text-green-400 drop-shadow-[0_0_5px_rgba(74,222,128,0.8)]';
       copyMainText.textContent = 'Copied';
@@ -694,6 +716,7 @@
       // 2. Load DB and setup UI
       generatePrefix();
       renderNetworkLinks();
+      publishOnboardingDraft('load');
       
       const loadedEmails = await loadEmailsFromDB();
       if (loadedEmails && loadedEmails.length > 0) {

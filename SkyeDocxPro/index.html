@@ -3014,6 +3014,178 @@
         // Initialize!
         App.boot();
     </script>
+    <script>
+        (() => {
+            const wsId = new URLSearchParams(window.location.search).get('ws_id') || 'primary-workspace';
+            const appId = (document.title || '').toLowerCase().includes('blog') ? 'SkyeBlog' : 'SkyeDocxPro';
+
+            function authHeaders() {
+                const headers = { 'Content-Type': 'application/json' };
+                const token = (localStorage.getItem('kx.api.accessToken') || '').trim();
+                const email = (localStorage.getItem('kx.api.tokenEmail') || '').trim().toLowerCase();
+                if (token) headers.Authorization = `Bearer ${token}`;
+                if (email) headers['X-Token-Email'] = email;
+                return headers;
+            }
+
+            async function api(path, body) {
+                const res = await fetch(path, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: authHeaders(),
+                    body: JSON.stringify(body || {}),
+                });
+                let data = {};
+                try { data = await res.json(); } catch {}
+                if (!res.ok) throw new Error(data?.error || `${path} failed (${res.status})`);
+                return data;
+            }
+
+            async function ensureSignedIn() {
+                const res = await fetch('/api/auth-me', { credentials: 'include' });
+                const me = await res.json().catch(() => ({}));
+                if (!res.ok || !me?.email) {
+                    throw new Error('Sign in to SuperIDE first so publish actions can route to SkyeChat and SkyeMail.');
+                }
+                return me;
+            }
+
+            function getDocSnapshot() {
+                const doc = (window.App && window.App.getActiveDocRecord) ? window.App.getActiveDocRecord() : null;
+                const title = String(doc?.title || 'Untitled').trim();
+                const html = String(window.App?.quill?.root?.innerHTML || '').trim();
+                const text = String(window.App?.quill?.getText?.() || '').replace(/\s+/g, ' ').trim();
+                const excerpt = text.slice(0, 700);
+                return { title, html, text, excerpt, doc };
+            }
+
+            async function pushToSkyeChat() {
+                await ensureSignedIn();
+                const { title, excerpt, html, text } = getDocSnapshot();
+                if (!excerpt) throw new Error('Cannot publish an empty document.');
+                const channel = await window.App.customPrompt('<i data-lucide="messages-square"></i> Publish to SkyeChat channel:', 'community');
+                refreshLucideIcons();
+                if (!channel || !channel.trim()) return;
+                const topic = await window.App.customPrompt('<i data-lucide="tag"></i> Topic slug (optional):', 'blog');
+                refreshLucideIcons();
+
+                const saved = await api('/api/app-record-save', {
+                    ws_id: wsId,
+                    app: appId,
+                    title,
+                    model: {
+                        title,
+                        html,
+                        text,
+                        source_app: appId,
+                        published_at: new Date().toISOString(),
+                    },
+                });
+
+                const recordId = String(saved?.id || saved?.record_id || '').trim();
+                const message = `[${appId}] ${title}\n\n${excerpt}\n\nrecord_id=${recordId || 'n/a'} · exported_as=.skye/html/pdf`;
+                await api('/api/skychat-notify', {
+                    ws_id: wsId,
+                    channel: channel.trim(),
+                    topic: (topic || 'blog').trim().toLowerCase(),
+                    message,
+                    source: `${appId} Publisher`,
+                });
+                window.App.showToast(`Published ${title} to #${channel.trim()}.`);
+            }
+
+            async function pushToSkyeMail() {
+                await ensureSignedIn();
+                const { title, excerpt } = getDocSnapshot();
+                if (!excerpt) throw new Error('Cannot send an empty document.');
+                const to = await window.App.customPrompt('<i data-lucide="mail"></i> Recipient email:', '');
+                refreshLucideIcons();
+                if (!to || !String(to).trim()) return;
+                const subject = await window.App.customPrompt('<i data-lucide="heading"></i> Email subject:', `[${appId}] ${title}`);
+                refreshLucideIcons();
+                if (!subject || !String(subject).trim()) return;
+                await api('/api/skymail-send', {
+                    ws_id: wsId,
+                    to: String(to).trim().toLowerCase(),
+                    subject: String(subject).trim(),
+                    text: `${excerpt}\n\nSent from ${appId}. Export options remain available: .skye / HTML ZIP / PDF.`,
+                });
+                window.App.showToast(`Delivered ${title} via SkyeMail.`);
+            }
+
+            async function sendToDevice() {
+                const { title, text } = getDocSnapshot();
+                if (!text) throw new Error('Cannot share an empty document.');
+                const file = new File([text], `${title.replace(/\s+/g, '_')}.txt`, { type: 'text/plain' });
+                if (navigator.share) {
+                    await navigator.share({
+                        title,
+                        text: text.slice(0, 1800),
+                        files: [file],
+                    });
+                    window.App.showToast('Shared to device successfully.');
+                    return;
+                }
+                const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+                window.App.downloadBlob(blob, `${title.replace(/\s+/g, '_')}_DeviceShare.txt`);
+                window.App.showToast('Device share fallback: downloaded text package.');
+            }
+
+            async function aiDraft() {
+                await ensureSignedIn();
+                const prompt = await window.App.customPrompt('<i data-lucide="sparkles"></i> Describe the draft you want AI to create:', 'Write a launch-ready blog post with clear sections and bold headings.');
+                refreshLucideIcons();
+                if (!prompt || !String(prompt).trim()) return;
+                const data = await api('/api/kaixu-generate', {
+                    ws_id: wsId,
+                    activePath: `${appId}/editor`,
+                    files: [],
+                    prompt: `Create a polished long-form article for ${appId}. Output HTML only with headings, sections, bullets, and a concise CTA. Prompt: ${String(prompt).trim()}`,
+                });
+                const html = String(data?.text || '').trim();
+                if (!html) throw new Error('AI did not return content.');
+                const cleanHtml = (window.DOMPurify ? window.DOMPurify.sanitize(html) : html);
+                window.App.quill.clipboard.dangerouslyPasteHTML(cleanHtml);
+                window.App.showToast('AI draft inserted into editor.');
+                window.App.debouncedSave();
+            }
+
+            function wireButtons() {
+                const actions = document.querySelector('.header-actions');
+                if (!actions || actions.querySelector('[data-super-push="1"]')) return;
+
+                const aiBtn = document.createElement('button');
+                aiBtn.setAttribute('data-super-push', '1');
+                aiBtn.innerHTML = '<i data-lucide="sparkles" style="width:16px;height:16px;"></i> AI Draft';
+                aiBtn.onclick = () => aiDraft().catch((e) => window.App.showToast(e?.message || String(e)));
+
+                const chatBtn = document.createElement('button');
+                chatBtn.setAttribute('data-super-push', '1');
+                chatBtn.innerHTML = '<i data-lucide="messages-square" style="width:16px;height:16px;"></i> Push Chat';
+                chatBtn.onclick = () => pushToSkyeChat().catch((e) => window.App.showToast(e?.message || String(e)));
+
+                const mailBtn = document.createElement('button');
+                mailBtn.setAttribute('data-super-push', '1');
+                mailBtn.innerHTML = '<i data-lucide="send" style="width:16px;height:16px;"></i> Push Email';
+                mailBtn.onclick = () => pushToSkyeMail().catch((e) => window.App.showToast(e?.message || String(e)));
+
+                const deviceBtn = document.createElement('button');
+                deviceBtn.setAttribute('data-super-push', '1');
+                deviceBtn.innerHTML = '<i data-lucide="smartphone" style="width:16px;height:16px;"></i> Device';
+                deviceBtn.onclick = () => sendToDevice().catch((e) => window.App.showToast(e?.message || String(e)));
+
+                actions.prepend(deviceBtn);
+                actions.prepend(mailBtn);
+                actions.prepend(chatBtn);
+                actions.prepend(aiBtn);
+                if (typeof refreshLucideIcons === 'function') refreshLucideIcons();
+            }
+
+            window.addEventListener('load', () => {
+                setTimeout(wireButtons, 220);
+            });
+        })();
+    </script>
         <script>
         (() => {
             if ('serviceWorker' in navigator) {

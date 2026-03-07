@@ -6,7 +6,9 @@
   "scripts": {
     "sync:neural": "rm -rf public/Neural-Space-Pro && mkdir -p public && cp -R Neural-Space-Pro public/Neural-Space-Pro",
     "sync:docxpro": "rm -rf public/SkyeDocxPro && mkdir -p public && cp -R SkyeDocxPro public/SkyeDocxPro",
-    "sync:surfaces": "npm run sync:docxpro && npm run sync:neural",
+    "sync:skyeblog": "rm -rf public/SkyeBlog && mkdir -p public && cp -R SkyeBlog public/SkyeBlog",
+    "sync:sovereign": "rm -rf public/SovereignVariables && mkdir -p public && cp -R SovereignVariables public/SovereignVariables",
+    "sync:surfaces": "npm run sync:docxpro && npm run sync:skyeblog && npm run sync:sovereign && npm run sync:neural",
     "predev": "npm run sync:surfaces",
     "dev": "vite",
     "prebuild": "npm run sync:surfaces",
