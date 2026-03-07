@@ -634,6 +634,46 @@
         
         .ql-formats { display: flex; align-items: center; border-right: 1px solid rgba(255,255,255,0.05); padding-right: 8px; margin-right: 4px; }
         .ql-formats:last-child { border-right: none; }
+            .docx-pro-ribbon {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                gap: 8px;
+                padding: 8px 12px;
+                border-bottom: 1px solid var(--border);
+                background: rgba(12, 10, 25, 0.92);
+                backdrop-filter: blur(14px);
+                -webkit-backdrop-filter: blur(14px);
+            }
+            .docx-pro-group {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                padding-right: 8px;
+                margin-right: 4px;
+                border-right: 1px solid rgba(255,255,255,0.08);
+            }
+            .docx-pro-group:last-child {
+                border-right: none;
+                margin-right: 0;
+                padding-right: 0;
+            }
+            .docx-pro-group label {
+                font-size: 11px;
+                color: var(--text-muted);
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                font-weight: 600;
+            }
+            .docx-pro-ribbon select {
+                background: rgba(0,0,0,0.35);
+                border: 1px solid rgba(255,255,255,0.14);
+                color: var(--text-main);
+                border-radius: 6px;
+                padding: 6px 8px;
+                font-size: 12px;
+                font-family: 'Inter', sans-serif;
+            }
 
         .ql-font-sans-serif { font-family: 'Inter', sans-serif !important; }
         .ql-font-monospace { font-family: 'Fira Code', monospace !important; }
@@ -653,6 +693,7 @@
             min-height: 1056px; /* 11 inches */
             background: var(--paper-bg);
             color: var(--paper-text);
+                transform-origin: top center;
             box-shadow: 0 15px 40px rgba(0,0,0,0.8), 0 0 40px rgba(138, 79, 255, 0.08), 0 0 60px rgba(255, 215, 0, 0.03);
             border: none !important;
             font-family: 'Merriweather', serif;
@@ -689,6 +730,10 @@
             letter-spacing: 0.6px;
             text-transform: uppercase;
         }
+            body.compact-chrome .docx-pro-ribbon {
+                padding-top: 6px;
+                padding-bottom: 6px;
+            }
 
         /* --- Footer / Status Bar --- */
         footer {
@@ -770,6 +815,16 @@
             h1, h2 { page-break-after: avoid; }
             img { max-width: 100% !important; page-break-inside: avoid; }
         }
+            @media (max-width: 1180px) {
+                .docx-pro-ribbon {
+                    gap: 6px;
+                }
+                .docx-pro-group {
+                    border-right: none;
+                    padding-right: 0;
+                    margin-right: 0;
+                }
+            }
 
         /* --- STAGE 3: App Entrance Animations --- */
         header { transform: translateY(-100%); opacity: 0; }
@@ -918,6 +973,9 @@
             <button class="icon-only" onclick="App.toggleFocusMode()" title="Toggle Focus Mode">
                 <i data-lucide="maximize" id="focus-icon" style="width:16px;height:16px;"></i>
             </button>
+            <button class="icon-only" onclick="App.openShortcutGuide()" title="Keyboard Shortcuts (Ctrl+/)">
+                <i data-lucide="keyboard" style="width:16px;height:16px;"></i>
+            </button>
             <button class="icon-only" id="suggest-mode-btn" onclick="App.toggleSuggestionMode()" title="Toggle Suggestion Mode">
                 <i data-lucide="file-pen-line" style="width:16px;height:16px;"></i>
             </button>
@@ -1041,6 +1099,51 @@
                     <button class="ql-clean" title="Clear Formatting"></button>
                 </span>
             </div>
+
+            <div class="docx-pro-ribbon" id="docx-pro-ribbon">
+                <div class="docx-pro-group">
+                    <label for="docx-paper">Paper</label>
+                    <select id="docx-paper">
+                        <option value="letter" selected>Letter</option>
+                        <option value="a4">A4</option>
+                        <option value="legal">Legal</option>
+                    </select>
+                </div>
+                <div class="docx-pro-group">
+                    <label for="docx-zoom">Zoom</label>
+                    <select id="docx-zoom">
+                        <option value="80">80%</option>
+                        <option value="90">90%</option>
+                        <option value="100" selected>100%</option>
+                        <option value="110">110%</option>
+                        <option value="125">125%</option>
+                        <option value="150">150%</option>
+                    </select>
+                </div>
+                <div class="docx-pro-group">
+                    <label for="docx-line-spacing">Line</label>
+                    <select id="docx-line-spacing">
+                        <option value="1.15">1.15</option>
+                        <option value="1.5" selected>1.5</option>
+                        <option value="1.8">1.8</option>
+                        <option value="2">2.0</option>
+                    </select>
+                </div>
+                <div class="docx-pro-group">
+                    <label for="docx-paragraph-spacing">Paragraph</label>
+                    <select id="docx-paragraph-spacing">
+                        <option value="0.8">Tight</option>
+                        <option value="1" selected>Normal</option>
+                        <option value="1.25">Relaxed</option>
+                        <option value="1.5">Wide</option>
+                    </select>
+                </div>
+                <div class="docx-pro-group">
+                    <button type="button" onclick="App.insertQuickTable()"><i data-lucide="table" style="width:14px;height:14px;"></i> Table</button>
+                    <button type="button" onclick="App.insertChecklist()"><i data-lucide="list-checks" style="width:14px;height:14px;"></i> Checklist</button>
+                    <button type="button" id="docx-spellcheck-btn" onclick="App.toggleSpellcheck()"><i data-lucide="spell-check" style="width:14px;height:14px;"></i> Spellcheck</button>
+                </div>
+            </div>
             
             <div class="canvas-area">
                 <div id="editor-container"></div>
@@ -1093,6 +1196,8 @@
             <div class="analytics">
                 <span><i data-lucide="hash" style="width:12px;height:12px;"></i> <b id="word-count">0</b> words</span>
                 <span><i data-lucide="type" style="width:12px;height:12px;"></i> <b id="char-count">0</b> chars</span>
+                <span><i data-lucide="pilcrow" style="width:12px;height:12px;"></i> <b id="paragraph-count">0</b> paras</span>
+                <span><i data-lucide="timer" style="width:12px;height:12px;"></i> <b id="reading-time">0</b> min read</span>
             </div>
         </div>
     </footer>
@@ -1158,6 +1263,33 @@
             <div class="modal-actions" style="margin-top:20px;">
                 <button onclick="document.getElementById('find-modal').style.display='none'">Cancel</button>
                 <button class="primary" onclick="App.executeFindReplace()">Replace All</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="shortcut-modal" class="modal-overlay">
+        <div class="modal" style="width: min(760px, 94vw);">
+            <h3><i data-lucide="keyboard"></i> Keyboard Shortcuts</h3>
+            <div style="display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; max-height:56vh; overflow:auto; font-size:12px;">
+                <div><b>Ctrl/Cmd + S</b><br>Save current doc</div>
+                <div><b>Ctrl/Cmd + Shift + S</b><br>Save As</div>
+                <div><b>Ctrl/Cmd + O</b><br>Open local .skye/.zip</div>
+                <div><b>Ctrl/Cmd + F</b><br>Quick find</div>
+                <div><b>Ctrl/Cmd + Shift + F</b><br>Find & replace</div>
+                <div><b>Ctrl/Cmd + G</b><br>Find next match</div>
+                <div><b>Ctrl/Cmd + Shift + G</b><br>Find previous match</div>
+                <div><b>Ctrl/Cmd + Shift + 7/8</b><br>Ordered/Bullet list</div>
+                <div><b>Ctrl/Cmd + Alt + 1/2/3</b><br>Heading 1/2/3</div>
+                <div><b>Ctrl/Cmd + Shift + E/L/R/J</b><br>Align center/left/right/justify</div>
+                <div><b>Ctrl/Cmd + Shift + M</b><br>Suggestion mode</div>
+                <div><b>Ctrl/Cmd + Shift + ;</b><br>Add comment from selection</div>
+                <div><b>Ctrl/Cmd + Shift + B</b><br>Insert page break</div>
+                <div><b>Ctrl/Cmd + Shift + T</b><br>Insert table</div>
+                <div><b>Ctrl/Cmd + Shift + K</b><br>Insert checklist</div>
+                <div><b>Ctrl/Cmd + /</b><br>Shortcut guide</div>
+            </div>
+            <div class="modal-actions" style="margin-top:16px;">
+                <button class="primary" onclick="document.getElementById('shortcut-modal').style.display='none'">Close</button>
             </div>
         </div>
     </div>
@@ -1368,6 +1500,11 @@
             saveTimeout: null,
             outlineTimeout: null,
             pendingRecoveryKit: null,
+            paperPreset: 'letter',
+            editorZoom: 100,
+            lineSpacing: 1.5,
+            paragraphSpacing: 1,
+            spellcheckEnabled: true,
 
             async boot() {
                 // Intro Sequence Management
@@ -1396,6 +1533,7 @@
                 setTimeout(hideIntro, 9000);
 
                 this.initQuill();
+                this.initProControls();
                 await this.loadDocList();
 
                 if (this.allDocsCache.length === 0) {
@@ -1419,7 +1557,20 @@
                 });
 
                 document.addEventListener('keydown', (e) => {
-                    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                    const hasCommand = (e.ctrlKey || e.metaKey);
+                    if (!hasCommand) return;
+
+                    const target = e.target;
+                    const isTextInput = target && (
+                        target.tagName === 'INPUT' ||
+                        target.tagName === 'TEXTAREA' ||
+                        target.tagName === 'SELECT' ||
+                        target.isContentEditable
+                    );
+
+                    const key = String(e.key || '').toLowerCase();
+
+                    if (key === 's') {
                         e.preventDefault();
                         if (e.shiftKey) {
                             this.triggerSaveAs();
@@ -1427,23 +1578,90 @@
                             this.saveCurrentDoc();
                             this.showToast("Saved to Workspace");
                         }
+                        return;
                     }
-                    if ((e.ctrlKey || e.metaKey) && e.key === 'o') {
+
+                    if (key === 'o') {
                         e.preventDefault();
                         this.triggerOpenLocalDoc();
+                        return;
                     }
-                    if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+
+                    if (key === 'f') {
                         e.preventDefault();
-                        if (e.shiftKey) {
-                            this.triggerFindReplace();
-                        } else {
-                            this.openQuickFind();
-                        }
+                        if (e.shiftKey) this.triggerFindReplace();
+                        else this.openQuickFind();
+                        return;
                     }
-                    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'g') {
+
+                    if (key === 'g') {
                         e.preventDefault();
                         if (e.shiftKey) this.quickFindPrev();
                         else this.quickFindNext();
+                        return;
+                    }
+
+                    if (key === '/') {
+                        e.preventDefault();
+                        this.openShortcutGuide();
+                        return;
+                    }
+
+                    if (isTextInput) return;
+
+                    if (e.shiftKey && key === 'm') {
+                        e.preventDefault();
+                        this.toggleSuggestionMode();
+                        return;
+                    }
+
+                    if (e.shiftKey && key === ';') {
+                        e.preventDefault();
+                        this.addCommentFromSelection();
+                        return;
+                    }
+
+                    if (e.shiftKey && key === 'b') {
+                        e.preventDefault();
+                        this.insertPageBreak();
+                        return;
+                    }
+
+                    if (e.shiftKey && key === 't') {
+                        e.preventDefault();
+                        this.insertQuickTable();
+                        return;
+                    }
+
+                    if (e.shiftKey && key === 'k') {
+                        e.preventDefault();
+                        this.insertChecklist();
+                        return;
+                    }
+
+                    if (e.shiftKey && key === '7') {
+                        e.preventDefault();
+                        this.quill.format('list', 'ordered');
+                        return;
+                    }
+
+                    if (e.shiftKey && key === '8') {
+                        e.preventDefault();
+                        this.quill.format('list', 'bullet');
+                        return;
+                    }
+
+                    if (e.altKey && ['1', '2', '3'].includes(key)) {
+                        e.preventDefault();
+                        this.quill.format('header', Number(key));
+                        return;
+                    }
+
+                    if (e.shiftKey && ['l', 'e', 'r', 'j'].includes(key)) {
+                        e.preventDefault();
+                        const alignMap = { l: '', e: 'center', r: 'right', j: 'justify' };
+                        this.quill.format('align', alignMap[key]);
+                        return;
                     }
                 });
             },
@@ -2227,9 +2445,144 @@
                 const text = this.quill.getText();
                 const charCount = text.length > 0 ? text.length - 1 : 0; 
                 const wordCount = text.trim().split(/\s+/).filter(word => word.length > 0).length;
+                const paragraphCount = this.quill.root.querySelectorAll('p, h1, h2, h3, blockquote, pre, li').length;
+                const readingTimeMin = Math.max(1, Math.ceil(wordCount / 225));
                 
                 document.getElementById('char-count').innerText = charCount;
                 document.getElementById('word-count').innerText = wordCount;
+                const paraEl = document.getElementById('paragraph-count');
+                const readEl = document.getElementById('reading-time');
+                if (paraEl) paraEl.innerText = String(paragraphCount);
+                if (readEl) readEl.innerText = String(readingTimeMin);
+            },
+
+            initProControls() {
+                const paperSelect = document.getElementById('docx-paper');
+                const zoomSelect = document.getElementById('docx-zoom');
+                const lineSelect = document.getElementById('docx-line-spacing');
+                const paragraphSelect = document.getElementById('docx-paragraph-spacing');
+                const spellButton = document.getElementById('docx-spellcheck-btn');
+
+                if (paperSelect) {
+                    paperSelect.value = this.paperPreset;
+                    paperSelect.addEventListener('change', (event) => {
+                        this.paperPreset = String(event.target.value || 'letter');
+                        this.applyPaperPreset();
+                    });
+                }
+
+                if (zoomSelect) {
+                    zoomSelect.value = String(this.editorZoom);
+                    zoomSelect.addEventListener('change', (event) => {
+                        this.editorZoom = Number(event.target.value || 100);
+                        this.applyZoom();
+                    });
+                }
+
+                if (lineSelect) {
+                    lineSelect.value = String(this.lineSpacing);
+                    lineSelect.addEventListener('change', (event) => {
+                        this.lineSpacing = Number(event.target.value || 1.5);
+                        this.applyTypographyDefaults();
+                    });
+                }
+
+                if (paragraphSelect) {
+                    paragraphSelect.value = String(this.paragraphSpacing);
+                    paragraphSelect.addEventListener('change', (event) => {
+                        this.paragraphSpacing = Number(event.target.value || 1);
+                        this.applyTypographyDefaults();
+                    });
+                }
+
+                if (spellButton) spellButton.classList.add('active');
+
+                this.applyPaperPreset();
+                this.applyZoom();
+                this.applyTypographyDefaults();
+                this.toggleSpellcheck(true);
+            },
+
+            applyPaperPreset() {
+                const host = document.getElementById('editor-container');
+                if (!host) return;
+                const map = {
+                    letter: { width: 816, height: 1056 },
+                    a4: { width: 794, height: 1123 },
+                    legal: { width: 816, height: 1344 },
+                };
+                const next = map[this.paperPreset] || map.letter;
+                host.style.width = `${next.width}px`;
+                host.style.minHeight = `${next.height}px`;
+            },
+
+            applyZoom() {
+                const host = document.getElementById('editor-container');
+                const canvas = document.querySelector('.canvas-area');
+                if (!host || !canvas) return;
+                const ratio = Math.max(0.7, Math.min(1.5, this.editorZoom / 100));
+                host.style.transform = `scale(${ratio})`;
+                canvas.style.paddingTop = ratio > 1 ? '56px' : '40px';
+                canvas.style.paddingBottom = ratio > 1 ? '56px' : '40px';
+            },
+
+            applyTypographyDefaults() {
+                const root = this.quill?.root;
+                if (!root) return;
+                root.style.lineHeight = String(this.lineSpacing || 1.5);
+                const paragraphBottom = `${Math.max(0.45, this.paragraphSpacing) * 1}em`;
+                root.querySelectorAll('p, li, blockquote').forEach((el) => {
+                    el.style.marginBottom = paragraphBottom;
+                });
+            },
+
+            toggleSpellcheck(forceOn = null) {
+                const root = this.quill?.root;
+                const button = document.getElementById('docx-spellcheck-btn');
+                if (!root) return;
+                const isBootSync = typeof forceOn === 'boolean';
+                if (typeof forceOn === 'boolean') {
+                    this.spellcheckEnabled = forceOn;
+                } else {
+                    this.spellcheckEnabled = !this.spellcheckEnabled;
+                }
+                root.setAttribute('spellcheck', this.spellcheckEnabled ? 'true' : 'false');
+                if (button) button.classList.toggle('active', this.spellcheckEnabled);
+                if (!isBootSync) this.showToast(this.spellcheckEnabled ? 'Spellcheck enabled.' : 'Spellcheck disabled.');
+            },
+
+            insertQuickTable() {
+                if (!this.activeDocId) return this.showToast('Open a document first.');
+                const range = this.quill.getSelection(true) || { index: this.quill.getLength() };
+                const tableHtml = [
+                    '<table style="border-collapse:collapse; width:100%; margin:1em 0;">',
+                    '<tr><th style="border:1px solid #d4d4d4; padding:8px; background:#f3f3f3;">Header 1</th><th style="border:1px solid #d4d4d4; padding:8px; background:#f3f3f3;">Header 2</th><th style="border:1px solid #d4d4d4; padding:8px; background:#f3f3f3;">Header 3</th></tr>',
+                    '<tr><td style="border:1px solid #d4d4d4; padding:8px;">Cell</td><td style="border:1px solid #d4d4d4; padding:8px;">Cell</td><td style="border:1px solid #d4d4d4; padding:8px;">Cell</td></tr>',
+                    '<tr><td style="border:1px solid #d4d4d4; padding:8px;">Cell</td><td style="border:1px solid #d4d4d4; padding:8px;">Cell</td><td style="border:1px solid #d4d4d4; padding:8px;">Cell</td></tr>',
+                    '</table><p><br></p>'
+                ].join('');
+                this.quill.clipboard.dangerouslyPasteHTML(range.index, tableHtml);
+                this.showToast('Table inserted.');
+                this.debouncedSave();
+            },
+
+            insertChecklist() {
+                if (!this.activeDocId) return this.showToast('Open a document first.');
+                const range = this.quill.getSelection(true) || { index: this.quill.getLength() };
+                const checklistHtml = [
+                    '<ul style="list-style:none; padding-left:0; margin:1em 0;">',
+                    '<li>☐ First checklist item</li>',
+                    '<li>☐ Second checklist item</li>',
+                    '<li>☐ Third checklist item</li>',
+                    '</ul><p><br></p>'
+                ].join('');
+                this.quill.clipboard.dangerouslyPasteHTML(range.index, checklistHtml);
+                this.showToast('Checklist inserted.');
+                this.debouncedSave();
+            },
+
+            openShortcutGuide() {
+                document.getElementById('shortcut-modal').style.display = 'flex';
             },
 
             toggleFocusMode() {
