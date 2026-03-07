@@ -354,6 +354,24 @@ const SKYE_APPS: SkyeAppDefinition[] = [
   { id: "Smokehouse-Standalone", summary: "Standalone smoke runner with tamper-evident run history.", mvp: ["Contract checks", "Hash chain", "Runbook export"] },
 ];
 
+const PLATFORM_INTRO_PILLARS = [
+  {
+    title: "Full Email Service",
+    detail:
+      "SkyeMail + SKYEMAIL-GEN + Skye-ID provide mailbox operations, identity generation, thread workflows, and enterprise-ready communication rails in one stack.",
+  },
+  {
+    title: "Community Chatroom Platform",
+    detail:
+      "SkyeChat supports channel rooms, threaded replies, and cross-app publishing so product teams can run community conversations with Reddit-style discussion flow.",
+  },
+  {
+    title: "Google DocX-Class Workspace",
+    detail:
+      "SkyeDocxPro and SkyeDocs combine advanced editing, offline-safe workflows, and production exports to operate as a full document platform replacement.",
+  },
+];
+
 const APP_SURFACE_PATHS: Partial<Record<SkyeAppId, string>> = {
   SkyeDocs: "/SkyeDocs/index.html",
   SkyeDocxPro: "/SkyeDocxPro/index.html",
@@ -4928,12 +4946,6 @@ export function App() {
             <h1>SkyeIDE Command Deck</h1>
             <p>DocxPro-grade workspace shell · live surfaces · detachable preview</p>
           </div>
-          <div className="topbar-telemetry">
-            <span className="telemetry-chip">Surface: {selectedSkyeApp}</span>
-            <span className="telemetry-chip">Mode: {appMode === "skyeide" ? "SkyeIDE" : "Neural"}</span>
-            <span className="telemetry-chip">Preview: {previewPane}/{previewDevice}</span>
-            <span className="telemetry-chip">Assistant: {assistantAuthStatus}</span>
-          </div>
         </div>
         <div className="topbar-right">
           <a className="ghost" href="/upgrade-notes.html" target="_blank" rel="noreferrer">Upgrade Notes</a>
@@ -4952,6 +4964,32 @@ export function App() {
           </button>
         </div>
       </header>
+
+      <section className="platform-intro" aria-label="platform intro">
+        <div className="platform-intro-copy">
+          <p className="platform-intro-kicker">Enterprise Platform Intro</p>
+          <h2>Several full enterprise-level platforms under one roof.</h2>
+          <p>
+            This stack is built as a real multi-product operating environment, not a thin demo shell. You can credibly position it as
+            a full email service, a full chatroom service with Reddit-like threaded community conversation, and a full Google DocX
+            replacement—plus operations, identity, and analytics surfaces aligned to enterprise rollout.
+          </p>
+        </div>
+        <div className="platform-intro-grid">
+          {PLATFORM_INTRO_PILLARS.map((pillar) => (
+            <article key={pillar.title} className="platform-intro-card">
+              <h3>{pillar.title}</h3>
+              <p>{pillar.detail}</p>
+            </article>
+          ))}
+        </div>
+        <div className="topbar-telemetry platform-intro-telemetry">
+          <span className="telemetry-chip">Surface: {selectedSkyeApp}</span>
+          <span className="telemetry-chip">Mode: {appMode === "skyeide" ? "SkyeIDE" : "Neural"}</span>
+          <span className="telemetry-chip">Preview: {previewPane}/{previewDevice}</span>
+          <span className="telemetry-chip">Assistant: {assistantAuthStatus}</span>
+        </div>
+      </section>
 
       <section className="workspace-surface-bar">
         <div className="workspace-surface-meta">Active Surface · {selectedSkyeApp}</div>

@@ -538,6 +538,70 @@ a:focus-visible {
   background: rgba(255, 214, 96, 0.08);
 }
 
+
+.platform-intro {
+  position: relative;
+  z-index: 5;
+  display: grid;
+  gap: 14px;
+  padding: 14px 16px 16px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(130deg, rgba(11, 17, 29, 0.95), rgba(29, 14, 45, 0.92));
+}
+
+.platform-intro-kicker {
+  margin: 0 0 6px;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: #ffdf8b;
+}
+
+.platform-intro h2 {
+  margin: 0;
+  font-size: clamp(1.1rem, 2.1vw, 1.6rem);
+  letter-spacing: 0.02em;
+}
+
+.platform-intro-copy p {
+  margin: 8px 0 0;
+  color: #d8caef;
+  max-width: 1100px;
+  line-height: 1.5;
+}
+
+.platform-intro-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.platform-intro-card {
+  border-radius: 12px;
+  border: 1px solid rgba(168, 106, 255, 0.36);
+  background: rgba(7, 10, 22, 0.62);
+  padding: 12px;
+}
+
+.platform-intro-card h3 {
+  margin: 0;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #ffeba8;
+}
+
+.platform-intro-card p {
+  margin: 8px 0 0;
+  color: #d4c4ed;
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.platform-intro-telemetry {
+  margin-top: 2px;
+}
+
 .auth-session-bar {
   display: grid;
   grid-template-columns: 72px 1fr 86px 1fr 104px 1fr auto auto auto auto auto auto;
@@ -1871,5 +1935,16 @@ a:focus-visible {
   .cine-sub,
   .cine-whiteout {
     animation: none;
+  }
+}
+
+
+@media (max-width: 960px) {
+  .platform-intro {
+    padding: 12px;
+  }
+
+  .platform-intro-grid {
+    grid-template-columns: 1fr;
   }
 }
