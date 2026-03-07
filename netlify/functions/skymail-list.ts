@@ -18,10 +18,22 @@ export const handler = async (event: any) => {
   const before = String(params.before || "").trim();
   const mailbox = String(params.mailbox || "").trim().toLowerCase();
   const search = String(params.q || "").trim().toLowerCase();
+  const label = String(params.label || "").trim().toLowerCase();
+  const threadId = String(params.thread_id || "").trim();
+  const unreadOnly = String(params.unread_only || "").trim() === "1";
   const searchLike = search ? `%${search}%` : "";
 
   const rows = await q(
-    `select id, app, title, payload, created_at, updated_at
+    `select id, app, title, payload, created_at, updated_at,
+       (
+         case when $4::text = '' then 0 else
+           (case when lower(coalesce(payload->>'subject','')) = $4 then 40 else 0 end) +
+           (case when lower(title) like $5 then 18 else 0 end) +
+           (case when lower(coalesce(payload->>'from','')) like $5 then 14 else 0 end) +
+           (case when lower(coalesce(payload->>'to','')) like $5 then 14 else 0 end) +
+           (case when lower(coalesce(payload->>'text','')) like $5 then 8 else 0 end)
+         end
+       ) as score
      from app_records
      where org_id=$1
        and app in ('SkyeMail', 'SkyeMailInbound')
@@ -40,9 +52,16 @@ export const handler = async (event: any) => {
          or lower(coalesce(payload->>'subject','')) like $5
          or lower(coalesce(payload->>'text','')) like $5
        )
-     order by updated_at desc
-     limit $6`,
-    [u.org_id, before || null, mailbox, search, searchLike, limit]
+       and ($6::text = '' or exists (
+         select 1
+         from jsonb_array_elements_text(coalesce(payload->'labels','[]'::jsonb)) as lbl
+         where lower(lbl) = $6
+       ))
+       and ($7::text = '' or coalesce(payload->>'thread_id','') = $7)
+       and ($8::boolean = false or coalesce((payload->>'unread')::boolean, false) = true)
+     order by score desc, updated_at desc
+     limit $9`,
+    [u.org_id, before || null, mailbox, search, searchLike, label, threadId, unreadOnly, limit]
   );
 
   const nextBefore = rows.rows.length ? rows.rows[rows.rows.length - 1]?.updated_at || null : null;

@@ -149,10 +149,11 @@
             <option value="sent">sent</option>
             <option value="failed">failed</option>
           </select>
-          <select id="channelFilter">
-            <option value="all">Channel hook: all</option>
-            <option value="hooked">hooked only</option>
-            <option value="none">no hook</option>
+          <select id="mailStateFilter">
+            <option value="all">Mailbox state: all</option>
+            <option value="unread">unread</option>
+            <option value="starred">starred</option>
+            <option value="archive">archive</option>
           </select>
         </div>
         <div class="row" style="margin-top:8px;">
@@ -448,31 +449,35 @@
       const local = document.getElementById('addressLocal').value.trim().toLowerCase();
       const displayName = document.getElementById('displayName').value.trim();
       if (!local) throw new Error('Address local-part is required.');
-      const profile = {
-        mailbox_address: `${local}@skymail.local`,
-        display_name: displayName || local,
-        workspace_id: state.wsId,
-      };
-      await call('/api/app-profile-set', {
+      const currentEmail = String(state?.me?.email || document.getElementById('email').value || '').trim().toLowerCase();
+      const domain = currentEmail.includes('@') ? currentEmail.split('@')[1] : 'solenterprises.org';
+      const mailboxEmail = `${local}@${domain}`;
+
+      await call('/api/skymail-account-set', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ app: 'SkyeMail', title: profile.mailbox_address, profile }),
+        body: JSON.stringify({
+          mailbox_email: mailboxEmail,
+          display_name: displayName || local,
+          provider: 'gmail_smtp',
+          outbound_enabled: true,
+          inbound_enabled: true,
+          metadata: { workspace_id: state.wsId },
+        }),
       });
-      setStatus(`Mailbox profile saved: ${profile.mailbox_address}`);
+      setStatus(`Mailbox profile saved: ${mailboxEmail}`);
     }
 
     async function loadProfile() {
-      const data = await call('/api/app-profile-get?app=SkyeMail');
-      const profile = data?.profile?.payload || {};
-      if (profile?.mailbox_address) {
-        const local = String(profile.mailbox_address).split('@')[0] || '';
+      const data = await call('/api/skymail-account-get');
+      const profile = data?.account || {};
+      if (profile?.mailbox_email) {
+        const local = String(profile.mailbox_email).split('@')[0] || '';
         document.getElementById('addressLocal').value = local;
         const search = document.getElementById('search');
-        if (search && !search.value.trim()) search.value = profile.mailbox_address;
+        if (search && !search.value.trim()) search.value = profile.mailbox_email;
       }
-      if (profile?.display_name) {
-        document.getElementById('displayName').value = profile.display_name;
-      }
+      if (profile?.display_name) document.getElementById('displayName').value = profile.display_name;
     }
 
     function initTemplates() {
@@ -511,9 +516,6 @@
       if (to && !to.includes('@')) {
         warnings.push('Recipient format risk: missing @ domain.');
         block = true;
-      }
-      if (to && !to.endsWith('@company.com') && !to.endsWith('@skymail.local')) {
-        warnings.push('Recipient risk: external destination domain.');
       }
       if (subject.length < 4) warnings.push('Subject quality risk: subject is too short.');
       if (/password|secret|private key|ssn|credit card/i.test(text)) {
@@ -628,19 +630,20 @@
       setStatus(`Processed retry queue items: ${Math.min(5, queued.length)}.`);
     }
 
-    async function loadInbox(append = false) {
+    async function loadInbox(append = false, forcedThread = '') {
       const q = document.getElementById('search').value.trim();
       const mailbox = q.includes('@') ? q.toLowerCase() : '';
       const qs = new URLSearchParams();
       qs.set('limit', '50');
       if (q && !mailbox) qs.set('q', q);
       if (mailbox) qs.set('mailbox', mailbox);
+      if (forcedThread) qs.set('thread_id', forcedThread);
       if (append && state.cursor) qs.set('before', state.cursor);
       const data = await call(`/api/skymail-list?${qs.toString()}`);
       const records = Array.isArray(data?.records) ? data.records : [];
       const search = document.getElementById('search').value.trim().toLowerCase();
       const statusFilter = document.getElementById('statusFilter').value;
-      const channelFilter = document.getElementById('channelFilter').value;
+      const mailStateFilter = document.getElementById('mailStateFilter').value;
       const dateFrom = document.getElementById('dateFrom').value;
       const dateTo = document.getElementById('dateTo').value;
 
@@ -651,14 +654,13 @@
         const toAddr = String(payload?.to || '').toLowerCase();
         const created = String(record?.created_at || '');
         const dateIso = created ? created.slice(0, 10) : '';
-        const hasHook = !!String(payload?.channel || '').trim();
+        const labels = Array.isArray(payload?.labels) ? payload.labels.map((x) => String(x || '').toLowerCase()) : [];
         const lifecycle = state.deliveryRecords.find((row) => row.subject === (payload?.subject || record?.title || '') && row.to === (payload?.to || ''));
         const lifecycleStatus = lifecycle?.status || 'sent';
 
         if (search && !`${subject} ${body} ${toAddr}`.includes(search)) return false;
         if (statusFilter !== 'all' && lifecycleStatus !== statusFilter) return false;
-        if (channelFilter === 'hooked' && !hasHook) return false;
-        if (channelFilter === 'none' && hasHook) return false;
+        if (mailStateFilter !== 'all' && !labels.includes(mailStateFilter)) return false;
         if (dateFrom && dateIso && dateIso < dateFrom) return false;
         if (dateTo && dateIso && dateIso > dateTo) return false;
         return true;
@@ -669,13 +671,29 @@
 
       const items = filtered.map((record) => {
         const payload = record?.payload || {};
-        const to = payload?.to || 'unknown';
-        const fromAlias = payload?.from_alias || 'noreply@skymail.local';
+        const direction = String(payload?.direction || '').toLowerCase() || (record?.app === 'SkyeMailInbound' ? 'inbound' : 'outbound');
+        const to = payload?.to || payload?.mailbox || 'unknown';
+        const fromAlias = payload?.from || payload?.from_alias || 'noreply@skymail.local';
         const subject = payload?.subject || record?.title || '(no subject)';
         const body = payload?.text || '';
+        const labels = Array.isArray(payload?.labels) ? payload.labels : [];
+        const threadId = payload?.thread_id || '';
         const lifecycle = state.deliveryRecords.find((row) => row.subject === subject && row.to === to);
         const lifecycleStatus = lifecycle?.status || 'sent';
-        return `<div class="item"><strong>${subject}</strong><div class="meta">from ${fromAlias} to ${to}</div><div class="meta">status=${lifecycleStatus}</div><div class="meta">${body}</div></div>`;
+        const badge = direction === 'inbound' ? 'INBOX' : 'SENT';
+        const labelText = labels.length ? labels.join(', ') : 'none';
+        return `<div class="item" data-msg-id="${record.id}" data-thread-id="${threadId}" data-unread="${Boolean(payload?.unread)}" data-starred="${Boolean(payload?.starred)}" data-archived="${Boolean(payload?.archived)}">
+          <strong>[${badge}] ${subject}</strong>
+          <div class="meta">from ${fromAlias} to ${to}</div>
+          <div class="meta">status=${lifecycleStatus} | labels=${labelText}</div>
+          <div class="meta">${body}</div>
+          <div class="actions" style="margin-top:8px;">
+            <button type="button" data-action="toggle-unread" data-msg-id="${record.id}">Toggle Read</button>
+            <button type="button" data-action="toggle-star" data-msg-id="${record.id}">Toggle Star</button>
+            <button type="button" data-action="toggle-archive" data-msg-id="${record.id}">Toggle Archive</button>
+            <button type="button" data-action="open-thread" data-thread-id="${threadId}">Open Thread</button>
+          </div>
+        </div>`;
       }).join('');
 
       if (!append) inboxEl.innerHTML = items || '<div class="meta">No mail records found.</div>';
@@ -694,6 +712,7 @@
       if (signup?.kaixu_token?.token) {
         localStorage.setItem('kx.api.accessToken', signup.kaixu_token.token);
         localStorage.setItem('kx.api.tokenEmail', signup.kaixu_token.locked_email || email.toLowerCase());
+        hydrateAuthInputs();
       }
       await refreshMe();
       await loadProfile();
@@ -708,9 +727,35 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
+      if (!(localStorage.getItem('kx.api.accessToken') || '').trim()) {
+        const tokenData = await call('/api/token-issue', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ count: 1, ttl_preset: 'quarter', label_prefix: 'mail-login-auto', locked_email: email.toLowerCase() }),
+        });
+        const issued = tokenData?.issued?.[0];
+        if (issued?.token) {
+          localStorage.setItem('kx.api.accessToken', issued.token);
+          localStorage.setItem('kx.api.tokenEmail', issued.locked_email || email.toLowerCase());
+          hydrateAuthInputs();
+        }
+      }
       await refreshMe();
       await loadProfile();
       await loadInbox();
+    }
+
+    function boolAttr(value) {
+      return String(value || '').toLowerCase() === 'true';
+    }
+
+    async function updateMessageState(id, patch) {
+      await call('/api/skymail-message-update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, ...patch }),
+      });
+      await loadInbox(false);
     }
 
     async function logout() {
@@ -734,6 +779,37 @@
     document.getElementById('exportAuditBtn').onclick = () => exportOutboundAudit();
     document.getElementById('reloadBtn').onclick = () => loadInbox(false).catch((e) => setStatus(e.message));
     document.getElementById('searchBtn').onclick = () => loadInbox(false).catch((e) => setStatus(e.message));
+        inboxEl.addEventListener('click', async (event) => {
+          const target = event.target;
+          if (!(target instanceof HTMLElement)) return;
+          const action = target.getAttribute('data-action');
+          if (!action) return;
+          try {
+            const item = target.closest('.item');
+            if (action === 'toggle-unread') {
+              const id = target.getAttribute('data-msg-id');
+              if (!id) return;
+              const nextUnread = !boolAttr(item?.getAttribute('data-unread'));
+              await updateMessageState(id, { unread: nextUnread });
+            } else if (action === 'toggle-star') {
+              const id = target.getAttribute('data-msg-id');
+              if (!id) return;
+              const nextStarred = !boolAttr(item?.getAttribute('data-starred'));
+              await updateMessageState(id, { starred: nextStarred });
+            } else if (action === 'toggle-archive') {
+              const id = target.getAttribute('data-msg-id');
+              if (!id) return;
+              const nextArchived = !boolAttr(item?.getAttribute('data-archived'));
+              await updateMessageState(id, { archived: nextArchived, unread: nextArchived ? false : boolAttr(item?.getAttribute('data-unread')) });
+            } else if (action === 'open-thread') {
+              const threadId = target.getAttribute('data-thread-id') || '';
+              if (!threadId) return;
+              await loadInbox(false, threadId);
+            }
+          } catch (err) {
+            setStatus(err?.message || String(err));
+          }
+        });
     document.getElementById('saveProfileBtn').onclick = () => saveProfile().catch((e) => setStatus(e.message));
     document.getElementById('logoutBtn').onclick = () => logout().catch((e) => setStatus(e.message));
     document.getElementById('exportSkyeBtn').onclick = () => exportSkyeFile().catch((e) => setStatus(e.message));

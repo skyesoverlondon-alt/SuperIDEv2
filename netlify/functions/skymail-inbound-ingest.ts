@@ -1,5 +1,6 @@
 import { json } from "./_shared/response";
 import { q } from "./_shared/neon";
+import { computeThreadId, normalizeLabels } from "./_shared/skymail";
 
 function readIngestSecret(event: any): string {
   const header = event?.headers || {};
@@ -27,6 +28,8 @@ export const handler = async (event: any) => {
   const html = String(body.html || body.body_html || "").trim();
   const providerMessageId = String(body.message_id || body.provider_message_id || "").trim();
   const receivedAt = String(body.received_at || "").trim();
+  const explicitThreadId = String(body.thread_id || "").trim();
+  const attachmentsInput = Array.isArray(body.attachments) ? body.attachments : [];
 
   if (!to || !subject || (!text && !html)) {
     return json(400, { error: "Missing to, subject, or message body." });
@@ -68,6 +71,8 @@ export const handler = async (event: any) => {
   }
 
   const title = subject.slice(0, 240) || "(no subject)";
+  const threadId = explicitThreadId || computeThreadId(to, from, subject);
+  const labels = normalizeLabels(body.labels, ["inbox", "unread"]);
   const payload = {
     direction: "inbound",
     mailbox: to,
@@ -75,6 +80,18 @@ export const handler = async (event: any) => {
     subject,
     text: text || null,
     html: html || null,
+    thread_id: threadId,
+    labels,
+    unread: true,
+    starred: false,
+    archived: false,
+    attachments: attachmentsInput
+      .map((item: any) => ({
+        filename: String(item?.filename || "").trim().slice(0, 200),
+        content_type: String(item?.content_type || "application/octet-stream").trim(),
+        size_bytes: Number(item?.size_bytes || 0),
+      }))
+      .filter((item: any) => item.filename),
     provider: String(body.provider || "smtp").trim().toLowerCase() || "smtp",
     provider_message_id: providerMessageId || null,
     received_at: receivedAt || new Date().toISOString(),

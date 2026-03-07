@@ -6,6 +6,11 @@ type SendMailInput = {
   subject: string;
   text: string;
   from?: string;
+  attachments?: Array<{
+    filename: string;
+    contentType?: string;
+    content: Buffer;
+  }>;
 };
 
 export async function sendMail(input: SendMailInput): Promise<{ provider: string; id: string | null }> {
@@ -32,6 +37,13 @@ export async function sendMail(input: SendMailInput): Promise<{ provider: string
       to: input.to,
       subject: input.subject,
       text: input.text,
+      attachments: Array.isArray(input.attachments)
+        ? input.attachments.map((a) => ({
+            filename: a.filename,
+            contentType: a.contentType,
+            content: a.content,
+          }))
+        : undefined,
     });
 
     return {
@@ -56,6 +68,12 @@ export async function sendMail(input: SendMailInput): Promise<{ provider: string
       to: [input.to],
       subject: input.subject,
       text: input.text,
+      attachments: Array.isArray(input.attachments)
+        ? input.attachments.map((a) => ({
+            filename: a.filename,
+            content: a.content.toString("base64"),
+          }))
+        : undefined,
     }),
   });
 

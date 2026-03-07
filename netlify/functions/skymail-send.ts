@@ -6,6 +6,7 @@ import { sendMail } from "./_shared/mailer";
 import { canReadWorkspace } from "./_shared/rbac";
 import { readIdempotencyKey } from "./_shared/idempotency";
 import { readCorrelationId } from "./_shared/correlation";
+import { computeThreadId, normalizeLabels } from "./_shared/skymail";
 
 export const handler = async (event: any) => {
   const u = await requireUser(event);
@@ -24,6 +25,8 @@ export const handler = async (event: any) => {
   const text = String(body.text || "").trim();
   const channel = String(body.channel || "").trim();
   const fromAlias = String(body.from_alias || "").trim().toLowerCase();
+  const replyToThread = String(body.thread_id || "").trim();
+  const attachmentsInput = Array.isArray(body.attachments) ? body.attachments : [];
   const wsId = String(body.ws_id || "").trim();
   const idempotencyKey = readIdempotencyKey(event, body);
   const correlationId = readCorrelationId(event);
@@ -84,7 +87,35 @@ export const handler = async (event: any) => {
       }
     }
 
-    const delivered = await sendMail({ to, subject, text, from: fromHeader });
+    const preparedAttachments = attachmentsInput
+      .map((item: any) => {
+        const filename = String(item?.filename || "").trim().slice(0, 200);
+        const data = String(item?.data_base64 || "").trim();
+        const contentType = String(item?.content_type || "application/octet-stream").trim();
+        if (!filename || !data) return null;
+        return {
+          filename,
+          contentType,
+          content: Buffer.from(data, "base64"),
+          size: Number(item?.size_bytes || 0),
+        };
+      })
+      .filter(Boolean) as Array<{ filename: string; contentType: string; content: Buffer; size: number }>;
+
+    const delivered = await sendMail({
+      to,
+      subject,
+      text,
+      from: fromHeader,
+      attachments: preparedAttachments.map((item) => ({
+        filename: item.filename,
+        contentType: item.contentType,
+        content: item.content,
+      })),
+    });
+
+    const threadId = replyToThread || computeThreadId(mailbox, to, subject);
+    const labels = normalizeLabels(body.labels, ["sent"]);
 
     const saved = await q(
       "insert into app_records(org_id, ws_id, app, title, payload, created_by) values($1,$2,$3,$4,$5::jsonb,$6) returning id, created_at",
@@ -96,10 +127,21 @@ export const handler = async (event: any) => {
         JSON.stringify({
           direction: "outbound",
           mailbox,
+          from: mailbox,
           to,
           from_alias: fromAlias || null,
           subject,
           text,
+          thread_id: threadId,
+          labels,
+          unread: false,
+          starred: false,
+          archived: false,
+          attachments: preparedAttachments.map((item) => ({
+            filename: item.filename,
+            content_type: item.contentType,
+            size_bytes: item.size || item.content.length,
+          })),
           provider: delivered.provider,
           provider_id: delivered.id,
           idempotency_key: idempotencyKey || null,
@@ -140,6 +182,8 @@ export const handler = async (event: any) => {
       mail_record_id: saved.rows[0]?.id || null,
       provider: delivered.provider,
       provider_id: delivered.id,
+      thread_id: threadId,
+      labels,
       chat_hook_id: chatHookId,
     });
   } catch (e: any) {
