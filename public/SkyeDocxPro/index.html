@@ -4118,6 +4118,28 @@
                 return me;
             }
 
+            function publishBridgeEvent(payload) {
+                const envelope = {
+                    type: 'kx.app.bridge',
+                    payload: {
+                        source: appId,
+                        at: new Date().toISOString(),
+                        ...payload,
+                    },
+                };
+                try { localStorage.setItem('kx.app.bridge', JSON.stringify(envelope)); } catch {}
+                try {
+                    if (window.parent && window.parent !== window) {
+                        window.parent.postMessage(envelope, window.location.origin);
+                    }
+                } catch {}
+                try {
+                    if (window.opener && !window.opener.closed) {
+                        window.opener.postMessage(envelope, window.location.origin);
+                    }
+                } catch {}
+            }
+
             function getDocSnapshot() {
                 const doc = (window.App && window.App.getActiveDocRecord) ? window.App.getActiveDocRecord() : null;
                 const title = String(doc?.title || 'Untitled').trim();
@@ -4125,6 +4147,18 @@
                 const text = String(window.App?.quill?.getText?.() || '').replace(/\s+/g, ' ').trim();
                 const excerpt = text.slice(0, 700);
                 return { title, html, text, excerpt, doc };
+            }
+
+            function buildBookxLaunchUrl(recordId) {
+                const params = new URLSearchParams({ ws_id: wsId });
+                if (recordId) params.set('drive_record_id', recordId);
+                return `/SkyeBookx/index.html?${params.toString()}`;
+            }
+
+            function launchBookxForDriveRecord(recordId) {
+                const launchUrl = buildBookxLaunchUrl(recordId);
+                window.open(launchUrl, '_blank', 'noopener');
+                return launchUrl;
             }
 
             async function pushToSkyeChat() {
@@ -4179,6 +4213,55 @@
                     text: `${excerpt}\n\nSent from ${appId}. Export options remain available: .skye / HTML ZIP / PDF.`,
                 });
                 window.App.showToast(`Delivered ${title} via SkyeMail.`);
+            }
+
+            async function pushToSkyeDrive(options = {}) {
+                await ensureSignedIn();
+                const { title, html, text, excerpt } = getDocSnapshot();
+                if (!html && !text) throw new Error('Cannot push an empty document into SkyeDrive.');
+                const safeBase = title.replace(/[^a-z0-9._-]+/gi, '_') || 'Untitled_Document';
+                const manifest = {
+                    app_id: appId,
+                    title,
+                    exported_at: new Date().toISOString(),
+                    source: appId,
+                    summary: excerpt,
+                };
+                const files = [
+                    { path: `${safeBase}/document.html`, content: html || `<p>${String(text || '').replace(/[<>&]/g, '')}</p>` },
+                    { path: `${safeBase}/document.txt`, content: text || '' },
+                    { path: `${safeBase}/manifest.json`, content: JSON.stringify(manifest, null, 2) },
+                ];
+                const saved = await api('/api/app-record-save', {
+                    ws_id: wsId,
+                    app: 'SkyeDrive',
+                    title: `${title} · SkyeDrive Draft`,
+                    model: {
+                        kind: 'workspace-source',
+                        source: appId,
+                        source_kind: 'document-draft',
+                        note: 'Saved from SkyeDocxPro standalone workspace.',
+                        workspace_name: title,
+                        file_count: files.length,
+                        files,
+                    },
+                });
+                const recordId = String(saved?.record_id || saved?.id || '').trim();
+                const bookxLaunchUrl = buildBookxLaunchUrl(recordId);
+                publishBridgeEvent({
+                    kind: 'open-app',
+                    appId: 'SkyeDrive',
+                    drive_record_id: recordId,
+                    bookx_launch_url: bookxLaunchUrl,
+                    note: `SkyeDocxPro saved ${title} to SkyeDrive.${recordId ? ` record_id=${recordId}` : ''}`,
+                });
+                if (options?.launchBookx && recordId) {
+                    launchBookxForDriveRecord(recordId);
+                    window.App.showToast(`Saved ${title} to SkyeDrive and launched SkyeBookX.`);
+                } else {
+                    window.App.showToast(`Saved ${title} to SkyeDrive.`);
+                }
+                return { recordId, bookxLaunchUrl };
             }
 
             async function sendToDevice() {
@@ -4237,12 +4320,24 @@
                 mailBtn.innerHTML = '<i data-lucide="send" style="width:16px;height:16px;"></i> Push Email';
                 mailBtn.onclick = () => pushToSkyeMail().catch((e) => window.App.showToast(e?.message || String(e)));
 
+                const driveBtn = document.createElement('button');
+                driveBtn.setAttribute('data-super-push', '1');
+                driveBtn.innerHTML = '<i data-lucide="cloud-arrow-up" style="width:16px;height:16px;"></i> Push Drive';
+                driveBtn.onclick = () => pushToSkyeDrive().catch((e) => window.App.showToast(e?.message || String(e)));
+
+                const bookxBtn = document.createElement('button');
+                bookxBtn.setAttribute('data-super-push', '1');
+                bookxBtn.innerHTML = '<i data-lucide="book-open" style="width:16px;height:16px;"></i> Push BookX';
+                bookxBtn.onclick = () => pushToSkyeDrive({ launchBookx: true }).catch((e) => window.App.showToast(e?.message || String(e)));
+
                 const deviceBtn = document.createElement('button');
                 deviceBtn.setAttribute('data-super-push', '1');
                 deviceBtn.innerHTML = '<i data-lucide="smartphone" style="width:16px;height:16px;"></i> Device';
                 deviceBtn.onclick = () => sendToDevice().catch((e) => window.App.showToast(e?.message || String(e)));
 
                 actions.prepend(deviceBtn);
+                actions.prepend(bookxBtn);
+                actions.prepend(driveBtn);
                 actions.prepend(mailBtn);
                 actions.prepend(chatBtn);
                 actions.prepend(aiBtn);

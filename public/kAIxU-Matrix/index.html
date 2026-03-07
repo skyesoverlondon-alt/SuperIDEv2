@@ -9,10 +9,6 @@
     
     <!-- Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="/_shared/correlation.js"></script>
-    <script src="/_shared/auth-unlock.js"></script>
-    <script src="/_shared/standalone-session.js"></script>
-    <script src="/_shared/kaixu-provider-bridge.js"></script>
 
     <!-- Firebase SDKs -->
     <script type="module">
@@ -286,11 +282,7 @@
         async function init() {
             initThreeJS();
             document.getElementById('proj-title-input').addEventListener('input', e => { state.title = e.target.value; debouncedSave(); });
-            document.getElementById('openai-key').addEventListener('input', e => {
-                state.openaiKey = e.target.value;
-                if (window.SkyeStandaloneSession?.saveManualToken) window.SkyeStandaloneSession.saveManualToken(e.target.value, '');
-                debouncedSave();
-            });
+            document.getElementById('openai-key').addEventListener('input', e => { state.openaiKey = e.target.value; debouncedSave(); });
             
             const inputs = ['node-title', 'node-content', 'node-phase', 'node-archetype', 'node-matrixid'];
             inputs.forEach(id => {
@@ -373,7 +365,7 @@
 
         function refreshUI() {
             document.getElementById('proj-title-input').value = state.title;
-            document.getElementById('openai-key').value = state.openaiKey || window.SkyeStandaloneSession?.readToken?.() || "";
+            document.getElementById('openai-key').value = state.openaiKey || "";
             const n = state.nodes.find(x => x.id === state.activeNodeId) || state.nodes[0];
             if (!n) return;
             document.getElementById('node-title').value = n.title;
@@ -424,18 +416,51 @@
 
         window.generatePDF = () => { window.focus(); window.print(); };
 
-        // --- OPENAI EXCLUSIVE WIRED LOGIC ---
-        async function fetchOpenAI(prompt, system) {
-            const key = state.openaiKey || document.getElementById('openai-key').value;
-            if(!key) throw new Error("OpenAI API Key required.");
-            const res = await fetch('https://api.openai.com/v1/chat/completions', {
+        // --- Gateway-backed AI Logic ---
+        const gatewayFetch = (window.SkyeGateway && window.SkyeGateway.fetchWithRetry) || fetch;
+        function getWsId() {
+            return new URLSearchParams(window.location.search).get('ws_id') || 'primary-workspace';
+        }
+        function getGatewayHeaders() {
+            const keyInput = document.getElementById('openai-key');
+            const raw = (state.openaiKey || (keyInput && keyInput.value) || localStorage.getItem('kx.api.accessToken') || '').trim();
+            const headers = { 'Content-Type': 'application/json' };
+            if (raw) headers.Authorization = 'Bearer ' + raw;
+            if (window.SkyeCorrelation && typeof window.SkyeCorrelation.nextId === 'function') {
+                headers['x-correlation-id'] = window.SkyeCorrelation.nextId('kaixu-standalone');
+            }
+            return headers;
+        }
+        async function callGatewayText(prompt, system) {
+            const res = await gatewayFetch('/api/kaixu-generate', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
-                body: JSON.stringify({ model: "gpt-4o", messages: [{ role: "system", content: system }, { role: "user", content: prompt }] })
+                headers: getGatewayHeaders(),
+                credentials: 'include',
+                body: JSON.stringify({
+                    ws_id: getWsId(),
+                    activePath: window.location.pathname,
+                    prompt: [String(system || '').trim(), String(prompt || '').trim()].filter(Boolean).join('\n\n'),
+                })
             });
-            if (!res.ok) throw new Error("API Connection Failure");
-            const data = await res.json();
-            return data.choices[0].message.content;
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data?.error || data?.message || ('Gateway failure (' + res.status + ')'));
+            return data?.text || data?.output || '';
+        }
+        function renderPromptPoster(promptText, label) {
+            const esc = (s) => String(s || '').replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+            const body = esc(String(promptText || '').slice(0, 520));
+            const tag = esc(label || 'kAIxU Gateway Render');
+            const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">'
+                + '<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#022c22"/><stop offset="100%" stop-color="#065f46"/></linearGradient></defs>'
+                + '<rect width="1024" height="1024" fill="url(#g)"/>'
+                + '<rect x="44" y="44" width="936" height="936" rx="24" fill="none" stroke="#a7f3d0" stroke-opacity="0.6" stroke-width="4"/>'
+                + '<text x="72" y="118" fill="#a7f3d0" font-size="36" font-family="Arial, sans-serif" font-weight="700">' + tag + '</text>'
+                + '<foreignObject x="72" y="168" width="880" height="780"><div xmlns="http://www.w3.org/1999/xhtml" style="font-family:Arial,sans-serif;color:#ecfdf5;font-size:30px;line-height:1.35;white-space:pre-wrap;">' + body + '</div></foreignObject>'
+                + '</svg>';
+            return 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)));
+        }
+        async function fetchOpenAI(prompt, system) {
+            return callGatewayText(prompt, system || 'You are kAIxU gateway intelligence.');
         }
 
         window.generateFromScratch = async () => {
@@ -472,21 +497,14 @@
 
         window.generateVisual = async () => {
             const n = state.nodes.find(x => x.id === state.activeNodeId);
-            const key = state.openaiKey || document.getElementById('openai-key').value;
-            if(!key) return showToast("API Key required!", "error");
             const overlay = document.getElementById('parsing-overlay');
             overlay.classList.remove('hidden');
             const txtEl = document.getElementById('parsing-text');
             txtEl.innerText = "kAIxu Rendering Essence...";
             try {
                 const prompt = `Hyper-detailed organic concept art, botanical and biological masterpiece, bioluminescent flora, cinematic digital painting, professional lighting: ${n.title}. Essence: ${n.content.slice(0,300)}`;
-                const res = await fetch('https://api.openai.com/v1/images/generations', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
-                    body: JSON.stringify({ model: "dall-e-3", prompt, n: 1, response_format: "b64_json" })
-                });
-                const data = await res.json();
-                n.image = `data:image/png;base64,${data.data[0].b64_json}`;
+                const posterPrompt = await callGatewayText(prompt, 'Create a concise botanical concept-art direction paragraph for this matrix node.');
+                n.image = renderPromptPoster(posterPrompt || prompt, 'kAIxU Gateway Render');
                 refreshUI(); debouncedSave();
                 showToast("Essence Visualized!", "success");
             } catch (err) { showToast("Render failed", "error"); }

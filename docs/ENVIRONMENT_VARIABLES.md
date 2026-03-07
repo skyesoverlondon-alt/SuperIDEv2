@@ -34,6 +34,7 @@ Example file: [/.env.netlify.example](../.env.netlify.example)
 - `GITHUB_APP_ID`
 - `GITHUB_APP_PRIVATE_KEY`
 - `NETLIFY_TOKEN_MASTER_KEY`
+- `KAIXU_BACKUP_ENDPOINT` and `KAIXU_APP_TOKEN` when backup-brain failover is enabled
 
 Example file: [worker/.dev.vars.example](../worker/.dev.vars.example)
 
@@ -64,6 +65,18 @@ These are used by the Vite frontend build in [src/App.tsx](../src/App.tsx).
 `VITE_*` variables are not backend secrets.
 
 They are frontend build-time values that Vite injects into the bundled app. If you do not set them, the app usually still works because this repo uses defaults for the currently referenced ones.
+
+### Critical security note for public kAIxu apps
+
+Do not inject shared provider master keys into public static apps under `public/kAI*/` or `public/kAix*/` using `VITE_*` variables or any other build-time env substitution.
+
+Those files are shipped to the browser. Any provider key inserted there becomes a public client secret and is effectively disclosed to every user.
+
+If a public kAIxu app must run direct-provider mode, it must use one of these paths instead:
+
+1. A user-supplied personal provider key stored client-side for that user session.
+2. A server-side backup brain route that keeps provider secrets on Netlify Functions or the Worker.
+3. A secured gateway path such as `/api/kaixu-generate`.
 
 ## Netlify Functions Variables
 
@@ -129,6 +142,13 @@ These are used by files under [worker/src](../worker/src).
 | `ACCESS_AUD` | no | Enables Cloudflare Access JWT verification |
 | `ACCESS_ISSUER` | no | Expected Cloudflare Access issuer |
 | `ACCESS_JWKS_URL` | no | JWKS URL for Access JWT verification |
+| `KAIXU_BACKUP_ENDPOINT` | no | Dedicated upstream endpoint for the Worker backup brain |
+| `KAIXU_APP_TOKEN` | no | Same server-side app token used by Netlify when the backup brain shares the same bearer credential |
+| `KAIXU_BACKUP_TOKEN` | no | Optional override token if the backup brain uses a different bearer credential |
+| `KAIXU_BACKUP_PROVIDER` | no | Label used in backup-brain responses and routing |
+| `KAIXU_BACKUP_MODEL` | no | Default model used by the backup brain |
+| `KAIXU_GATEWAY_PROVIDER` | no | Optional provider label fallback shared with Netlify AI routes |
+| `KAIXU_GATEWAY_MODEL` | no | Optional model fallback shared with Netlify AI routes |
 
 ### Worker bindings
 
@@ -170,9 +190,10 @@ If you are configuring production from scratch, do it in this order:
 2. Deploy the Worker and copy its real URL into `WORKER_RUNNER_URL`.
 3. Set the same `RUNNER_SHARED_SECRET` in Netlify and Worker.
 4. Set `KAIXU_GATEWAY_ENDPOINT` and `KAIXU_APP_TOKEN` in Netlify.
-5. Add `GITHUB_APP_ID` and `GITHUB_APP_PRIVATE_KEY` to the Worker if GitHub push is needed.
-6. Add `NETLIFY_TOKEN_MASTER_KEY` and `KX_SECRETS_KV` if Netlify site connection and deploy are needed.
-7. Add mail variables only if onboarding mail, reset mail, or inbox features are required.
+5. If you want automatic backup-brain failover, set `KAIXU_BACKUP_ENDPOINT` and the same `KAIXU_APP_TOKEN` on the Worker, or set `KAIXU_BACKUP_TOKEN` if the backup route uses a different credential.
+6. Add `GITHUB_APP_ID` and `GITHUB_APP_PRIVATE_KEY` to the Worker if GitHub push is needed.
+7. Add `NETLIFY_TOKEN_MASTER_KEY` and `KX_SECRETS_KV` if Netlify site connection and deploy are needed.
+8. Add mail variables only if onboarding mail, reset mail, or inbox features are required.
 
 ## SQL Note
 

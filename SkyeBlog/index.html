@@ -3134,6 +3134,142 @@
             const wsId = new URLSearchParams(window.location.search).get('ws_id') || 'primary-workspace';
             const appId = 'SkyeBlog';
             const standaloneSession = window.SkyeStandaloneSession || null;
+            const workflowTruth = {
+                session: { state: 'idle', label: 'Session Waiting' },
+                key: { state: 'idle', label: 'Key Missing' },
+                route: { state: 'idle', label: 'Route Idle' },
+                last: { state: 'idle', label: 'Last Waiting' },
+            };
+
+            function ensureWorkflowHud() {
+                if (document.getElementById('skye-workflow-hud-style')) return;
+                const style = document.createElement('style');
+                style.id = 'skye-workflow-hud-style';
+                style.textContent = `
+                    .workflow-truth-strip {
+                        display: flex;
+                        flex-wrap: wrap;
+                        gap: 8px;
+                        padding: 10px 20px;
+                        border-bottom: 1px solid rgba(138, 79, 255, 0.18);
+                        background: linear-gradient(90deg, rgba(20, 17, 36, 0.92), rgba(11, 9, 20, 0.86));
+                    }
+                    .workflow-truth-chip {
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 8px;
+                        padding: 6px 10px;
+                        border-radius: 999px;
+                        border: 1px solid rgba(255,255,255,0.12);
+                        font-size: 11px;
+                        letter-spacing: 0.08em;
+                        text-transform: uppercase;
+                        color: var(--text-main);
+                        background: rgba(255,255,255,0.04);
+                    }
+                    .workflow-truth-dot {
+                        width: 9px;
+                        height: 9px;
+                        border-radius: 999px;
+                        background: #7f889f;
+                        box-shadow: 0 0 0 1px rgba(255,255,255,0.08);
+                    }
+                    .workflow-truth-chip[data-state="ok"] .workflow-truth-dot {
+                        background: #48d597;
+                        box-shadow: 0 0 12px rgba(72, 213, 151, 0.55);
+                    }
+                    .workflow-truth-chip[data-state="warn"] .workflow-truth-dot {
+                        background: #ffd36b;
+                        box-shadow: 0 0 12px rgba(255, 211, 107, 0.5);
+                    }
+                    .workflow-truth-chip[data-state="fail"] .workflow-truth-dot {
+                        background: #ff6b7d;
+                        box-shadow: 0 0 12px rgba(255, 107, 125, 0.5);
+                    }
+                    .workflow-status-panel {
+                        padding: 10px 20px;
+                        font-size: 12px;
+                        color: var(--accent-gold);
+                        border-bottom: 1px solid rgba(138, 79, 255, 0.12);
+                        background: rgba(11, 9, 20, 0.72);
+                        white-space: pre-wrap;
+                    }
+                    .workflow-status-panel[data-tone="error"] {
+                        color: #ff9bac;
+                        background: rgba(76, 14, 26, 0.5);
+                    }
+                    .workflow-status-panel[data-tone="ok"] {
+                        color: #89f0bf;
+                    }
+                `;
+                document.head.appendChild(style);
+
+                const header = document.querySelector('header');
+                if (!header || document.getElementById('workflowTruthStrip')) return;
+                const strip = document.createElement('div');
+                strip.id = 'workflowTruthStrip';
+                strip.className = 'workflow-truth-strip';
+                strip.innerHTML = `
+                    <div class="workflow-truth-chip" data-key="session" data-state="idle"><span class="workflow-truth-dot"></span><span>Session Waiting</span></div>
+                    <div class="workflow-truth-chip" data-key="key" data-state="idle"><span class="workflow-truth-dot"></span><span>Key Missing</span></div>
+                    <div class="workflow-truth-chip" data-key="route" data-state="idle"><span class="workflow-truth-dot"></span><span>Route Idle</span></div>
+                    <div class="workflow-truth-chip" data-key="last" data-state="idle"><span class="workflow-truth-dot"></span><span>Last Waiting</span></div>
+                `;
+                const panel = document.createElement('div');
+                panel.id = 'workflowStatusPanel';
+                panel.className = 'workflow-status-panel';
+                panel.dataset.tone = 'info';
+                panel.textContent = 'Workflow truth ready. Sign in before routing to SkyeChat or SkyeMail.';
+                header.insertAdjacentElement('afterend', strip);
+                strip.insertAdjacentElement('afterend', panel);
+            }
+
+            function setWorkflowTruth(key, state, label) {
+                if (!workflowTruth[key]) return;
+                workflowTruth[key] = { state, label };
+                const node = document.querySelector(`.workflow-truth-chip[data-key="${key}"]`);
+                if (!node) return;
+                node.dataset.state = state;
+                const labelNode = node.querySelector('span:last-child');
+                if (labelNode) labelNode.textContent = label;
+            }
+
+            function setWorkflowStatus(message, tone = 'info') {
+                const panel = document.getElementById('workflowStatusPanel');
+                if (!panel) return;
+                panel.dataset.tone = tone;
+                panel.textContent = message || '';
+            }
+
+            function refreshWorkflowTruth() {
+                const token = String(standaloneSession?.readToken?.() || window.SkyeAuthUnlock?.readToken?.() || '').trim();
+                setWorkflowTruth('key', token ? 'ok' : 'warn', token ? 'Key Loaded' : 'Key Missing');
+            }
+
+            async function refreshSessionTruth() {
+                refreshWorkflowTruth();
+                try {
+                    const res = await fetch('/api/auth-me', { credentials: 'include' });
+                    const me = await res.json().catch(() => ({}));
+                    if (!res.ok || !me?.email) {
+                        setWorkflowTruth('session', 'warn', 'Session Missing');
+                        return null;
+                    }
+                    setWorkflowTruth('session', 'ok', me.has_pin ? 'Session + PIN' : 'Session Live');
+                    return me;
+                } catch {
+                    setWorkflowTruth('session', 'fail', 'Session Error');
+                    return null;
+                }
+            }
+
+            function handleWorkflowError(error) {
+                const message = error?.message || String(error);
+                setWorkflowTruth('last', 'fail', 'Last Failed');
+                setWorkflowTruth('route', 'fail', 'Route Failed');
+                setWorkflowStatus(message, 'error');
+                window.App.showToast(message);
+            }
 
             function publishBridgeEvent(payload) {
                 const envelope = {
@@ -3158,6 +3294,7 @@
                         window.opener.postMessage(envelope, window.location.origin);
                     }
                 } catch {}
+                setWorkflowTruth('route', 'ok', 'Route Armed');
             }
 
             function authHeaders() {
@@ -3217,8 +3354,11 @@
                 const res = await fetch('/api/auth-me', { credentials: 'include' });
                 const me = await res.json().catch(() => ({}));
                 if (!res.ok || !me?.email) {
+                    setWorkflowTruth('session', 'fail', 'Session Missing');
                     throw new Error('Sign in to SuperIDE first so publish actions can route to SkyeChat and SkyeMail.');
                 }
+                setWorkflowTruth('session', 'ok', me?.has_pin ? 'Session + PIN' : 'Session Live');
+                refreshWorkflowTruth();
                 return me;
             }
 
@@ -3268,6 +3408,8 @@
                     channel: channel.trim(),
                     note: `Published ${title} from SkyeBlog into #${channel.trim()}${recordId ? ` (record_id=${recordId})` : ''}.`,
                 });
+                setWorkflowTruth('last', 'ok', 'Chat Routed');
+                setWorkflowStatus(`Published ${title} to SkyeChat channel #${channel.trim()}.`, 'ok');
                 window.App.showToast(`Published ${title} to #${channel.trim()}${recordId ? ` · record_id=${recordId}` : ''}.`);
             }
 
@@ -3305,6 +3447,8 @@
                     appId: 'SkyeMail',
                     note: `Delivered ${title} via SkyeMail to ${String(to).trim().toLowerCase()}${result?.mail_record_id ? ` (mail_record_id=${result.mail_record_id})` : ''}.`,
                 });
+                setWorkflowTruth('last', 'ok', 'Mail Routed');
+                setWorkflowStatus(`Delivered ${title} to ${String(to).trim().toLowerCase()} via SkyeMail.`, 'ok');
                 window.App.showToast(`Delivered ${title} via SkyeMail${result?.mail_record_id ? ` · mail_record_id=${result.mail_record_id}` : ''}.`);
             }
 
@@ -3318,11 +3462,15 @@
                         text: text.slice(0, 1800),
                         files: [file],
                     });
+                    setWorkflowTruth('last', 'ok', 'Device Shared');
+                    setWorkflowStatus('Device share completed.', 'ok');
                     window.App.showToast('Shared to device successfully.');
                     return;
                 }
                 const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
                 window.App.downloadBlob(blob, `${title.replace(/\s+/g, '_')}_DeviceShare.txt`);
+                setWorkflowTruth('last', 'warn', 'Fallback Export');
+                setWorkflowStatus('Native share unavailable. Downloaded a device package instead.', 'info');
                 window.App.showToast('Device share fallback: downloaded text package.');
             }
 
@@ -3345,6 +3493,8 @@
                     appId: 'SkyeChat',
                     note: `AI draft generated inside ${appId} and inserted into the editor.`,
                 });
+                setWorkflowTruth('last', 'ok', 'AI Drafted');
+                setWorkflowStatus('AI draft inserted and ready for downstream routing.', 'ok');
                 window.App.showToast('AI draft inserted into editor.');
                 window.App.debouncedSave();
             }
@@ -3356,22 +3506,22 @@
                 const aiBtn = document.createElement('button');
                 aiBtn.setAttribute('data-super-push', '1');
                 aiBtn.innerHTML = '<i data-lucide="sparkles" style="width:16px;height:16px;"></i> AI Draft';
-                aiBtn.onclick = () => aiDraft().catch((e) => window.App.showToast(e?.message || String(e)));
+                aiBtn.onclick = () => aiDraft().catch(handleWorkflowError);
 
                 const chatBtn = document.createElement('button');
                 chatBtn.setAttribute('data-super-push', '1');
                 chatBtn.innerHTML = '<i data-lucide="messages-square" style="width:16px;height:16px;"></i> Push Chat';
-                chatBtn.onclick = () => pushToSkyeChat().catch((e) => window.App.showToast(e?.message || String(e)));
+                chatBtn.onclick = () => pushToSkyeChat().catch(handleWorkflowError);
 
                 const mailBtn = document.createElement('button');
                 mailBtn.setAttribute('data-super-push', '1');
                 mailBtn.innerHTML = '<i data-lucide="send" style="width:16px;height:16px;"></i> Push Email';
-                mailBtn.onclick = () => pushToSkyeMail().catch((e) => window.App.showToast(e?.message || String(e)));
+                mailBtn.onclick = () => pushToSkyeMail().catch(handleWorkflowError);
 
                 const deviceBtn = document.createElement('button');
                 deviceBtn.setAttribute('data-super-push', '1');
                 deviceBtn.innerHTML = '<i data-lucide="smartphone" style="width:16px;height:16px;"></i> Device';
-                deviceBtn.onclick = () => sendToDevice().catch((e) => window.App.showToast(e?.message || String(e)));
+                deviceBtn.onclick = () => sendToDevice().catch(handleWorkflowError);
 
                 actions.prepend(deviceBtn);
                 actions.prepend(mailBtn);
@@ -3381,6 +3531,9 @@
             }
 
             window.addEventListener('load', () => {
+                ensureWorkflowHud();
+                refreshWorkflowTruth();
+                void refreshSessionTruth();
                 setTimeout(wireButtons, 220);
             });
         })();

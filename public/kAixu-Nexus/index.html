@@ -9,8 +9,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="/_shared/gateway-retry.js"></script>
-    <script src="/_shared/auth-unlock.js"></script>
-    <script src="/_shared/kaixu-provider-bridge.js"></script>
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700;900&family=Fira+Code:wght@400;500&display=swap');
@@ -556,10 +554,11 @@
                         if (container) container.scrollTop = container.scrollHeight;
                     }, 50);
                 };
+
                 const gatewayFetch = (window.SkyeGateway && window.SkyeGateway.fetchWithRetry) || fetch;
                 const callGemini = async (prompt) => {
                     const headers = { 'Content-Type': 'application/json' };
-                    const key = (apiKeyOpenAI.value || window.SkyeStandaloneSession?.readToken?.() || window.SkyeAuthUnlock?.readToken?.() || '').trim();
+                    const key = (apiKeyOpenAI.value || localStorage.getItem('kx.api.accessToken') || '').trim();
                     if (key) headers.Authorization = 'Bearer ' + key;
                     const response = await gatewayFetch('/api/kaixu-generate', {
                         method: 'POST',

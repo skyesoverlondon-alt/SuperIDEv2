@@ -1,33 +1,10 @@
 import { json } from "./_shared/response";
 import { requireUser, forbid } from "./_shared/auth";
-import { must, opt } from "./_shared/env";
+import { opt } from "./_shared/env";
 import { filterSknoreFiles, isSknoreProtected, loadSknorePolicy } from "./_shared/sknore";
 import { audit } from "./_shared/audit";
 import { hasValidMasterSequence, readBearerToken, resolveApiToken, tokenHasScope } from "./_shared/api_tokens";
-
-function normalizeKaixuGatewayEndpoint(raw: string): string {
-  const endpoint = String(raw || "").trim();
-  if (!endpoint) return endpoint;
-  if (/^https:\/\/skyesol\.netlify\.app\/?$/i.test(endpoint)) {
-    return "https://skyesol.netlify.app/.netlify/functions/gateway-chat";
-  }
-  if (/^https:\/\/skyesol\.netlify\.app\/platforms-apps-infrastructure\/kaixugateway13\/v1\/generate\/?$/i.test(endpoint)) {
-    return "https://skyesol.netlify.app/.netlify/functions/gateway-chat";
-  }
-  return endpoint;
-}
-
-async function tokenFingerprint(token: string): Promise<string> {
-  const normalized = String(token || "").trim();
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(normalized));
-  const hex = Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, "0")).join("");
-  return `${normalized.slice(0, 4)}...len=${normalized.length} sha256=${hex.slice(0, 12)}`;
-}
-
-function resolveKaixuGatewayProvider(raw: string): string {
-  const value = String(raw || "").trim();
-  return value || "Skyes Over London";
-}
+import { callKaixuBrainWithFailover } from "./_shared/kaixu_brain";
 
 /**
  * Call the Kaixu Gateway to generate a response for the given prompt.
@@ -96,13 +73,8 @@ export const handler = async (event: any) => {
       patterns_count: sknorePatterns.length,
     });
   }
-  const endpoint = normalizeKaixuGatewayEndpoint(must("KAIXU_GATEWAY_ENDPOINT"));
-  const token = must("KAIXU_APP_TOKEN");
-  const tokenFp = await tokenFingerprint(token);
   const providerRaw = opt("KAIXU_GATEWAY_PROVIDER", "Skyes Over London");
-  const provider = resolveKaixuGatewayProvider(providerRaw);
   const modelRaw = opt("KAIXU_GATEWAY_MODEL", "kAIxU-Prime6.7");
-  const model = String(body.model || modelRaw || "kAIxU-Prime6.7").trim();
   // Emit audit before calling the model
   await audit(actorEmail, actorOrg, ws_id, "kaixu.generate.requested", {
     activePath: activePath || null,
@@ -125,63 +97,57 @@ export const handler = async (event: any) => {
       },
     ],
   };
-  try {
-    const res = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(payload),
-    });
-    const text = await res.text();
-    let data: any = null;
-    try {
-      data = text ? JSON.parse(text) : null;
-    } catch {
-      data = { raw: text };
-    }
-    if (!res.ok) {
-      const gatewayRequestId = String(res.headers.get("x-kaixu-request-id") || "").trim() || null;
-      await audit(actorEmail, actorOrg, ws_id, "kaixu.generate.failed", {
-        status: res.status,
-        body: text.slice(0, 2000),
-        gateway_request_id: gatewayRequestId,
-        token_fingerprint: tokenFp,
-        configured_provider: providerRaw,
-        effective_provider: provider,
-        effective_model: model,
-      });
-      const gatewayMsg =
-        (typeof data?.error === "string" && data.error) ||
-        (typeof data?.message === "string" && data.message) ||
-        (typeof data?.raw === "string" && data.raw) ||
-        text ||
-        "Gateway returned non-OK response.";
-      const compactGatewayMsg = String(gatewayMsg).replace(/\s+/g, " ").trim().slice(0, 220);
-      return json(502, {
-        error: `Kaixu gateway call failed (${res.status})${gatewayRequestId ? ` [${gatewayRequestId}]` : ""}: ${compactGatewayMsg}`,
-        gateway_endpoint: endpoint,
-        gateway_status: res.status,
-        gateway_request_id: gatewayRequestId,
-        token_fingerprint: tokenFp,
-        configured_provider: providerRaw,
-        effective_provider: provider,
-        effective_model: model,
-        gateway_detail: compactGatewayMsg,
-      });
-    }
-    const reply =
-      data?.text || data?.output || data?.choices?.[0]?.message?.content || text;
-    await audit(actorEmail, actorOrg, ws_id, "kaixu.generate.ok", {
-      out_chars: (reply || "").length,
-    });
-    return json(200, { text: reply });
-  } catch (e: any) {
-    const err = e?.message || "Kaixu call failed.";
+  const result = await callKaixuBrainWithFailover({
+    bodyModel: body.model,
+    defaultModel: modelRaw,
+    providerRaw,
+    messages: payload.messages,
+    requestContext: {
+      ws_id,
+      activePath: activePath || null,
+      app: "SuperIDE",
+      actor_email: actorEmail,
+      actor_org: actorOrg,
+    },
+  });
+  if (!result.ok) {
     await audit(actorEmail, actorOrg, ws_id, "kaixu.generate.failed", {
-      error: err,
+      error: result.error,
+      gateway_status: result.gateway_status,
+      gateway_request_id: result.gateway_request_id,
+      gateway_detail: result.gateway_detail,
+      backup_status: result.backup_status,
+      backup_request_id: result.backup_request_id,
+      backup_error: result.backup_error,
+      token_fingerprint: result.token_fingerprint,
+      configured_provider: result.configured_provider,
+      effective_provider: result.effective_provider,
+      effective_model: result.effective_model,
+      brain_route: result.brain.route,
     });
-    return json(502, { error: err, gateway_endpoint: endpoint });
+    return json(result.status, {
+      ok: false,
+      error: result.error,
+      brain: result.brain,
+      gateway_endpoint: result.gateway_endpoint,
+      gateway_status: result.gateway_status,
+      gateway_request_id: result.gateway_request_id,
+      gateway_detail: result.gateway_detail,
+      backup_status: result.backup_status,
+      backup_request_id: result.backup_request_id,
+      backup_detail: result.backup_detail,
+      backup_error: result.backup_error,
+      token_fingerprint: result.token_fingerprint,
+      configured_provider: result.configured_provider,
+      effective_provider: result.effective_provider,
+      effective_model: result.effective_model,
+    });
   }
+  await audit(actorEmail, actorOrg, ws_id, "kaixu.generate.ok", {
+    out_chars: result.text.length,
+    brain_route: result.brain.route,
+    brain_request_id: result.brain.request_id,
+    used_backup: result.used_backup,
+  });
+  return json(200, { ok: true, text: result.text, brain: result.brain });
 };

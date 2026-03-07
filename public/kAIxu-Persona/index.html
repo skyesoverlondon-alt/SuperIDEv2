@@ -9,10 +9,6 @@
     
     <!-- Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="/_shared/correlation.js"></script>
-    <script src="/_shared/auth-unlock.js"></script>
-    <script src="/_shared/standalone-session.js"></script>
-    <script src="/_shared/kaixu-provider-bridge.js"></script>
 
     <!-- Firebase -->
     <script type="module">
@@ -328,11 +324,7 @@
         async function init() {
             initThreeJS();
             document.getElementById('proj-title-input').addEventListener('input', e => { state.title = e.target.value; debouncedSave(); });
-            document.getElementById('openai-key').addEventListener('input', e => {
-                state.openaiKey = e.target.value;
-                if (window.SkyeStandaloneSession?.saveManualToken) window.SkyeStandaloneSession.saveManualToken(e.target.value, '');
-                debouncedSave();
-            });
+            document.getElementById('openai-key').addEventListener('input', e => { state.openaiKey = e.target.value; debouncedSave(); });
             document.getElementById('persona-name').addEventListener('input', e => { 
                 const p = state.profiles.find(x => x.id === state.activeProfileId);
                 if(p) { p.name = e.target.value; renderSidebar(); debouncedSave(); }
@@ -415,7 +407,7 @@
 
         function refreshUI() {
             document.getElementById('proj-title-input').value = state.title;
-            document.getElementById('openai-key').value = state.openaiKey || window.SkyeStandaloneSession?.readToken?.() || "";
+            document.getElementById('openai-key').value = state.openaiKey || "";
             const p = state.profiles.find(x => x.id === state.activeProfileId) || state.profiles[0];
             document.getElementById('persona-name').value = p.name;
             document.getElementById('persona-bio').value = p.bio;
@@ -468,25 +460,51 @@
 
         window.generatePDF = () => { window.focus(); window.print(); };
 
-        // --- kAIxu AI Logic ---
-        async function callGemini(prompt, system) {
-            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], systemInstruction: { parts: [{ text: system }] } })
-            });
-            const data = await res.json();
-            return data.candidates?.[0]?.content?.parts?.[0]?.text;
+        // --- Gateway-backed AI Logic ---
+        const gatewayFetch = (window.SkyeGateway && window.SkyeGateway.fetchWithRetry) || fetch;
+        function getWsId() {
+            return new URLSearchParams(window.location.search).get('ws_id') || 'primary-workspace';
         }
-
-        async function callOpenAI(prompt, system) {
-            const res = await fetch('https://api.openai.com/v1/chat/completions', {
+        function getGatewayHeaders() {
+            const keyInput = document.getElementById('openai-key');
+            const raw = (state.openaiKey || (keyInput && keyInput.value) || localStorage.getItem('kx.api.accessToken') || '').trim();
+            const headers = { 'Content-Type': 'application/json' };
+            if (raw) headers.Authorization = 'Bearer ' + raw;
+            if (window.SkyeCorrelation && typeof window.SkyeCorrelation.nextId === 'function') {
+                headers['x-correlation-id'] = window.SkyeCorrelation.nextId('kaixu-standalone');
+            }
+            return headers;
+        }
+        async function callGatewayText(prompt, system) {
+            const res = await gatewayFetch('/api/kaixu-generate', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${state.openaiKey}` },
-                body: JSON.stringify({ model: "gpt-4o", messages: [{ role: "system", content: system }, { role: "user", content: prompt }] })
+                headers: getGatewayHeaders(),
+                credentials: 'include',
+                body: JSON.stringify({
+                    ws_id: getWsId(),
+                    activePath: window.location.pathname,
+                    prompt: [String(system || '').trim(), String(prompt || '').trim()].filter(Boolean).join('\n\n'),
+                })
             });
-            const data = await res.json();
-            return data.choices[0].message.content;
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data?.error || data?.message || ('Gateway failure (' + res.status + ')'));
+            return data?.text || data?.output || '';
+        }
+        function renderPromptPoster(promptText, label) {
+            const esc = (s) => String(s || '').replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+            const body = esc(String(promptText || '').slice(0, 520));
+            const tag = esc(label || 'kAIxU Gateway Render');
+            const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">'
+                + '<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#020617"/><stop offset="100%" stop-color="#4338ca"/></linearGradient></defs>'
+                + '<rect width="1024" height="1024" fill="url(#g)"/>'
+                + '<rect x="44" y="44" width="936" height="936" rx="24" fill="none" stroke="#eab308" stroke-opacity="0.55" stroke-width="4"/>'
+                + '<text x="72" y="118" fill="#eab308" font-size="36" font-family="Arial, sans-serif" font-weight="700">' + tag + '</text>'
+                + '<foreignObject x="72" y="168" width="880" height="780"><div xmlns="http://www.w3.org/1999/xhtml" style="font-family:Arial,sans-serif;color:#e2e8f0;font-size:30px;line-height:1.35;white-space:pre-wrap;">' + body + '</div></foreignObject>'
+                + '</svg>';
+            return 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)));
+        }
+        async function fetchOpenAI(prompt, system) {
+            return callGatewayText(prompt, system || 'You are kAIxU gateway intelligence.');
         }
 
         window.processAI = async (type) => {
@@ -496,7 +514,7 @@
 
             try {
                 const prompt = `Create a deep psychological profile and secrets for the character: ${p.name}. Context: ${p.bio}`;
-                const result = state.openaiKey ? await callOpenAI(prompt, "You are a master character designer.") : await callGemini(prompt, "System: kAIxu Psychologist.");
+                const result = await fetchOpenAI(prompt, "You are a master character designer and psychologist.");
                 p.bio += "\n\n" + result;
                 showToast("Mental Scan Complete!", "success");
                 refreshUI(); debouncedSave();
@@ -513,25 +531,8 @@
             if (txt) txt.innerText = "kAIxu Portrait Rendering...";
             try {
                 const prompt = `Character portrait headshot, cinematic neon movie still, high detailed: ${p.name}. ${p.bio.slice(0,300)}`;
-                let imageUrl = "";
-                if (state.openaiKey) {
-                    const res = await fetch('https://api.openai.com/v1/images/generations', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${state.openaiKey}` },
-                        body: JSON.stringify({ model: "dall-e-3", prompt, n: 1, response_format: "b64_json" })
-                    });
-                    const data = await res.json();
-                    imageUrl = `data:image/png;base64,${data.data[0].b64_json}`;
-                } else {
-                    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${apiKey}`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ instances: { prompt }, parameters: { sampleCount: 1 } })
-                    });
-                    const result = await res.json();
-                    imageUrl = `data:image/png;base64,${result.predictions[0].bytesBase64Encoded}`;
-                }
-                p.image = imageUrl;
+                const posterPrompt = await callGatewayText(prompt, 'Create a concise cinematic portrait art direction paragraph for this character.');
+                p.image = renderPromptPoster(posterPrompt || prompt, 'kAIxU Gateway Render');
                 refreshUI(); debouncedSave();
                 showToast("Visual Rendered!", "success");
             } catch (err) { showToast("Render failed", "error"); }

@@ -155,6 +155,21 @@
                 <button onclick="exportToDevice()" class="w-full flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-indigo-300 py-2 px-4 rounded-lg transition-all font-bold text-xs border border-indigo-500/20">
                     <i class="fa-solid fa-file-export"></i> Save to Device
                 </button>
+                <button onclick="saveToSkyeDrive()" class="w-full flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-indigo-300 py-2 px-4 rounded-lg transition-all font-bold text-xs border border-indigo-500/20">
+                    <i class="fa-solid fa-cloud-arrow-up"></i> Save to SkyeDrive
+                </button>
+                <button onclick="openFromSkyeDrive()" class="w-full flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-indigo-300 py-2 px-4 rounded-lg transition-all font-bold text-xs border border-indigo-500/20">
+                    <i class="fa-solid fa-cloud-arrow-down"></i> Open from SkyeDrive
+                </button>
+                <button onclick="pushToSkyeBlog()" class="w-full flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-indigo-300 py-2 px-4 rounded-lg transition-all font-bold text-xs border border-indigo-500/20">
+                    <i class="fa-solid fa-blog"></i> Push to SkyeBlog
+                </button>
+                <button onclick="pushToSkyeChat()" class="w-full flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-indigo-300 py-2 px-4 rounded-lg transition-all font-bold text-xs border border-indigo-500/20">
+                    <i class="fa-solid fa-comments"></i> Push to SkyeChat
+                </button>
+                <button onclick="pushToSkyeMail()" class="w-full flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-indigo-300 py-2 px-4 rounded-lg transition-all font-bold text-xs border border-indigo-500/20">
+                    <i class="fa-solid fa-envelope"></i> Push to SkyeMail
+                </button>
                 <button onclick="analyzeConsistency()" class="w-full flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-indigo-300 py-2 px-4 rounded-lg transition-all font-bold text-xs border border-indigo-500/20">
                     <i class="fa-solid fa-wave-square"></i> Analyze Consistency
                 </button>
@@ -269,6 +284,10 @@
         let user = null;
         let isSaving = false;
         let saveTimeout = null;
+        const pageParams = new URLSearchParams(window.location.search);
+        const wsId = pageParams.get('ws_id') || 'primary-workspace';
+        const initialDriveRecordId = pageParams.get('drive_record_id') || '';
+        const driveState = { recordId: '', title: '' };
 
         // --- Firebase Init ---
         const { initializeApp, getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged, getFirestore, doc, setDoc, onSnapshot } = window.fb;
@@ -388,6 +407,15 @@
             setupDragAndDrop();
             renderNav();
             renderWorkflowTruth();
+
+            if (initialDriveRecordId) {
+                try {
+                    await openDriveRecordById(initialDriveRecordId, 'SkyeDrive Import');
+                } catch (error) {
+                    console.error(error);
+                    showToast(error?.message || 'Failed to open requested SkyeDrive record.', 'error');
+                }
+            }
 
             if (auth) {
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) { await signInWithCustomToken(auth, __initial_auth_token); } 
@@ -583,7 +611,7 @@
             const token = (standaloneSession?.readToken?.() || state.kaixuKey || '').trim();
             setTruth('bookx-auth-truth', token ? 'Auth Ready' : 'Auth Missing', token ? 'ok' : 'fail');
             setTruth('bookx-bridge-truth', 'Bridge Partial', 'warn');
-            setTruth('bookx-drive-truth', 'Drive Missing', 'fail');
+            setTruth('bookx-drive-truth', driveState.recordId ? 'Drive Linked' : 'Drive Missing', driveState.recordId ? 'ok' : 'fail');
         }
 
         function publishBridgeEvent(payload) {
@@ -599,6 +627,22 @@
             try { window.postMessage(envelope, window.location.origin); } catch {}
         }
 
+        function getBookSnapshot() {
+            const compiledHtml = buildCompiledManuscriptHtml();
+            const plainText = state.chapters.map((chapter, index) => {
+                const title = String(chapter?.title || `Chapter ${index + 1}`).trim();
+                const content = String(chapter?.content || '').trim();
+                return `${title}\n\n${content}`.trim();
+            }).filter(Boolean).join('\n\n');
+            const excerpt = plainText.replace(/\s+/g, ' ').trim().slice(0, 900);
+            return {
+                title: String(state.title || 'Untitled Book').trim() || 'Untitled Book',
+                compiledHtml,
+                plainText,
+                excerpt,
+            };
+        }
+
         function getGatewayHeaders() {
             const headers = { 'Content-Type': 'application/json' };
             const corr = window.SkyeCorrelation && window.SkyeCorrelation.next ? window.SkyeCorrelation.next('skyebookx') : '';
@@ -609,6 +653,196 @@
             if (corr) headers['X-Correlation-Id'] = corr;
             return headers;
         }
+
+        async function ensureWorkspaceAccess() {
+            if (standaloneSession?.ensureSignedIn) {
+                await standaloneSession.ensureSignedIn({ appId: 'skyebookx', labelPrefix: 'bookx-session', prompt: true });
+            }
+            const meRes = await fetch('/api/auth-me', { method: 'GET', credentials: 'include' });
+            const me = await meRes.json().catch(() => ({}));
+            if (!meRes.ok || !me?.email) throw new Error('Sign in first so SkyeBookX can talk to SkyeDrive.');
+            return me;
+        }
+
+        async function jsonRequest(path, method = 'GET', body = null) {
+            await ensureWorkspaceAccess();
+            const res = await fetch(path, {
+                method,
+                credentials: 'include',
+                headers: {
+                    ...(method === 'GET' ? {} : { 'Content-Type': 'application/json' }),
+                    ...getGatewayHeaders(),
+                },
+                body: method === 'GET' ? undefined : JSON.stringify(body || {}),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data?.error || `${path} failed (${res.status})`);
+            return data;
+        }
+
+        function buildBookxDriveFiles() {
+            const safeBase = (state.title || 'Untitled Book').trim().replace(/[^a-z0-9._-]+/gi, '_') || 'Untitled_Book';
+            const compiledHtml = buildCompiledManuscriptHtml();
+            const manifest = {
+                app_id: 'SkyeBookx',
+                title: state.title,
+                exported_at: new Date().toISOString(),
+                chapter_count: state.chapters.length,
+                active_chapter_id: state.activeChapterId,
+            };
+            return [
+                { path: `${safeBase}/chapters.json`, content: JSON.stringify(state.chapters, null, 2) },
+                { path: `${safeBase}/manifest.json`, content: JSON.stringify(manifest, null, 2) },
+                { path: `${safeBase}/manuscript.html`, content: `<!DOCTYPE html><html><body>${compiledHtml}</body></html>` },
+            ];
+        }
+
+        function applyDriveFilesToBook(files, titleFallback) {
+            const chaptersFile = Array.isArray(files) ? files.find((file) => String(file?.path || '').endsWith('chapters.json')) : null;
+            if (!chaptersFile?.content) throw new Error('Selected SkyeDrive source does not contain a BookX chapters.json file.');
+            const chapters = JSON.parse(String(chaptersFile.content || '[]'));
+            if (!Array.isArray(chapters) || !chapters.length) throw new Error('BookX chapters.json is empty or invalid.');
+            let manifestTitle = '';
+            const manifestFile = files.find((file) => String(file?.path || '').endsWith('manifest.json'));
+            if (manifestFile?.content) {
+                try {
+                    const manifest = JSON.parse(String(manifestFile.content));
+                    manifestTitle = String(manifest?.title || '').trim();
+                } catch {}
+            }
+            state.chapters = chapters;
+            state.activeChapterId = chapters[0]?.id || 'ch-1';
+            state.title = manifestTitle || titleFallback || state.title;
+            refreshUI();
+            debouncedSave();
+        }
+
+        async function openDriveRecordById(recordId, titleHint) {
+            if (!String(recordId || '').trim()) throw new Error('Missing SkyeDrive record id.');
+            const opened = await jsonRequest('/api/skyedrive-source-open', 'POST', { ws_id: wsId, record_id: recordId });
+            applyDriveFilesToBook(Array.isArray(opened?.files) ? opened.files : [], titleHint || opened?.title || 'SkyeDrive Import');
+            driveState.recordId = String(opened?.record_id || recordId || '').trim();
+            driveState.title = String(opened?.title || titleHint || '').trim();
+            renderWorkflowTruth();
+            showToast(`Loaded ${driveState.title || 'SkyeDrive source'} into SkyeBookX.`, 'success');
+        }
+
+        window.saveToSkyeDrive = async () => {
+            try {
+                const files = buildBookxDriveFiles();
+                const payload = {
+                    ws_id: wsId,
+                    app: 'SkyeDrive',
+                    title: `${state.title || 'Untitled Book'} · SkyeDrive Manuscript`,
+                    model: {
+                        kind: 'workspace-source',
+                        source: 'SkyeBookx',
+                        source_kind: 'manuscript-pack',
+                        note: 'Saved from SkyeBookX standalone workspace.',
+                        workspace_name: state.title || 'Untitled Book',
+                        file_count: files.length,
+                        files,
+                    },
+                };
+                const saved = await jsonRequest('/api/app-record-save', 'POST', payload);
+                driveState.recordId = String(saved?.record_id || saved?.id || '').trim();
+                driveState.title = payload.title;
+                renderWorkflowTruth();
+                showToast('Saved manuscript to SkyeDrive.', 'success');
+                publishBridgeEvent({ kind: 'open-app', appId: 'SkyeDrive', note: `SkyeBookX saved ${payload.title} into SkyeDrive.`, drive_record_id: driveState.recordId });
+            } catch (error) {
+                console.error(error);
+                showToast(error?.message || 'SkyeDrive save failed.', 'error');
+            }
+        };
+
+        window.openFromSkyeDrive = async () => {
+            try {
+                const listed = await jsonRequest(`/api/app-record-list?ws_id=${encodeURIComponent(wsId)}&app=SkyeDrive&limit=20`, 'GET');
+                const records = (Array.isArray(listed?.records) ? listed.records : []).filter((record) => String(record?.payload?.kind || '') === 'workspace-source');
+                if (!records.length) throw new Error('No SkyeDrive workspace sources found for this workspace.');
+                const choices = records.map((record, index) => `${index + 1}. ${record.title || record.id} [${record?.payload?.source || 'unknown'}]`).join('\n');
+                const pick = prompt(`Open which SkyeDrive source into SkyeBookX?\n${choices}`, '1');
+                if (!pick) return;
+                const idx = Math.max(0, Number(pick) - 1);
+                const chosen = records[idx];
+                if (!chosen?.id) throw new Error('Selected SkyeDrive source was invalid.');
+                await openDriveRecordById(chosen.id, chosen.title || 'SkyeDrive Import');
+            } catch (error) {
+                console.error(error);
+                showToast(error?.message || 'SkyeDrive open failed.', 'error');
+            }
+        };
+
+        window.pushToSkyeBlog = async () => {
+            try {
+                const snapshot = getBookSnapshot();
+                if (!snapshot.excerpt) throw new Error('Cannot push an empty manuscript into SkyeBlog.');
+                await ensureWorkspaceAccess();
+                const payload = {
+                    title: `${snapshot.title} · Blog Draft`,
+                    html: `<!DOCTYPE html><article><h1>${snapshot.title}</h1>${snapshot.compiledHtml}</article>`,
+                    text: snapshot.plainText,
+                    source: 'SkyeBookx',
+                    exported_at: new Date().toISOString(),
+                };
+                localStorage.setItem('skye.blog.bridgeDraft', JSON.stringify(payload));
+                publishBridgeEvent({
+                    kind: 'action',
+                    appId: 'SkyeBlog',
+                    tone: 'ok',
+                    detail: `SkyeBookX prepared a blog draft for ${snapshot.title}.`,
+                });
+                window.open(`/SkyeBlog/index.html?ws_id=${encodeURIComponent(wsId)}&bridge_import=1`, '_blank', 'noopener');
+                showToast('Opened SkyeBlog with a manuscript-derived draft.', 'success');
+            } catch (error) {
+                console.error(error);
+                showToast(error?.message || 'SkyeBlog handoff failed.', 'error');
+            }
+        };
+
+        window.pushToSkyeChat = async () => {
+            try {
+                const snapshot = getBookSnapshot();
+                if (!snapshot.excerpt) throw new Error('Cannot push an empty manuscript into SkyeChat.');
+                const channel = prompt('Publish to which SkyeChat channel?', 'community');
+                if (!channel || !channel.trim()) return;
+                await jsonRequest('/api/skychat-notify', 'POST', {
+                    ws_id: wsId,
+                    channel: channel.trim(),
+                    topic: 'bookx',
+                    source: 'SkyeBookx Publisher',
+                    message: `[SkyeBookx] ${snapshot.title}\n\n${snapshot.excerpt}\n\nchapters=${state.chapters.length} · export_ready=pdf/html/.skye`,
+                });
+                publishBridgeEvent({ kind: 'open-app', appId: 'SkyeChat', channel: channel.trim(), note: `SkyeBookX published ${snapshot.title} to #${channel.trim()}.` });
+                showToast(`Published ${snapshot.title} to #${channel.trim()}.`, 'success');
+            } catch (error) {
+                console.error(error);
+                showToast(error?.message || 'SkyeChat publish failed.', 'error');
+            }
+        };
+
+        window.pushToSkyeMail = async () => {
+            try {
+                const snapshot = getBookSnapshot();
+                if (!snapshot.excerpt) throw new Error('Cannot send an empty manuscript.');
+                const to = prompt('Recipient email?', '');
+                if (!to || !to.trim()) return;
+                const subject = prompt('Email subject?', `[SkyeBookx] ${snapshot.title}`);
+                if (!subject || !subject.trim()) return;
+                const result = await jsonRequest('/api/skymail-send', 'POST', {
+                    ws_id: wsId,
+                    to: to.trim().toLowerCase(),
+                    subject: subject.trim(),
+                    text: `${snapshot.excerpt}\n\nSent from SkyeBookX. Chapters=${state.chapters.length}. Export lanes: PDF, HTML, ZIP, .skye.`,
+                });
+                publishBridgeEvent({ kind: 'open-app', appId: 'SkyeMail', note: `SkyeBookX delivered ${snapshot.title} via SkyeMail${result?.mail_record_id ? ` (mail_record_id=${result.mail_record_id})` : ''}.` });
+                showToast(`Delivered ${snapshot.title} via SkyeMail.`, 'success');
+            } catch (error) {
+                console.error(error);
+                showToast(error?.message || 'SkyeMail send failed.', 'error');
+            }
+        };
 
         async function requestKaiXuText(prompt, system) {
             const res = await gatewayFetch('/api/kaixu-generate', {
@@ -669,7 +903,7 @@
                     action: `process_ai_${action}`,
                     outcome: 'success',
                     duration_ms: Date.now() - startedAt,
-                    ws_id: new URLSearchParams(window.location.search).get('ws_id') || '',
+                    ws_id: wsId,
                     context: { chapter_id: chapter.id }
                 });
                 showToast("kAIxU processing complete", "success");
@@ -683,7 +917,7 @@
                     outcome: 'error',
                     error_code: String(err?.message || 'unknown').slice(0, 64),
                     duration_ms: Date.now() - startedAt,
-                    ws_id: new URLSearchParams(window.location.search).get('ws_id') || '',
+                    ws_id: wsId,
                     context: { error_id: errorId }
                 });
                 showToast(`${err.message || "kAIxU failed"} [${errorId}]`, "error");
@@ -708,7 +942,7 @@
                     action: 'generate_visual',
                     outcome: 'success',
                     duration_ms: Date.now() - startedAt,
-                    ws_id: new URLSearchParams(window.location.search).get('ws_id') || '',
+                    ws_id: wsId,
                 });
                 showToast("kAIxU Artwork generated!", "success");
                 publishBridgeEvent({ kind: 'action', appId: 'SkyeChat', tone: 'ok', detail: `SkyeBookX generated artwork for ${chapter.title || chapter.id}.` });
@@ -938,14 +1172,45 @@
                 zip.file('checksum.sha256', `${checksum}  chapters.json\n`);
                 zip.file('chapters.json', chaptersJson);
 
+                const pdfBytesBase64 = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                        const result = String(reader.result || '');
+                        resolve(result.split(',')[1] || '');
+                    };
+                    reader.onerror = () => reject(reader.error || new Error('Failed to encode PDF export.'));
+                    reader.readAsDataURL(pdfBlob);
+                });
+
                 const out = await zip.generateAsync({ type: 'blob' });
                 const a = document.createElement('a');
                 a.href = URL.createObjectURL(out);
                 a.download = `${state.title.replace(/\s+/g, '_')}_export_pack.zip`;
                 a.click();
                 setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+                const files = [
+                    { path: 'export-pack/manuscript.html', content: `<!DOCTYPE html><html><body>${compiledHtml}</body></html>` },
+                    { path: 'export-pack/chapters.json', content: chaptersJson },
+                    { path: 'export-pack/manifest.json', content: JSON.stringify(manifest, null, 2) },
+                    { path: 'export-pack/checksum.sha256', content: `${checksum}  chapters.json\n` },
+                    { path: 'export-pack/manuscript.pdf.base64', content: String(pdfBytesBase64 || '') },
+                ];
+                const saved = await jsonRequest('/api/app-record-save', 'POST', {
+                    ws_id: wsId,
+                    app: 'SkyeDrive',
+                    title: `${state.title || 'Untitled Book'} · Export Pack`,
+                    model: {
+                        kind: 'workspace-source',
+                        source: 'SkyeBookx',
+                        source_kind: 'manuscript-export-pack',
+                        note: 'Export pack archived from SkyeBookX with PDF base64 payload for Drive retrieval.',
+                        workspace_name: state.title || 'Untitled Book',
+                        file_count: files.length,
+                        files,
+                    },
+                });
                 showToast('Export pack generated (PDF + manifest + checksum).', 'success');
-                publishBridgeEvent({ kind: 'open-app', appId: 'SkyeDrive', note: `SkyeBookX generated export pack ${a.download}. Dedicated Drive upload is still missing.` });
+                publishBridgeEvent({ kind: 'open-app', appId: 'SkyeDrive', note: `SkyeBookX archived export pack ${a.download} to SkyeDrive.${saved?.record_id || saved?.id ? ` record_id=${saved.record_id || saved.id}` : ''}` });
             } catch (error) {
                 console.error(error);
                 showToast('Export pack failed.', 'error');

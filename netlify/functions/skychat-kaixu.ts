@@ -2,37 +2,14 @@ import { json } from "./_shared/response";
 import { requireUser, forbid } from "./_shared/auth";
 import { q } from "./_shared/neon";
 import { audit } from "./_shared/audit";
-import { must, opt } from "./_shared/env";
+import { opt } from "./_shared/env";
 import {
   canPostToChannel,
   ensureCoreSkychatChannels,
   getOrgRole,
   resolveAccessibleChannel,
 } from "./_shared/skychat";
-
-function normalizeKaixuGatewayEndpoint(raw: string): string {
-  const endpoint = String(raw || "").trim();
-  if (!endpoint) return endpoint;
-  if (/^https:\/\/skyesol\.netlify\.app\/?$/i.test(endpoint)) {
-    return "https://skyesol.netlify.app/.netlify/functions/gateway-chat";
-  }
-  if (/^https:\/\/skyesol\.netlify\.app\/platforms-apps-infrastructure\/kaixugateway13\/v1\/generate\/?$/i.test(endpoint)) {
-    return "https://skyesol.netlify.app/.netlify/functions/gateway-chat";
-  }
-  return endpoint;
-}
-
-async function tokenFingerprint(token: string): Promise<string> {
-  const normalized = String(token || "").trim();
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(normalized));
-  const hex = Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, "0")).join("");
-  return `${normalized.slice(0, 4)}...len=${normalized.length} sha256=${hex.slice(0, 12)}`;
-}
-
-function resolveKaixuGatewayProvider(raw: string): string {
-  const value = String(raw || "").trim();
-  return value || "Skyes Over London";
-}
+import { callKaixuBrainWithFailover } from "./_shared/kaixu_brain";
 
 export const handler = async (event: any) => {
   const u = await requireUser(event);
@@ -102,13 +79,8 @@ export const handler = async (event: any) => {
     .filter(Boolean)
     .reverse();
 
-  const endpoint = normalizeKaixuGatewayEndpoint(must("KAIXU_GATEWAY_ENDPOINT"));
-  const token = must("KAIXU_APP_TOKEN");
-  const tokenFp = await tokenFingerprint(token);
   const providerRaw = opt("KAIXU_GATEWAY_PROVIDER", "Skyes Over London");
-  const provider = resolveKaixuGatewayProvider(providerRaw);
   const modelRaw = opt("KAIXU_GATEWAY_MODEL", "kAIxU-Prime6.7");
-  const model = String(body.model || modelRaw || "kAIxU-Prime6.7").trim();
   const prompt = [
     `Channel: #${channel}`,
     `Channel Type: ${channelInfo.kind}`,
@@ -119,8 +91,6 @@ export const handler = async (event: any) => {
   ].join("\n");
 
   const payload = {
-    provider,
-    model,
     messages: [
       {
         role: "system",
@@ -133,74 +103,53 @@ export const handler = async (event: any) => {
     ],
   };
 
-  let aiReply = "";
-  let lastStatus = 0;
-  let lastBody = "";
-  let lastErr = "";
-  let lastRequestId = "";
+  const result = await callKaixuBrainWithFailover({
+    bodyModel: body.model,
+    defaultModel: modelRaw,
+    providerRaw,
+    messages: payload.messages,
+    requestContext: {
+      ws_id: effectiveWsId,
+      app: "SkyeChat",
+      actor_email: u.email,
+      actor_org: u.org_id,
+    },
+  });
 
-  for (let attempt = 1; attempt <= 2; attempt += 1) {
-    try {
-      const res = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      const text = await res.text();
-      lastStatus = res.status;
-      lastBody = text.slice(0, 2000);
-      lastRequestId = String(res.headers.get("x-kaixu-request-id") || "").trim();
-
-      let data: any = null;
-      try {
-        data = text ? JSON.parse(text) : null;
-      } catch {
-        data = { raw: text };
-      }
-
-      const candidate = String(data?.text || data?.output || data?.choices?.[0]?.message?.content || text || "").trim();
-      if (res.ok && candidate) {
-        aiReply = candidate;
-        break;
-      }
-    } catch (e: any) {
-      lastErr = e?.message || "Gateway call failed.";
-    }
-
-    if (attempt < 2) {
-      await new Promise((resolve) => setTimeout(resolve, 250));
-    }
-  }
-
-  if (!aiReply) {
+  if (!result.ok) {
     await audit(u.email, u.org_id, wsId || null, "skychat.kaixu.failed", {
       channel,
       channel_kind: channelInfo.kind,
       user_record_id: userRow.rows[0]?.id || null,
-      gateway_status: lastStatus || null,
-      gateway_error: lastErr || null,
-      gateway_body: lastBody || null,
-      gateway_request_id: lastRequestId || null,
-      token_fingerprint: tokenFp,
-      configured_provider: providerRaw,
-      effective_provider: provider,
-      effective_model: model,
+      gateway_status: result.gateway_status,
+      gateway_error: result.error,
+      gateway_body: result.gateway_detail,
+      gateway_request_id: result.gateway_request_id,
+      backup_status: result.backup_status,
+      backup_request_id: result.backup_request_id,
+      backup_error: result.backup_error,
+      token_fingerprint: result.token_fingerprint,
+      configured_provider: result.configured_provider,
+      effective_provider: result.effective_provider,
+      effective_model: result.effective_model,
+      brain_route: result.brain.route,
     });
-    return json(502, {
-      error: "kAIxU gateway failed for chat.",
-      gateway_endpoint: endpoint,
-      gateway_status: lastStatus || null,
-      gateway_error: lastErr || null,
-      gateway_request_id: lastRequestId || null,
-      token_fingerprint: tokenFp,
-      configured_provider: providerRaw,
-      effective_provider: provider,
-      effective_model: model,
-      gateway_detail: (lastBody || "").slice(0, 400) || null,
+    return json(result.status, {
+      ok: false,
+      error: result.error,
+      brain: result.brain,
+      gateway_endpoint: result.gateway_endpoint,
+      gateway_status: result.gateway_status,
+      gateway_request_id: result.gateway_request_id,
+      gateway_detail: result.gateway_detail,
+      backup_status: result.backup_status,
+      backup_request_id: result.backup_request_id,
+      backup_detail: result.backup_detail,
+      backup_error: result.backup_error,
+      token_fingerprint: result.token_fingerprint,
+      configured_provider: result.configured_provider,
+      effective_provider: result.effective_provider,
+      effective_model: result.effective_model,
     });
   }
 
@@ -216,7 +165,7 @@ export const handler = async (event: any) => {
         channel_slug: channelInfo.slug,
         channel_id: channelInfo.id,
         channel_kind: channelInfo.kind,
-        message: aiReply,
+        message: result.text,
         source: "kAIxU",
         role: "assistant",
       }),
@@ -229,13 +178,17 @@ export const handler = async (event: any) => {
     channel_kind: channelInfo.kind,
     user_record_id: userRow.rows[0]?.id || null,
     ai_record_id: aiRow.rows[0]?.id || null,
+    brain_route: result.brain.route,
+    brain_request_id: result.brain.request_id,
+    used_backup: result.used_backup,
   });
 
   return json(200, {
     ok: true,
     user_record_id: userRow.rows[0]?.id || null,
     ai_record_id: aiRow.rows[0]?.id || null,
-    ai_message: aiReply,
+    ai_message: result.text,
+    brain: result.brain,
     created_at: aiRow.rows[0]?.created_at || null,
   });
 };

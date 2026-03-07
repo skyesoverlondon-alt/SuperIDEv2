@@ -8,7 +8,15 @@ import crypto from "crypto";
  * at the deployed Worker.  Returns the parsed JSON response.
  */
 export async function runnerCall<T>(path: string, payload: any): Promise<T> {
-  const base = must("WORKER_RUNNER_URL").replace(/\/+$|\/+/g, "");
+  const { status, data } = await runnerCallDetailed<T>(path, payload);
+  if (status < 200 || status >= 300) {
+    throw new Error((data as any)?.error || `Runner error (${status})`);
+  }
+  return data as T;
+}
+
+export async function runnerCallDetailed<T>(path: string, payload: any): Promise<{ status: number; data: T; headers: Headers }> {
+  const base = must("WORKER_RUNNER_URL").replace(/\/+$/g, "");
   const secret = must("RUNNER_SHARED_SECRET");
   const accessClientId = process.env.CF_ACCESS_CLIENT_ID || "";
   const accessClientSecret = process.env.CF_ACCESS_CLIENT_SECRET || "";
@@ -39,8 +47,9 @@ export async function runnerCall<T>(path: string, payload: any): Promise<T> {
   } catch {
     data = { raw: text };
   }
-  if (!res.ok) {
-    throw new Error(data?.error || `Runner error (${res.status})`);
-  }
-  return data as T;
+  return {
+    status: res.status,
+    data: data as T,
+    headers: res.headers,
+  };
 }

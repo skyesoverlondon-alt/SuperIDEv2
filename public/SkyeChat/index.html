@@ -237,7 +237,69 @@
       document.querySelector('.top a').setAttribute('href', `/index.html?app=SkyeChat&ws_id=${encodeURIComponent(wsId)}`);
     }
 
-    function setStatus(text) { statusEl.textContent = text || ''; }
+    const workflowTruth = {
+      session: { state: 'idle', label: 'Session Waiting' },
+      key: { state: 'idle', label: 'Key Missing' },
+      room: { state: 'idle', label: 'Room Idle' },
+      last: { state: 'idle', label: 'Last Waiting' },
+    };
+
+    function ensureWorkflowHud() {
+      if (document.getElementById('workflowHudStyle')) return;
+      const style = document.createElement('style');
+      style.id = 'workflowHudStyle';
+      style.textContent = `
+        .truth-bar { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+        .truth-chip { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border-radius:999px; border:1px solid rgba(191,238,255,0.24); background:rgba(255,255,255,0.03); font-size:11px; text-transform:uppercase; letter-spacing:.08em; }
+        .truth-dot { width:9px; height:9px; border-radius:999px; background:#7d8b96; box-shadow:0 0 0 1px rgba(255,255,255,0.08); }
+        .truth-chip[data-state="ok"] .truth-dot { background:#57df9e; box-shadow:0 0 12px rgba(87,223,158,.52); }
+        .truth-chip[data-state="warn"] .truth-dot { background:#ffcb47; box-shadow:0 0 12px rgba(255,203,71,.48); }
+        .truth-chip[data-state="fail"] .truth-dot { background:#ff6d84; box-shadow:0 0 12px rgba(255,109,132,.5); }
+        .status[data-tone="error"] { color:#ff9dad; }
+        .status[data-tone="ok"] { color:#9ef0c4; }
+      `;
+      document.head.appendChild(style);
+
+      const truthBar = document.createElement('div');
+      truthBar.id = 'workflowTruthBar';
+      truthBar.className = 'truth-bar';
+      truthBar.innerHTML = `
+        <div class="truth-chip" data-key="session" data-state="idle"><span class="truth-dot"></span><span>Session Waiting</span></div>
+        <div class="truth-chip" data-key="key" data-state="idle"><span class="truth-dot"></span><span>Key Missing</span></div>
+        <div class="truth-chip" data-key="room" data-state="idle"><span class="truth-dot"></span><span>Room Idle</span></div>
+        <div class="truth-chip" data-key="last" data-state="idle"><span class="truth-dot"></span><span>Last Waiting</span></div>
+      `;
+      statusEl.parentNode.insertBefore(truthBar, statusEl);
+      statusEl.dataset.tone = 'info';
+    }
+
+    function setTruth(key, state, label) {
+      if (!workflowTruth[key]) return;
+      workflowTruth[key] = { state, label };
+      const node = document.querySelector(`.truth-chip[data-key="${key}"]`);
+      if (!node) return;
+      node.dataset.state = state;
+      const labelNode = node.querySelector('span:last-child');
+      if (labelNode) labelNode.textContent = label;
+    }
+
+    function refreshAccessTruth() {
+      const token = String(standaloneSession?.readToken?.() || window.SkyeAuthUnlock?.readToken?.() || '').trim();
+      setTruth('key', token ? 'ok' : 'warn', token ? 'Key Loaded' : 'Key Missing');
+      setTruth('session', chatState.me?.email ? 'ok' : 'warn', chatState.me?.email ? (chatState.me?.has_pin ? 'Session + PIN' : 'Session Live') : 'Session Missing');
+    }
+
+    function setStatus(text, tone = 'info') {
+      statusEl.dataset.tone = tone;
+      statusEl.textContent = text || '';
+    }
+
+    function handleWorkflowError(error, roomLabel = 'Room Failed') {
+      const message = error?.message || String(error);
+      setTruth('room', 'fail', roomLabel);
+      setTruth('last', 'fail', 'Last Failed');
+      setStatus(message, 'error');
+    }
 
     function persistModerationTimeline() {
       localStorage.setItem('skyechat.moderation.timeline', JSON.stringify(chatState.moderationTimeline.slice(0, 60)));
@@ -517,7 +579,9 @@
         localStorage.setItem('kx.api.accessToken', token);
         localStorage.setItem('kx.api.tokenEmail', email);
       }
-      setStatus('Saved kAIxU key context for SkyeChat.');
+      refreshAccessTruth();
+      setTruth('last', 'ok', 'Key Saved');
+      setStatus('Saved kAIxU key context for SkyeChat.', 'ok');
     }
 
     function clearAuthInputs() {
@@ -529,7 +593,9 @@
         localStorage.removeItem('kx.api.tokenEmail');
       }
       hydrateAuthInputs();
-      setStatus('Cleared kAIxU key context.');
+      refreshAccessTruth();
+      setTruth('last', 'warn', 'Key Cleared');
+      setStatus('Cleared kAIxU key context.','info');
     }
 
     async function ensureWorkspaceAccess(labelPrefix = 'chat-session') {
@@ -744,11 +810,16 @@
       } catch {
       }
       const me = await call('/api/auth-me');
+      chatState.me = me || null;
       if (me?.email) {
         document.getElementById('email').value = me.email;
-        setStatus(me?.has_pin ? `Signed in as ${me.email}. Session PIN is configured for shared unlock.` : `Signed in as ${me.email}`);
+        refreshAccessTruth();
+        setTruth('last', 'ok', 'Session Ready');
+        setStatus(me?.has_pin ? `Signed in as ${me.email}. Session PIN is configured for shared unlock.` : `Signed in as ${me.email}`, 'ok');
       } else {
-        setStatus('Not signed in. Create account or login to use SkyeChat workspace.');
+        refreshAccessTruth();
+        setTruth('last', 'warn', 'Session Missing');
+        setStatus('Not signed in. Create account or login to use SkyeChat workspace.', 'error');
       }
     }
 
@@ -773,6 +844,7 @@
       await loadProfile();
       await loadChannels();
       await loadFeed();
+      setTruth('last', 'ok', 'Group Created');
     }
 
     async function login() {
@@ -836,7 +908,9 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ channel, email }),
       });
-      setStatus(`Invited ${email} to #${channel}.`);
+      setTruth('room', 'ok', 'Invite Routed');
+      setTruth('last', 'ok', 'Invite Sent');
+      setStatus(`Invited ${email} to #${channel}.`, 'ok');
     }
 
     async function voteMessage(messageId, vote) {
@@ -856,7 +930,9 @@
       chatState.records = records;
       renderHealthPanel(records);
       feedEl.innerHTML = records.map(renderFeedRecord).join('') || '<div class="meta">No thread messages found.</div>';
-      setStatus(`Loaded thread ${rootId} with ${records.length} item(s).`);
+      setTruth('room', 'ok', 'Thread Loaded');
+      setTruth('last', 'ok', 'Thread Ready');
+      setStatus(`Loaded thread ${rootId} with ${records.length} item(s).`, 'ok');
     }
 
     async function loadTopicFeed() {
@@ -871,7 +947,9 @@
       renderHealthPanel(records);
       feedEl.innerHTML = records.map(renderFeedRecord).join('') || '<div class="meta">No topic feed records found.</div>';
       const topicText = chatState.topicSummary.slice(0, 6).map((row) => `${row.topic}(${row.c})`).join(' | ');
-      setStatus(`Topic feed loaded (${records.length} posts). ${topicText ? 'Top topics: ' + topicText : ''}`);
+      setTruth('room', 'ok', 'Topic Feed Live');
+      setTruth('last', 'ok', 'Topic Feed Loaded');
+      setStatus(`Topic feed loaded (${records.length} posts). ${topicText ? 'Top topics: ' + topicText : ''}`, 'ok');
     }
 
     async function loadNotifications() {
@@ -887,6 +965,7 @@
         recent: Array.isArray(data?.notifications) ? data.notifications : [],
       };
       renderNotificationsPanel();
+      setTruth('last', 'ok', 'Notifications Ready');
     }
 
     async function markNotificationRead(id) {
@@ -907,12 +986,17 @@
         body: JSON.stringify({ all: true, read: true, kind: kind || undefined }),
       });
       await loadNotifications();
-      setStatus('Notifications marked as read.');
+      setTruth('last', 'ok', 'Notifications Cleared');
+      setStatus('Notifications marked as read.', 'ok');
     }
 
     async function logout() {
       await call('/api/auth-logout', { method: 'POST' });
-      setStatus('Logged out.');
+      chatState.me = null;
+      refreshAccessTruth();
+      setTruth('room', 'idle', 'Room Idle');
+      setTruth('last', 'warn', 'Logged Out');
+      setStatus('Logged out.', 'info');
       feedEl.innerHTML = '';
     }
 
@@ -924,7 +1008,8 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ app: 'SkyeChat', title: displayName || handle || 'SkyeChat Profile', profile: { display_name: displayName, handle } }),
       });
-      setStatus('SkyeChat profile saved.');
+      setTruth('last', 'ok', 'Profile Saved');
+      setStatus('SkyeChat profile saved.', 'ok');
     }
 
     async function loadProfile() {
@@ -953,7 +1038,9 @@
       });
       moderationState.lastPostAt = now;
       setReplyTarget('');
-      setStatus(`Posted to #${channel}${topic ? ` (topic:${topic})` : ''}${parentId ? ' as reply' : ''}`);
+      setTruth('room', 'ok', 'Room Posted');
+      setTruth('last', 'ok', parentId ? 'Reply Sent' : 'Post Sent');
+      setStatus(`Posted to #${channel}${topic ? ` (topic:${topic})` : ''}${parentId ? ' as reply' : ''}`, 'ok');
       await loadFeed();
     }
 
@@ -965,7 +1052,9 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ channel, message, ws_id: wsId }),
       });
-      setStatus(`Posted + kAIxU response in #${channel}`);
+      setTruth('room', 'ok', 'kAIxU Routed');
+      setTruth('last', 'ok', 'kAIxU Replied');
+      setStatus(`Posted + kAIxU response in #${channel}`, 'ok');
       await loadFeed();
     }
 
@@ -1023,38 +1112,42 @@
       renderNotificationsPanel();
       renderHealthPanel(records);
       feedEl.innerHTML = records.map(renderFeedRecord).join('') || '<div class="meta">No messages found.</div>';
+      setTruth('room', 'ok', records.length ? 'Room Live' : 'Room Empty');
+      setTruth('last', 'ok', 'Feed Loaded');
     }
 
+    ensureWorkflowHud();
     hydrateAuthInputs();
+    refreshAccessTruth();
 
-    document.getElementById('signupBtn').onclick = () => signup().catch((e) => setStatus(e.message));
-    document.getElementById('loginBtn').onclick = () => login().catch((e) => setStatus(e.message));
-    document.getElementById('meBtn').onclick = () => refreshMe().then(loadProfile).catch((e) => setStatus(e.message));
+    document.getElementById('signupBtn').onclick = () => signup().catch((e) => handleWorkflowError(e, 'Signup Failed'));
+    document.getElementById('loginBtn').onclick = () => login().catch((e) => handleWorkflowError(e, 'Login Failed'));
+    document.getElementById('meBtn').onclick = () => refreshMe().then(loadProfile).catch((e) => handleWorkflowError(e, 'Session Refresh Failed'));
     document.getElementById('saveKeyBtn').onclick = () => saveAuthInputs();
     document.getElementById('clearKeyBtn').onclick = () => clearAuthInputs();
-    document.getElementById('saveProfileBtn').onclick = () => saveProfile().catch((e) => setStatus(e.message));
-    document.getElementById('postBtn').onclick = () => postMessage().catch((e) => setStatus(e.message));
-    document.getElementById('kaixuBtn').onclick = () => postWithKaixu().catch((e) => setStatus(e.message));
-    document.getElementById('extractDecisionBtn').onclick = () => extractDecisionsToWorkflows().catch((e) => setStatus(e.message));
-    document.getElementById('loadBtn').onclick = () => loadFeed().catch((e) => setStatus(e.message));
-    document.getElementById('applyFilterBtn').onclick = () => loadFeed().catch((e) => setStatus(e.message));
-    document.getElementById('loadTopicFeedBtn').onclick = () => loadTopicFeed().catch((e) => setStatus(e.message));
+    document.getElementById('saveProfileBtn').onclick = () => saveProfile().catch((e) => handleWorkflowError(e, 'Profile Save Failed'));
+    document.getElementById('postBtn').onclick = () => postMessage().catch((e) => handleWorkflowError(e, 'Post Failed'));
+    document.getElementById('kaixuBtn').onclick = () => postWithKaixu().catch((e) => handleWorkflowError(e, 'kAIxU Failed'));
+    document.getElementById('extractDecisionBtn').onclick = () => extractDecisionsToWorkflows().catch((e) => handleWorkflowError(e, 'Decision Extract Failed'));
+    document.getElementById('loadBtn').onclick = () => loadFeed().catch((e) => handleWorkflowError(e, 'Feed Load Failed'));
+    document.getElementById('applyFilterBtn').onclick = () => loadFeed().catch((e) => handleWorkflowError(e, 'Feed Filter Failed'));
+    document.getElementById('loadTopicFeedBtn').onclick = () => loadTopicFeed().catch((e) => handleWorkflowError(e, 'Topic Load Failed'));
     document.getElementById('exportDigestBtn').onclick = () => exportDigest();
-    document.getElementById('applyModeration').onclick = () => applyModeration().catch((e) => setStatus(e.message));
-    document.getElementById('revertModeration').onclick = () => revertLastModeration().catch((e) => setStatus(e.message));
-    document.getElementById('createGroupBtn').onclick = () => createGroup().catch((e) => setStatus(e.message));
-    document.getElementById('reloadChannelsBtn').onclick = () => loadChannels().catch((e) => setStatus(e.message));
-    document.getElementById('inviteGroupBtn').onclick = () => inviteToGroup().catch((e) => setStatus(e.message));
-    document.getElementById('loadNotificationsBtn').onclick = () => loadNotifications().catch((e) => setStatus(e.message));
-    document.getElementById('markAllReadBtn').onclick = () => markAllNotificationsRead().catch((e) => setStatus(e.message));
-    document.getElementById('logoutBtn').onclick = () => logout().catch((e) => setStatus(e.message));
-    document.getElementById('exportSkyeBtn').onclick = () => exportSkyeFile().catch((e) => setStatus(e.message));
+    document.getElementById('applyModeration').onclick = () => applyModeration().catch((e) => handleWorkflowError(e, 'Moderation Failed'));
+    document.getElementById('revertModeration').onclick = () => revertLastModeration().catch((e) => handleWorkflowError(e, 'Moderation Revert Failed'));
+    document.getElementById('createGroupBtn').onclick = () => createGroup().catch((e) => handleWorkflowError(e, 'Group Create Failed'));
+    document.getElementById('reloadChannelsBtn').onclick = () => loadChannels().catch((e) => handleWorkflowError(e, 'Channel Load Failed'));
+    document.getElementById('inviteGroupBtn').onclick = () => inviteToGroup().catch((e) => handleWorkflowError(e, 'Invite Failed'));
+    document.getElementById('loadNotificationsBtn').onclick = () => loadNotifications().catch((e) => handleWorkflowError(e, 'Notification Load Failed'));
+    document.getElementById('markAllReadBtn').onclick = () => markAllNotificationsRead().catch((e) => handleWorkflowError(e, 'Notification Clear Failed'));
+    document.getElementById('logoutBtn').onclick = () => logout().catch((e) => handleWorkflowError(e, 'Logout Failed'));
+    document.getElementById('exportSkyeBtn').onclick = () => exportSkyeFile().catch((e) => handleWorkflowError(e, 'Export Failed'));
     document.getElementById('importSkyeBtn').onclick = () => document.getElementById('importSkyeInput').click();
     document.getElementById('importSkyeInput').addEventListener('change', (event) => {
       const file = event.target.files?.[0];
       event.target.value = '';
       if (!file) return;
-      importSkyeFile(file).catch((e) => setStatus(e.message));
+      importSkyeFile(file).catch((e) => handleWorkflowError(e, 'Import Failed'));
     });
 
     feedEl.addEventListener('click', async (event) => {
@@ -1080,7 +1173,7 @@
           await loadThread(rootId);
         }
       } catch (err) {
-        setStatus(err?.message || String(err));
+        handleWorkflowError(err, 'Message Action Failed');
       }
     });
 
@@ -1093,7 +1186,7 @@
       try {
         await markNotificationRead(id);
       } catch (err) {
-        setStatus(err?.message || String(err));
+        handleWorkflowError(err, 'Notification Action Failed');
       }
     });
 
@@ -1102,7 +1195,7 @@
     renderChannelDirectory();
     renderNotificationsPanel();
     setReplyTarget('');
-    refreshMe().then(loadProfile).then(loadChannels).then(loadFeed).then(loadNotifications).catch((e) => setStatus(e.message));
+    refreshMe().then(loadProfile).then(loadChannels).then(loadFeed).then(loadNotifications).catch((e) => handleWorkflowError(e, 'Chat Bootstrap Failed'));
   </script>
 <button id="skye-tutorial-fab" type="button" style="position:fixed;right:16px;bottom:16px;z-index:10000;padding:10px 14px;border-radius:999px;border:1px solid rgba(191,238,255,.42);background:rgba(44,230,255,.2);color:#eff9ff;font-weight:700;cursor:pointer;">Start Tutorial</button>
 <div id="skye-tutorial-modal" style="display:none;position:fixed;inset:0;z-index:10001;background:rgba(2,6,23,.72);"></div>

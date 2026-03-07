@@ -3,7 +3,7 @@ import { requireUser, forbid } from "./_shared/auth";
 import { q } from "./_shared/neon";
 import { canReadWorkspace } from "./_shared/rbac";
 
-const ALLOWED_APPS = new Set(["SkyeCalendar", "SkyeDrive", "SkyeVault", "SkyeForms", "SkyeNotes", "SkyeBlog"]);
+const ALLOWED_APPS = new Set(["SkyeCalendar", "SkyeDrive", "SkyeVault", "SkyeForms", "SkyeNotes", "SkyeBlog", "SkyeDocxPro", "SkyeBookx"]);
 
 function parseLimit(raw: string | undefined): number {
   const n = Number(raw || 20);

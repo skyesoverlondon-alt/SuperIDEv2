@@ -239,8 +239,68 @@
       deliveryPanel.textContent = `Delivery lifecycle: queued=${counts.queued || 0}, sent=${counts.sent || 0}, failed=${counts.failed || 0}, retry_pending=${pendingRetry} | recent=${rows.map((r) => r.subject + ':' + r.status).join(' | ')}`;
     }
 
-    function setStatus(text) {
+    const workflowTruth = {
+      session: { state: 'idle', label: 'Session Waiting' },
+      key: { state: 'idle', label: 'Key Missing' },
+      delivery: { state: 'idle', label: 'Delivery Idle' },
+      last: { state: 'idle', label: 'Last Waiting' },
+    };
+
+    function ensureWorkflowHud() {
+      if (document.getElementById('workflowHudStyle')) return;
+      const style = document.createElement('style');
+      style.id = 'workflowHudStyle';
+      style.textContent = `
+        .truth-bar { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+        .truth-chip { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border-radius:999px; border:1px solid rgba(191,238,255,0.24); background:rgba(255,255,255,0.03); font-size:11px; text-transform:uppercase; letter-spacing:.08em; }
+        .truth-dot { width:9px; height:9px; border-radius:999px; background:#7d8b96; box-shadow:0 0 0 1px rgba(255,255,255,0.08); }
+        .truth-chip[data-state="ok"] .truth-dot { background:#57df9e; box-shadow:0 0 12px rgba(87,223,158,.52); }
+        .truth-chip[data-state="warn"] .truth-dot { background:#ffcb47; box-shadow:0 0 12px rgba(255,203,71,.48); }
+        .truth-chip[data-state="fail"] .truth-dot { background:#ff6d84; box-shadow:0 0 12px rgba(255,109,132,.5); }
+        .status[data-tone="error"] { color:#ff9dad; }
+        .status[data-tone="ok"] { color:#9ef0c4; }
+      `;
+      document.head.appendChild(style);
+
+      const truthBar = document.createElement('div');
+      truthBar.id = 'workflowTruthBar';
+      truthBar.className = 'truth-bar';
+      truthBar.innerHTML = `
+        <div class="truth-chip" data-key="session" data-state="idle"><span class="truth-dot"></span><span>Session Waiting</span></div>
+        <div class="truth-chip" data-key="key" data-state="idle"><span class="truth-dot"></span><span>Key Missing</span></div>
+        <div class="truth-chip" data-key="delivery" data-state="idle"><span class="truth-dot"></span><span>Delivery Idle</span></div>
+        <div class="truth-chip" data-key="last" data-state="idle"><span class="truth-dot"></span><span>Last Waiting</span></div>
+      `;
+      statusEl.parentNode.insertBefore(truthBar, statusEl);
+      statusEl.dataset.tone = 'info';
+    }
+
+    function setTruth(key, state, label) {
+      if (!workflowTruth[key]) return;
+      workflowTruth[key] = { state, label };
+      const node = document.querySelector(`.truth-chip[data-key="${key}"]`);
+      if (!node) return;
+      node.dataset.state = state;
+      const labelNode = node.querySelector('span:last-child');
+      if (labelNode) labelNode.textContent = label;
+    }
+
+    function refreshAccessTruth() {
+      const token = String(standaloneSession?.readToken?.() || window.SkyeAuthUnlock?.readToken?.() || '').trim();
+      setTruth('key', token ? 'ok' : 'warn', token ? 'Key Loaded' : 'Key Missing');
+      setTruth('session', state.me?.email ? 'ok' : 'warn', state.me?.email ? (state.me?.has_pin ? 'Session + PIN' : 'Session Live') : 'Session Missing');
+    }
+
+    function setStatus(text, tone = 'info') {
+      statusEl.dataset.tone = tone;
       statusEl.textContent = text || '';
+    }
+
+    function handleWorkflowError(error, deliveryLabel = 'Delivery Failed') {
+      const message = error?.message || String(error);
+      setTruth('delivery', 'fail', deliveryLabel);
+      setTruth('last', 'fail', 'Last Failed');
+      setStatus(message, 'error');
     }
 
     function buildIdempotencyKey(prefix, parts) {
@@ -283,7 +343,9 @@
         localStorage.setItem('kx.api.accessToken', token);
         localStorage.setItem('kx.api.tokenEmail', email);
       }
-      setStatus('Saved kAIxU key context for SkyeMail.');
+      refreshAccessTruth();
+      setTruth('last', 'ok', 'Key Saved');
+      setStatus('Saved kAIxU key context for SkyeMail.', 'ok');
     }
 
     function clearAuthInputs() {
@@ -295,7 +357,9 @@
         localStorage.removeItem('kx.api.tokenEmail');
       }
       hydrateAuthInputs();
-      setStatus('Cleared kAIxU key context.');
+      refreshAccessTruth();
+      setTruth('last', 'warn', 'Key Cleared');
+      setStatus('Cleared kAIxU key context.', 'info');
     }
 
     async function ensureWorkspaceAccess(labelPrefix = 'mail-session') {
@@ -514,10 +578,14 @@
       const me = await call('/api/auth-me');
       state.me = me;
       if (me?.email) {
-        setStatus(me?.has_pin ? `Signed in as ${me.email}. Session PIN is configured for shared unlock.` : `Signed in as ${me.email}`);
+        refreshAccessTruth();
+        setTruth('last', 'ok', 'Session Ready');
+        setStatus(me?.has_pin ? `Signed in as ${me.email}. Session PIN is configured for shared unlock.` : `Signed in as ${me.email}`, 'ok');
         document.getElementById('email').value = me.email;
       } else {
-        setStatus('Not signed in. Create account or login to use SkyeMail workspace.');
+        refreshAccessTruth();
+        setTruth('last', 'warn', 'Session Missing');
+        setStatus('Not signed in. Create account or login to use SkyeMail workspace.', 'error');
       }
     }
 
@@ -541,7 +609,8 @@
           metadata: { workspace_id: state.wsId },
         }),
       });
-      setStatus(`Mailbox profile saved: ${mailboxEmail}`);
+      setTruth('last', 'ok', 'Mailbox Saved');
+      setStatus(`Mailbox profile saved: ${mailboxEmail}`, 'ok');
     }
 
     async function loadProfile() {
@@ -586,6 +655,8 @@
       mailDiagnosticsSummary.textContent = data?.configured
         ? `Mail diagnostics: provider=${provider}, sender=${sender}, mailbox=${mailbox}, outbound=${data?.outbound_ready ? 'ready' : 'blocked'}, inbound=${data?.inbound_ready ? 'ready' : 'blocked'}, ingest=${data?.inbound_endpoint_path || '/api/skymail-inbound-ingest'}.`
         : `Mail diagnostics: provider not configured. ${Array.isArray(data?.warnings) && data.warnings.length ? data.warnings.join(' | ') : ''}`.trim();
+      setTruth('delivery', data?.configured && data?.outbound_ready ? 'ok' : (data?.configured ? 'warn' : 'fail'), data?.configured ? (data?.outbound_ready ? 'Delivery Ready' : 'Delivery Blocked') : 'Delivery Missing');
+      setTruth('last', 'ok', 'Diagnostics Ready');
     }
 
     function initTemplates() {
@@ -693,7 +764,9 @@
         persistOutboundAudit();
         persistDeliveryRecords();
         renderDeliveryPanel();
-        setStatus(`Mail sent via ${data?.provider || 'provider'} (record=${data?.mail_record_id || 'n/a'})`);
+        setTruth('delivery', delivered ? 'ok' : 'warn', delivered ? 'Delivery Sent' : 'Delivery Warn');
+        setTruth('last', 'ok', delivered ? 'Send Complete' : 'Provider Warn');
+        setStatus(`Mail sent via ${data?.provider || 'provider'} (record=${data?.mail_record_id || 'n/a'})`, 'ok');
         await loadInbox();
       } catch (error) {
         const backoffSec = computeBackoffSeconds(attempts);
@@ -703,6 +776,8 @@
         persistOutboundAudit();
         persistDeliveryRecords();
         renderDeliveryPanel();
+        setTruth('delivery', 'fail', 'Delivery Failed');
+        setTruth('last', 'fail', 'Send Failed');
         throw error;
       }
     }
@@ -710,7 +785,8 @@
     async function retryFailed() {
       const failed = state.deliveryRecords.find((row) => row.status === 'failed');
       if (!failed) {
-        setStatus('No failed deliveries to retry.');
+        setTruth('last', 'warn', 'Retry Empty');
+        setStatus('No failed deliveries to retry.', 'info');
         return;
       }
       document.getElementById('to').value = failed.to || '';
@@ -724,7 +800,8 @@
       const now = new Date().toISOString();
       const queued = state.deliveryRecords.filter((row) => row.status === 'failed' && Number(row.attempts || 1) < maxAttempts && (!row.next_retry_at || row.next_retry_at <= now));
       if (!queued.length) {
-        setStatus('Retry queue has no ready items.');
+        setTruth('last', 'warn', 'Retry Queue Empty');
+        setStatus('Retry queue has no ready items.', 'info');
         return;
       }
       for (const row of queued.slice(0, 5)) {
@@ -735,7 +812,9 @@
         }
       }
       renderDeliveryPanel();
-      setStatus(`Processed retry queue items: ${Math.min(5, queued.length)}.`);
+      setTruth('delivery', 'ok', 'Retry Processed');
+      setTruth('last', 'ok', 'Retry Queue Run');
+      setStatus(`Processed retry queue items: ${Math.min(5, queued.length)}.`, 'ok');
     }
 
     async function loadInbox(append = false, forcedThread = '') {
@@ -806,6 +885,8 @@
 
       if (!append) inboxEl.innerHTML = items || '<div class="meta">No mail records found.</div>';
       else inboxEl.insertAdjacentHTML('beforeend', items);
+      setTruth('delivery', 'ok', filtered.length ? 'Inbox Live' : 'Inbox Empty');
+      setTruth('last', 'ok', 'Inbox Loaded');
     }
 
     async function signup() {
@@ -861,26 +942,32 @@
 
     async function logout() {
       await call('/api/auth-logout', { method: 'POST' });
-      setStatus('Logged out.');
+      state.me = null;
+      refreshAccessTruth();
+      setTruth('delivery', 'idle', 'Delivery Idle');
+      setTruth('last', 'warn', 'Logged Out');
+      setStatus('Logged out.', 'info');
       inboxEl.innerHTML = '';
     }
 
+    ensureWorkflowHud();
     hydrateAuthInputs();
+    refreshAccessTruth();
 
-    document.getElementById('signupBtn').onclick = () => signup().catch((e) => setStatus(e.message));
-    document.getElementById('loginBtn').onclick = () => login().catch((e) => setStatus(e.message));
-    document.getElementById('meBtn').onclick = () => refreshMe().then(loadProfile).then(loadMailDiagnostics).catch((e) => setStatus(e.message));
-    document.getElementById('refreshMailDiagnosticsBtn').onclick = () => loadMailDiagnostics().catch((e) => setStatus(e.message));
+    document.getElementById('signupBtn').onclick = () => signup().catch((e) => handleWorkflowError(e, 'Signup Failed'));
+    document.getElementById('loginBtn').onclick = () => login().catch((e) => handleWorkflowError(e, 'Login Failed'));
+    document.getElementById('meBtn').onclick = () => refreshMe().then(loadProfile).then(loadMailDiagnostics).catch((e) => handleWorkflowError(e, 'Session Refresh Failed'));
+    document.getElementById('refreshMailDiagnosticsBtn').onclick = () => loadMailDiagnostics().catch((e) => handleWorkflowError(e, 'Diagnostics Failed'));
     document.getElementById('saveKeyBtn').onclick = () => saveAuthInputs();
     document.getElementById('clearKeyBtn').onclick = () => clearAuthInputs();
-    document.getElementById('sendBtn').onclick = () => sendMail().catch((e) => setStatus(e.message));
-    document.getElementById('retryFailedBtn').onclick = () => retryFailed().catch((e) => setStatus(e.message));
-    document.getElementById('processRetryQueueBtn').onclick = () => processRetryQueue().catch((e) => setStatus(e.message));
+    document.getElementById('sendBtn').onclick = () => sendMail().catch((e) => handleWorkflowError(e, 'Send Failed'));
+    document.getElementById('retryFailedBtn').onclick = () => retryFailed().catch((e) => handleWorkflowError(e, 'Retry Failed'));
+    document.getElementById('processRetryQueueBtn').onclick = () => processRetryQueue().catch((e) => handleWorkflowError(e, 'Retry Queue Failed'));
     document.getElementById('preflightBtn').onclick = () => { runSendPreflight(); };
     document.getElementById('applyTemplateBtn').onclick = () => applyTemplate();
     document.getElementById('exportAuditBtn').onclick = () => exportOutboundAudit();
-    document.getElementById('reloadBtn').onclick = () => loadInbox(false).catch((e) => setStatus(e.message));
-    document.getElementById('searchBtn').onclick = () => loadInbox(false).catch((e) => setStatus(e.message));
+    document.getElementById('reloadBtn').onclick = () => loadInbox(false).catch((e) => handleWorkflowError(e, 'Inbox Reload Failed'));
+    document.getElementById('searchBtn').onclick = () => loadInbox(false).catch((e) => handleWorkflowError(e, 'Inbox Search Failed'));
         inboxEl.addEventListener('click', async (event) => {
           const target = event.target;
           if (!(target instanceof HTMLElement)) return;
@@ -909,24 +996,24 @@
               await loadInbox(false, threadId);
             }
           } catch (err) {
-            setStatus(err?.message || String(err));
+            handleWorkflowError(err, 'Mailbox Action Failed');
           }
         });
-    document.getElementById('saveProfileBtn').onclick = () => saveProfile().then(loadMailDiagnostics).catch((e) => setStatus(e.message));
-    document.getElementById('logoutBtn').onclick = () => logout().catch((e) => setStatus(e.message));
-    document.getElementById('exportSkyeBtn').onclick = () => exportSkyeFile().catch((e) => setStatus(e.message));
+    document.getElementById('saveProfileBtn').onclick = () => saveProfile().then(loadMailDiagnostics).catch((e) => handleWorkflowError(e, 'Mailbox Save Failed'));
+    document.getElementById('logoutBtn').onclick = () => logout().catch((e) => handleWorkflowError(e, 'Logout Failed'));
+    document.getElementById('exportSkyeBtn').onclick = () => exportSkyeFile().catch((e) => handleWorkflowError(e, 'Export Failed'));
     document.getElementById('importSkyeBtn').onclick = () => document.getElementById('importSkyeInput').click();
     document.getElementById('importSkyeInput').addEventListener('change', (event) => {
       const file = event.target.files?.[0];
       event.target.value = '';
       if (!file) return;
-      importSkyeFile(file).catch((e) => setStatus(e.message));
+      importSkyeFile(file).catch((e) => handleWorkflowError(e, 'Import Failed'));
     });
 
     initTemplates();
     renderDeliveryPanel();
     runSendPreflight();
-    refreshMe().then(loadProfile).then(loadMailDiagnostics).then(() => loadInbox(false)).catch((e) => setStatus(e.message));
+    refreshMe().then(loadProfile).then(loadMailDiagnostics).then(() => loadInbox(false)).catch((e) => handleWorkflowError(e, 'Mail Bootstrap Failed'));
   </script>
 <button id="skye-tutorial-fab" type="button" style="position:fixed;right:16px;bottom:16px;z-index:10000;padding:10px 14px;border-radius:999px;border:1px solid rgba(191,238,255,.42);background:rgba(44,230,255,.2);color:#eff9ff;font-weight:700;cursor:pointer;">Start Tutorial</button>
 <div id="skye-tutorial-modal" style="display:none;position:fixed;inset:0;z-index:10001;background:rgba(2,6,23,.72);"></div>

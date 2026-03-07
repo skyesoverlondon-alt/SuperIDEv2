@@ -7,8 +7,6 @@
     <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="/_shared/gateway-retry.js"></script>
-    <script src="/_shared/auth-unlock.js"></script>
-    <script src="/_shared/kaixu-provider-bridge.js"></script>
     
     <!-- Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -469,14 +467,15 @@
         }
 
         window.generatePDF = () => { window.focus(); window.print(); };
-        // --- Gateway AI Helpers ---
+
+        // --- kAIxu AI Helpers ---
         const gatewayFetch = (window.SkyeGateway && window.SkyeGateway.fetchWithRetry) || fetch;
         function getWsId() {
             return new URLSearchParams(window.location.search).get('ws_id') || 'primary-workspace';
         }
         function getGatewayHeaders() {
             const keyInput = document.getElementById('openai-key');
-            const raw = (state.openaiKey || (keyInput && keyInput.value) || window.SkyeStandaloneSession?.readToken?.() || window.SkyeAuthUnlock?.readToken?.() || '').trim();
+            const raw = (state.openaiKey || (keyInput && keyInput.value) || localStorage.getItem('kx.api.accessToken') || '').trim();
             const headers = { 'Content-Type': 'application/json' };
             if (raw) headers.Authorization = 'Bearer ' + raw;
             if (window.SkyeCorrelation && typeof window.SkyeCorrelation.nextId === 'function') {
@@ -512,7 +511,6 @@
                 + '</svg>';
             return 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)));
         }
-
 
         async function callGemini(prompt, system) {
             return callGatewayText(prompt, system || 'You are kAIxU gateway intelligence.');

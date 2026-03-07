@@ -7,8 +7,6 @@
     <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="/_shared/gateway-retry.js"></script>
-    <script src="/_shared/auth-unlock.js"></script>
-    <script src="/_shared/kaixu-provider-bridge.js"></script>
     
     <!-- Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -441,14 +439,15 @@
             window.focus(); 
             setTimeout(() => { window.print(); }, 100);
         };
-        // --- Gateway AI Helpers ---
+
+        // --- EXCLUSIVE OPENAI LOGIC ---
         const gatewayFetch = (window.SkyeGateway && window.SkyeGateway.fetchWithRetry) || fetch;
         function getWsId() {
             return new URLSearchParams(window.location.search).get('ws_id') || 'primary-workspace';
         }
         function getGatewayHeaders() {
             const keyInput = document.getElementById('openai-key');
-            const raw = (state.openaiKey || (keyInput && keyInput.value) || window.SkyeStandaloneSession?.readToken?.() || window.SkyeAuthUnlock?.readToken?.() || '').trim();
+            const raw = (state.openaiKey || (keyInput && keyInput.value) || localStorage.getItem('kx.api.accessToken') || '').trim();
             const headers = { 'Content-Type': 'application/json' };
             if (raw) headers.Authorization = 'Bearer ' + raw;
             if (window.SkyeCorrelation && typeof window.SkyeCorrelation.nextId === 'function') {
@@ -464,7 +463,53 @@
                 body: JSON.stringify({
                     ws_id: getWsId(),
                     activePath: window.location.pathname,
-                    prompt: [String(system || '').trim(), String(prompt || '').trim()].filter(Boolean).join('\n\n'),
+                    prompt: String(system || '').trim() + '
+
+' + String(prompt || '').trim(),
+                })
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data?.error || data?.message || ('Gateway failure (' + res.status + ')'));
+            return data?.text || data?.output || '';
+        }
+        function renderPromptPoster(promptText, label) {
+            const esc = (s) => String(s || '').replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+            const body = esc(String(promptText || '').slice(0, 520));
+            const tag = esc(label || 'kAIxU Gateway Render');
+            const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">'
+                + '<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#0f172a"/><stop offset="100%" stop-color="#312e81"/></linearGradient></defs>'
+                + '<rect width="1024" height="1024" fill="url(#g)"/>'
+                + '<rect x="44" y="44" width="936" height="936" rx="24" fill="none" stroke="#eab308" stroke-opacity="0.55" stroke-width="4"/>'
+                + '<text x="72" y="118" fill="#eab308" font-size="36" font-family="Arial, sans-serif" font-weight="700">' + tag + '</text>'
+                + '<foreignObject x="72" y="168" width="880" height="780"><div xmlns="http://www.w3.org/1999/xhtml" style="font-family:Arial,sans-serif;color:#e2e8f0;font-size:30px;line-height:1.35;white-space:pre-wrap;">' + body + '</div></foreignObject>'
+                + '</svg>';
+            return 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)));
+        }
+        const gatewayFetch = (window.SkyeGateway && window.SkyeGateway.fetchWithRetry) || fetch;
+        function getWsId() {
+            return new URLSearchParams(window.location.search).get('ws_id') || 'primary-workspace';
+        }
+        function getGatewayHeaders() {
+            const keyInput = document.getElementById('openai-key');
+            const raw = (state.openaiKey || (keyInput && keyInput.value) || localStorage.getItem('kx.api.accessToken') || '').trim();
+            const headers = { 'Content-Type': 'application/json' };
+            if (raw) headers.Authorization = 'Bearer ' + raw;
+            if (window.SkyeCorrelation && typeof window.SkyeCorrelation.nextId === 'function') {
+                headers['x-correlation-id'] = window.SkyeCorrelation.nextId('kaixu-standalone');
+            }
+            return headers;
+        }
+        async function callGatewayText(prompt, system) {
+            const res = await gatewayFetch('/api/kaixu-generate', {
+                method: 'POST',
+                headers: getGatewayHeaders(),
+                credentials: 'include',
+                body: JSON.stringify({
+                    ws_id: getWsId(),
+                    activePath: window.location.pathname,
+                    prompt: String(system || '').trim() + '
+
+' + String(prompt || '').trim(),
                 })
             });
             const data = await res.json().catch(() => ({}));
@@ -485,7 +530,6 @@
             return 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)));
         }
 
-
         async function fetchOpenAIText(prompt, system) {
             return callGatewayText(prompt, system || 'You are kAIxU gateway intelligence.');
         }
@@ -496,6 +540,13 @@
                 'You are a voice direction assistant. Return plain text.'
             );
             return new Blob([script], { type: 'text/plain' });
+        })
+            });
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error?.message || "OpenAI Audio Failure");
+            }
+            return await res.blob();
         }
 
         window.renderAudio = async () => {

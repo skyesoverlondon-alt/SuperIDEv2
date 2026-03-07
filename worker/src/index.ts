@@ -44,6 +44,32 @@ function bytesToBase64(bytes: Uint8Array): string {
   return btoa(bin);
 }
 
+function normalizeKaixuEndpoint(raw: string): string {
+  const endpoint = String(raw || "").trim();
+  if (!endpoint) return endpoint;
+  if (/^https:\/\/skyesol\.netlify\.app\/?$/i.test(endpoint)) {
+    return "https://skyesol.netlify.app/.netlify/functions/gateway-chat";
+  }
+  if (/^https:\/\/skyesol\.netlify\.app\/platforms-apps-infrastructure\/kaixugateway13\/v1\/generate\/?$/i.test(endpoint)) {
+    return "https://skyesol.netlify.app/.netlify/functions/gateway-chat";
+  }
+  return endpoint;
+}
+
+function compactBrainError(data: any, text: string): string {
+  const msg =
+    (typeof data?.error === "string" && data.error) ||
+    (typeof data?.message === "string" && data.message) ||
+    (typeof data?.raw === "string" && data.raw) ||
+    text ||
+    "Backup brain request failed.";
+  return String(msg).replace(/\s+/g, " ").trim().slice(0, 220);
+}
+
+function extractBrainReply(data: any, text: string): string {
+  return String(data?.text || data?.output || data?.choices?.[0]?.message?.content || text || "").trim();
+}
+
 /**
  * Read the request body into a string and parsed JSON.  Returns
  * an object with `text` and `json` properties.  If parsing
@@ -68,6 +94,79 @@ router.options("*", (req: Request, env: any) => {
 // Health check endpoint for monitoring
 router.get("/health", (req: Request, env: any) => {
   return j({ ok: true, name: "kaixu-superide-runner" }, 200, corsHeaders(env, req));
+});
+
+router.post("/v1/brain/backup/generate", async (req: Request, env: any) => {
+  const { text, json: body } = await readBody(req);
+  await requireRunnerAuth(env, req, "/v1/brain/backup/generate", text);
+
+  const messages = Array.isArray(body?.messages) ? body.messages : [];
+  if (!messages.length) {
+    return j({ ok: false, error: "Missing messages.", brain: { route: "backup", failed: true } }, 400, corsHeaders(env, req));
+  }
+
+  const endpoint = normalizeKaixuEndpoint(String(env.KAIXU_BACKUP_ENDPOINT || ""));
+  if (!endpoint) {
+    return j({ ok: false, error: "Backup brain not configured.", brain: { route: "backup", failed: true } }, 503, corsHeaders(env, req));
+  }
+
+  const token = String(env.KAIXU_APP_TOKEN || env.KAIXU_BACKUP_TOKEN || "").trim();
+  if (!token) {
+    return j({ ok: false, error: "Backup brain token not configured.", brain: { route: "backup", failed: true } }, 500, corsHeaders(env, req));
+  }
+
+  const provider = String(body?.provider || env.KAIXU_BACKUP_PROVIDER || env.KAIXU_GATEWAY_PROVIDER || "Skyes Over London Backup").trim() || "Skyes Over London Backup";
+  const model = String(body?.model || env.KAIXU_BACKUP_MODEL || env.KAIXU_GATEWAY_MODEL || "kAIxU-Prime6.7").trim() || "kAIxU-Prime6.7";
+
+  try {
+    const upstream = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ provider, model, messages }),
+    });
+    const upstreamText = await upstream.text();
+    let data: any = null;
+    try {
+      data = upstreamText ? JSON.parse(upstreamText) : null;
+    } catch {
+      data = { raw: upstreamText };
+    }
+    const requestId = String(upstream.headers.get("x-kaixu-request-id") || data?.brain?.request_id || "").trim() || null;
+    const reply = extractBrainReply(data, upstreamText);
+    if (!upstream.ok || !reply) {
+      return j(
+        {
+          ok: false,
+          error: `Backup brain failed (${upstream.status})${requestId ? ` [${requestId}]` : ""}: ${compactBrainError(data, upstreamText)}`,
+          brain: { route: "backup", failed: true, provider, model, request_id: requestId },
+        },
+        502,
+        corsHeaders(env, req)
+      );
+    }
+    return j(
+      {
+        ok: true,
+        text: reply,
+        brain: { route: "backup", provider, model, request_id: requestId },
+      },
+      200,
+      corsHeaders(env, req)
+    );
+  } catch (e: any) {
+    return j(
+      {
+        ok: false,
+        error: String(e?.message || "Backup brain request failed.").replace(/\s+/g, " ").trim().slice(0, 220),
+        brain: { route: "backup", failed: true, provider, model, request_id: null },
+      },
+      502,
+      corsHeaders(env, req)
+    );
+  }
 });
 
 // Public landing page: this worker is an API runner, not the app UI.
