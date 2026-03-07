@@ -3,7 +3,7 @@ import { q } from "./_shared/neon";
 import { hashPassword, createSession, setSessionCookie, ensureUserRecoveryEmailColumn } from "./_shared/auth";
 import { audit } from "./_shared/audit";
 import { mintApiToken, tokenHash } from "./_shared/api_tokens";
-import { sendMail } from "./_shared/mailer";
+import { hasMailDeliveryConfig, sendMail } from "./_shared/mailer";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -39,6 +39,12 @@ export const handler = async (event: any) => {
 
     if (normalizedOrg.length < 2) {
       return json(400, { error: "Organization name must be at least 2 characters." });
+    }
+
+    if (!hasMailDeliveryConfig()) {
+      return json(503, {
+        error: "Signup email delivery is not configured. Set SMTP_* or RESEND_API_KEY and try again.",
+      });
     }
 
     const existing = await q("select id from users where email=$1 limit 1", [normalizedEmail]);
@@ -106,18 +112,9 @@ export const handler = async (event: any) => {
       ]
     );
 
-    const sess = await createSession(userId);
-    await audit(normalizedEmail, orgId, null, "auth.signup", {
-      org: normalizedOrg,
-      recovery_email: normalizedRecoveryEmail,
-      auto_token_issued: true,
-      token_label: "signup-auto-1",
-      token_scope: "generate",
-      skymail_account_provisioned: true,
-    });
-
+    let deliveryMeta: { provider: string; id: string | null };
     try {
-      await sendMail({
+      deliveryMeta = await sendMail({
         to: normalizedRecoveryEmail,
         subject: "Your SKYEMAIL account is ready",
         text: [
@@ -129,9 +126,31 @@ export const handler = async (event: any) => {
           "SkyeMail mailbox routing is provisioned for your SKYEMAIL login.",
         ].join("\n"),
       });
-    } catch {
-      // Non-blocking: signup should succeed even if mail provider is temporarily unavailable.
+    } catch (error: any) {
+      await q("delete from orgs where id=$1", [orgId]);
+      await audit(normalizedEmail, orgId, null, "auth.signup.delivery_failed", {
+        org: normalizedOrg,
+        recovery_email: normalizedRecoveryEmail,
+        error: String(error?.message || "mail delivery failed"),
+        cleanup: "org_deleted",
+      });
+      return json(502, {
+        error: error?.message || "Signup email delivery failed.",
+      });
     }
+
+    const sess = await createSession(userId);
+    await audit(normalizedEmail, orgId, null, "auth.signup", {
+      org: normalizedOrg,
+      recovery_email: normalizedRecoveryEmail,
+      auto_token_issued: true,
+      token_label: "signup-auto-1",
+      token_scope: "generate",
+      skymail_account_provisioned: true,
+      delivery: deliveryMeta.provider,
+      provider_message_id: deliveryMeta.id,
+    });
+
     return json(
       200,
       {

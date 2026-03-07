@@ -1,7 +1,7 @@
 {
-  "name": "Skye DocX",
-  "short_name": "SkyeDocX",
-  "description": "Skye DocX — Professional offline document environment (PWA).",
+  "name": "Skye Blog",
+  "short_name": "SkyeBlog",
+  "description": "Skye Blog — Offline-first publishing desk with editorial workflows and handoff rails.",
   "theme_color": "#141124",
   "background_color": "#0b0a0f",
   "display": "standalone",

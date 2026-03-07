@@ -2,7 +2,7 @@ import crypto from "crypto";
 import { json } from "./_shared/response";
 import { q } from "./_shared/neon";
 import { audit } from "./_shared/audit";
-import { sendMail } from "./_shared/mailer";
+import { hasMailDeliveryConfig, sendMail } from "./_shared/mailer";
 import { ensureUserRecoveryEmailColumn } from "./_shared/auth";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -48,6 +48,12 @@ export const handler = async (event: any) => {
   try {
     await ensurePasswordResetTable();
     await ensureUserRecoveryEmailColumn();
+
+    if (!hasMailDeliveryConfig()) {
+      return json(503, {
+        error: "Password reset email delivery is not configured. Set SMTP_* or RESEND_API_KEY and try again.",
+      });
+    }
 
     const body = JSON.parse(event.body || "{}");
     const normalizedEmail = String(body?.email || "").trim().toLowerCase();
@@ -96,8 +102,9 @@ export const handler = async (event: any) => {
 
     const resetLink = `${buildBaseUrl(event)}/?reset_email=${encodeURIComponent(String(user.email || "").trim().toLowerCase())}&reset_token=${encodeURIComponent(token)}`;
 
+    let deliveryMeta: { provider: string; id: string | null };
     try {
-      await sendMail({
+      deliveryMeta = await sendMail({
         to: deliveryEmail,
         subject: "SKYEMAIL Password Reset",
         text: [
@@ -112,13 +119,21 @@ export const handler = async (event: any) => {
           "If you did not request this reset, ignore this email.",
         ].join("\n"),
       });
-    } catch {
-      // Keep behavior non-enumerating and non-blocking for request path.
+    } catch (error: any) {
+      await audit(normalizedEmail, user.org_id || null, null, "auth.password_reset.request.delivery_failed", {
+        delivery_email: deliveryEmail,
+        requested_identifier: normalizedEmail,
+        error: String(error?.message || "mail delivery failed"),
+      });
+      return json(502, {
+        error: error?.message || "Password reset email delivery failed.",
+      });
     }
 
     await audit(normalizedEmail, user.org_id || null, null, "auth.password_reset.request", {
       expires_at: expiresAt,
-      delivery: "email",
+      delivery: deliveryMeta.provider,
+      provider_message_id: deliveryMeta.id,
       delivery_email: deliveryEmail,
       requested_identifier: normalizedEmail,
     });

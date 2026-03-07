@@ -423,6 +423,12 @@ a:focus-visible {
   box-shadow: 0 0 18px rgba(248, 113, 113, 0.18);
 }
 
+.status-dot.boundary {
+  border-color: rgba(250, 204, 21, 0.52);
+  color: #ffe58a;
+  box-shadow: 0 0 18px rgba(250, 204, 21, 0.16);
+}
+
 .workspace-body {
   flex: 1;
   min-height: 0;
@@ -604,15 +610,15 @@ a:focus-visible {
 
 .auth-session-bar {
   display: grid;
-  grid-template-columns: 96px minmax(0, 1fr) 86px minmax(0, 1fr) 112px minmax(0, 1fr) 104px minmax(0, 1fr) auto auto auto auto auto auto;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
-  align-items: center;
+  align-items: stretch;
   padding: 8px 12px;
   border-bottom: 1px solid var(--border);
   background: linear-gradient(180deg, rgba(7, 14, 21, 0.94), rgba(6, 11, 16, 0.92));
 }
 
-.auth-session-bar label {
+.auth-session-bar > label {
   font-size: 0.72rem;
   color: var(--muted);
   text-transform: uppercase;
@@ -625,6 +631,34 @@ a:focus-visible {
   background: rgba(0, 0, 0, 0.34);
   color: var(--text);
   padding: 8px 10px;
+}
+
+.auth-field-shell {
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.auth-field-shell label {
+  font-size: 0.72rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.auth-field-shell input {
+  width: 100%;
+}
+
+.auth-session-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .auth-session-feedback {
@@ -817,6 +851,23 @@ a:focus-visible {
   background:
     radial-gradient(circle at 10% 0%, rgba(168, 106, 255, 0.13), transparent 38%),
     linear-gradient(180deg, rgba(9, 19, 26, 0.94), rgba(7, 13, 19, 0.92));
+}
+
+.file-pane-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.file-pane-dock {
+  flex: 0 0 34%;
+}
+
+.tool-row-triple {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .side-settings-block {
@@ -2123,11 +2174,15 @@ a:focus-visible {
   }
 
   .auth-session-bar-standalone {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
   }
 
-  .auth-session-bar label {
+  .auth-session-bar > label {
     display: none;
+  }
+
+  .tool-row-triple {
+    grid-template-columns: 1fr;
   }
 
   .onboarding-guide-grid {

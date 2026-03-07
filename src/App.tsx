@@ -132,7 +132,7 @@ type AppProofRun = {
   at: string;
   appId: SkyeAppId;
   smoke_failures: number;
-  runner_status: "unknown" | "ok" | "fail";
+  runner_status: "unknown" | "ok" | "fail" | "boundary";
   auth_status: "unknown" | "ok" | "token" | "unauthorized";
 };
 
@@ -247,7 +247,7 @@ type MergePreviewState = {
 
 type ResizeKind = "sidebar" | "rightpanel" | "ide-split";
 type WorkspaceStageApp = SkyeAppId | "Neural-Space-Pro";
-type RightDockApp = "SkyeChat" | "SovereignVariables";
+type DockApp = "SkyeMail" | "SkyeChat" | "SkyeCalendar" | "SovereignVariables";
 type OnboardingAssistMode = "undecided" | "guided" | "later" | "self-serve";
 
 type TokenInventoryItem = {
@@ -323,6 +323,7 @@ const ONBOARDING_WORKSPACE_EMAIL_KEY = "kx.onboarding.workspaceEmail";
 const AUTH_ORG_NAME_KEY = "kx.auth.orgName";
 const AUTH_CENTER_POPUP_NAME = "skye-auth-center";
 const AUTH_CENTER_AUTO_OPENED_SESSION_KEY = "kx.authCenter.autoOpened";
+const APP_BRIDGE_EVENT_KEY = "kx.app.bridge";
 
 const SKYE_APPS: SkyeAppDefinition[] = [
   { id: "SkyeDocs", summary: "Collaborative document workspace.", mvp: ["Rich text", "Markdown mode", "Autosave"] },
@@ -889,13 +890,21 @@ export function App() {
     if (!Number.isFinite(raw)) return 420;
     return Math.min(620, Math.max(300, raw));
   });
-  const [rightTopDockApp, setRightTopDockApp] = useState<RightDockApp>(() => {
-    const raw = String(localStorage.getItem("kx.layout.right.top.app") || "").trim();
-    return raw === "SovereignVariables" ? raw : "SkyeChat";
+  const [leftBottomDockApp, setLeftBottomDockApp] = useState<DockApp>(() => {
+    const raw = String(localStorage.getItem("kx.layout.left.bottom.app") || "").trim();
+    return raw === "SkyeMail" || raw === "SkyeChat" || raw === "SkyeCalendar" || raw === "SovereignVariables" ? raw : "SkyeMail";
   });
-  const [rightBottomDockApp, setRightBottomDockApp] = useState<RightDockApp>(() => {
+  const [rightTopDockApp, setRightTopDockApp] = useState<DockApp>(() => {
+    const raw = String(localStorage.getItem("kx.layout.right.top.app") || "").trim();
+    return raw === "SkyeMail" || raw === "SkyeChat" || raw === "SkyeCalendar" || raw === "SovereignVariables" ? raw : "SovereignVariables";
+  });
+  const [rightMiddleDockApp, setRightMiddleDockApp] = useState<DockApp>(() => {
+    const raw = String(localStorage.getItem("kx.layout.right.middle.app") || "").trim();
+    return raw === "SkyeMail" || raw === "SkyeChat" || raw === "SkyeCalendar" || raw === "SovereignVariables" ? raw : "SkyeCalendar";
+  });
+  const [rightBottomDockApp, setRightBottomDockApp] = useState<DockApp>(() => {
     const raw = String(localStorage.getItem("kx.layout.right.bottom.app") || "").trim();
-    return raw === "SkyeChat" ? raw : "SovereignVariables";
+    return raw === "SkyeMail" || raw === "SkyeChat" || raw === "SkyeCalendar" || raw === "SovereignVariables" ? raw : "SkyeChat";
   });
   const [ideSplitRatio, setIdeSplitRatio] = useState(() => {
     const raw = Number(localStorage.getItem("kx.layout.ide.split"));
@@ -956,7 +965,7 @@ export function App() {
 
   const [isSending, setIsSending] = useState(false);
   const [isSmokeChecking, setIsSmokeChecking] = useState(false);
-  const [runnerStatus, setRunnerStatus] = useState<"unknown" | "ok" | "fail">("unknown");
+  const [runnerStatus, setRunnerStatus] = useState<"unknown" | "ok" | "fail" | "boundary">("unknown");
   const [smokeResults, setSmokeResults] = useState<SmokeResult[]>([]);
   const [smokeLedger, setSmokeLedger] = useState<SmokeRun[]>(() => {
     const raw = localStorage.getItem("kx.smoke.ledger");
@@ -1394,8 +1403,16 @@ export function App() {
   }, [workspaceRightPanelWidth]);
 
   useEffect(() => {
+    localStorage.setItem("kx.layout.left.bottom.app", leftBottomDockApp);
+  }, [leftBottomDockApp]);
+
+  useEffect(() => {
     localStorage.setItem("kx.layout.right.top.app", rightTopDockApp);
   }, [rightTopDockApp]);
+
+  useEffect(() => {
+    localStorage.setItem("kx.layout.right.middle.app", rightMiddleDockApp);
+  }, [rightMiddleDockApp]);
 
   useEffect(() => {
     localStorage.setItem("kx.layout.right.bottom.app", rightBottomDockApp);
@@ -1489,6 +1506,42 @@ export function App() {
       at: new Date().toISOString(),
     };
     setIdeDiagnostics((old) => [entry, ...old].slice(0, 12));
+  }
+
+  function isWorkerBoundarySummary(summary: string | null | undefined) {
+    return /boundary|cors|access policy|browser/i.test(String(summary || ""));
+  }
+
+  function routeCrossAppFocus(
+    appId: "SkyeChat" | "SkyeMail",
+    options: { channel?: string; note?: string } = {}
+  ) {
+    setAppMode("skyeide");
+    setSelectedSkyeApp(appId);
+    if (appId === "SkyeChat") {
+      setRightTopDockApp("SkyeChat");
+      if (options.channel?.trim()) {
+        const channel = options.channel.trim();
+        setChatChannelInput(channel);
+        setChatHistoryChannel(channel);
+      }
+      void loadSkyeChatHistory();
+    }
+    if (appId === "SkyeMail") {
+      void loadSkyeMailHistory();
+    }
+    if (options.note) pushIdeDiagnostic("info", options.note);
+  }
+
+  function handleAppBridgePayload(payload: any) {
+    if (!payload || payload.kind !== "open-app") return;
+    const appId = payload.appId === "SkyeMail" ? "SkyeMail" : payload.appId === "SkyeChat" ? "SkyeChat" : null;
+    if (!appId) return;
+    const noteParts = [payload.source, payload.note].filter(Boolean);
+    routeCrossAppFocus(appId, {
+      channel: typeof payload.channel === "string" ? payload.channel : "",
+      note: noteParts.length ? noteParts.join(" :: ") : undefined,
+    });
   }
 
   useEffect(() => {
@@ -1800,6 +1853,33 @@ export function App() {
 
   useEffect(() => {
     void refreshAuthSession();
+  }, []);
+
+  useEffect(() => {
+    function onStorage(event: StorageEvent) {
+      if (event.key !== APP_BRIDGE_EVENT_KEY || !event.newValue) return;
+      try {
+        const parsed = JSON.parse(event.newValue) as { type?: string; payload?: unknown };
+        if (parsed?.type !== APP_BRIDGE_EVENT_KEY) return;
+        handleAppBridgePayload(parsed.payload);
+      } catch {
+        // Ignore malformed bridge payloads from other tabs.
+      }
+    }
+
+    function onMessage(event: MessageEvent) {
+      if (event.origin !== window.location.origin) return;
+      const data = event.data as { type?: string; payload?: unknown } | null;
+      if (!data || data.type !== APP_BRIDGE_EVENT_KEY) return;
+      handleAppBridgePayload(data.payload);
+    }
+
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("message", onMessage);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("message", onMessage);
+    };
   }, []);
 
   useEffect(() => {
@@ -2199,6 +2279,7 @@ export function App() {
     if (!hasApiKeyLoaded) next.push("key=missing");
     if (tokenMisuseState !== "none") next.push(`token_misuse=${tokenMisuseState}`);
     if (runnerStatus === "fail") next.push("worker=degraded");
+    if (runnerStatus === "boundary") next.push("worker=boundary-blocked");
     if (smokeFailCount > 0) next.push(`smoke_failures=${smokeFailCount}`);
     return next;
   }, [assistantAuthStatus, hasApiKeyLoaded, tokenMisuseState, runnerStatus, smokeFailCount]);
@@ -2355,30 +2436,42 @@ export function App() {
       const response = await fetch(healthUrl, { method: "GET" });
       if ([302, 401, 403].includes(response.status)) {
         setRunnerStatus("ok");
-        return { ok: true, text: `Smoke passed: worker reachable but policy-protected (${response.status}).` };
+        return { ok: true, status: "ok" as const, text: `Smoke passed: worker reachable but policy-protected (${response.status}).` };
       }
 
       const data = (await response.json()) as HealthPayload;
       if (!response.ok || !data?.ok) {
         setRunnerStatus("fail");
-        return { ok: false, text: `Smoke failed (${response.status}).` };
+        return { ok: false, status: "fail" as const, text: `Smoke failed (${response.status}).` };
       }
       setRunnerStatus("ok");
-      return { ok: true, text: `Smoke passed: ${data.name || "runner"}.` };
+      return { ok: true, status: "ok" as const, text: `Smoke passed: ${data.name || "runner"}.` };
     } catch (error: any) {
       const workerFetchBlocked = /failed to fetch|networkerror|load failed/i.test(String(error?.message || ""));
       if (workerFetchBlocked) {
-        setRunnerStatus("fail");
+        setRunnerStatus("boundary");
         return {
           ok: false,
-          text: "Smoke failed: worker fetch blocked at browser boundary (CORS/access/policy). Treat as failed until server-side smoke confirms reachability.",
+          status: "boundary" as const,
+          text: "Smoke attention: worker fetch blocked at browser boundary (CORS/access/policy). Use server-side smoke to confirm runtime reachability.",
         };
       }
       setRunnerStatus("fail");
-      return { ok: false, text: `Smoke failed: ${error?.message || "network error"}` };
+      return { ok: false, status: "fail" as const, text: `Smoke failed: ${error?.message || "network error"}` };
     } finally {
       setIsSmokeChecking(false);
     }
+  }
+
+  function formatGenerateFailure(status: number, data: GeneratePayload | Record<string, unknown> | null | undefined) {
+    const meta = (data || {}) as Record<string, unknown>;
+    const parts: string[] = [];
+    const errorText = typeof meta.error === "string" ? meta.error : "";
+    if (errorText) parts.push(errorText);
+    if (typeof meta.gateway_status === "number") parts.push(`gateway_status=${meta.gateway_status}`);
+    if (typeof meta.gateway_detail === "string" && meta.gateway_detail.trim()) parts.push(`detail=${meta.gateway_detail.trim()}`);
+    if (typeof meta.gateway_request_id === "string" && meta.gateway_request_id.trim()) parts.push(`request_id=${meta.gateway_request_id.trim()}`);
+    return parts.length ? parts.join(" · ") : `AI call failed (${status}).`;
   }
 
   async function runGenerate(prompt: string) {
@@ -2415,7 +2508,7 @@ export function App() {
       });
       const data = (await response.json()) as GeneratePayload;
       if (!response.ok) {
-        return { ok: false, text: data?.error || `AI call failed (${response.status}).` };
+        return { ok: false, text: formatGenerateFailure(response.status, data) };
       }
       return { ok: true, text: data?.text || "No model response returned." };
     } catch (error: any) {
@@ -2574,7 +2667,7 @@ export function App() {
             url: check.url,
             status: 0,
             ok: false,
-            summary: "Worker check blocked by browser CORS/Access boundary. This is a failed gate until server-side smoke confirms reachability.",
+            summary: "Worker check blocked by browser CORS/Access boundary. Browser probe is inconclusive until server-side smoke confirms reachability.",
           });
           continue;
         }
@@ -2600,6 +2693,7 @@ export function App() {
 
     const health = out.find((item) => item.name === "Worker Health");
     if (health?.ok) setRunnerStatus("ok");
+    else if (health && isWorkerBoundarySummary(health.summary)) setRunnerStatus("boundary");
     else if (health) setRunnerStatus("fail");
     return out;
   }
@@ -2635,7 +2729,7 @@ export function App() {
         at: new Date().toISOString(),
         appId,
         smoke_failures: failCount,
-        runner_status: worker?.ok ? ("ok" as const) : ("fail" as const),
+        runner_status: worker?.ok ? ("ok" as const) : isWorkerBoundarySummary(worker?.summary) ? ("boundary" as const) : ("fail" as const),
         auth_status: authOk ? (apiAccessToken.trim() ? ("token" as const) : ("ok" as const)) : ("unauthorized" as const),
       },
       ...old,
@@ -2738,11 +2832,10 @@ export function App() {
     ]);
     setInput("");
 
-    if (runnerStatus === "unknown") {
-      await runSmokeTest();
-    }
+    const smoke = runnerStatus === "unknown" ? await runSmokeTest() : null;
 
     const ai = await runGenerate(prompt);
+    const workerState = smoke?.status || runnerStatus;
 
     setMessages((old) => [
       ...old,
@@ -2751,7 +2844,7 @@ export function App() {
         role: "assistant",
         text: [
           `Mode: ${appMode === "skyeide" ? "SkyeIDE (Primary)" : "Neural Space Pro (Secondary)"}`,
-          `Worker: ${runnerStatus.toUpperCase()}`,
+          `Worker: ${String(workerState).toUpperCase()}`,
           `Auth: ${assistantAuthStatus.toUpperCase()}`,
           `AI: ${ai.text}`,
         ].join("\n\n"),
@@ -2953,9 +3046,12 @@ export function App() {
         setMailSendResult(data?.error || `send failed (${res.status})`);
         return;
       }
-      setMailSendResult(`sent (mail_record_id=${data?.mail_record_id || "n/a"})`);
+      setMailSendResult(`sent to ${mailTo || "recipient"} · mail_record_id=${data?.mail_record_id || "n/a"}${data?.chat_hook_id ? ` · chat_hook_id=${data.chat_hook_id}` : ""}`);
       await loadSkyeMailHistory();
       if (data?.chat_hook_id) await loadSkyeChatHistory();
+      routeCrossAppFocus("SkyeMail", {
+        note: `SkyeMail send completed for ${mailSubject || "untitled"}. mail_record_id=${data?.mail_record_id || "n/a"}`,
+      });
     } catch (error: any) {
       setMailSendResult(error?.message || "send failed");
     } finally {
@@ -3143,7 +3239,17 @@ export function App() {
   function openGeneratorApp(appId: "SKYEMAIL-GEN" | "Skye-ID") {
     setSelectedSkyeApp(appId);
     setShowOnboardingGuide(true);
-    setAuthResult(`${appId} opened so you can finish guided onboarding and return with the generated profile linked.`);
+    const surfaceUrl = buildAppSurfaceUrl(appId, workspaceId);
+    if (!surfaceUrl) {
+      setAuthResult(`${appId} could not be opened because its standalone surface is missing.`);
+      return;
+    }
+    const popup = window.open(surfaceUrl, `${appId}-onboarding`, "noopener,noreferrer,width=1360,height=900");
+    if (!popup) {
+      setAuthResult(`Popup blocked while opening ${appId}. Allow popups for this site and try again.`);
+      return;
+    }
+    setAuthResult(`${appId} opened in a standalone window. Generate the profile there and it will flow back here automatically.`);
   }
 
   function linkGeneratedEmailToWorkspace() {
@@ -3415,35 +3521,44 @@ export function App() {
           </section>
 
           <section className="auth-session-bar auth-session-bar-standalone">
-            <label htmlFor="auth-email">SKYEMAIL Login</label>
-            <input
-              id="auth-email"
-              value={authUser}
-              onChange={(event) => setAuthUser(event.target.value)}
-              placeholder="founder@skyemail.com"
-            />
-            <label htmlFor="auth-password">Password</label>
-            <input
-              id="auth-password"
-              type="password"
-              value={authPassword}
-              onChange={(event) => setAuthPassword(event.target.value)}
-              placeholder="********"
-            />
-            <label htmlFor="auth-recovery-email">Recovery Email</label>
-            <input
-              id="auth-recovery-email"
-              value={recoveryEmail}
-              onChange={(event) => setRecoveryEmail(event.target.value)}
-              placeholder="you@gmail.com"
-            />
-            <label htmlFor="auth-org">Org (signup)</label>
-            <input
-              id="auth-org"
-              value={authOrgName}
-              onChange={(event) => setAuthOrgName(event.target.value)}
-              placeholder="Skye Workspace"
-            />
+            <div className="auth-field-shell">
+              <label htmlFor="auth-email">SKYEMAIL Login</label>
+              <input
+                id="auth-email"
+                value={authUser}
+                onChange={(event) => setAuthUser(event.target.value)}
+                placeholder="founder@skyemail.com"
+              />
+            </div>
+            <div className="auth-field-shell">
+              <label htmlFor="auth-password">Password</label>
+              <input
+                id="auth-password"
+                type="password"
+                value={authPassword}
+                onChange={(event) => setAuthPassword(event.target.value)}
+                placeholder="********"
+              />
+            </div>
+            <div className="auth-field-shell">
+              <label htmlFor="auth-recovery-email">Recovery Email</label>
+              <input
+                id="auth-recovery-email"
+                value={recoveryEmail}
+                onChange={(event) => setRecoveryEmail(event.target.value)}
+                placeholder="you@gmail.com"
+              />
+            </div>
+            <div className="auth-field-shell">
+              <label htmlFor="auth-org">Org (signup)</label>
+              <input
+                id="auth-org"
+                value={authOrgName}
+                onChange={(event) => setAuthOrgName(event.target.value)}
+                placeholder="Skye Workspace"
+              />
+            </div>
+            <div className="auth-session-actions">
             <button className="ghost" type="button" onClick={() => void submitAuthFlow("login")} disabled={isAuthSubmitting}>
               {isAuthSubmitting ? "Working..." : "Sign In"}
             </button>
@@ -3458,6 +3573,7 @@ export function App() {
             >
               {isEnsuringOnboardingKey ? "Minting Key..." : "Mint Key"}
             </button>
+            </div>
             <button className="ghost" type="button" onClick={() => void logoutAuthSession()} disabled={isAuthSubmitting}>
               Sign Out
             </button>
@@ -3759,8 +3875,12 @@ export function App() {
         setChatNotifyResult(data?.error || `notify failed (${res.status})`);
         return;
       }
-      setChatNotifyResult(`notified (id=${data?.id || "n/a"})`);
+      setChatNotifyResult(`published to #${chatChannelInput || "general"} · id=${data?.id || "n/a"}`);
       await loadSkyeChatHistory();
+      routeCrossAppFocus("SkyeChat", {
+        channel: chatChannelInput,
+        note: `SkyeChat publish completed for #${chatChannelInput || "general"}. id=${data?.id || "n/a"}`,
+      });
     } catch (error: any) {
       setChatNotifyResult(error?.message || "notify failed");
     } finally {
@@ -3863,6 +3983,12 @@ export function App() {
       );
       applyNeuralRoomDefaultsToChat();
       await loadSkyeChatHistory();
+      routeCrossAppFocus("SkyeChat", {
+        channel,
+        note: askKaixu
+          ? `Neural Space Pro published into #${channel} and requested kAIxU follow-up.`
+          : `Neural Space Pro published into #${channel}.`,
+      });
     } catch (error: any) {
       setChatNotifyResult(error?.message || `${askKaixu ? "Neural kAIxU room" : "Neural room publish"} failed`);
     } finally {
@@ -4032,9 +4158,23 @@ export function App() {
         setShareResult(data?.error || `share failed (${res.status})`);
         return;
       }
-      setShareResult(`shared ${data?.workspace?.name || workspaceId} via ${data?.mode || shareMode}`);
+      setShareResult(
+        `shared ${data?.workspace?.name || workspaceId} via ${data?.mode || shareMode}` +
+          `${data?.chat_record_id ? ` · chat_record_id=${data.chat_record_id}` : ""}` +
+          `${data?.mail_provider_id ? ` · mail_provider_id=${data.mail_provider_id}` : ""}`
+      );
       if (shareMode === "mail" || shareMode === "all") await loadSkyeMailHistory();
       if (shareMode === "chat" || shareMode === "all") await loadSkyeChatHistory();
+      if (shareMode === "chat" || shareMode === "all") {
+        routeCrossAppFocus("SkyeChat", {
+          channel: shareChannel,
+          note: `Project share posted to #${shareChannel || "general"}.`,
+        });
+      } else if (shareMode === "mail") {
+        routeCrossAppFocus("SkyeMail", {
+          note: `Project share delivered to ${shareRecipientEmail || "recipient"}.`,
+        });
+      }
     } catch (error: any) {
       setShareResult(error?.message || "share failed");
     } finally {
@@ -5553,8 +5693,13 @@ export function App() {
   }
 
   const isSkyeDocsStackMode = appMode === "skyeide" && selectedSkyeApp === "SkyeDocs";
+  const dockApps: DockApp[] = ["SkyeMail", "SovereignVariables", "SkyeCalendar", "SkyeChat"];
+  const leftBottomDockUrl = buildAppSurfaceUrl(leftBottomDockApp, workspaceId) || "/";
+  const leftBottomDockEmbedUrl = `${leftBottomDockUrl}${leftBottomDockUrl.includes("?") ? "&" : "?"}embed=1`;
   const rightTopDockUrl = buildAppSurfaceUrl(rightTopDockApp, workspaceId) || "/";
   const rightTopDockEmbedUrl = `${rightTopDockUrl}${rightTopDockUrl.includes("?") ? "&" : "?"}embed=1`;
+  const rightMiddleDockUrl = buildAppSurfaceUrl(rightMiddleDockApp, workspaceId) || "/";
+  const rightMiddleDockEmbedUrl = `${rightMiddleDockUrl}${rightMiddleDockUrl.includes("?") ? "&" : "?"}embed=1`;
   const rightBottomDockUrl = buildAppSurfaceUrl(rightBottomDockApp, workspaceId) || "/";
   const rightBottomDockEmbedUrl = `${rightBottomDockUrl}${rightBottomDockUrl.includes("?") ? "&" : "?"}embed=1`;
 
@@ -5626,7 +5771,7 @@ export function App() {
             Auth {assistantAuthStatus === "ok" || assistantAuthStatus === "token" ? "Ready" : "Needs Setup"}
           </div>
           <div className={`status-dot ${runnerStatus}`}>
-            Worker {runnerStatus === "ok" ? "Healthy" : runnerStatus === "fail" ? "Offline" : "Unknown"}
+            Worker {runnerStatus === "ok" ? "Healthy" : runnerStatus === "fail" ? "Offline" : runnerStatus === "boundary" ? "Boundary" : "Unknown"}
           </div>
           <button className="ghost" type="button" onClick={onManualSmoke} disabled={isSmokeChecking}>
             {isSmokeChecking ? "Checking..." : "Smoke Test"}
@@ -5786,105 +5931,154 @@ export function App() {
       )}
       <div className="workspace-body" style={{ ["--sidebar-width" as any]: `${workspaceSidebarWidth}px`, ["--right-panel-width" as any]: `${workspaceRightPanelWidth}px` }}>
         <aside className="file-pane">
-          <div className="mode-switch">
-            <button type="button" className={`switch-btn ${appMode === "skyeide" ? "active" : ""}`} onClick={() => setAppMode("skyeide")}>SkyeIDE</button>
-            <button type="button" className={`switch-btn ${appMode === "neural" ? "active" : ""}`} onClick={() => setAppMode("neural")}>Neural Space Pro</button>
-          </div>
-          <div className="mode-badge">
-            {appMode === "skyeide" ? `SkyeIDE · ${selectedSkyeApp}` : "Neural Space Pro · Dedicated Workspace"}
-          </div>
+          <div className="file-pane-scroll">
+            <div className="mode-switch">
+              <button type="button" className={`switch-btn ${appMode === "skyeide" ? "active" : ""}`} onClick={() => setAppMode("skyeide")}>SkyeIDE</button>
+              <button type="button" className={`switch-btn ${appMode === "neural" ? "active" : ""}`} onClick={() => setAppMode("neural")}>Neural Space Pro</button>
+            </div>
+            <div className="mode-badge">
+              {appMode === "skyeide" ? `SkyeIDE · ${selectedSkyeApp}` : "Neural Space Pro · Dedicated Workspace"}
+            </div>
 
-          {appMode === "skyeide" ? (
-            <>
-              <section className="side-settings-block">
-                <h3>Workspace Settings</h3>
-                <div className="tool-row split">
-                  <div>
-                    <label>Top Workspace</label>
-                    <select value={topWorkspaceApp} onChange={(event) => setTopWorkspaceApp(event.target.value as WorkspaceStageApp)}>
-                      <option value="Neural-Space-Pro">Neural-Space-Pro</option>
-                      {SKYE_APPS.map((app) => (
-                        <option key={`left-top-${app.id}`} value={app.id}>{app.id}</option>
-                      ))}
-                    </select>
+            {appMode === "skyeide" ? (
+              <>
+                <section className="side-settings-block">
+                  <h3>Workspace Settings</h3>
+                  <div className="tool-row split">
+                    <div>
+                      <label>Top Workspace</label>
+                      <select value={topWorkspaceApp} onChange={(event) => setTopWorkspaceApp(event.target.value as WorkspaceStageApp)}>
+                        <option value="Neural-Space-Pro">Neural-Space-Pro</option>
+                        {SKYE_APPS.map((app) => (
+                          <option key={`left-top-${app.id}`} value={app.id}>{app.id}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label>Middle Workspace</label>
+                      <select value={middleWorkspaceApp} onChange={(event) => setMiddleWorkspaceApp(event.target.value as WorkspaceStageApp)}>
+                        <option value="Neural-Space-Pro">Neural-Space-Pro</option>
+                        {SKYE_APPS.map((app) => (
+                          <option key={`left-mid-${app.id}`} value={app.id}>{app.id}</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
-                  <div>
-                    <label>Middle Workspace</label>
-                    <select value={middleWorkspaceApp} onChange={(event) => setMiddleWorkspaceApp(event.target.value as WorkspaceStageApp)}>
-                      <option value="Neural-Space-Pro">Neural-Space-Pro</option>
-                      {SKYE_APPS.map((app) => (
-                        <option key={`left-mid-${app.id}`} value={app.id}>{app.id}</option>
-                      ))}
-                    </select>
+                  <div className="tool-row split">
+                    <div>
+                      <label>Bottom Workspace</label>
+                      <select value={bottomWorkspaceApp} onChange={(event) => setBottomWorkspaceApp(event.target.value as WorkspaceStageApp)}>
+                        <option value="Neural-Space-Pro">Neural-Space-Pro</option>
+                        {SKYE_APPS.map((app) => (
+                          <option key={`left-bottom-${app.id}`} value={app.id}>{app.id}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                        <label>Sidebar Width</label>
+                        <input readOnly value={`${Math.round(workspaceSidebarWidth)}px`} />
+                    </div>
                   </div>
+                  <div className="tool-row split">
+                    <div>
+                      <label>Left Bottom Dock</label>
+                      <select value={leftBottomDockApp} onChange={(event) => setLeftBottomDockApp(event.target.value as DockApp)}>
+                        {dockApps.map((app) => (
+                          <option key={`left-dock-${app}`} value={app}>{app}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label>Right Panel Width</label>
+                      <input readOnly value={`${Math.round(workspaceRightPanelWidth)}px`} />
+                    </div>
+                  </div>
+                  <div className="tool-row split tool-row-triple">
+                    <div>
+                      <label>Right Panel Top App</label>
+                      <select value={rightTopDockApp} onChange={(event) => setRightTopDockApp(event.target.value as DockApp)}>
+                        {dockApps.map((app) => (
+                          <option key={`right-top-${app}`} value={app}>{app}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label>Right Panel Middle App</label>
+                      <select value={rightMiddleDockApp} onChange={(event) => setRightMiddleDockApp(event.target.value as DockApp)}>
+                        {dockApps.map((app) => (
+                          <option key={`right-middle-${app}`} value={app}>{app}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label>Right Panel Bottom App</label>
+                      <select value={rightBottomDockApp} onChange={(event) => setRightBottomDockApp(event.target.value as DockApp)}>
+                        {dockApps.map((app) => (
+                          <option key={`right-bottom-${app}`} value={app}>{app}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </section>
+
+                <div className="suite-progress">
+                  Suite MVP Progress: {completeMvpItems}/{totalMvpItems}
                 </div>
-                <div className="tool-row split">
-                  <div>
-                    <label>Bottom Workspace</label>
-                    <select value={bottomWorkspaceApp} onChange={(event) => setBottomWorkspaceApp(event.target.value as WorkspaceStageApp)}>
-                      <option value="Neural-Space-Pro">Neural-Space-Pro</option>
-                      {SKYE_APPS.map((app) => (
-                        <option key={`left-bottom-${app.id}`} value={app.id}>{app.id}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label>Right Panel Width</label>
-                    <input readOnly value={`${Math.round(workspaceRightPanelWidth)}px`} />
-                  </div>
+
+                <h3>SKNore (AI protected)</h3>
+                <textarea
+                  value={sknoreText}
+                  onChange={(event) => setSknoreText(event.target.value)}
+                  rows={6}
+                  placeholder="One glob pattern per line"
+                />
+                <div className="suite-progress">Protected files: {sknoreBlockedCount}</div>
+                <div className="tool-actions left">
+                  <a className="ghost" href={`/SKNore/index.html?ws_id=${encodeURIComponent(workspaceId)}`} target="_blank" rel="noreferrer">
+                    Open SKNore Standalone
+                  </a>
                 </div>
-                <div className="tool-row split">
-                  <div>
-                    <label>Right Panel Top App</label>
-                    <select value={rightTopDockApp} onChange={(event) => setRightTopDockApp(event.target.value as RightDockApp)}>
-                      <option value="SkyeChat">SkyeChat</option>
-                      <option value="SovereignVariables">SovereignVariables</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label>Right Panel Bottom App</label>
-                    <select value={rightBottomDockApp} onChange={(event) => setRightBottomDockApp(event.target.value as RightDockApp)}>
-                      <option value="SkyeChat">SkyeChat</option>
-                      <option value="SovereignVariables">SovereignVariables</option>
-                    </select>
-                  </div>
+
+                <h3>Files</h3>
+                <div className="file-list">
+                  {files.map((file) => (
+                    <button key={file.path} type="button" className={`file-item ${file.path === activePath ? "active" : ""}`} onClick={() => setActivePath(file.path)}>
+                      {file.path}
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <section className="neural-sidecard">
+                <h3>Neural Space Pro</h3>
+                <p className="muted-copy">Dedicated cinematic copilot surface with isolated workspace context.</p>
+                <div className="tool-actions left">
+                  <button type="button" className="ghost" onClick={() => setToolTab("assistant")}>Open Assistant</button>
+                  <button type="button" className="ghost" onClick={() => setAppMode("skyeide")}>Return to SkyeIDE</button>
                 </div>
               </section>
+            )}
+          </div>
 
-              <div className="suite-progress">
-                Suite MVP Progress: {completeMvpItems}/{totalMvpItems}
-              </div>
-
-              <h3>SKNore (AI protected)</h3>
-              <textarea
-                value={sknoreText}
-                onChange={(event) => setSknoreText(event.target.value)}
-                rows={6}
-                placeholder="One glob pattern per line"
-              />
-              <div className="suite-progress">Protected files: {sknoreBlockedCount}</div>
-              <div className="tool-actions left">
-                <a className="ghost" href={`/SKNore/index.html?ws_id=${encodeURIComponent(workspaceId)}`} target="_blank" rel="noreferrer">
-                  Open SKNore Standalone
-                </a>
-              </div>
-
-              <h3>Files</h3>
-              <div className="file-list">
-                {files.map((file) => (
-                  <button key={file.path} type="button" className={`file-item ${file.path === activePath ? "active" : ""}`} onClick={() => setActivePath(file.path)}>
-                    {file.path}
-                  </button>
-                ))}
-              </div>
-            </>
-          ) : (
-            <section className="neural-sidecard">
-              <h3>Neural Space Pro</h3>
-              <p className="muted-copy">Dedicated cinematic copilot surface with isolated workspace context.</p>
-              <div className="tool-actions left">
-                <button type="button" className="ghost" onClick={() => setToolTab("assistant")}>Open Assistant</button>
-                <button type="button" className="ghost" onClick={() => setAppMode("skyeide")}>Return to SkyeIDE</button>
+          {appMode === "skyeide" && (
+            <section className="right-dock-module file-pane-dock">
+              <header className="right-dock-head">
+                <strong>Left Bottom Dock</strong>
+                <select value={leftBottomDockApp} onChange={(event) => setLeftBottomDockApp(event.target.value as DockApp)}>
+                  {dockApps.map((app) => (
+                    <option key={`left-bottom-dock-${app}`} value={app}>{app}</option>
+                  ))}
+                </select>
+              </header>
+              <div className="right-dock-embed-shell">
+                <div className="tool-actions left">
+                  <a className="ghost" href={leftBottomDockUrl} target="_blank" rel="noreferrer">Open Standalone</a>
+                </div>
+                <iframe
+                  className="right-dock-embed"
+                  title={`Left Bottom Dock ${leftBottomDockApp}`}
+                  src={leftBottomDockEmbedUrl}
+                />
               </div>
             </section>
           )}
@@ -6361,212 +6555,64 @@ export function App() {
           <section className="right-dock-module">
             <header className="right-dock-head">
               <strong>Top Dock</strong>
-              <select value={rightTopDockApp} onChange={(event) => setRightTopDockApp(event.target.value as RightDockApp)}>
-                <option value="SkyeChat">SkyeChat</option>
-                <option value="SovereignVariables">SovereignVariables</option>
+              <select value={rightTopDockApp} onChange={(event) => setRightTopDockApp(event.target.value as DockApp)}>
+                {dockApps.map((app) => (
+                  <option key={`top-dock-${app}`} value={app}>{app}</option>
+                ))}
               </select>
             </header>
-
-            {rightTopDockApp === "SkyeChat" ? (
-              <div className="chat-pane right-dock-chat-shell">
-                <header>
-                  <div className="tool-tabs">
-                    <button type="button" className={`tool-tab ${toolTab === "assistant" ? "active" : ""}`} onClick={() => setToolTab("assistant")}>Assistant</button>
-                    <button type="button" className={`tool-tab ${toolTab === "smokehouse" ? "active" : ""}`} onClick={() => setToolTab("smokehouse")}>Smokehouse</button>
-                    <button type="button" className={`tool-tab ${toolTab === "playground" ? "active" : ""}`} onClick={() => setToolTab("playground")}>API Playground</button>
-                  </div>
-                  <span>{healthUrl}</span>
-                </header>
-
-                {toolTab === "assistant" && (
-                  <>
-                    <section className="messages">
-                      {messages.map((message) => (
-                        <article key={message.id} className={`bubble ${message.role}`}>
-                          <div className="meta">{message.role === "assistant" ? "kAIxU" : "You"}</div>
-                          <p>{message.text}</p>
-                        </article>
-                      ))}
-                    </section>
-
-                    <form className="composer" onSubmit={onSend}>
-                      <textarea value={input} onChange={(event) => setInput(event.target.value)} placeholder="Ask for code help, refactors, deployments, or debugging..." rows={3} />
-                      <button type="submit" disabled={isSending || !input.trim()}>Send</button>
-                    </form>
-                  </>
-                )}
-
-                {toolTab === "smokehouse" && (
-                  <div className="tool-panel">
-                    <div className="release-cockpit">
-                      <div>
-                        <strong>Release Cockpit</strong>
-                        <div className="muted-copy">Selected app: {selectedSkyeApp}</div>
-                      </div>
-                      <div className="readiness-chip">Readiness {selectedAppReadinessScore}%</div>
-                    </div>
-                    <div className="readiness-bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={selectedAppReadinessScore}>
-                      <span style={{ width: `${selectedAppReadinessScore}%` }} />
-                    </div>
-                    <div className="dependency-grid">
-                      {dependencyStatus.map((item) => (
-                        <div key={item.name} className={`dependency-item ${item.status === "ok" ? "pass" : "fail"}`}>
-                          <strong>{item.name}</strong>
-                          <div>{item.status === "ok" ? "OK" : "ATTENTION"}</div>
-                          <div>{item.detail}</div>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="tool-actions left">
-                      <button type="button" className="ghost" onClick={() => void runAppProofFlow(selectedSkyeApp)} disabled={isSmokeChecking}>
-                        {isSmokeChecking ? "Running Proof..." : `Run ${selectedSkyeApp} App Proof`}
-                      </button>
-                    </div>
-                    {appProofRuns.length > 0 && (
-                      <div className="proof-runs">
-                        {appProofRuns.slice(0, 3).map((run) => (
-                          <div key={run.id} className="proof-run-item">
-                            <strong>{run.appId}</strong> · {new Date(run.at).toLocaleString()} · auth={run.auth_status} · runner={run.runner_status} · smoke_failures={run.smoke_failures}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    <div className="smoke-warning">
-                      <strong>Health Gate Matrix</strong>
-                      <div>Auth: {assistantAuthStatus.toUpperCase()} · Key: {hasApiKeyLoaded ? "LOADED" : "MISSING"}</div>
-                      <div>Latest Smoke: {smokeResults.length ? `${smokeResults.length - smokeFailCount}/${smokeResults.length} passing` : "No run yet"}</div>
-                      {smokeFailCount > 0 && <div>Blocking failures detected: {smokeFailCount}</div>}
-                    </div>
-                    <div className="tool-actions">
-                      <button type="button" className="ghost" onClick={() => void runSmokehouseSuite("manual")} disabled={isSmokeChecking}>
-                        {isSmokeChecking ? "Running..." : "Run Full Smoke"}
-                      </button>
-                    </div>
-                    <p className="muted-copy">Auto smoke runs every 13 minutes (append-only ledger).</p>
-                    {smokeStaleWarningReason && (
-                      <div className="smoke-warning">
-                        <strong>Warning: possible stale cached build/client state detected.</strong>
-                        <div>{smokeStaleWarningReason}</div>
-                        <div className="tool-actions left">
-                          <button type="button" className="ghost" onClick={resetSmokeClientState}>Reset Smoke Client State</button>
-                          <button type="button" className="ghost" onClick={dismissSmokeStaleWarning}>Dismiss</button>
-                        </div>
-                      </div>
-                    )}
-                    <div className="smoke-list">
-                      {smokeResults.length === 0 && <p className="muted-copy">No smoke results yet.</p>}
-                      {smokeResults.map((result) => (
-                        <div key={`${result.name}-${result.url}`} className={`smoke-item ${result.ok ? "pass" : "fail"}`}>
-                          <strong>{result.ok ? "PASS" : "FAIL"}</strong> {result.name}
-                          <div>{result.method} {result.url}</div>
-                          <div>Status: {result.status}</div>
-                          <div>{result.summary}</div>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="tool-row">
-                      <label>Export timeframe</label>
-                      <select value={timeframe} onChange={(event) => setTimeframe(event.target.value as Timeframe)}>
-                        <option value="all">All</option>
-                        <option value="today">Today</option>
-                        <option value="7d">Last 7 days</option>
-                        <option value="30d">Last 30 days</option>
-                        <option value="custom">Custom</option>
-                      </select>
-                    </div>
-                    {timeframe === "custom" && (
-                      <div className="tool-row split">
-                        <input type="date" value={customFrom} onChange={(event) => setCustomFrom(event.target.value)} />
-                        <input type="date" value={customTo} onChange={(event) => setCustomTo(event.target.value)} />
-                      </div>
-                    )}
-                    <div className="tool-actions left">
-                      <button type="button" className="ghost" onClick={() => exportSmokeLedger(true)}>Export All Ledger</button>
-                      <button type="button" className="ghost" onClick={() => exportSmokeLedger(false)}>Export Filtered</button>
-                    </div>
-                    <div className="ledger-meta">
-                      Ledger runs: {smokeLedger.length} · Filtered: {getFilteredLedgerRuns().length}
-                    </div>
-                    <label>Smoke report</label>
-                    <textarea className="report-box" readOnly value={buildSmokeReport()} rows={10} />
-                  </div>
-                )}
-
-                {toolTab === "playground" && (
-                  <form className="tool-panel" onSubmit={onApiPlaygroundSend}>
-                    <label>Method</label>
-                    <select value={playMethod} onChange={(event) => setPlayMethod(event.target.value)}>
-                      <option>GET</option>
-                      <option>POST</option>
-                      <option>PUT</option>
-                      <option>PATCH</option>
-                      <option>DELETE</option>
-                    </select>
-
-                    <label>URL</label>
-                    <input value={playUrl} onChange={(event) => setPlayUrl(event.target.value)} />
-
-                    <label>Headers (JSON)</label>
-                    <textarea value={playHeaders} onChange={(event) => setPlayHeaders(event.target.value)} rows={5} />
-
-                    <label>Body</label>
-                    <textarea value={playBody} onChange={(event) => setPlayBody(event.target.value)} rows={7} />
-
-                    <div className="tool-actions">
-                      <button type="submit" disabled={playLoading}>{playLoading ? "Sending..." : "Send Request"}</button>
-                    </div>
-
-                    <label>Response {playStatus !== null ? `(status ${playStatus})` : ""}</label>
-                    <textarea className="report-box" readOnly value={playResponse} rows={10} />
-                  </form>
-                )}
+            <div className="right-dock-embed-shell">
+              <div className="tool-actions left">
+                <a className="ghost" href={rightTopDockUrl} target="_blank" rel="noreferrer">Open Standalone</a>
               </div>
-            ) : (
-              <div className="right-dock-embed-shell">
-                <div className="tool-actions left">
-                  <a className="ghost" href={rightTopDockUrl} target="_blank" rel="noreferrer">Open Standalone</a>
-                </div>
-                <iframe
-                  className="right-dock-embed"
-                  title={`Top Dock ${rightTopDockApp}`}
-                  src={rightTopDockEmbedUrl}
-                />
+              <iframe
+                className="right-dock-embed"
+                title={`Top Dock ${rightTopDockApp}`}
+                src={rightTopDockEmbedUrl}
+              />
+            </div>
+          </section>
+
+          <section className="right-dock-module">
+            <header className="right-dock-head">
+              <strong>Middle Dock</strong>
+              <select value={rightMiddleDockApp} onChange={(event) => setRightMiddleDockApp(event.target.value as DockApp)}>
+                {dockApps.map((app) => (
+                  <option key={`middle-dock-${app}`} value={app}>{app}</option>
+                ))}
+              </select>
+            </header>
+            <div className="right-dock-embed-shell">
+              <div className="tool-actions left">
+                <a className="ghost" href={rightMiddleDockUrl} target="_blank" rel="noreferrer">Open Standalone</a>
               </div>
-            )}
+              <iframe
+                className="right-dock-embed"
+                title={`Middle Dock ${rightMiddleDockApp}`}
+                src={rightMiddleDockEmbedUrl}
+              />
+            </div>
           </section>
 
           <section className="right-dock-module">
             <header className="right-dock-head">
               <strong>Bottom Dock</strong>
-              <select value={rightBottomDockApp} onChange={(event) => setRightBottomDockApp(event.target.value as RightDockApp)}>
-                <option value="SkyeChat">SkyeChat</option>
-                <option value="SovereignVariables">SovereignVariables</option>
+              <select value={rightBottomDockApp} onChange={(event) => setRightBottomDockApp(event.target.value as DockApp)}>
+                {dockApps.map((app) => (
+                  <option key={`bottom-dock-${app}`} value={app}>{app}</option>
+                ))}
               </select>
             </header>
-
-            {rightBottomDockApp === "SkyeChat" ? (
-              <div className="right-dock-embed-shell">
-                <div className="tool-actions left">
-                  <a className="ghost" href={rightBottomDockUrl} target="_blank" rel="noreferrer">Open Standalone</a>
-                </div>
-                <iframe
-                  className="right-dock-embed"
-                  title="Bottom Dock SkyeChat"
-                  src={rightBottomDockEmbedUrl}
-                />
+            <div className="right-dock-embed-shell">
+              <div className="tool-actions left">
+                <a className="ghost" href={rightBottomDockUrl} target="_blank" rel="noreferrer">Open Standalone</a>
               </div>
-            ) : (
-              <div className="right-dock-embed-shell">
-                <div className="tool-actions left">
-                  <a className="ghost" href={rightBottomDockUrl} target="_blank" rel="noreferrer">Open Standalone</a>
-                </div>
-                <iframe
-                  className="right-dock-embed"
-                  title="Bottom Dock SovereignVariables"
-                  src={rightBottomDockEmbedUrl}
-                />
-              </div>
-            )}
+              <iframe
+                className="right-dock-embed"
+                title={`Bottom Dock ${rightBottomDockApp}`}
+                src={rightBottomDockEmbedUrl}
+              />
+            </div>
           </section>
         </aside>
 

@@ -133,6 +133,21 @@
 
         .header-actions { display: flex; gap: 8px; align-items: center; }
 
+        .masthead-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 215, 0, 0.2);
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.12), rgba(138, 79, 255, 0.12));
+            color: var(--accent-gold);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+        }
+
         button {
             background: rgba(255,255,255,0.03);
             border: 1px solid rgba(255,255,255,0.1);
@@ -593,6 +608,69 @@
             overflow: hidden;
         }
 
+        .news-desk-rail {
+            display: grid;
+            grid-template-columns: 1.4fr 1fr 1fr;
+            gap: 12px;
+            padding: 18px 20px 0;
+            background:
+                linear-gradient(180deg, rgba(20, 17, 36, 0.96), rgba(11, 9, 20, 0.72)),
+                radial-gradient(circle at top left, rgba(255, 215, 0, 0.08), transparent 40%);
+        }
+
+        .news-desk-card {
+            min-height: 88px;
+            padding: 16px 18px;
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.08);
+            background: linear-gradient(160deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 18px 32px rgba(0,0,0,0.22);
+        }
+
+        .news-desk-card strong {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--accent-gold);
+            font-family: 'Inter', sans-serif;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+        }
+
+        .news-desk-card h3 {
+            font-family: 'Merriweather', serif;
+            font-size: 24px;
+            line-height: 1.1;
+            margin-bottom: 8px;
+            color: #fff7d6;
+        }
+
+        .news-desk-card p {
+            color: var(--text-muted);
+            font-size: 13px;
+            line-height: 1.45;
+        }
+
+        .news-desk-ticks {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .news-desk-ticks span {
+            display: inline-flex;
+            align-items: center;
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.06);
+            color: #f3f0ff;
+            font-size: 11px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
         /* Quill Toolbar Customization */
         .ql-toolbar.ql-snow {
             border: none !important;
@@ -645,6 +723,7 @@
             padding: 40px 20px;
             display: flex;
             justify-content: center;
+            background-image: linear-gradient(180deg, rgba(255,255,255,0.02), transparent 18%);
         }
 
         /* The Physical "Paper" */
@@ -759,11 +838,15 @@
         .context-item.danger:hover { background: #ff3333; color: #fff; box-shadow: 0 0 15px rgba(255,51,51,0.5); }
         .context-item.danger:hover svg { color: #fff; }
 
+        @media (max-width: 1180px) {
+            .news-desk-rail { grid-template-columns: 1fr; }
+        }
+
         /* --- Print / PDF Styles --- */
         @media print {
             @page { margin: 0; size: auto; }
             body { background: white !important; height: auto !important; overflow: visible !important; }
-            header, .sidebar, .right-sidebar, #toolbar-container, footer { display: none !important; }
+            header, .sidebar, .right-sidebar, #toolbar-container, .news-desk-rail, footer { display: none !important; }
             .workspace, .editor-wrapper, .canvas-area { display: block !important; height: auto !important; overflow: visible !important; padding: 0 !important; margin: 0 !important; background: transparent !important; }
             #editor-container { box-shadow: none !important; border: none !important; margin: 0 !important; width: 100% !important; min-height: 0 !important; }
             .ql-editor { padding: 0.5in 1in !important; overflow: visible !important; }
@@ -894,9 +977,10 @@
             <a href="../index.html" style="display: flex; align-items: center; gap: 6px; color: var(--text-muted); font-size: 12px; font-weight: 600; text-decoration: none; margin-left: 8px; padding: 6px 12px; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; transition: all 0.2s;" onmouseover="this.style.borderColor='var(--accent-purple)'; this.style.color='#fff'" onmouseout="this.style.borderColor='rgba(255,255,255,0.1)'; this.style.color='var(--text-muted)'" title="SOLEnterprises">
                 <i data-lucide="arrow-left" style="width: 14px; height: 14px;"></i> SOL
             </a>
-            <!-- Google Docs Style Title Editor -->
+            <div class="masthead-chip"><i data-lucide="newspaper" style="width:14px;height:14px;"></i> Front Page Desk</div>
+            <!-- Publishing Desk Slug Editor -->
             <div class="doc-title-editor" id="doc-title-editor-container" style="display: none;">
-                <input type="text" id="doc-title-input" value="Untitled Document" onchange="App.renameActiveDocFromHeader(this.value)">
+                <input type="text" id="doc-title-input" value="Untitled Front Page" onchange="App.renameActiveDocFromHeader(this.value)">
                 <i data-lucide="check-circle-2" class="doc-saved-indicator" id="header-saved-icon" style="width:14px;height:14px;"></i>
             </div>
         </div>
@@ -930,7 +1014,7 @@
             <button class="icon-only" onclick="App.openTemplateModal()" title="Create from Template">
                 <i data-lucide="layout-template" style="width:16px;height:16px;"></i>
             </button>
-            <button class="icon-only" onclick="App.openMetadataModal()" title="Document Metadata">
+            <button class="icon-only" onclick="App.openMetadataModal()" title="Story Metadata">
                 <i data-lucide="badge-info" style="width:16px;height:16px;"></i>
             </button>
             <button class="icon-only" onclick="App.openSuggestionLog()" title="Suggestion Log">
@@ -951,7 +1035,7 @@
 
     <div id="quick-find-bar" style="display:none; position: sticky; top: 60px; z-index: 120; padding: 8px 14px; background: rgba(10,10,18,0.95); border-bottom: 1px solid rgba(255,255,255,0.1);">
         <div style="display:flex; gap:8px; align-items:center; max-width:680px;">
-            <input id="quick-find-input" type="text" placeholder="Find in document" style="flex:1; background: rgba(0,0,0,0.35); border:1px solid rgba(255,255,255,0.15); color:var(--text-main); border-radius:8px; padding:8px 10px;" />
+            <input id="quick-find-input" type="text" placeholder="Find in story" style="flex:1; background: rgba(0,0,0,0.35); border:1px solid rgba(255,255,255,0.15); color:var(--text-main); border-radius:8px; padding:8px 10px;" />
             <button type="button" onclick="App.quickFindPrev()">Prev</button>
             <button type="button" onclick="App.quickFindNext()">Next</button>
             <button type="button" onclick="App.closeQuickFind()">Close</button>
@@ -963,7 +1047,7 @@
         <aside class="sidebar">
             <div class="sidebar-header">
                 <div class="sidebar-title-row">
-                    <h2>Documents</h2>
+                    <h2>Story Ledger</h2>
                     <div style="display: flex; gap: 4px;">
                         <button class="icon-only" onclick="App.createFolder()" title="New Folder" style="padding: 4px; border: none; background: transparent;">
                             <i data-lucide="folder-plus" style="width:16px;height:16px;"></i>
@@ -975,7 +1059,7 @@
                 </div>
                 <div class="search-box">
                     <i data-lucide="search"></i>
-                    <input type="text" id="search-input" placeholder="Search files..." oninput="App.handleSearch(this.value)">
+                    <input type="text" id="search-input" placeholder="Search stories..." oninput="App.handleSearch(this.value)">
                 </div>
             </div>
             <div class="file-list" id="doc-list"></div>
@@ -1041,6 +1125,31 @@
                     <button class="ql-clean" title="Clear Formatting"></button>
                 </span>
             </div>
+            <div class="news-desk-rail">
+                <section class="news-desk-card">
+                    <strong>Edition Lead</strong>
+                    <h3>Build the page like a real newsroom, not a generic doc.</h3>
+                    <p>Draft headlines, shape sections, and push finished copy straight into SkyeChat and SkyeMail without leaving the desk.</p>
+                </section>
+                <section class="news-desk-card">
+                    <strong>Publishing Rhythm</strong>
+                    <p>Use the right rail for comments and revision control, then promote clean copy into channel drops, editorial mail, or device export.</p>
+                    <div class="news-desk-ticks">
+                        <span>Lead</span>
+                        <span>Opinion</span>
+                        <span>Dispatch</span>
+                    </div>
+                </section>
+                <section class="news-desk-card">
+                    <strong>Handoff</strong>
+                    <p>AI Draft produces page-ready structure. Push Chat and Push Email now hand the user back into the target SuperIDE app as proof of delivery.</p>
+                    <div class="news-desk-ticks">
+                        <span>SkyeChat</span>
+                        <span>SkyeMail</span>
+                        <span>Device</span>
+                    </div>
+                </section>
+            </div>
             
             <div class="canvas-area">
                 <div id="editor-container"></div>
@@ -1050,10 +1159,10 @@
         <!-- Right Sidebar (Document Outline) -->
         <aside class="right-sidebar">
             <div class="outline-header">
-                <i data-lucide="panel-right"></i> Review Console
+                <i data-lucide="panel-right"></i> Publisher Desk
             </div>
             <div class="outline-tabs">
-                <button id="tab-outline" class="active" onclick="App.switchRightTab('outline')">Outline</button>
+                <button id="tab-outline" class="active" onclick="App.switchRightTab('outline')">Structure</button>
                 <button id="tab-comments" onclick="App.switchRightTab('comments')">Comments</button>
                 <button id="tab-versions" onclick="App.switchRightTab('versions')">Timeline</button>
             </div>
@@ -1116,11 +1225,11 @@
             <h3><i data-lucide="save"></i> Save As...</h3>
             
             <label class="modal-label">File Name</label>
-            <input type="text" id="save-as-filename" placeholder="Document Title">
+            <input type="text" id="save-as-filename" placeholder="Story Title">
             
             <label class="modal-label">Save as type</label>
             <select id="save-as-format">
-                <option value="skye">Skye Document (.skye) - Recommended</option>
+                <option value="skye">Skye Story Package (.skye) - Recommended</option>
                 <option value="zip">HTML Archive (.zip) - For Web</option>
                 <option value="txt">Plain Text (.txt)</option>
             </select>
@@ -1190,13 +1299,13 @@
             <h3><i data-lucide="layout-template"></i> New from Template</h3>
             <label class="modal-label">Template</label>
             <select id="template-select">
-                <option value="blank">Blank Document</option>
+                <option value="blank">Blank Story</option>
                 <option value="business">Business Proposal</option>
                 <option value="meeting">Meeting Notes</option>
                 <option value="sop">Standard Operating Procedure</option>
             </select>
-            <label class="modal-label">Document title</label>
-            <input type="text" id="template-title" placeholder="Template Document">
+            <label class="modal-label">Story title</label>
+            <input type="text" id="template-title" placeholder="Lead Feature">
             <div class="modal-actions" style="margin-top:16px;">
                 <button onclick="document.getElementById('template-modal').style.display='none'">Cancel</button>
                 <button class="primary" onclick="App.createFromTemplate()">Create</button>
@@ -1206,7 +1315,7 @@
 
     <div id="metadata-modal" class="modal-overlay">
         <div class="modal" style="width: min(640px, 92vw);">
-            <h3><i data-lucide="badge-info"></i> Document Metadata</h3>
+            <h3><i data-lucide="badge-info"></i> Story Metadata</h3>
             <div class="meta-grid">
                 <div>
                     <label>Author</label>
@@ -1294,8 +1403,8 @@
 
         const DOC_TEMPLATES = {
             blank: {
-                title: 'Untitled Document',
-                content: '<h1>Untitled Document</h1><p>Start writing here...</p>'
+                title: 'Lead Story',
+                content: '<h1>Lead Story</h1><p><b>Deck:</b> Give the reader the central angle in one clean sentence.</p><p>Open with the strongest fact, scene, or claim, then layer context underneath.</p><h2>Key Developments</h2><ul><li>Primary development</li><li>Supporting detail</li><li>What changes next</li></ul><h2>Editorial Take</h2><p>Add analysis, quotes, and closing CTA.</p>'
             },
             business: {
                 title: 'Business Proposal',
@@ -1649,7 +1758,7 @@
                 const titleRaw = document.getElementById('template-title').value || selected.title;
                 document.getElementById('template-modal').style.display = 'none';
                 await this.createDoc(titleRaw.trim(), selected.content, null);
-                this.showToast('Template document created.');
+                this.showToast('Story template created.');
             },
 
             openMetadataModal() {
@@ -1895,7 +2004,7 @@
             async createDoc(title = null, content = "", folderId = null) {
                 try {
                     if (title === null) {
-                        title = await this.customPrompt('<i data-lucide="file-text"></i> Enter document title:', 'Untitled Document');
+                        title = await this.customPrompt('<i data-lucide="file-text"></i> Enter story title:', 'Lead Story');
                         refreshLucideIcons();
                         if (!title || !title.trim()) return;
                     }
@@ -2470,7 +2579,7 @@
                     const content = await zip.generateAsync({ type: "blob" });
                     const a = document.createElement("a");
                     a.href = URL.createObjectURL(content);
-                    a.download = `SkyeDocX_FullBackup_${new Date().toISOString().split('T')[0]}.zip`;
+                    a.download = `SkyeBlog_FullBackup_${new Date().toISOString().split('T')[0]}.zip`;
                     a.click();
                     
                     this.setStatus('saved');
@@ -3017,7 +3126,32 @@
     <script>
         (() => {
             const wsId = new URLSearchParams(window.location.search).get('ws_id') || 'primary-workspace';
-            const appId = (document.title || '').toLowerCase().includes('blog') ? 'SkyeBlog' : 'SkyeDocxPro';
+            const appId = 'SkyeBlog';
+
+            function publishBridgeEvent(payload) {
+                const envelope = {
+                    type: 'kx.app.bridge',
+                    payload: {
+                        kind: 'open-app',
+                        source: 'SkyeBlog Publishing Desk',
+                        at: new Date().toISOString(),
+                        ...payload,
+                    },
+                };
+                try {
+                    localStorage.setItem('kx.app.bridge', JSON.stringify(envelope));
+                } catch {}
+                try {
+                    if (window.parent && window.parent !== window) {
+                        window.parent.postMessage(envelope, window.location.origin);
+                    }
+                } catch {}
+                try {
+                    if (window.opener && !window.opener.closed) {
+                        window.opener.postMessage(envelope, window.location.origin);
+                    }
+                } catch {}
+            }
 
             function authHeaders() {
                 const headers = { 'Content-Type': 'application/json' };
@@ -3091,7 +3225,12 @@
                     message,
                     source: `${appId} Publisher`,
                 });
-                window.App.showToast(`Published ${title} to #${channel.trim()}.`);
+                publishBridgeEvent({
+                    appId: 'SkyeChat',
+                    channel: channel.trim(),
+                    note: `Published ${title} from SkyeBlog into #${channel.trim()}${recordId ? ` (record_id=${recordId})` : ''}.`,
+                });
+                window.App.showToast(`Published ${title} to #${channel.trim()}${recordId ? ` · record_id=${recordId}` : ''}.`);
             }
 
             async function pushToSkyeMail() {
@@ -3104,13 +3243,17 @@
                 const subject = await window.App.customPrompt('<i data-lucide="heading"></i> Email subject:', `[${appId}] ${title}`);
                 refreshLucideIcons();
                 if (!subject || !String(subject).trim()) return;
-                await api('/api/skymail-send', {
+                const result = await api('/api/skymail-send', {
                     ws_id: wsId,
                     to: String(to).trim().toLowerCase(),
                     subject: String(subject).trim(),
                     text: `${excerpt}\n\nSent from ${appId}. Export options remain available: .skye / HTML ZIP / PDF.`,
                 });
-                window.App.showToast(`Delivered ${title} via SkyeMail.`);
+                publishBridgeEvent({
+                    appId: 'SkyeMail',
+                    note: `Delivered ${title} via SkyeMail to ${String(to).trim().toLowerCase()}${result?.mail_record_id ? ` (mail_record_id=${result.mail_record_id})` : ''}.`,
+                });
+                window.App.showToast(`Delivered ${title} via SkyeMail${result?.mail_record_id ? ` · mail_record_id=${result.mail_record_id}` : ''}.`);
             }
 
             async function sendToDevice() {

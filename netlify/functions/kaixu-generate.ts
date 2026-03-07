@@ -158,8 +158,9 @@ export const handler = async (event: any) => {
         (typeof data?.raw === "string" && data.raw) ||
         text ||
         "Gateway returned non-OK response.";
+      const compactGatewayMsg = String(gatewayMsg).replace(/\s+/g, " ").trim().slice(0, 220);
       return json(502, {
-        error: "Kaixu gateway call failed.",
+        error: `Kaixu gateway call failed (${res.status})${gatewayRequestId ? ` [${gatewayRequestId}]` : ""}: ${compactGatewayMsg}`,
         gateway_endpoint: endpoint,
         gateway_status: res.status,
         gateway_request_id: gatewayRequestId,
@@ -167,7 +168,7 @@ export const handler = async (event: any) => {
         configured_provider: providerRaw,
         effective_provider: provider,
         effective_model: model,
-        gateway_detail: String(gatewayMsg).slice(0, 400),
+        gateway_detail: compactGatewayMsg,
       });
     }
     const reply =

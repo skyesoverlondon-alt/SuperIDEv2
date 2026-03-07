@@ -1,4 +1,4 @@
-Skye DocX — Offline Installable PWA
+Skye Blog — Offline Installable Publishing Desk PWA
 
 Deploy:
 - Drop this folder into Netlify (Publish directory: root)

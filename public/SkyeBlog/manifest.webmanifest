@@ -1,7 +1,7 @@
 {
-  "name": "Skye DocX",
-  "short_name": "SkyeDocX",
-  "description": "Skye DocX \u2014 Professional offline document environment (PWA).",
+  "name": "Skye Blog",
+  "short_name": "SkyeBlog",
+  "description": "Skye Blog — Offline-first publishing desk with editorial workflows and handoff rails.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

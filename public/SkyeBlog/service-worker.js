@@ -1,10 +1,10 @@
-/* Skye DocX — Offline PWA Service Worker
+/* Skye Blog — Offline PWA Service Worker
    Strategy:
    - Precache app shell (same-origin)
    - Precache critical external deps (CDNs) with no-cors so they are available offline after first load
    - Cache-first for static assets; network-first for navigations with offline fallback
 */
-const VERSION = "skye-docx-pwa-v3";
+const VERSION = "skye-blog-pwa-v1";
 const SHELL_CACHE = "shell-" + VERSION;
 const RUNTIME_CACHE = "runtime-" + VERSION;
 
