@@ -10,6 +10,7 @@ import {
   persistWorkspaceFiles,
   serializeWorkspaceFiles,
 } from "./lib/providers/workspaceFileProvider";
+import { saveDriveAssetFiles } from "./lib/driveAssetStore";
 
 type Message = {
   id: string;
@@ -207,6 +208,26 @@ type DriveAsset = {
   owner: string;
   version: number;
   shared_with: string;
+  relative_path?: string;
+  mime_type?: string;
+  source_app?: string;
+  saved_at?: string;
+};
+
+type CommandFeedTone = "ok" | "fail" | "boundary" | "info";
+
+type CommandFeedItem = {
+  id: string;
+  source: string;
+  detail: string;
+  tone: CommandFeedTone;
+  at: string;
+  appId?: SkyeAppId | "SkyeMail" | "SkyeChat" | "SkyeDrive";
+};
+
+type DroppedDriveFile = {
+  file: File;
+  relativePath: string;
 };
 
 type VaultSecret = {
@@ -247,8 +268,58 @@ type MergePreviewState = {
 
 type ResizeKind = "sidebar" | "rightpanel" | "ide-split";
 type WorkspaceStageApp = SkyeAppId | "Neural-Space-Pro";
-type DockApp = "SkyeMail" | "SkyeChat" | "SkyeCalendar" | "SovereignVariables";
+type DockApp = "SkyeMail" | "SkyeChat" | "SkyeCalendar" | "SovereignVariables" | "SkyeDrive";
 type OnboardingAssistMode = "undecided" | "guided" | "later" | "self-serve";
+type WorkbenchStarterPresetId = "builder" | "operator" | "publisher";
+
+type WorkbenchStarterPreset = {
+  id: WorkbenchStarterPresetId;
+  label: string;
+  description: string;
+  focusApp: SkyeAppId;
+  top: WorkspaceStageApp;
+  middle: WorkspaceStageApp;
+  bottom: WorkspaceStageApp;
+  leftMiddle: DockApp;
+  leftDock: DockApp;
+  rightTop: DockApp;
+  rightMiddle: DockApp;
+  rightBottom: DockApp;
+  rail: "explorer" | "search" | "git" | "run" | "extensions";
+};
+
+type AppDrawerGroup = {
+  id: string;
+  label: string;
+  description: string;
+  apps: SkyeAppId[];
+};
+
+type MailRuntimeStatus = {
+  configured: boolean;
+  active_provider: string | null;
+  from: string | null;
+  sender_source?: string | null;
+  error?: string;
+};
+
+type IntegrationRuntimeStatus = {
+  github: {
+    connected: boolean;
+    repo: string | null;
+    owner: string | null;
+    branch: string | null;
+    installation_id?: number | null;
+    updated_at?: string | null;
+  };
+  netlify: {
+    connected: boolean;
+    site_id: string | null;
+    site_name: string | null;
+    updated_at?: string | null;
+  };
+  error?: string;
+};
 
 type TokenInventoryItem = {
   id: string;
@@ -324,6 +395,8 @@ const AUTH_ORG_NAME_KEY = "kx.auth.orgName";
 const AUTH_CENTER_POPUP_NAME = "skye-auth-center";
 const AUTH_CENTER_AUTO_OPENED_SESSION_KEY = "kx.authCenter.autoOpened";
 const APP_BRIDGE_EVENT_KEY = "kx.app.bridge";
+const DRIVE_DROP_LATEST_KEY = "kx.drive.drop.latest";
+const COMMAND_FEED_KEY = "kx.command.feed";
 
 const SKYE_APPS: SkyeAppDefinition[] = [
   { id: "SkyeDocs", summary: "Collaborative document workspace.", mvp: ["Rich text", "Markdown mode", "Autosave"] },
@@ -426,6 +499,15 @@ function buildAppSurfaceUrl(appId: SkyeAppId, wsId: string): string | null {
   if (!basePath) return null;
   const qs = new URLSearchParams();
   qs.set("embed", "1");
+  qs.set("ws_id", wsId || DEFAULT_WS_ID);
+  const query = qs.toString();
+  return query ? `${basePath}?${query}` : basePath;
+}
+
+function buildStandaloneAppUrl(appId: SkyeAppId, wsId: string): string | null {
+  const basePath = APP_SURFACE_PATHS[appId];
+  if (!basePath) return null;
+  const qs = new URLSearchParams();
   qs.set("ws_id", wsId || DEFAULT_WS_ID);
   const query = qs.toString();
   return query ? `${basePath}?${query}` : basePath;
@@ -625,6 +707,87 @@ const APP_TUTORIALS: Record<SkyeAppId, string[]> = {
 
 const FEATURED_APP_IDS: SkyeAppId[] = ["SkyDex4.6", "SkyeBookx", "REACT2HTML", "SKYEMAIL-GEN", "Skye-ID", "SkyePlatinum"];
 
+const APP_DRAWER_GROUPS: AppDrawerGroup[] = [
+  {
+    id: "build",
+    label: "Build + IDE",
+    description: "Editor, deploy, preview, testing, and secure environment control surfaces.",
+    apps: ["SkyDex4.6", "REACT2HTML", "API-Playground", "Smokehouse-Standalone", "SovereignVariables", "SkyeDrive", "SkyeVault"],
+  },
+  {
+    id: "workspace",
+    label: "Workspace + Content",
+    description: "Documents, publishing, books, forms, notes, sheets, and slide workflows.",
+    apps: ["SkyeDocs", "SkyeDocxPro", "SkyeBlog", "SkyeBookx", "SkyeSheets", "SkyeSlides", "SkyeForms", "SkyeNotes"],
+  },
+  {
+    id: "communications",
+    label: "Communications + Identity",
+    description: "Mail, chat, calendar, identity generation, and team administration.",
+    apps: ["SKYEMAIL-GEN", "Skye-ID", "SkyeMail", "SkyeChat", "SkyeCalendar", "SkyeAdmin"],
+  },
+  {
+    id: "operations",
+    label: "Operations + Executive",
+    description: "Analytics, task execution, command surfaces, and org-wide operating views.",
+    apps: ["SkyeAnalytics", "SkyeTasks", "SkyePlatinum"],
+  },
+  {
+    id: "codex",
+    label: "kAIxU Creative + Codex",
+    description: "Worldbuilding, vision, atlas, lore, and secure creative generation surfaces.",
+    apps: ["kAIxU-Vision", "kAixu-Nexus", "kAIxU-Codex", "kAIxu-Atmos", "kAIxu-Quest", "kAIxu-Forge", "kAIxu-Atlas", "kAixU-Chronos", "kAIxu-Bestiary", "kAIxu-Mythos", "kAIxU-Faction", "kAIxU-PrimeCommand"],
+  },
+];
+
+const WORKBENCH_STARTER_PRESETS: WorkbenchStarterPreset[] = [
+  {
+    id: "builder",
+    label: "Builder",
+    description: "Code, inspect, test, and ship with the secure generation and deploy lane already staged.",
+    focusApp: "SkyDex4.6",
+    top: "SkyDex4.6",
+    middle: "Neural-Space-Pro",
+    bottom: "API-Playground",
+    leftMiddle: "SkyeDrive",
+    leftDock: "SkyeMail",
+    rightTop: "SovereignVariables",
+    rightMiddle: "SkyeCalendar",
+    rightBottom: "SkyeChat",
+    rail: "git",
+  },
+  {
+    id: "operator",
+    label: "Operator",
+    description: "Open the status-and-execution layout for tasks, analytics, calendar coordination, and team handoff.",
+    focusApp: "SkyeAnalytics",
+    top: "SkyeAnalytics",
+    middle: "SkyeTasks",
+    bottom: "SkyeCalendar",
+    leftMiddle: "SkyeDrive",
+    leftDock: "SkyeMail",
+    rightTop: "SovereignVariables",
+    rightMiddle: "SkyeCalendar",
+    rightBottom: "SkyeChat",
+    rail: "run",
+  },
+  {
+    id: "publisher",
+    label: "Publisher",
+    description: "Stage writing, editing, distribution, and conversation surfaces for content and launch work.",
+    focusApp: "SkyeBlog",
+    top: "SkyeBlog",
+    middle: "SkyeDocxPro",
+    bottom: "SkyeBookx",
+    leftMiddle: "SkyeDrive",
+    leftDock: "SkyeMail",
+    rightTop: "SovereignVariables",
+    rightMiddle: "SkyeCalendar",
+    rightBottom: "SkyeChat",
+    rail: "explorer",
+  },
+];
+
 const DEFAULT_FILES: WorkspaceFile[] = [
   {
     path: "src/main.tsx",
@@ -699,6 +862,36 @@ function asObject(value: unknown): Record<string, any> {
   }
   if (typeof value === "object") return value as Record<string, any>;
   return {};
+}
+
+function inferCommandTone(text: string): CommandFeedTone {
+  const lowered = String(text || "").toLowerCase();
+  if (/fail|error|missing|required|invalid|unauthorized|blocked|unable|offline|denied/.test(lowered)) return "fail";
+  if (/boundary|queued|sync|processing|loading|minting|requesting/.test(lowered)) return "boundary";
+  if (/sent|loaded|saved|linked|ready|complete|accepted|imported|exported|shared|published|registered|queued/.test(lowered)) return "ok";
+  return "info";
+}
+
+function inferDriveAssetKind(name: string, mimeType: string): DriveAsset["kind"] {
+  const lowerName = name.toLowerCase();
+  const lowerMime = mimeType.toLowerCase();
+  if (lowerName.endsWith(".zip") || lowerName.endsWith(".skye") || lowerMime.includes("zip") || lowerMime.includes("compressed")) return "zip";
+  if (lowerName.endsWith(".sheet") || lowerName.endsWith(".csv") || lowerName.endsWith(".xlsx") || lowerMime.includes("spreadsheet") || lowerMime.includes("csv")) return "sheet";
+  if (lowerName.endsWith(".ppt") || lowerName.endsWith(".pptx") || lowerName.endsWith(".key") || lowerName.endsWith(".pdf")) return "slide";
+  if (lowerName.endsWith(".md") || lowerName.endsWith(".txt") || lowerName.endsWith(".doc") || lowerName.endsWith(".docx") || lowerName.endsWith(".html") || lowerName.endsWith(".ts") || lowerName.endsWith(".tsx") || lowerName.endsWith(".js") || lowerName.endsWith(".jsx") || lowerName.endsWith(".json") || lowerName.endsWith(".css") || lowerName.endsWith(".sql")) return "doc";
+  return "other";
+}
+
+function sanitizeDroppedPath(path: string): string {
+  const cleaned = String(path || "").replace(/^\/+/, "").trim();
+  return cleaned || `dropped/${Date.now()}`;
+}
+
+function isWorkspaceImportableFile(file: File, relativePath: string): boolean {
+  const lower = relativePath.toLowerCase();
+  if (file.size > 1024 * 1024 * 2) return false;
+  if (file.type.startsWith("text/")) return true;
+  return /\.(ts|tsx|js|jsx|json|css|html|md|txt|sql|yml|yaml|xml|svg)$/i.test(lower);
 }
 
 function formatSkyeMailRecord(record: AppRecord): string {
@@ -890,21 +1083,25 @@ export function App() {
     if (!Number.isFinite(raw)) return 420;
     return Math.min(620, Math.max(300, raw));
   });
+  const [leftMiddleDockApp, setLeftMiddleDockApp] = useState<DockApp>(() => {
+    const raw = String(localStorage.getItem("kx.layout.left.middle.app") || "").trim();
+    return raw === "SkyeMail" || raw === "SkyeChat" || raw === "SkyeCalendar" || raw === "SovereignVariables" || raw === "SkyeDrive" ? raw : "SkyeDrive";
+  });
   const [leftBottomDockApp, setLeftBottomDockApp] = useState<DockApp>(() => {
     const raw = String(localStorage.getItem("kx.layout.left.bottom.app") || "").trim();
-    return raw === "SkyeMail" || raw === "SkyeChat" || raw === "SkyeCalendar" || raw === "SovereignVariables" ? raw : "SkyeMail";
+    return raw === "SkyeMail" || raw === "SkyeChat" || raw === "SkyeCalendar" || raw === "SovereignVariables" || raw === "SkyeDrive" ? raw : "SkyeMail";
   });
   const [rightTopDockApp, setRightTopDockApp] = useState<DockApp>(() => {
     const raw = String(localStorage.getItem("kx.layout.right.top.app") || "").trim();
-    return raw === "SkyeMail" || raw === "SkyeChat" || raw === "SkyeCalendar" || raw === "SovereignVariables" ? raw : "SovereignVariables";
+    return raw === "SkyeMail" || raw === "SkyeChat" || raw === "SkyeCalendar" || raw === "SovereignVariables" || raw === "SkyeDrive" ? raw : "SovereignVariables";
   });
   const [rightMiddleDockApp, setRightMiddleDockApp] = useState<DockApp>(() => {
     const raw = String(localStorage.getItem("kx.layout.right.middle.app") || "").trim();
-    return raw === "SkyeMail" || raw === "SkyeChat" || raw === "SkyeCalendar" || raw === "SovereignVariables" ? raw : "SkyeCalendar";
+    return raw === "SkyeMail" || raw === "SkyeChat" || raw === "SkyeCalendar" || raw === "SovereignVariables" || raw === "SkyeDrive" ? raw : "SkyeCalendar";
   });
   const [rightBottomDockApp, setRightBottomDockApp] = useState<DockApp>(() => {
     const raw = String(localStorage.getItem("kx.layout.right.bottom.app") || "").trim();
-    return raw === "SkyeMail" || raw === "SkyeChat" || raw === "SkyeCalendar" || raw === "SovereignVariables" ? raw : "SkyeChat";
+    return raw === "SkyeMail" || raw === "SkyeChat" || raw === "SkyeCalendar" || raw === "SovereignVariables" || raw === "SkyeDrive" ? raw : "SkyeChat";
   });
   const [ideSplitRatio, setIdeSplitRatio] = useState(() => {
     const raw = Number(localStorage.getItem("kx.layout.ide.split"));
@@ -933,6 +1130,7 @@ export function App() {
 
   const resizeStateRef = useRef<{
     kind: ResizeKind;
+    pointerId: number | null;
     startX: number;
     startY: number;
     sidebarWidth: number;
@@ -1197,6 +1395,19 @@ export function App() {
   const [driveDraftName, setDriveDraftName] = useState("");
   const [driveDraftKind, setDriveDraftKind] = useState<DriveAsset["kind"]>("other");
   const [driveHydrated, setDriveHydrated] = useState(false);
+  const [commandFeed, setCommandFeed] = useState<CommandFeedItem[]>(() => {
+    const raw = localStorage.getItem(COMMAND_FEED_KEY);
+    if (!raw) return [];
+    try {
+      const parsed = JSON.parse(raw) as CommandFeedItem[];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  });
+  const [isGlobalDropActive, setIsGlobalDropActive] = useState(false);
+  const dropDepthRef = useRef(0);
+  const actionFeedSeenRef = useRef<Record<string, string>>({});
 
   const [vaultSecrets, setVaultSecrets] = useState<VaultSecret[]>([
     { id: "vault-1", label: "NETLIFY_TOKEN", scope: "deploy", owner: "ops@skye.local", last_rotated: "2026-02-21", status: "active", redacted_value: "****token" },
@@ -1279,6 +1490,9 @@ export function App() {
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [commandPaletteQuery, setCommandPaletteQuery] = useState("");
   const [appProofRuns, setAppProofRuns] = useState<AppProofRun[]>([]);
+  const [mailRuntimeStatus, setMailRuntimeStatus] = useState<MailRuntimeStatus | null>(null);
+  const [integrationRuntimeStatus, setIntegrationRuntimeStatus] = useState<IntegrationRuntimeStatus | null>(null);
+  const [isPlatformStatusLoading, setIsPlatformStatusLoading] = useState(false);
 
   useEffect(() => {
     if (initialMode === "neural") {
@@ -1403,6 +1617,10 @@ export function App() {
   }, [workspaceRightPanelWidth]);
 
   useEffect(() => {
+    localStorage.setItem("kx.layout.left.middle.app", leftMiddleDockApp);
+  }, [leftMiddleDockApp]);
+
+  useEffect(() => {
     localStorage.setItem("kx.layout.left.bottom.app", leftBottomDockApp);
   }, [leftBottomDockApp]);
 
@@ -1467,6 +1685,10 @@ export function App() {
   }, [activePath]);
 
   useEffect(() => {
+    localStorage.setItem(COMMAND_FEED_KEY, JSON.stringify(commandFeed));
+  }, [commandFeed]);
+
+  useEffect(() => {
     localStorage.setItem("kx.workspace.autosave", autoSaveEnabled ? "1" : "0");
   }, [autoSaveEnabled]);
 
@@ -1512,8 +1734,137 @@ export function App() {
     return /boundary|cors|access policy|browser/i.test(String(summary || ""));
   }
 
+  function pushCommandFeed(source: string, detail: string, tone: CommandFeedTone = inferCommandTone(detail), appId?: SkyeAppId | "SkyeMail" | "SkyeChat" | "SkyeDrive") {
+    const nextItem: CommandFeedItem = {
+      id: makeId(),
+      source,
+      detail,
+      tone,
+      appId,
+      at: new Date().toISOString(),
+    };
+    setCommandFeed((old) => {
+      if (old[0] && old[0].source === source && old[0].detail === detail) return old;
+      return [nextItem, ...old].slice(0, 24);
+    });
+  }
+
+  function emitAppBridge(payload: Record<string, any>) {
+    const envelope = { type: APP_BRIDGE_EVENT_KEY, payload };
+    const serialized = JSON.stringify(envelope);
+    localStorage.setItem(APP_BRIDGE_EVENT_KEY, serialized);
+    window.postMessage(envelope, window.location.origin);
+    handleAppBridgePayload(payload);
+  }
+
+  async function readDroppedEntry(entry: any): Promise<DroppedDriveFile[]> {
+    if (!entry) return [];
+
+    if (entry.isFile) {
+      const file = await new Promise<File>((resolve, reject) => {
+        entry.file(resolve, reject);
+      });
+      const relativePath = sanitizeDroppedPath(entry.fullPath || file.name);
+      return [{ file, relativePath }];
+    }
+
+    if (!entry.isDirectory || typeof entry.createReader !== "function") return [];
+    const reader = entry.createReader();
+    const entries: any[] = [];
+
+    while (true) {
+      const batch = await new Promise<any[]>((resolve, reject) => {
+        reader.readEntries(resolve, reject);
+      });
+      if (!batch.length) break;
+      entries.push(...batch);
+    }
+
+    const nested = await Promise.all(entries.map((child) => readDroppedEntry(child)));
+    return nested.flat();
+  }
+
+  async function collectDroppedFiles(dataTransfer: DataTransfer): Promise<DroppedDriveFile[]> {
+    const items = Array.from(dataTransfer.items || []);
+    const entryItems = items
+      .map((item) => {
+        const maybeEntry = (item as DataTransferItem & { webkitGetAsEntry?: () => any }).webkitGetAsEntry?.();
+        return maybeEntry || null;
+      })
+      .filter(Boolean);
+
+    if (entryItems.length) {
+      const nested = await Promise.all(entryItems.map((entry) => readDroppedEntry(entry)));
+      return nested.flat();
+    }
+
+    return Array.from(dataTransfer.files || []).map((file) => ({
+      file,
+      relativePath: sanitizeDroppedPath((file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name),
+    }));
+  }
+
+  async function ingestDroppedFiles(droppedFiles: DroppedDriveFile[]) {
+    if (!droppedFiles.length) return;
+
+    const savedAt = new Date().toISOString();
+    const assets: DriveAsset[] = droppedFiles.map(({ file, relativePath }, index) => ({
+      id: `drive-${Date.now()}-${index}`,
+      name: file.name,
+      kind: inferDriveAssetKind(file.name, file.type),
+      size_kb: Math.max(1, Math.round(file.size / 1024)),
+      owner: authUser.trim().toLowerCase() || "workspace-user",
+      version: 1,
+      shared_with: "",
+      relative_path: sanitizeDroppedPath(relativePath),
+      mime_type: file.type || "application/octet-stream",
+      source_app: selectedSkyeApp,
+      saved_at: savedAt,
+    }));
+
+    setDriveAssets((old) => [...assets, ...old]);
+    setLeftMiddleDockApp("SkyeDrive");
+
+    await saveDriveAssetFiles(
+      assets.map((asset, index) => ({
+        assetId: asset.id,
+        name: asset.name,
+        type: asset.mime_type || "application/octet-stream",
+        size: droppedFiles[index].file.size,
+        lastModified: droppedFiles[index].file.lastModified,
+        relativePath: asset.relative_path || asset.name,
+        blob: droppedFiles[index].file,
+        savedAt,
+      }))
+    );
+
+    const importable = droppedFiles.filter(({ file, relativePath }) => isWorkspaceImportableFile(file, relativePath));
+    if (importable.length) {
+      const importedFiles = await Promise.all(
+        importable.map(async ({ file, relativePath }) => ({
+          path: sanitizeDroppedPath(relativePath),
+          content: await file.text(),
+        }))
+      );
+
+      setFiles((old) => {
+        const byPath = new Map(old.map((entry) => [entry.path, entry]));
+        for (const imported of importedFiles) {
+          byPath.set(imported.path, imported);
+        }
+        return Array.from(byPath.values());
+      });
+      if (importedFiles[0]?.path) setActivePath(importedFiles[0].path);
+    }
+
+    const detail = `Drive captured ${assets.length} dropped asset${assets.length === 1 ? "" : "s"} from ${selectedSkyeApp}.${importable.length ? ` Imported ${importable.length} text/code file${importable.length === 1 ? "" : "s"} into the IDE workspace.` : ""}`;
+    localStorage.setItem(DRIVE_DROP_LATEST_KEY, JSON.stringify({ at: savedAt, assets }));
+    emitAppBridge({ kind: "drive-assets-added", source: selectedSkyeApp, assets, detail });
+    pushCommandFeed("Global Drop", detail, "ok", "SkyeDrive");
+  }
+
   function routeCrossAppFocus(
-    appId: "SkyeChat" | "SkyeMail",
+    appId: "SkyeChat" | "SkyeMail" | "SkyeDrive",
     options: { channel?: string; note?: string } = {}
   ) {
     setAppMode("skyeide");
@@ -1530,18 +1881,45 @@ export function App() {
     if (appId === "SkyeMail") {
       void loadSkyeMailHistory();
     }
+    if (appId === "SkyeDrive") {
+      setLeftMiddleDockApp("SkyeDrive");
+    }
     if (options.note) pushIdeDiagnostic("info", options.note);
   }
 
   function handleAppBridgePayload(payload: any) {
-    if (!payload || payload.kind !== "open-app") return;
-    const appId = payload.appId === "SkyeMail" ? "SkyeMail" : payload.appId === "SkyeChat" ? "SkyeChat" : null;
-    if (!appId) return;
-    const noteParts = [payload.source, payload.note].filter(Boolean);
-    routeCrossAppFocus(appId, {
-      channel: typeof payload.channel === "string" ? payload.channel : "",
-      note: noteParts.length ? noteParts.join(" :: ") : undefined,
-    });
+    if (!payload) return;
+
+    if (payload.kind === "open-app") {
+      const appId = payload.appId === "SkyeMail" ? "SkyeMail" : payload.appId === "SkyeChat" ? "SkyeChat" : payload.appId === "SkyeDrive" ? "SkyeDrive" : null;
+      if (!appId) return;
+      const noteParts = [payload.source, payload.note].filter(Boolean);
+      routeCrossAppFocus(appId, {
+        channel: typeof payload.channel === "string" ? payload.channel : "",
+        note: noteParts.length ? noteParts.join(" :: ") : undefined,
+      });
+      return;
+    }
+
+    if (payload.kind === "drive-assets-added") {
+      setLeftMiddleDockApp("SkyeDrive");
+      if (Array.isArray(payload.assets) && payload.assets.length) {
+        setDriveAssets((old) => {
+          const seen = new Set(old.map((asset) => asset.id));
+          const next = [...old];
+          for (const asset of payload.assets as DriveAsset[]) {
+            if (!seen.has(asset.id)) next.unshift(asset);
+          }
+          return next;
+        });
+      }
+      if (payload.detail) pushCommandFeed(payload.source || "Drive", String(payload.detail), "ok", "SkyeDrive");
+      return;
+    }
+
+    if (payload.kind === "action" && payload.detail) {
+      pushCommandFeed(String(payload.source || "Action"), String(payload.detail), payload.tone || inferCommandTone(payload.detail), payload.appId);
+    }
   }
 
   useEffect(() => {
@@ -1856,6 +2234,34 @@ export function App() {
   }, []);
 
   useEffect(() => {
+    const tracked = [
+      { key: "auth", source: "Auth Center", value: authResult, appId: "SkyeAdmin" as const },
+      { key: "ide", source: "IDE", value: ideOpsResult, appId: "SkyDex4.6" as const },
+      { key: "mail", source: "SkyeMail", value: mailSendResult, appId: "SkyeMail" as const },
+      { key: "chat", source: "SkyeChat", value: chatNotifyResult, appId: "SkyeChat" as const },
+      { key: "share", source: "Project Share", value: shareResult, appId: selectedSkyeApp },
+      { key: "team", source: "Team Admin", value: teamResult, appId: "SkyeAdmin" as const },
+      { key: "members", source: "Workspace Access", value: workspaceMemberResult, appId: "SkyeAdmin" as const },
+      { key: "invite", source: "Invite Flow", value: inviteAcceptResult, appId: "SkyeAdmin" as const },
+      { key: "suite", source: "Suite Sync", value: suiteSyncResult, appId: selectedSkyeApp },
+      { key: "tokens", source: "Token Control", value: tokenOpsResult, appId: "SkyeAdmin" as const },
+    ];
+
+    for (const item of tracked) {
+      const next = item.value.trim();
+      if (!next) continue;
+      if (actionFeedSeenRef.current[item.key] === next) continue;
+      actionFeedSeenRef.current[item.key] = next;
+      pushCommandFeed(item.source, next, inferCommandTone(next), item.appId);
+    }
+  }, [authResult, ideOpsResult, mailSendResult, chatNotifyResult, shareResult, teamResult, workspaceMemberResult, inviteAcceptResult, suiteSyncResult, tokenOpsResult, selectedSkyeApp]);
+
+  useEffect(() => {
+    document.body.classList.toggle("global-drop-active", isGlobalDropActive);
+    return () => document.body.classList.remove("global-drop-active");
+  }, [isGlobalDropActive]);
+
+  useEffect(() => {
     function onStorage(event: StorageEvent) {
       if (event.key !== APP_BRIDGE_EVENT_KEY || !event.newValue) return;
       try {
@@ -1881,6 +2287,56 @@ export function App() {
       window.removeEventListener("message", onMessage);
     };
   }, []);
+
+  useEffect(() => {
+    async function onDrop(event: DragEvent) {
+      event.preventDefault();
+      event.stopPropagation();
+      dropDepthRef.current = 0;
+      setIsGlobalDropActive(false);
+      if (!event.dataTransfer) return;
+      const dropped = await collectDroppedFiles(event.dataTransfer);
+      if (!dropped.length) return;
+      try {
+        await ingestDroppedFiles(dropped);
+      } catch (error: any) {
+        const message = error?.message || "Global drop ingest failed.";
+        pushCommandFeed("Global Drop", message, "fail", "SkyeDrive");
+      }
+    }
+
+    function onDragEnter(event: DragEvent) {
+      if (!event.dataTransfer?.types?.includes("Files")) return;
+      event.preventDefault();
+      dropDepthRef.current += 1;
+      setIsGlobalDropActive(true);
+    }
+
+    function onDragOver(event: DragEvent) {
+      if (!event.dataTransfer?.types?.includes("Files")) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "copy";
+      setIsGlobalDropActive(true);
+    }
+
+    function onDragLeave(event: DragEvent) {
+      if (!event.dataTransfer?.types?.includes("Files")) return;
+      event.preventDefault();
+      dropDepthRef.current = Math.max(0, dropDepthRef.current - 1);
+      if (dropDepthRef.current === 0) setIsGlobalDropActive(false);
+    }
+
+    window.addEventListener("dragenter", onDragEnter);
+    window.addEventListener("dragover", onDragOver);
+    window.addEventListener("dragleave", onDragLeave);
+    window.addEventListener("drop", onDrop);
+    return () => {
+      window.removeEventListener("dragenter", onDragEnter);
+      window.removeEventListener("dragover", onDragOver);
+      window.removeEventListener("dragleave", onDragLeave);
+      window.removeEventListener("drop", onDrop);
+    };
+  }, [authUser, selectedSkyeApp, workspaceId, files]);
 
   useEffect(() => {
     const target = activePath.trim();
@@ -2239,6 +2695,14 @@ export function App() {
     return prioritizeFeatured(filtered);
   }, [appSearch]);
 
+  const filteredAppGroups = useMemo(() => {
+    const filteredIds = new Set(filteredApps.map((app) => app.id));
+    return APP_DRAWER_GROUPS.map((group) => ({
+      ...group,
+      apps: group.apps.filter((appId) => filteredIds.has(appId)),
+    })).filter((group) => group.apps.length > 0);
+  }, [filteredApps]);
+
   const totalMvpItems = useMemo(() => SKYE_APPS.reduce((sum, app) => sum + app.mvp.length, 0), []);
   const completeMvpItems = useMemo(
     () => SKYE_APPS.flatMap((app) => app.mvp.map((item) => mvpChecks[makeMvpKey(app.id, item)])).filter(Boolean).length,
@@ -2284,6 +2748,65 @@ export function App() {
     return next;
   }, [assistantAuthStatus, hasApiKeyLoaded, tokenMisuseState, runnerStatus, smokeFailCount]);
   const showFailSafeBanner = failSafeSignals.length > 0;
+  const deployConnectionState = useMemo(() => {
+    const githubConnected = Boolean(integrationRuntimeStatus?.github.connected);
+    const netlifyConnected = Boolean(integrationRuntimeStatus?.netlify.connected);
+    if (githubConnected && netlifyConnected) return { tone: "ok", detail: "GitHub + Netlify linked" } as const;
+    if (githubConnected || netlifyConnected) return { tone: "boundary", detail: githubConnected ? "GitHub linked only" : "Netlify linked only" } as const;
+    return { tone: "fail", detail: integrationRuntimeStatus?.error || "No deploy links" } as const;
+  }, [integrationRuntimeStatus]);
+  const policyState = useMemo(() => {
+    if (sknorePatterns.length === 0) return { tone: "fail", detail: "No rules loaded" } as const;
+    return { tone: "ok", detail: `${sknorePatterns.length} rules · ${sknoreBlockedCount} files protected` } as const;
+  }, [sknorePatterns, sknoreBlockedCount]);
+  const authInlineState = useMemo(() => {
+    const message = authResult.trim();
+    if (isAuthSubmitting || isEnsuringOnboardingKey || isResetSubmitting) {
+      return { tone: "boundary", label: "Working", detail: "Processing auth request..." } as const;
+    }
+    if (!message) {
+      return hasActiveAuthSession
+        ? ({ tone: "ok", label: "Ready", detail: "Session is active." } as const)
+        : ({ tone: "fail", label: "Waiting", detail: "No auth result yet." } as const);
+    }
+    const lowered = message.toLowerCase();
+    const isFailure = /fail|missing|required|must|invalid|unauthorized|blocked|unable|no key|no generated|popup blocked/.test(lowered);
+    return {
+      tone: isFailure ? "fail" : "ok",
+      label: isFailure ? "Failed" : "Ready",
+      detail: message,
+    } as const;
+  }, [authResult, hasActiveAuthSession, isAuthSubmitting, isEnsuringOnboardingKey, isResetSubmitting]);
+  const platformStatusItems = useMemo(
+    () => [
+      {
+        label: "Auth",
+        tone: hasActiveAuthSession ? "ok" : "fail",
+        detail: hasActiveAuthSession ? `Session ${assistantAuthStatus}` : "Needs sign-in",
+      },
+      {
+        label: "Worker",
+        tone: runnerStatus === "ok" ? "ok" : runnerStatus === "boundary" ? "boundary" : "fail",
+        detail: runnerStatus === "ok" ? "Healthy" : runnerStatus === "boundary" ? "Boundary blocked" : runnerStatus === "fail" ? "Offline" : "Unknown",
+      },
+      {
+        label: "Mail",
+        tone: mailRuntimeStatus?.configured ? "ok" : "fail",
+        detail: mailRuntimeStatus?.configured ? `${mailRuntimeStatus.active_provider || "configured"} · ${mailRuntimeStatus.from || "sender set"}` : mailRuntimeStatus?.error || "Not configured",
+      },
+      {
+        label: "Deploy",
+        tone: deployConnectionState.tone,
+        detail: deployConnectionState.detail,
+      },
+      {
+        label: "Policy",
+        tone: policyState.tone,
+        detail: policyState.detail,
+      },
+    ],
+    [assistantAuthStatus, deployConnectionState, hasActiveAuthSession, mailRuntimeStatus, policyState, runnerStatus]
+  );
   const selectedAppMvpCompleted = useMemo(
     () => selectedAppDefinition.mvp.filter((item) => mvpChecks[makeMvpKey(selectedSkyeApp, item)]).length,
     [selectedAppDefinition, selectedSkyeApp, mvpChecks]
@@ -2318,6 +2841,85 @@ export function App() {
     const signature = `SIG-${btoa(signatureBase).replace(/=+/g, "").slice(0, 22)}`;
     return { version, commit, builtAt, signature };
   }, [workspaceId, files.length, smokeLedger.length]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function refreshPlatformStatusCard() {
+      if (!hasActiveAuthSession) {
+        setMailRuntimeStatus(null);
+        setIntegrationRuntimeStatus(null);
+        return;
+      }
+
+      setIsPlatformStatusLoading(true);
+      try {
+        const [mailRes, integrationsRes] = await Promise.all([
+          fetch("/api/mail-status", { credentials: "include" }),
+          fetch("/api/integrations-status", { credentials: "include" }),
+        ]);
+        const [mailData, integrationsData] = await Promise.all([mailRes.json(), integrationsRes.json()]);
+        if (cancelled) return;
+
+        setMailRuntimeStatus(
+          mailRes.ok
+            ? {
+                configured: Boolean(mailData?.configured),
+                active_provider: mailData?.active_provider || null,
+                from: mailData?.from || null,
+                sender_source: mailData?.sender_source || null,
+              }
+            : {
+                configured: false,
+                active_provider: null,
+                from: null,
+                error: mailData?.error || `Mail status failed (${mailRes.status}).`,
+              }
+        );
+
+        setIntegrationRuntimeStatus(
+          integrationsRes.ok
+            ? {
+                github: {
+                  connected: Boolean(integrationsData?.github?.connected),
+                  repo: integrationsData?.github?.repo || null,
+                  owner: integrationsData?.github?.owner || null,
+                  branch: integrationsData?.github?.branch || null,
+                  installation_id: integrationsData?.github?.installation_id || null,
+                  updated_at: integrationsData?.github?.updated_at || null,
+                },
+                netlify: {
+                  connected: Boolean(integrationsData?.netlify?.connected),
+                  site_id: integrationsData?.netlify?.site_id || null,
+                  site_name: integrationsData?.netlify?.site_name || null,
+                  updated_at: integrationsData?.netlify?.updated_at || null,
+                },
+              }
+            : {
+                github: { connected: false, repo: null, owner: null, branch: null },
+                netlify: { connected: false, site_id: null, site_name: null },
+                error: integrationsData?.error || `Integration status failed (${integrationsRes.status}).`,
+              }
+        );
+      } catch (error: any) {
+        if (cancelled) return;
+        const message = error?.message || "Unable to load platform status.";
+        setMailRuntimeStatus({ configured: false, active_provider: null, from: null, error: message });
+        setIntegrationRuntimeStatus({
+          github: { connected: false, repo: null, owner: null, branch: null },
+          netlify: { connected: false, site_id: null, site_name: null },
+          error: message,
+        });
+      } finally {
+        if (!cancelled) setIsPlatformStatusLoading(false);
+      }
+    }
+
+    void refreshPlatformStatusCard();
+    return () => {
+      cancelled = true;
+    };
+  }, [hasActiveAuthSession]);
   const commandPaletteActions = useMemo(
     () => [
       {
@@ -3049,6 +3651,22 @@ export function App() {
       setMailSendResult(`sent to ${mailTo || "recipient"} · mail_record_id=${data?.mail_record_id || "n/a"}${data?.chat_hook_id ? ` · chat_hook_id=${data.chat_hook_id}` : ""}`);
       await loadSkyeMailHistory();
       if (data?.chat_hook_id) await loadSkyeChatHistory();
+      emitAppBridge({
+        kind: "action",
+        source: "SkyeMail",
+        appId: "SkyeMail",
+        tone: "ok",
+        detail: `Mail sent from ${selectedSkyeApp} to ${mailTo || "recipient"}.`,
+      });
+      if (data?.chat_hook_id) {
+        emitAppBridge({
+          kind: "open-app",
+          source: "SkyeMail",
+          appId: "SkyeChat",
+          channel: mailChannelHook || "general",
+          note: `SkyeMail also posted into #${mailChannelHook || "general"}.`,
+        });
+      }
       routeCrossAppFocus("SkyeMail", {
         note: `SkyeMail send completed for ${mailSubject || "untitled"}. mail_record_id=${data?.mail_record_id || "n/a"}`,
       });
@@ -3573,6 +4191,10 @@ export function App() {
             >
               {isEnsuringOnboardingKey ? "Minting Key..." : "Mint Key"}
             </button>
+            <div className={`auth-inline-status ${authInlineState.tone}`}>
+              <strong>{authInlineState.label}</strong>
+              <span>{authInlineState.detail}</span>
+            </div>
             </div>
             <button className="ghost" type="button" onClick={() => void logoutAuthSession()} disabled={isAuthSubmitting}>
               Sign Out
@@ -3674,8 +4296,6 @@ export function App() {
             <div>Backup recovery email: {recoveryEmail.trim().toLowerCase() || "missing"}</div>
             <div>Email lock: {apiTokenEmail.trim().toLowerCase() && apiTokenEmail.trim().toLowerCase() === authUser.trim().toLowerCase() ? "aligned" : "needs alignment"}</div>
           </section>
-
-          {authResult && <section className="auth-session-feedback">{authResult}</section>}
           {showOnboardingGuide && !inviteToken && renderGuidedOnboardingPanel()}
         </section>
       </div>
@@ -3877,6 +4497,13 @@ export function App() {
       }
       setChatNotifyResult(`published to #${chatChannelInput || "general"} · id=${data?.id || "n/a"}`);
       await loadSkyeChatHistory();
+      emitAppBridge({
+        kind: "action",
+        source: "SkyeChat",
+        appId: "SkyeChat",
+        tone: "ok",
+        detail: `Chat publish landed in #${chatChannelInput || "general"}.`,
+      });
       routeCrossAppFocus("SkyeChat", {
         channel: chatChannelInput,
         note: `SkyeChat publish completed for #${chatChannelInput || "general"}. id=${data?.id || "n/a"}`,
@@ -3908,6 +4535,7 @@ export function App() {
       }
       setChatNotifyResult(`kAIxU replied in #${chatChannelInput}`);
       await loadSkyeChatHistory();
+      emitAppBridge({ kind: "action", source: "kAIxU", appId: "SkyeChat", tone: "ok", detail: `kAIxU responded in #${chatChannelInput}.` });
     } catch (error: any) {
       setChatNotifyResult(error?.message || "kAIxU chat failed");
     } finally {
@@ -3983,6 +4611,13 @@ export function App() {
       );
       applyNeuralRoomDefaultsToChat();
       await loadSkyeChatHistory();
+      emitAppBridge({
+        kind: "action",
+        source: "Neural Space Pro",
+        appId: "SkyeChat",
+        tone: askKaixu ? "boundary" : "ok",
+        detail: askKaixu ? `Neural Space Pro triggered kAIxU follow-up in #${channel}.` : `Neural Space Pro published to #${channel}.`,
+      });
       routeCrossAppFocus("SkyeChat", {
         channel,
         note: askKaixu
@@ -4612,6 +5247,13 @@ export function App() {
       setShareResult(`${appId} snapshot shared via ${effectiveMode}`);
       await loadSkyeChatHistory();
       if (effectiveMode === "all") await loadSkyeMailHistory();
+      emitAppBridge({
+        kind: "action",
+        source: appId,
+        appId: effectiveMode === "all" ? "SkyeMail" : "SkyeChat",
+        tone: "ok",
+        detail: `${appId} shared through ${effectiveMode}.`,
+      });
     } catch (error: any) {
       setShareResult(error?.message || "share failed");
     } finally {
@@ -4762,11 +5404,32 @@ export function App() {
     setTasksModel((old) => old.map((task) => (task.id === taskId ? { ...task, ...patch, updated_at: new Date().toISOString() } : task)));
   }
 
+  function applyWorkbenchStarter(presetId: WorkbenchStarterPresetId) {
+    const preset = WORKBENCH_STARTER_PRESETS.find((entry) => entry.id === presetId);
+    if (!preset) return;
+    setAppMode("skyeide");
+    setSelectedSkyeApp(preset.focusApp);
+    setTopWorkspaceApp(preset.top);
+    setMiddleWorkspaceApp(preset.middle);
+    setBottomWorkspaceApp(preset.bottom);
+    setLeftMiddleDockApp(preset.leftMiddle);
+    setLeftBottomDockApp(preset.leftDock);
+    setRightTopDockApp(preset.rightTop);
+    setRightMiddleDockApp(preset.rightMiddle);
+    setRightBottomDockApp(preset.rightBottom);
+    setIdeRailTab(preset.rail);
+  }
+
   function beginResize(kind: ResizeKind, event: any) {
+    const pointerId = typeof event?.pointerId === "number" ? event.pointerId : null;
+    const target = event?.currentTarget as HTMLElement | null;
+    event?.preventDefault?.();
+
     const startX = Number(event?.clientX || 0);
     const startY = Number(event?.clientY || 0);
     resizeStateRef.current = {
       kind,
+      pointerId,
       startX,
       startY,
       sidebarWidth: workspaceSidebarWidth,
@@ -4774,9 +5437,24 @@ export function App() {
       ideSplitRatio,
     };
 
+    const body = document.body;
+    body.classList.add("is-resizing");
+    body.setAttribute("data-resize-kind", kind);
+    target?.classList.add("is-active");
+
+    if (target && pointerId !== null && typeof target.setPointerCapture === "function") {
+      try {
+        target.setPointerCapture(pointerId);
+      } catch {
+        // Ignore capture failures and keep global listeners as fallback.
+      }
+    }
+
     const handleMove = (moveEvent: PointerEvent) => {
       const state = resizeStateRef.current;
       if (!state) return;
+      if (state.pointerId !== null && moveEvent.pointerId !== state.pointerId) return;
+      moveEvent.preventDefault();
 
       if (state.kind === "sidebar") {
         const delta = moveEvent.clientX - state.startX;
@@ -4802,14 +5480,41 @@ export function App() {
       setIdeSplitRatio(next);
     };
 
-    const handleUp = () => {
+    let cleanedUp = false;
+    const handleUp = (upEvent?: PointerEvent | Event) => {
+      const state = resizeStateRef.current;
+      const activePointerId = state?.pointerId ?? null;
+      if (upEvent instanceof PointerEvent && activePointerId !== null && upEvent.pointerId !== activePointerId) return;
+      if (cleanedUp) return;
+      cleanedUp = true;
+
       window.removeEventListener("pointermove", handleMove);
       window.removeEventListener("pointerup", handleUp);
+      window.removeEventListener("pointercancel", handleUp);
+      window.removeEventListener("blur", handleUp);
+      target?.removeEventListener("lostpointercapture", handleUp);
+
+      if (target && activePointerId !== null && typeof target.releasePointerCapture === "function") {
+        try {
+          if (target.hasPointerCapture(activePointerId)) {
+            target.releasePointerCapture(activePointerId);
+          }
+        } catch {
+          // Ignore release failures during teardown.
+        }
+      }
+
+      body.classList.remove("is-resizing");
+      body.removeAttribute("data-resize-kind");
+      target?.classList.remove("is-active");
       resizeStateRef.current = null;
     };
 
-    window.addEventListener("pointermove", handleMove);
+    window.addEventListener("pointermove", handleMove, { passive: false });
     window.addEventListener("pointerup", handleUp);
+    window.addEventListener("pointercancel", handleUp);
+    window.addEventListener("blur", handleUp);
+    target?.addEventListener("lostpointercapture", handleUp);
   }
 
   function workspaceStageLabel(app: WorkspaceStageApp): string {
@@ -5264,7 +5969,7 @@ export function App() {
     if (selectedSkyeApp === "SkyeDrive") {
       return (
         <section className="app-module">
-          <header><h2>SkyeDrive</h2><p>Asset ledger with versioning and share targets for launch artifacts.</p></header>
+          <header><h2>SkyeDrive</h2><p>Shared asset plane for the whole command deck. Drop files anywhere in the shell and they land here.</p></header>
           <div className="tool-actions left">
             <a className="ghost" href={`/SkyeDrive/index.html?ws_id=${encodeURIComponent(workspaceId)}`} target="_blank" rel="noreferrer">Open Standalone</a>
           </div>
@@ -5307,6 +6012,7 @@ export function App() {
               <div key={asset.id} className="list-item">
                 <strong>{asset.name}</strong>
                 <div>type={asset.kind} · v{asset.version} · {asset.size_kb}kb</div>
+                <div className="muted-copy">path={asset.relative_path || asset.name} · source={asset.source_app || "manual"}</div>
                 <div className="tool-row split" style={{ marginTop: 6 }}>
                   <input value={asset.shared_with} onChange={(e) => setDriveAssets((old) => old.map((x) => (x.id === asset.id ? { ...x, shared_with: e.target.value } : x)))} placeholder="Shared with" />
                   <button className="ghost" type="button" onClick={() => setDriveAssets((old) => old.map((x) => (x.id === asset.id ? { ...x, version: x.version + 1 } : x)))}>Bump Version</button>
@@ -5693,7 +6399,10 @@ export function App() {
   }
 
   const isSkyeDocsStackMode = appMode === "skyeide" && selectedSkyeApp === "SkyeDocs";
-  const dockApps: DockApp[] = ["SkyeMail", "SovereignVariables", "SkyeCalendar", "SkyeChat"];
+  const dockApps: DockApp[] = ["SkyeMail", "SkyeDrive", "SovereignVariables", "SkyeCalendar", "SkyeChat"];
+  const standaloneIdeUrl = buildStandaloneAppUrl("SkyDex4.6", workspaceId) || "/SkyDex4.6/index.html";
+  const leftMiddleDockUrl = buildAppSurfaceUrl(leftMiddleDockApp, workspaceId) || "/";
+  const leftMiddleDockEmbedUrl = `${leftMiddleDockUrl}${leftMiddleDockUrl.includes("?") ? "&" : "?"}embed=1`;
   const leftBottomDockUrl = buildAppSurfaceUrl(leftBottomDockApp, workspaceId) || "/";
   const leftBottomDockEmbedUrl = `${leftBottomDockUrl}${leftBottomDockUrl.includes("?") ? "&" : "?"}embed=1`;
   const rightTopDockUrl = buildAppSurfaceUrl(rightTopDockApp, workspaceId) || "/";
@@ -5765,6 +6474,7 @@ export function App() {
           </div>
         </div>
         <div className="topbar-right">
+          <a className="ghost" href={standaloneIdeUrl} target="_blank" rel="noreferrer">Standalone IDE</a>
           <a className="ghost" href="/upgrade-notes.html" target="_blank" rel="noreferrer">Upgrade Notes</a>
           <button className="ghost" type="button" onClick={() => openAuthCenterWindow({ focus: true, guide: showOnboardingGuide })}>Auth Center</button>
           <div className={`status-dot ${assistantAuthStatus === "ok" || assistantAuthStatus === "token" ? "ok" : "fail"}`}>
@@ -5778,6 +6488,41 @@ export function App() {
           </button>
         </div>
       </header>
+
+      <section className="command-feed-rail" aria-label="command feed">
+        <div className="command-feed-head">
+          <strong>Command Feed</strong>
+          <span className="telemetry-chip">Cross-app handoffs, drops, auth, deploy, and runtime confirmations</span>
+        </div>
+        <div className="command-feed-list">
+          {commandFeed.slice(0, 4).map((entry) => (
+            <button
+              key={entry.id}
+              type="button"
+              className={`command-feed-item ${entry.tone}`}
+              onClick={() => {
+                if (entry.appId === "SkyeMail" || entry.appId === "SkyeChat" || entry.appId === "SkyeDrive") {
+                  routeCrossAppFocus(entry.appId);
+                } else if (entry.appId) {
+                  setAppMode("skyeide");
+                  setSelectedSkyeApp(entry.appId);
+                }
+              }}
+            >
+              <span className={`status-dot ${entry.tone}`}>{entry.source}</span>
+              <span className="command-feed-copy">
+                <strong>{entry.detail}</strong>
+                <small>{new Date(entry.at).toLocaleTimeString()}</small>
+              </span>
+            </button>
+          ))}
+          {!commandFeed.length && (
+            <div className="command-feed-empty">
+              Waiting for app actions, drops, shares, and auth events.
+            </div>
+          )}
+        </div>
+      </section>
 
       <section className="platform-intro" aria-label="platform intro">
         <div className="platform-intro-copy">
@@ -5878,19 +6623,29 @@ export function App() {
         </div>
       )}
 
+      {isGlobalDropActive && (
+        <div className="global-drop-overlay" aria-hidden="true">
+          <div className="global-drop-card">
+            <strong>Drop Files Anywhere</strong>
+            <p>Assets will be captured into SkyeDrive, announced in the command feed, and text/code files will import into the IDE workspace.</p>
+          </div>
+        </div>
+      )}
+
       <div className={`workspace-stack ${isSkyeDocsStackMode ? "workspace-stack-docs" : ""}`}>
       {appMode === "skyeide" && (
         <section className="app-strip" aria-label="Skye app switcher">
           <div className="app-strip-head">
-            <strong>Apps</strong>
+            <strong>Browse Apps By Function</strong>
             <input
               value={appSearch}
               onChange={(event) => setAppSearch(event.target.value)}
-              placeholder="Search apps..."
+              placeholder="Search apps, workflows, or capabilities..."
               aria-label="search apps"
             />
+            <a className="ghost" href={standaloneIdeUrl} target="_blank" rel="noreferrer">Open Standalone IDE</a>
           </div>
-          <div className="app-strip-list" role="tablist" aria-label="Skye apps">
+          <div className="app-strip-featured" role="tablist" aria-label="featured apps">
             {FEATURED_APP_IDS.map((appId) => {
               const app = SKYE_APPS.find((entry) => entry.id === appId);
               if (!app) return null;
@@ -5909,23 +6664,46 @@ export function App() {
                 </button>
               );
             })}
-            {filteredApps.map((app) => {
-              const done = app.mvp.filter((item) => mvpChecks[makeMvpKey(app.id, item)]).length;
-              return (
-                <button
-                  key={`strip-${app.id}`}
-                  type="button"
-                  className={`app-item compact ${selectedSkyeApp === app.id ? "active" : ""}`}
-                  onClick={() => {
-                    setSelectedSkyeApp(app.id);
-                    setAppMode("skyeide");
-                  }}
-                >
-                  <span>{app.id}</span>
-                  <small>{done}/{app.mvp.length}</small>
-                </button>
-              );
-            })}
+          </div>
+          <div className="app-drawer-grid" aria-label="grouped app drawer">
+            {filteredAppGroups.map((group) => (
+              <section key={group.id} className="app-drawer-group">
+                <header>
+                  <strong>{group.label}</strong>
+                  <p>{group.description}</p>
+                </header>
+                <div className="app-drawer-list">
+                  {group.apps.map((appId) => {
+                    const app = SKYE_APPS.find((entry) => entry.id === appId);
+                    if (!app) return null;
+                    const done = app.mvp.filter((item) => mvpChecks[makeMvpKey(app.id, item)]).length;
+                    return (
+                      <button
+                        key={`drawer-${group.id}-${app.id}`}
+                        type="button"
+                        className={`app-item grouped ${selectedSkyeApp === app.id ? "active" : ""}`}
+                        onClick={() => {
+                          setSelectedSkyeApp(app.id);
+                          setAppMode("skyeide");
+                        }}
+                      >
+                        <span className="app-item-copy">
+                          <strong>{app.id}</strong>
+                          <small>{app.summary}</small>
+                        </span>
+                        <span className="telemetry-chip">{done}/{app.mvp.length}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+            ))}
+            {!filteredAppGroups.length && (
+              <section className="app-drawer-empty">
+                <strong>No apps match that search.</strong>
+                <p>Try product names like SkyeMail, roles like analytics, or capabilities like export or deploy.</p>
+              </section>
+            )}
           </div>
         </section>
       )}
@@ -5934,16 +6712,65 @@ export function App() {
           <div className="file-pane-scroll">
             <div className="mode-switch">
               <button type="button" className={`switch-btn ${appMode === "skyeide" ? "active" : ""}`} onClick={() => setAppMode("skyeide")}>SkyeIDE</button>
-              <button type="button" className={`switch-btn ${appMode === "neural" ? "active" : ""}`} onClick={() => setAppMode("neural")}>Neural Space Pro</button>
+              <button type="button" className={`switch-btn ${appMode === "neural" ? "active" : ""}`} onClick={() => setAppMode("neural")}>AI Copilot Mode</button>
             </div>
             <div className="mode-badge">
-              {appMode === "skyeide" ? `SkyeIDE · ${selectedSkyeApp}` : "Neural Space Pro · Dedicated Workspace"}
+              {appMode === "skyeide" ? `SkyeIDE · ${selectedSkyeApp}` : "AI Copilot Mode · Dedicated Workspace"}
             </div>
+
+            <section className="ops-status-card">
+              <header>
+                <strong>Platform Status</strong>
+                <button className="ghost" type="button" onClick={() => void checkAssistantAuth()} disabled={isPlatformStatusLoading}>
+                  {isPlatformStatusLoading ? "Syncing..." : "Refresh"}
+                </button>
+              </header>
+              <div className="ops-status-grid">
+                {platformStatusItems.map((item) => (
+                  <article key={item.label} className="ops-status-item">
+                    <span className={`status-dot ${item.tone}`}>{item.label}</span>
+                    <div>
+                      <strong>{item.detail}</strong>
+                      {item.label === "Deploy" && integrationRuntimeStatus?.github.connected && (
+                        <small>{integrationRuntimeStatus.github.owner}/{integrationRuntimeStatus.github.repo} · {integrationRuntimeStatus.github.branch || "main"}</small>
+                      )}
+                      {item.label === "Deploy" && !integrationRuntimeStatus?.github.connected && integrationRuntimeStatus?.netlify.connected && (
+                        <small>{integrationRuntimeStatus.netlify.site_name || integrationRuntimeStatus.netlify.site_id}</small>
+                      )}
+                      {item.label === "Mail" && mailRuntimeStatus?.sender_source && (
+                        <small>sender source: {mailRuntimeStatus.sender_source}</small>
+                      )}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </section>
 
             {appMode === "skyeide" ? (
               <>
+                <section className="starter-lane-card">
+                  <header>
+                    <h3>Start Here</h3>
+                    <p>Pick a role preset to reshape the bench around the job you are doing.</p>
+                  </header>
+                  <div className="starter-lane-list">
+                    {WORKBENCH_STARTER_PRESETS.map((preset) => (
+                      <button
+                        key={`starter-${preset.id}`}
+                        type="button"
+                        className={`starter-lane-button ${selectedSkyeApp === preset.focusApp && topWorkspaceApp === preset.top && middleWorkspaceApp === preset.middle && bottomWorkspaceApp === preset.bottom ? "active" : ""}`}
+                        onClick={() => applyWorkbenchStarter(preset.id)}
+                      >
+                        <strong>{preset.label}</strong>
+                        <span>{preset.description}</span>
+                        <small>{preset.focusApp} focus</small>
+                      </button>
+                    ))}
+                  </div>
+                </section>
+
                 <section className="side-settings-block">
-                  <h3>Workspace Settings</h3>
+                  <h3>Execution Pipeline</h3>
                   <div className="tool-row split">
                     <div>
                       <label>Top Workspace</label>
@@ -5981,6 +6808,14 @@ export function App() {
                   </div>
                   <div className="tool-row split">
                     <div>
+                      <label>Left Middle Dock</label>
+                      <select value={leftMiddleDockApp} onChange={(event) => setLeftMiddleDockApp(event.target.value as DockApp)}>
+                        {dockApps.map((app) => (
+                          <option key={`left-middle-dock-${app}`} value={app}>{app}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
                       <label>Left Bottom Dock</label>
                       <select value={leftBottomDockApp} onChange={(event) => setLeftBottomDockApp(event.target.value as DockApp)}>
                         {dockApps.map((app) => (
@@ -5988,9 +6823,15 @@ export function App() {
                         ))}
                       </select>
                     </div>
+                  </div>
+                  <div className="tool-row split">
                     <div>
                       <label>Right Panel Width</label>
                       <input readOnly value={`${Math.round(workspaceRightPanelWidth)}px`} />
+                    </div>
+                    <div>
+                      <label>Standalone IDE</label>
+                      <a className="ghost inline-action-link" href={standaloneIdeUrl} target="_blank" rel="noreferrer">Open SkyDex 4.6</a>
                     </div>
                   </div>
                   <div className="tool-row split tool-row-triple">
@@ -6025,7 +6866,7 @@ export function App() {
                   Suite MVP Progress: {completeMvpItems}/{totalMvpItems}
                 </div>
 
-                <h3>SKNore (AI protected)</h3>
+                <h3>File Safety Policy</h3>
                 <textarea
                   value={sknoreText}
                   onChange={(event) => setSknoreText(event.target.value)}
@@ -6035,7 +6876,7 @@ export function App() {
                 <div className="suite-progress">Protected files: {sknoreBlockedCount}</div>
                 <div className="tool-actions left">
                   <a className="ghost" href={`/SKNore/index.html?ws_id=${encodeURIComponent(workspaceId)}`} target="_blank" rel="noreferrer">
-                    Open SKNore Standalone
+                    Open Policy Console
                   </a>
                 </div>
 
@@ -6050,8 +6891,8 @@ export function App() {
               </>
             ) : (
               <section className="neural-sidecard">
-                <h3>Neural Space Pro</h3>
-                <p className="muted-copy">Dedicated cinematic copilot surface with isolated workspace context.</p>
+                <h3>AI Copilot Mode</h3>
+                <p className="muted-copy">Dedicated copilot workspace with isolated context and live handoff back into the main bench.</p>
                 <div className="tool-actions left">
                   <button type="button" className="ghost" onClick={() => setToolTab("assistant")}>Open Assistant</button>
                   <button type="button" className="ghost" onClick={() => setAppMode("skyeide")}>Return to SkyeIDE</button>
@@ -6059,6 +6900,29 @@ export function App() {
               </section>
             )}
           </div>
+
+          {appMode === "skyeide" && (
+            <section className="right-dock-module file-pane-dock">
+              <header className="right-dock-head">
+                <strong>Left Middle Dock</strong>
+                <select value={leftMiddleDockApp} onChange={(event) => setLeftMiddleDockApp(event.target.value as DockApp)}>
+                  {dockApps.map((app) => (
+                    <option key={`left-middle-dock-panel-${app}`} value={app}>{app}</option>
+                  ))}
+                </select>
+              </header>
+              <div className="right-dock-embed-shell">
+                <div className="tool-actions left">
+                  <a className="ghost" href={leftMiddleDockUrl} target="_blank" rel="noreferrer">Open Standalone</a>
+                </div>
+                <iframe
+                  className="right-dock-embed"
+                  title={`Left Middle Dock ${leftMiddleDockApp}`}
+                  src={leftMiddleDockEmbedUrl}
+                />
+              </div>
+            </section>
+          )}
 
           {appMode === "skyeide" && (
             <section className="right-dock-module file-pane-dock">
