@@ -4521,6 +4521,8 @@ export function App() {
     return null;
   }
 
+  const isSkyeDocsStackMode = appMode === "skyeide" && selectedSkyeApp === "SkyeDocs";
+
   return (
     <div className="ide-shell">
       <div className="shell-atmo" aria-hidden="true">
@@ -4688,7 +4690,7 @@ export function App() {
         </section>
       )}
 
-      <div className="workspace-stack">
+      <div className={`workspace-stack ${isSkyeDocsStackMode ? "workspace-stack-docs" : ""}`}>
       <div className="workspace-body" style={{ ["--sidebar-width" as any]: `${workspaceSidebarWidth}px` }}>
         <aside className="file-pane">
           <div className="mode-switch">

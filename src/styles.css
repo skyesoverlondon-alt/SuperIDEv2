@@ -1233,6 +1233,8 @@ a:focus-visible {
   grid-template-columns: 72px 300px minmax(0, 1fr);
   gap: 10px;
   margin-top: 10px;
+  min-height: 72vh;
+  align-items: stretch;
 }
 
 .ide-super-rail,
@@ -1300,6 +1302,40 @@ a:focus-visible {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  min-height: 0;
+}
+
+.workspace-stack-docs .panel-resizer.horizontal {
+  display: none;
+}
+
+.workspace-stack-docs .ide-module-focus {
+  min-height: clamp(860px, 108vh, 1680px);
+  height: auto;
+}
+
+.workspace-stack-docs .ide-super-shell {
+  min-height: clamp(700px, 86vh, 1220px);
+}
+
+.workspace-stack-docs .ide-super-main .ide-workbench {
+  min-height: clamp(420px, 60vh, 980px);
+}
+
+.workspace-stack-docs .chat-pane-bottom {
+  height: auto !important;
+  min-height: clamp(760px, 98vh, 1500px);
+  margin: 10px;
+  border: 1px solid rgba(44, 230, 255, 0.3);
+  border-radius: 12px;
+  border-left: 1px solid rgba(44, 230, 255, 0.3);
+  overflow: hidden;
+  box-shadow: 0 22px 56px rgba(0, 0, 0, 0.44);
+}
+
+.workspace-stack-docs .chat-pane-bottom .messages,
+.workspace-stack-docs .chat-pane-bottom .tool-panel {
+  min-height: 0;
 }
 
 .ide-diagnostics {
