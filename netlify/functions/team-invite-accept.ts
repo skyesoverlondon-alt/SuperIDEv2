@@ -3,6 +3,7 @@ import { json } from "./_shared/response";
 import { q } from "./_shared/neon";
 import { hashPassword, createSession, setSessionCookie } from "./_shared/auth";
 import { audit } from "./_shared/audit";
+import { mintApiToken, tokenHash } from "./_shared/api_tokens";
 
 function sha256Hex(input: string): string {
   return crypto.createHash("sha256").update(input).digest("hex");
@@ -78,12 +79,46 @@ export const handler = async (event: any) => {
     [userId, invite.id]
   );
 
+  const plaintextToken = mintApiToken();
+  const tokenPrefix = plaintextToken.slice(0, 14);
+  const tokenExpiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString();
+  await q(
+    "insert into api_tokens(org_id, issued_by, label, token_hash, prefix, expires_at, locked_email, scopes_json) values($1,$2,$3,$4,$5,$6,$7,$8::jsonb)",
+    [
+      invite.org_id,
+      userId,
+      "invite-auto-1",
+      tokenHash(plaintextToken),
+      tokenPrefix,
+      tokenExpiresAt,
+      email,
+      JSON.stringify(["generate"]),
+    ]
+  );
+
   const sess = await createSession(userId);
-  await audit(email, invite.org_id, null, "org.team.invite.accept", { invite_id: invite.id, role: invite.role });
+  await audit(email, invite.org_id, null, "org.team.invite.accept", {
+    invite_id: invite.id,
+    role: invite.role,
+    auto_token_issued: true,
+    token_label: "invite-auto-1",
+  });
 
   return json(
     200,
-    { ok: true, org_id: invite.org_id, role: invite.role },
+    {
+      ok: true,
+      org_id: invite.org_id,
+      role: invite.role,
+      kaixu_token: {
+        token: plaintextToken,
+        label: "invite-auto-1",
+        locked_email: email,
+        scopes: ["generate"],
+        expires_at: tokenExpiresAt,
+      },
+      warning: "kAIxU token is shown once on invite acceptance. Store it now.",
+    },
     { "Set-Cookie": setSessionCookie(sess.token, sess.expires) }
   );
 };

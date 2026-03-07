@@ -906,6 +906,7 @@ export function App() {
   const [authOrgName, setAuthOrgName] = useState("Skye Workspace");
   const [isAuthSubmitting, setIsAuthSubmitting] = useState(false);
   const [authResult, setAuthResult] = useState("");
+  const [isEnsuringOnboardingKey, setIsEnsuringOnboardingKey] = useState(false);
 
   const [sheetsModel, setSheetsModel] = useState<SheetsModel>(() => {
     const raw = localStorage.getItem("kx.skye.sheets.model");
@@ -1395,6 +1396,12 @@ export function App() {
       setApiTokenEmail(authUser.trim().toLowerCase());
     }
   }, [authUser, apiTokenEmail]);
+
+  useEffect(() => {
+    if (!inviteToken) return;
+    if (inviteAcceptEmail.trim()) return;
+    setInviteAcceptEmail(authUser.trim().toLowerCase());
+  }, [inviteToken, inviteAcceptEmail, authUser]);
 
   useEffect(() => {
     localStorage.setItem("kx.skye.sheets.model", JSON.stringify(sheetsModel));
@@ -2639,6 +2646,53 @@ export function App() {
     }
   }
 
+  async function ensureOnboardingKey(options: { force?: boolean; labelPrefix?: string } = {}) {
+    const force = options.force === true;
+    if (!force && apiAccessToken.trim()) {
+      return { ok: true, reused: true };
+    }
+
+    setIsEnsuringOnboardingKey(true);
+    try {
+      const lockedEmail = authUser.trim().toLowerCase();
+      const res = await fetch("/api/token-issue", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          count: 1,
+          ttl_preset: "quarter",
+          label_prefix: options.labelPrefix || "onboarding-auto",
+          scopes: ["generate"],
+          locked_email: lockedEmail || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        return {
+          ok: false,
+          error: data?.error || `Key issue failed (${res.status}).`,
+        };
+      }
+
+      const issued = data?.issued?.[0];
+      const token = String(issued?.token || "");
+      const tokenEmail = String(issued?.locked_email || lockedEmail || "");
+
+      if (!token) {
+        return { ok: false, error: "Key issue succeeded but no token was returned." };
+      }
+
+      setApiAccessToken(token);
+      if (tokenEmail) setApiTokenEmail(tokenEmail);
+      return { ok: true, reused: false };
+    } catch (error: any) {
+      return { ok: false, error: error?.message || "Key issue failed." };
+    } finally {
+      setIsEnsuringOnboardingKey(false);
+    }
+  }
+
   async function submitAuthFlow(mode: "login" | "signup") {
     if (!authUser.trim() || !authPassword.trim()) {
       setAuthResult("Email and password are required.");
@@ -2678,7 +2732,23 @@ export function App() {
 
       setAuthPassword("");
       await refreshAuthSession();
-      setAuthResult(mode === "signup" ? "Signup complete. Session + kAIxU key are active." : "Login complete. Session restored.");
+
+      const hasTokenFromAuth = Boolean(data?.kaixu_token?.token);
+      if (!hasTokenFromAuth) {
+        const ensured = await ensureOnboardingKey({ labelPrefix: mode === "signup" ? "signup-auto" : "login-auto" });
+        if (!ensured.ok) {
+          setAuthResult(
+            `${mode === "signup" ? "Signup" : "Login"} complete, but key mint failed: ${ensured.error}`
+          );
+          return;
+        }
+      }
+
+      setAuthResult(
+        mode === "signup"
+          ? "Signup complete. Session active, key minted, and onboarding is ready."
+          : "Login complete. Session restored and key is active."
+      );
     } catch (error: any) {
       setAuthResult(error?.message || `${mode} failed.`);
     } finally {
@@ -2923,10 +2993,23 @@ export function App() {
         setInviteAcceptResult(data?.error || `accept failed (${res.status})`);
         return;
       }
+
+      if (data?.kaixu_token?.token) {
+        setApiAccessToken(String(data.kaixu_token.token));
+        setApiTokenEmail(String(data.kaixu_token.locked_email || inviteAcceptEmail.trim().toLowerCase()));
+      } else {
+        const ensured = await ensureOnboardingKey({ labelPrefix: "invite-auto" });
+        if (!ensured.ok) {
+          setInviteAcceptResult(`Invite accepted, but key mint failed: ${ensured.error}`);
+          return;
+        }
+      }
+
       setInviteAcceptResult("Invite accepted. You are signed in and joined to the organization.");
       const next = new URL(window.location.href);
       next.searchParams.delete("invite_token");
       window.history.replaceState({}, "", next.toString());
+      await refreshAuthSession();
       await loadTeamMembers();
     } catch (error: any) {
       setInviteAcceptResult(error?.message || "accept failed");
@@ -4662,6 +4745,14 @@ export function App() {
         <button className="ghost" type="button" onClick={() => void submitAuthFlow("signup")} disabled={isAuthSubmitting}>
           {isAuthSubmitting ? "Working..." : "Sign Up"}
         </button>
+        <button
+          className="ghost"
+          type="button"
+          onClick={() => void ensureOnboardingKey({ force: true, labelPrefix: "manual-onboarding" })}
+          disabled={isAuthSubmitting || isEnsuringOnboardingKey}
+        >
+          {isEnsuringOnboardingKey ? "Minting Key..." : "Mint Key"}
+        </button>
         <button className="ghost" type="button" onClick={() => void refreshAuthSession()} disabled={isAuthSubmitting}>
           Session Sync
         </button>
@@ -4670,6 +4761,43 @@ export function App() {
         </button>
         <span className="telemetry-chip">Revision: {workspaceRevision || "n/a"}</span>
         <span className="telemetry-chip">Lazy: {workspaceUnloadedPaths.length} pending</span>
+      </section>
+
+      {inviteToken && (
+        <section className="auth-session-feedback">
+          <strong>Invite Onboarding</strong>
+          <div>Complete this to join the invited organization and mint your onboarding key at the gate.</div>
+          <div className="tool-row split" style={{ marginTop: 8 }}>
+            <div>
+              <label>Invite Email</label>
+              <input value={inviteAcceptEmail} onChange={(event) => setInviteAcceptEmail(event.target.value)} placeholder="you@company.com" />
+            </div>
+            <div>
+              <label>Create Password</label>
+              <input
+                type="password"
+                value={inviteAcceptPassword}
+                onChange={(event) => setInviteAcceptPassword(event.target.value)}
+                placeholder="At least 8 characters"
+              />
+            </div>
+          </div>
+          <div className="tool-actions left">
+            <button className="ghost" type="button" onClick={() => void acceptInviteLink()} disabled={isAcceptingInvite}>
+              {isAcceptingInvite ? "Accepting..." : "Accept Invite"}
+            </button>
+          </div>
+          {inviteAcceptResult && <div>{inviteAcceptResult}</div>}
+        </section>
+      )}
+
+      <section className="auth-session-feedback">
+        <strong>Onboarding Checklist</strong>
+        <div>Session: {assistantAuthStatus === "ok" || assistantAuthStatus === "token" ? "ready" : "missing"}</div>
+        <div>Key: {apiAccessToken.trim() ? "loaded" : "missing"}</div>
+        <div>
+          Email lock: {apiTokenEmail.trim().toLowerCase() && apiTokenEmail.trim().toLowerCase() === authUser.trim().toLowerCase() ? "aligned" : "needs alignment"}
+        </div>
       </section>
 
       {authResult && <section className="auth-session-feedback">{authResult}</section>}
