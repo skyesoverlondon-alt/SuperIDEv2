@@ -767,6 +767,40 @@ a:focus-visible {
   margin-top: 18px;
 }
 
+.auth-center-shell {
+  position: relative;
+  z-index: 5;
+  min-height: 100vh;
+  padding: 28px 20px 40px;
+  display: grid;
+  place-items: start center;
+}
+
+.auth-center-card {
+  width: min(1080px, calc(100vw - 32px));
+}
+
+.auth-center-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.auth-center-actions {
+  flex-wrap: wrap;
+}
+
+.auth-key-card input {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+.auth-session-bar-standalone {
+  border-radius: 12px;
+  margin: 0;
+}
+
 .file-pane,
 .chat-pane {
   background: var(--glass);
@@ -2088,6 +2122,10 @@ a:focus-visible {
     grid-template-columns: 1fr 1fr;
   }
 
+  .auth-session-bar-standalone {
+    grid-template-columns: 1fr 1fr;
+  }
+
   .auth-session-bar label {
     display: none;
   }
@@ -2110,6 +2148,18 @@ a:focus-visible {
 }
 
 @media (max-width: 760px) {
+  .auth-center-shell {
+    padding: 16px 12px 28px;
+  }
+
+  .auth-center-card {
+    width: min(100vw - 16px, 1080px);
+  }
+
+  .auth-center-header {
+    flex-direction: column;
+  }
+
   .app-strip-head {
     flex-direction: column;
     align-items: flex-start;

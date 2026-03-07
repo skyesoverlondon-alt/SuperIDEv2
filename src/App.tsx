@@ -320,6 +320,9 @@ const ONBOARDING_EMAIL_DRAFT_KEY = "kx.onboarding.emailDraft";
 const ONBOARDING_ID_DRAFT_KEY = "kx.onboarding.idDraft";
 const ONBOARDING_ASSIST_MODE_KEY = "kx.onboarding.assistMode";
 const ONBOARDING_WORKSPACE_EMAIL_KEY = "kx.onboarding.workspaceEmail";
+const AUTH_ORG_NAME_KEY = "kx.auth.orgName";
+const AUTH_CENTER_POPUP_NAME = "skye-auth-center";
+const AUTH_CENTER_AUTO_OPENED_SESSION_KEY = "kx.authCenter.autoOpened";
 
 const SKYE_APPS: SkyeAppDefinition[] = [
   { id: "SkyeDocs", summary: "Collaborative document workspace.", mvp: ["Rich text", "Markdown mode", "Autosave"] },
@@ -984,7 +987,7 @@ export function App() {
   const [recoveryEmail, setRecoveryEmail] = useState(() => localStorage.getItem("kx.auth.recoveryEmail") || "");
   const [authRole, setAuthRole] = useState<AuthRole>(() => (localStorage.getItem("kx.auth.role") as AuthRole) || "owner");
   const [authPassword, setAuthPassword] = useState("");
-  const [authOrgName, setAuthOrgName] = useState("Skye Workspace");
+  const [authOrgName, setAuthOrgName] = useState(() => localStorage.getItem(AUTH_ORG_NAME_KEY) || "Skye Workspace");
   const [isAuthSubmitting, setIsAuthSubmitting] = useState(false);
   const [authResult, setAuthResult] = useState("");
   const [isEnsuringOnboardingKey, setIsEnsuringOnboardingKey] = useState(false);
@@ -1123,6 +1126,8 @@ export function App() {
   const [tokenLabelPrefix, setTokenLabelPrefix] = useState("ide-key");
   const [tokenTtlPreset, setTokenTtlPreset] = useState("day");
   const [tokenInventory, setTokenInventory] = useState<TokenInventoryItem[]>([]);
+  const authCenterWindowRef = useRef<Window | null>(null);
+  const [authCenterLaunchBlocked, setAuthCenterLaunchBlocked] = useState(false);
   const [isLoadingTokenInventory, setIsLoadingTokenInventory] = useState(false);
   const [tokenOpsResult, setTokenOpsResult] = useState("");
   const [revokingTokenId, setRevokingTokenId] = useState("");
@@ -1496,6 +1501,15 @@ export function App() {
   }, [authUser, authRole]);
 
   useEffect(() => {
+    const next = authOrgName.trim();
+    if (!next) {
+      localStorage.removeItem(AUTH_ORG_NAME_KEY);
+      return;
+    }
+    localStorage.setItem(AUTH_ORG_NAME_KEY, next);
+  }, [authOrgName]);
+
+  useEffect(() => {
     const next = recoveryEmail.trim().toLowerCase();
     if (!next) {
       localStorage.removeItem("kx.auth.recoveryEmail");
@@ -1580,6 +1594,39 @@ export function App() {
   }, []);
 
   useEffect(() => {
+    function syncCrossWindowAuthState() {
+      setApiAccessToken(localStorage.getItem("kx.api.accessToken") || "");
+      setApiTokenEmail(localStorage.getItem("kx.api.tokenEmail") || "");
+      setAuthUser(localStorage.getItem("kx.auth.user") || "founder@skye.local");
+      setRecoveryEmail(localStorage.getItem("kx.auth.recoveryEmail") || "");
+      setAuthOrgName(localStorage.getItem(AUTH_ORG_NAME_KEY) || "Skye Workspace");
+      setWorkspaceMailboxEmail(localStorage.getItem(ONBOARDING_WORKSPACE_EMAIL_KEY) || "");
+      const rawRole = localStorage.getItem("kx.auth.role") as AuthRole | null;
+      if (rawRole && ["owner", "admin", "member", "viewer"].includes(rawRole)) {
+        setAuthRole(rawRole);
+      }
+    }
+
+    function onStorage(event: StorageEvent) {
+      if (!event.key) return;
+      if (
+        event.key === "kx.api.accessToken" ||
+        event.key === "kx.api.tokenEmail" ||
+        event.key === "kx.auth.user" ||
+        event.key === "kx.auth.recoveryEmail" ||
+        event.key === "kx.auth.role" ||
+        event.key === AUTH_ORG_NAME_KEY ||
+        event.key === ONBOARDING_WORKSPACE_EMAIL_KEY
+      ) {
+        syncCrossWindowAuthState();
+      }
+    }
+
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
+
+  useEffect(() => {
     localStorage.setItem("kx.api.accessToken", apiAccessToken);
     localStorage.setItem("kx.api.tokenEmail", apiTokenEmail);
     if (apiAccessToken.trim()) localStorage.setItem("kaixu_api_key", apiAccessToken.trim());
@@ -1639,6 +1686,67 @@ export function App() {
       setShowOnboardingPrompt(true);
     }
   }, [assistantAuthStatus, onboardingAssistMode, inviteToken]);
+
+  const searchParams = new URLSearchParams(window.location.search);
+  const isAuthCenterMode = searchParams.get("auth_center") === "1";
+  const authCenterGuideRequested = searchParams.get("guide") === "1";
+  const hideCinematicIntro = isAuthCenterMode || searchParams.get("no_intro") === "1";
+
+  function buildAuthCenterUrl(options: { guide?: boolean } = {}) {
+    const url = new URL(window.location.href);
+    url.searchParams.set("auth_center", "1");
+    url.searchParams.set("no_intro", "1");
+    if (options.guide) url.searchParams.set("guide", "1");
+    else url.searchParams.delete("guide");
+    return url.toString();
+  }
+
+  function openAuthCenterWindow(options: { focus?: boolean; guide?: boolean } = {}) {
+    const existing = authCenterWindowRef.current;
+    if (existing && !existing.closed) {
+      if (options.guide) existing.location.href = buildAuthCenterUrl({ guide: true });
+      if (options.focus !== false) existing.focus();
+      setAuthCenterLaunchBlocked(false);
+      return true;
+    }
+
+    const popup = window.open(
+      buildAuthCenterUrl({ guide: options.guide }),
+      AUTH_CENTER_POPUP_NAME,
+      "popup=yes,width=640,height=980,left=48,top=40,resizable=yes,scrollbars=yes"
+    );
+    authCenterWindowRef.current = popup;
+    const opened = Boolean(popup && !popup.closed);
+    setAuthCenterLaunchBlocked(!opened);
+    if (opened && options.focus !== false) popup?.focus();
+    return opened;
+  }
+
+  useEffect(() => {
+    if (isAuthCenterMode) {
+      if (authCenterGuideRequested) {
+        setOnboardingAssistMode("guided");
+        setShowOnboardingGuide(true);
+      }
+      setShowOnboardingPrompt(false);
+      return;
+    }
+
+    const hasSession = assistantAuthStatus === "ok" || assistantAuthStatus === "token";
+    if (hasSession && !inviteToken) return;
+    if (sessionStorage.getItem(AUTH_CENTER_AUTO_OPENED_SESSION_KEY) === "1") return;
+
+    const timer = window.setTimeout(() => {
+      sessionStorage.setItem(AUTH_CENTER_AUTO_OPENED_SESSION_KEY, "1");
+      const opened = openAuthCenterWindow({
+        focus: true,
+        guide: inviteToken ? true : onboardingAssistMode !== "self-serve",
+      });
+      if (!opened) setShowOnboardingPrompt(true);
+    }, 4800);
+
+    return () => window.clearTimeout(timer);
+  }, [assistantAuthStatus, inviteToken, onboardingAssistMode, isAuthCenterMode, authCenterGuideRequested]);
 
   useEffect(() => {
     localStorage.setItem("kx.skye.sheets.model", JSON.stringify(sheetsModel));
@@ -2896,7 +3004,12 @@ export function App() {
   async function ensureOnboardingKey(options: { force?: boolean; labelPrefix?: string } = {}) {
     const force = options.force === true;
     if (!force && apiAccessToken.trim()) {
-      return { ok: true, reused: true };
+      return {
+        ok: true,
+        reused: true,
+        token: apiAccessToken.trim(),
+        locked_email: apiTokenEmail.trim().toLowerCase() || authUser.trim().toLowerCase() || null,
+      };
     }
 
     setIsEnsuringOnboardingKey(true);
@@ -2932,12 +3045,23 @@ export function App() {
 
       setApiAccessToken(token);
       if (tokenEmail) setApiTokenEmail(tokenEmail);
-      return { ok: true, reused: false };
+      return { ok: true, reused: false, token, locked_email: tokenEmail || null };
     } catch (error: any) {
       return { ok: false, error: error?.message || "Key issue failed." };
     } finally {
       setIsEnsuringOnboardingKey(false);
     }
+  }
+
+  async function manualMintOnboardingKey() {
+    const ensured = await ensureOnboardingKey({ force: true, labelPrefix: "manual-onboarding" });
+    if (!ensured.ok) {
+      setAuthResult(`Key mint failed: ${ensured.error}`);
+      return;
+    }
+
+    const lockedEmail = String(ensured.locked_email || apiTokenEmail.trim().toLowerCase() || authUser.trim().toLowerCase() || "current user");
+    setAuthResult(`kAIxU key minted and loaded for ${lockedEmail}. It is populated into the workspace auth state now.`);
   }
 
   async function persistOnboardingShowcase(emailForAuth: string, mode: "login" | "signup") {
@@ -3219,12 +3343,227 @@ export function App() {
   function chooseOnboardingAssistMode(mode: OnboardingAssistMode) {
     setOnboardingAssistMode(mode);
     setShowOnboardingPrompt(false);
+    if (isAuthCenterMode) {
+      setShowOnboardingGuide(mode === "guided");
+      return;
+    }
     if (mode === "guided") {
       setShowOnboardingGuide(true);
-      setSelectedSkyeApp("SkyeDocs");
+      openAuthCenterWindow({ focus: true, guide: true });
       return;
     }
     setShowOnboardingGuide(false);
+    if (mode === "self-serve") openAuthCenterWindow({ focus: true, guide: false });
+  }
+
+  async function copyLoadedKey() {
+    const token = apiAccessToken.trim();
+    if (!token) {
+      setAuthResult("No key is loaded yet.");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(token);
+      setAuthResult("kAIxU key copied to clipboard.");
+    } catch {
+      setAuthResult("Unable to copy automatically. Select the key and copy it manually.");
+    }
+  }
+
+  function renderAuthCenterContents() {
+    return (
+      <div className="auth-center-shell">
+        <section className="app-module auth-center-card">
+          <header className="auth-center-header">
+            <div>
+              <p className="platform-intro-kicker">Standalone Auth Center</p>
+              <h2>Onboarding, identity, admin, and kAIxU access</h2>
+              <p>This subscreen carries the login, onboarding, recovery, and key plumbing so the main workspace bench stays clean.</p>
+            </div>
+            <div className="tool-actions left auth-center-actions">
+              <button className="ghost" type="button" onClick={() => chooseOnboardingAssistMode("guided")}>Guided</button>
+              <button className="ghost" type="button" onClick={() => chooseOnboardingAssistMode("self-serve")}>Self-Serve</button>
+              <button className="ghost" type="button" onClick={() => void refreshAuthSession()} disabled={isAuthSubmitting}>Session Sync</button>
+              {!isAuthCenterMode && (
+                <button className="ghost" type="button" onClick={() => openAuthCenterWindow({ focus: true, guide: showOnboardingGuide })}>Open Auth Center</button>
+              )}
+            </div>
+          </header>
+
+          <section className="auth-session-feedback auth-key-card">
+            <strong>Loaded kAIxU Key</strong>
+            <div>This key should populate automatically after signup or Mint Key. It is the same value used by the workspace auth path.</div>
+            <div className="tool-row" style={{ marginTop: 8 }}>
+              <label>kAIxU Access Key</label>
+              <input value={apiAccessToken} readOnly placeholder="Key will appear here after mint" />
+            </div>
+            <div className="tool-row split" style={{ marginTop: 8 }}>
+              <div>
+                <label>Locked Email</label>
+                <input value={apiTokenEmail} readOnly placeholder="user@company.com" />
+              </div>
+              <div>
+                <label>Assistant Auth</label>
+                <input value={assistantAuthStatus} readOnly />
+              </div>
+            </div>
+            <div className="tool-actions left" style={{ marginTop: 8 }}>
+              <button className="ghost" type="button" onClick={() => void copyLoadedKey()}>Copy Key</button>
+              <button className="ghost" type="button" onClick={() => void checkAssistantAuth()}>Validate Auth Path</button>
+              <button className="ghost" type="button" onClick={() => { setApiAccessToken(""); setApiTokenEmail(""); setAssistantAuthStatus("unknown"); }}>Clear Key</button>
+            </div>
+          </section>
+
+          <section className="auth-session-bar auth-session-bar-standalone">
+            <label htmlFor="auth-email">SKYEMAIL Login</label>
+            <input
+              id="auth-email"
+              value={authUser}
+              onChange={(event) => setAuthUser(event.target.value)}
+              placeholder="founder@skyemail.com"
+            />
+            <label htmlFor="auth-password">Password</label>
+            <input
+              id="auth-password"
+              type="password"
+              value={authPassword}
+              onChange={(event) => setAuthPassword(event.target.value)}
+              placeholder="********"
+            />
+            <label htmlFor="auth-recovery-email">Recovery Email</label>
+            <input
+              id="auth-recovery-email"
+              value={recoveryEmail}
+              onChange={(event) => setRecoveryEmail(event.target.value)}
+              placeholder="you@gmail.com"
+            />
+            <label htmlFor="auth-org">Org (signup)</label>
+            <input
+              id="auth-org"
+              value={authOrgName}
+              onChange={(event) => setAuthOrgName(event.target.value)}
+              placeholder="Skye Workspace"
+            />
+            <button className="ghost" type="button" onClick={() => void submitAuthFlow("login")} disabled={isAuthSubmitting}>
+              {isAuthSubmitting ? "Working..." : "Sign In"}
+            </button>
+            <button className="ghost" type="button" onClick={() => void submitAuthFlow("signup")} disabled={isAuthSubmitting}>
+              {isAuthSubmitting ? "Working..." : "Sign Up"}
+            </button>
+            <button
+              className="ghost"
+              type="button"
+              onClick={() => void manualMintOnboardingKey()}
+              disabled={isAuthSubmitting || isEnsuringOnboardingKey}
+            >
+              {isEnsuringOnboardingKey ? "Minting Key..." : "Mint Key"}
+            </button>
+            <button className="ghost" type="button" onClick={() => void logoutAuthSession()} disabled={isAuthSubmitting}>
+              Sign Out
+            </button>
+            <span className="telemetry-chip">Revision: {workspaceRevision || "n/a"}</span>
+            <span className="telemetry-chip">Workspace: {workspaceId}</span>
+          </section>
+
+          <section className="auth-session-feedback">
+            <strong>Password Recovery</strong>
+            <div>Reset links go to the third-party recovery email. The SKYEMAIL address remains the primary login.</div>
+            <div className="tool-actions left" style={{ marginTop: 8 }}>
+              <button className="ghost" type="button" onClick={() => void requestPasswordReset()} disabled={isResetSubmitting}>
+                {isResetSubmitting ? "Requesting..." : "Send Reset Link"}
+              </button>
+              <a className="ghost" href={`/recover-account/?reset_email=${encodeURIComponent(authUser.trim().toLowerCase())}`} target="_blank" rel="noreferrer">
+                Open Recover Page
+              </a>
+            </div>
+            <div className="tool-row split" style={{ marginTop: 8 }}>
+              <div>
+                <label>Reset Token</label>
+                <input
+                  value={resetToken}
+                  onChange={(event) => setResetToken(event.target.value)}
+                  placeholder="Paste token from email"
+                />
+              </div>
+              <div>
+                <label>New Password</label>
+                <input
+                  type="password"
+                  value={resetNewPassword}
+                  onChange={(event) => setResetNewPassword(event.target.value)}
+                  placeholder="At least 8 characters"
+                />
+              </div>
+            </div>
+            <div className="tool-actions left" style={{ marginTop: 8 }}>
+              <button className="ghost" type="button" onClick={() => void confirmPasswordReset()} disabled={isResetSubmitting}>
+                {isResetSubmitting ? "Resetting..." : "Reset Password"}
+              </button>
+            </div>
+          </section>
+
+          <section className="auth-session-feedback">
+            <strong>Generator Onboarding</strong>
+            <div>
+              SKYEMAIL-GEN draft: {onboardingEmailDraft?.email || "none"}
+              {onboardingEmailDraft?.updatedAt ? ` · ${new Date(onboardingEmailDraft.updatedAt).toLocaleString()}` : ""}
+            </div>
+            <div>Primary SKYEMAIL login: {authUser.trim().toLowerCase() || "none"}</div>
+            <div>Backup recovery email: {recoveryEmail.trim().toLowerCase() || "none"}</div>
+            <div>
+              Skye-ID draft: {onboardingIdentityDraft ? `${onboardingIdentityDraft.name} / ${onboardingIdentityDraft.idNumber}` : "none"}
+              {onboardingIdentityDraft?.updatedAt ? ` · ${new Date(onboardingIdentityDraft.updatedAt).toLocaleString()}` : ""}
+            </div>
+            <div className="tool-actions left" style={{ marginTop: 8 }}>
+              <button className="ghost" type="button" onClick={() => openGeneratorApp("SKYEMAIL-GEN")}>Open SKYEMAIL-GEN</button>
+              <button className="ghost" type="button" onClick={linkGeneratedEmailToWorkspace}>Use Generated SKYEMAIL</button>
+              <button className="ghost" type="button" onClick={() => openGeneratorApp("Skye-ID")}>Open Skye-ID</button>
+              <button className="ghost" type="button" onClick={applyGeneratedIdentityToOrg}>Link Generated ID</button>
+            </div>
+          </section>
+
+          {inviteToken && (
+            <section className="auth-session-feedback">
+              <strong>Invite Onboarding</strong>
+              <div>Complete this here to join the invited organization and mint your onboarding key.</div>
+              <div className="tool-row split" style={{ marginTop: 8 }}>
+                <div>
+                  <label>Invite Email</label>
+                  <input value={inviteAcceptEmail} onChange={(event) => setInviteAcceptEmail(event.target.value)} placeholder="you@company.com" />
+                </div>
+                <div>
+                  <label>Create Password</label>
+                  <input
+                    type="password"
+                    value={inviteAcceptPassword}
+                    onChange={(event) => setInviteAcceptPassword(event.target.value)}
+                    placeholder="At least 8 characters"
+                  />
+                </div>
+              </div>
+              <div className="tool-actions left">
+                <button className="ghost" type="button" onClick={() => void acceptInviteLink()} disabled={isAcceptingInvite}>
+                  {isAcceptingInvite ? "Accepting..." : "Accept Invite"}
+                </button>
+              </div>
+              {inviteAcceptResult && <div>{inviteAcceptResult}</div>}
+            </section>
+          )}
+
+          <section className="auth-session-feedback">
+            <strong>Onboarding Checklist</strong>
+            <div>Session: {assistantAuthStatus === "ok" || assistantAuthStatus === "token" ? "ready" : "missing"}</div>
+            <div>Key: {apiAccessToken.trim() ? "loaded" : "missing"}</div>
+            <div>Primary SKYEMAIL login: {authUser.trim().toLowerCase() || "missing"}</div>
+            <div>Backup recovery email: {recoveryEmail.trim().toLowerCase() || "missing"}</div>
+            <div>Email lock: {apiTokenEmail.trim().toLowerCase() && apiTokenEmail.trim().toLowerCase() === authUser.trim().toLowerCase() ? "aligned" : "needs alignment"}</div>
+          </section>
+
+          {authResult && <section className="auth-session-feedback">{authResult}</section>}
+          {showOnboardingGuide && !inviteToken && renderGuidedOnboardingPanel()}
+        </section>
+      </div>
+    );
   }
 
   function renderGuidedOnboardingPanel() {
@@ -5219,6 +5558,36 @@ export function App() {
   const rightBottomDockUrl = buildAppSurfaceUrl(rightBottomDockApp, workspaceId) || "/";
   const rightBottomDockEmbedUrl = `${rightBottomDockUrl}${rightBottomDockUrl.includes("?") ? "&" : "?"}embed=1`;
 
+  if (isAuthCenterMode) {
+    return (
+      <div className="ide-shell">
+        <div className="shell-atmo" aria-hidden="true">
+          <div className="atmo-grid" />
+          <div className="atmo-orb orb-a" />
+          <div className="atmo-orb orb-b" />
+        </div>
+        {hideCinematicIntro ? null : (
+          <div className="cine-intro" aria-hidden="true">
+            <div className="cine-grid" />
+            <div className="cine-scan" />
+            <div className="cine-terminal">
+              &gt; BOOTING SKYEIDE COMMAND DECK v2.0<br />
+              &gt; MOUNTING AUTH CENTER<br />
+              &gt; SYNCING SESSION + KEY STATE
+            </div>
+            <div className="cine-whiteout" />
+            <div className="cine-core">
+              <img className="cine-logo" src="/SKYESOVERLONDONDIETYLOGO.png" alt="" />
+              <div className="cine-title">AUTH CENTER</div>
+              <div className="cine-sub">IDENTITY AND ACCESS ONLINE</div>
+            </div>
+          </div>
+        )}
+        {renderAuthCenterContents()}
+      </div>
+    );
+  }
+
   return (
     <div className="ide-shell">
       <div className="shell-atmo" aria-hidden="true">
@@ -5226,7 +5595,7 @@ export function App() {
         <div className="atmo-orb orb-a" />
         <div className="atmo-orb orb-b" />
       </div>
-      <div className="cine-intro" aria-hidden="true">
+      {!hideCinematicIntro && <div className="cine-intro" aria-hidden="true">
         <div className="cine-grid" />
         <div className="cine-scan" />
         <div className="cine-terminal">
@@ -5241,7 +5610,7 @@ export function App() {
           <div className="cine-title">kAIxU SKYEIDE</div>
           <div className="cine-sub">PRIMARY WORKSPACE ONLINE</div>
         </div>
-      </div>
+      </div>}
       <header className="topbar">
         <div className="topbar-brand">
           <img className="floating-logo" src="/SKYESOVERLONDONDIETYLOGO.png" alt="SKYES OVER LONDON" />
@@ -5252,13 +5621,10 @@ export function App() {
         </div>
         <div className="topbar-right">
           <a className="ghost" href="/upgrade-notes.html" target="_blank" rel="noreferrer">Upgrade Notes</a>
-          <input className="auth-user" value={authUser} onChange={(event) => setAuthUser(event.target.value)} aria-label="auth user" />
-          <select value={authRole} onChange={(event) => setAuthRole(event.target.value as AuthRole)}>
-            <option value="owner">owner</option>
-            <option value="admin">admin</option>
-            <option value="member">member</option>
-            <option value="viewer">viewer</option>
-          </select>
+          <button className="ghost" type="button" onClick={() => openAuthCenterWindow({ focus: true, guide: showOnboardingGuide })}>Auth Center</button>
+          <div className={`status-dot ${assistantAuthStatus === "ok" || assistantAuthStatus === "token" ? "ok" : "fail"}`}>
+            Auth {assistantAuthStatus === "ok" || assistantAuthStatus === "token" ? "Ready" : "Needs Setup"}
+          </div>
           <div className={`status-dot ${runnerStatus}`}>
             Worker {runnerStatus === "ok" ? "Healthy" : runnerStatus === "fail" ? "Offline" : "Unknown"}
           </div>
@@ -5317,21 +5683,6 @@ export function App() {
           onChange={(event) => setWorkerUrl(event.target.value)}
           placeholder="https://your-worker.workers.dev"
         />
-        <label htmlFor="kaixu-key-global">kAIxU Key</label>
-        <input
-          id="kaixu-key-global"
-          type="password"
-          value={apiAccessToken}
-          onChange={(event) => setApiAccessToken(event.target.value)}
-          placeholder="kx_at_..."
-        />
-        <label htmlFor="kaixu-email-global">Token Email</label>
-        <input
-          id="kaixu-email-global"
-          value={apiTokenEmail}
-          onChange={(event) => setApiTokenEmail(event.target.value)}
-          placeholder="user@company.com"
-        />
         <button className="ghost" type="button" onClick={() => void saveWorkspaceNow()} disabled={isSavingWorkspace}>
           {isSavingWorkspace ? "Saving..." : "Save"}
         </button>
@@ -5341,178 +5692,13 @@ export function App() {
         <button className="ghost" type="button" onClick={() => void checkAssistantAuth()}>
           Validate Auth
         </button>
-        <button className="ghost" type="button" onClick={() => { setApiAccessToken(""); setApiTokenEmail(""); setAssistantAuthStatus("unknown"); }}>
-          Clear Auth
-        </button>
-        <button className="ghost" type="button" onClick={() => chooseOnboardingAssistMode("guided")}>
-          Guided Onboarding
+        <button className="ghost" type="button" onClick={() => openAuthCenterWindow({ focus: true, guide: true })}>
+          Open Onboarding
         </button>
         <button className="ghost" type="button" onClick={() => setShowTutorialPanel((old) => !old)}>
           {showTutorialPanel ? "Hide Tutorials" : "Show Tutorials"}
         </button>
       </section>
-
-      <section className="auth-session-bar">
-        <label htmlFor="auth-email">SKYEMAIL Login</label>
-        <input
-          id="auth-email"
-          value={authUser}
-          onChange={(event) => setAuthUser(event.target.value)}
-          placeholder="founder@skyemail.com"
-        />
-        <label htmlFor="auth-password">Password</label>
-        <input
-          id="auth-password"
-          type="password"
-          value={authPassword}
-          onChange={(event) => setAuthPassword(event.target.value)}
-          placeholder="********"
-        />
-        <label htmlFor="auth-recovery-email">Recovery Email</label>
-        <input
-          id="auth-recovery-email"
-          value={recoveryEmail}
-          onChange={(event) => setRecoveryEmail(event.target.value)}
-          placeholder="you@gmail.com"
-        />
-        <label htmlFor="auth-org">Org (signup)</label>
-        <input
-          id="auth-org"
-          value={authOrgName}
-          onChange={(event) => setAuthOrgName(event.target.value)}
-          placeholder="Skye Workspace"
-        />
-        <button className="ghost" type="button" onClick={() => void submitAuthFlow("login")} disabled={isAuthSubmitting}>
-          {isAuthSubmitting ? "Working..." : "Sign In"}
-        </button>
-        <button className="ghost" type="button" onClick={() => void submitAuthFlow("signup")} disabled={isAuthSubmitting}>
-          {isAuthSubmitting ? "Working..." : "Sign Up"}
-        </button>
-        <button
-          className="ghost"
-          type="button"
-          onClick={() => void ensureOnboardingKey({ force: true, labelPrefix: "manual-onboarding" })}
-          disabled={isAuthSubmitting || isEnsuringOnboardingKey}
-        >
-          {isEnsuringOnboardingKey ? "Minting Key..." : "Mint Key"}
-        </button>
-        <button className="ghost" type="button" onClick={() => void refreshAuthSession()} disabled={isAuthSubmitting}>
-          Session Sync
-        </button>
-        <button className="ghost" type="button" onClick={() => void logoutAuthSession()} disabled={isAuthSubmitting}>
-          Sign Out
-        </button>
-        <span className="telemetry-chip">Revision: {workspaceRevision || "n/a"}</span>
-        <span className="telemetry-chip">Lazy: {workspaceUnloadedPaths.length} pending</span>
-      </section>
-
-      <section className="auth-session-feedback">
-        <strong>Password Recovery</strong>
-        <div>Use this if you are locked out. Reset links are sent to the third-party recovery email when one is set.</div>
-        <div className="tool-actions left" style={{ marginTop: 8 }}>
-          <button className="ghost" type="button" onClick={() => void requestPasswordReset()} disabled={isResetSubmitting}>
-            {isResetSubmitting ? "Requesting..." : "Send Reset Link"}
-          </button>
-          <a className="ghost" href={`/recover-account/?reset_email=${encodeURIComponent(authUser.trim().toLowerCase())}`} target="_blank" rel="noreferrer">
-            Open Recover Page
-          </a>
-        </div>
-        <div className="tool-row split" style={{ marginTop: 8 }}>
-          <div>
-            <label>Reset Token</label>
-            <input
-              value={resetToken}
-              onChange={(event) => setResetToken(event.target.value)}
-              placeholder="Paste token from email"
-            />
-          </div>
-          <div>
-            <label>New Password</label>
-            <input
-              type="password"
-              value={resetNewPassword}
-              onChange={(event) => setResetNewPassword(event.target.value)}
-              placeholder="At least 8 characters"
-            />
-          </div>
-        </div>
-        <div className="tool-actions left" style={{ marginTop: 8 }}>
-          <button className="ghost" type="button" onClick={() => void confirmPasswordReset()} disabled={isResetSubmitting}>
-            {isResetSubmitting ? "Resetting..." : "Reset Password"}
-          </button>
-        </div>
-      </section>
-
-      <section className="auth-session-feedback">
-        <strong>Generator Onboarding</strong>
-        <div>
-          SKYEMAIL-GEN draft: {onboardingEmailDraft?.email || "none"}
-          {onboardingEmailDraft?.updatedAt ? ` · ${new Date(onboardingEmailDraft.updatedAt).toLocaleString()}` : ""}
-        </div>
-        <div>Primary SKYEMAIL login: {authUser.trim().toLowerCase() || "none"}</div>
-        <div>Backup recovery email: {recoveryEmail.trim().toLowerCase() || "none"}</div>
-        <div>
-          Skye-ID draft: {onboardingIdentityDraft ? `${onboardingIdentityDraft.name} / ${onboardingIdentityDraft.idNumber}` : "none"}
-          {onboardingIdentityDraft?.updatedAt ? ` · ${new Date(onboardingIdentityDraft.updatedAt).toLocaleString()}` : ""}
-        </div>
-        <div className="tool-actions left" style={{ marginTop: 8 }}>
-          <button className="ghost" type="button" onClick={() => openGeneratorApp("SKYEMAIL-GEN")}>
-            Open SKYEMAIL-GEN
-          </button>
-          <button className="ghost" type="button" onClick={linkGeneratedEmailToWorkspace}>
-            Use Generated SKYEMAIL
-          </button>
-          <button className="ghost" type="button" onClick={() => openGeneratorApp("Skye-ID")}>
-            Open Skye-ID
-          </button>
-          <button className="ghost" type="button" onClick={applyGeneratedIdentityToOrg}>
-            Link Generated ID
-          </button>
-        </div>
-      </section>
-
-      {inviteToken && (
-        <section className="auth-session-feedback">
-          <strong>Invite Onboarding</strong>
-          <div>Complete this to join the invited organization and mint your onboarding key at the gate.</div>
-          <div className="tool-row split" style={{ marginTop: 8 }}>
-            <div>
-              <label>Invite Email</label>
-              <input value={inviteAcceptEmail} onChange={(event) => setInviteAcceptEmail(event.target.value)} placeholder="you@company.com" />
-            </div>
-            <div>
-              <label>Create Password</label>
-              <input
-                type="password"
-                value={inviteAcceptPassword}
-                onChange={(event) => setInviteAcceptPassword(event.target.value)}
-                placeholder="At least 8 characters"
-              />
-            </div>
-          </div>
-          <div className="tool-actions left">
-            <button className="ghost" type="button" onClick={() => void acceptInviteLink()} disabled={isAcceptingInvite}>
-              {isAcceptingInvite ? "Accepting..." : "Accept Invite"}
-            </button>
-          </div>
-          {inviteAcceptResult && <div>{inviteAcceptResult}</div>}
-        </section>
-      )}
-
-      <section className="auth-session-feedback">
-        <strong>Onboarding Checklist</strong>
-        <div>Session: {assistantAuthStatus === "ok" || assistantAuthStatus === "token" ? "ready" : "missing"}</div>
-        <div>Key: {apiAccessToken.trim() ? "loaded" : "missing"}</div>
-        <div>Primary SKYEMAIL login: {authUser.trim().toLowerCase() || "missing"}</div>
-        <div>Backup recovery email: {recoveryEmail.trim().toLowerCase() || "missing"}</div>
-        <div>
-          Email lock: {apiTokenEmail.trim().toLowerCase() && apiTokenEmail.trim().toLowerCase() === authUser.trim().toLowerCase() ? "aligned" : "needs alignment"}
-        </div>
-      </section>
-
-      {authResult && <section className="auth-session-feedback">{authResult}</section>}
-
-      {showOnboardingGuide && !inviteToken && renderGuidedOnboardingPanel()}
 
       {showFailSafeBanner && (
         <section className="smoke-warning" style={{ margin: "10px 12px 0 12px" }}>
@@ -5530,18 +5716,18 @@ export function App() {
         </section>
       )}
 
-      {showOnboardingPrompt && (
+      {showOnboardingPrompt && authCenterLaunchBlocked && (
         <div className="onboarding-prompt-overlay" role="dialog" aria-modal="true" aria-labelledby="onboarding-prompt-title">
           <div className="onboarding-prompt-card">
-            <p className="platform-intro-kicker">Workspace Onboarding</p>
-            <h2 id="onboarding-prompt-title">Would you like help onboarding?</h2>
+            <p className="platform-intro-kicker">Auth Center</p>
+            <h2 id="onboarding-prompt-title">Open the standalone auth center</h2>
             <p>
-              Choose <strong>Yes</strong> for the guided flow: add a third-party recovery email, generate the SKYEMAIL primary login, mint the key, and wire password recovery correctly.
+              Onboarding, login, recovery, key minting, and admin controls now live in a separate auth center window so the main workspace bench stays clean.
             </p>
             <div className="tool-actions left onboarding-prompt-actions">
-              <button className="ghost" type="button" onClick={() => chooseOnboardingAssistMode("guided")}>Yes, guide me</button>
+              <button className="ghost" type="button" onClick={() => { setAuthCenterLaunchBlocked(!openAuthCenterWindow({ focus: true, guide: true })); }}>Open Guided Auth Center</button>
+              <button className="ghost" type="button" onClick={() => { setAuthCenterLaunchBlocked(!openAuthCenterWindow({ focus: true, guide: false })); }}>Open Self-Serve Auth Center</button>
               <button className="ghost" type="button" onClick={() => chooseOnboardingAssistMode("later")}>Maybe Later</button>
-              <button className="ghost" type="button" onClick={() => chooseOnboardingAssistMode("self-serve")}>No, I will sign in myself</button>
             </div>
           </div>
         </div>
