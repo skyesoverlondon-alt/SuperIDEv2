@@ -1,0 +1,25 @@
+{
+  "name": "kAIxU Super IDE",
+  "short_name": "kAIxU IDE",
+  "description": "Protected multi-app SuperIDE workspace with installable PWA launch support.",
+  "theme_color": "#130a20",
+  "background_color": "#06040d",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "start_url": "/",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/SKYESOVERLONDONDIETYLOGO.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/SKYESOVERLONDONDIETYLOGO.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
