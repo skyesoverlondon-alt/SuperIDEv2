@@ -499,6 +499,25 @@
             line-height: 1.4;
             white-space: pre-wrap;
         }
+        .comment-replies {
+            margin-top: 8px;
+            border-top: 1px dashed rgba(255,255,255,0.14);
+            padding-top: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .comment-reply {
+            font-size: 12px;
+            padding: 6px 8px;
+            border-radius: 6px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+        .mention-tag {
+            color: var(--accent-gold);
+            font-weight: 700;
+        }
         .version-item button {
             width: 100%;
             justify-content: center;
@@ -730,6 +749,73 @@
             letter-spacing: 0.6px;
             text-transform: uppercase;
         }
+        .ql-editor .section-break {
+            border: 0;
+            border-top: 2px solid rgba(255, 215, 0, 0.5);
+            margin: 26px 0;
+            position: relative;
+            page-break-before: always;
+        }
+        .ql-editor .section-break::after {
+            content: 'Section Break';
+            position: absolute;
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #fff;
+            color: #7a56e8;
+            font-family: 'Inter', sans-serif;
+            font-size: 10px;
+            padding: 0 8px;
+            letter-spacing: 0.6px;
+            text-transform: uppercase;
+        }
+        .doc-page-header,
+        .doc-page-footer {
+            width: calc(100% - 2in);
+            margin: 0 auto;
+            padding: 10px 0;
+            font-family: 'Inter', sans-serif;
+            font-size: 11px;
+            color: rgba(20, 20, 20, 0.7);
+            border-color: rgba(20,20,20,0.14);
+            border-style: solid;
+        }
+        .doc-page-header {
+            border-width: 0 0 1px 0;
+        }
+        .doc-page-footer {
+            border-width: 1px 0 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        .page-thumb {
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 8px;
+            padding: 8px;
+            background: rgba(0,0,0,0.22);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .page-thumb:hover {
+            border-color: var(--accent-gold);
+            box-shadow: 0 0 12px rgba(255,215,0,0.18);
+        }
+        .page-thumb-title {
+            font-size: 11px;
+            color: var(--accent-gold);
+            margin-bottom: 6px;
+            font-weight: 700;
+        }
+        .page-thumb-body {
+            font-size: 12px;
+            color: var(--text-main);
+            line-height: 1.35;
+            max-height: 64px;
+            overflow: hidden;
+        }
             body.compact-chrome .docx-pro-ribbon {
                 padding-top: 6px;
                 padding-bottom: 6px;
@@ -755,6 +841,20 @@
         .analytics span { display: flex; align-items: center; gap: 4px; color: var(--accent-gold); }
         
         .status-indicator { display: flex; align-items: center; gap: 8px; font-weight: 500; }
+        .collab-presence {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-left: 8px;
+        }
+        .presence-chip {
+            border: 1px solid rgba(255,255,255,0.12);
+            background: rgba(0,0,0,0.24);
+            border-radius: 999px;
+            padding: 2px 8px;
+            font-size: 10px;
+            color: var(--text-main);
+        }
         .dot { width: 8px; height: 8px; border-radius: 50%; background: #333; transition: all 0.3s; }
         .dot.saving { background: var(--accent-gold); box-shadow: 0 0 10px var(--accent-gold); }
         .dot.saved { background: var(--accent-purple); box-shadow: 0 0 10px var(--accent-purple); }
@@ -1000,6 +1100,7 @@
             <button class="icon-only" onclick="App.openSecurityHelp()" title="Encryption & Failsafe Help">
                 <i data-lucide="shield-help" style="width:16px;height:16px;"></i>
             </button>
+            <button onclick="App.openSovereignVariables()"><i data-lucide="shield" style="width:16px;height:16px;"></i> Sovereign Vars</button>
             <button onclick="App.exportPDF()"><i data-lucide="printer" style="width:16px;height:16px;"></i> PDF</button>
             <button onclick="App.triggerOpenLocalDoc()"><i data-lucide="folder-open" style="width:16px;height:16px;"></i> Open</button>
             <button class="primary" onclick="App.triggerSaveAs()"><i data-lucide="save" style="width:16px;height:16px;"></i> Save As...</button>
@@ -1141,7 +1242,17 @@
                 <div class="docx-pro-group">
                     <button type="button" onclick="App.insertQuickTable()"><i data-lucide="table" style="width:14px;height:14px;"></i> Table</button>
                     <button type="button" onclick="App.insertChecklist()"><i data-lucide="list-checks" style="width:14px;height:14px;"></i> Checklist</button>
+                    <button type="button" onclick="App.insertSectionBreak()"><i data-lucide="panel-top" style="width:14px;height:14px;"></i> Section</button>
+                    <button type="button" onclick="App.configureHeaderFooter()"><i data-lucide="between-horizontal-start" style="width:14px;height:14px;"></i> Header/Footer</button>
                     <button type="button" id="docx-spellcheck-btn" onclick="App.toggleSpellcheck()"><i data-lucide="spell-check" style="width:14px;height:14px;"></i> Spellcheck</button>
+                </div>
+                <div class="docx-pro-group">
+                    <button type="button" onclick="App.tableAddRowAfter()"><i data-lucide="rows-3" style="width:14px;height:14px;"></i> Row+</button>
+                    <button type="button" onclick="App.tableAddColumnRight()"><i data-lucide="columns-3" style="width:14px;height:14px;"></i> Col+</button>
+                    <button type="button" onclick="App.tableDeleteRow()"><i data-lucide="rows-2" style="width:14px;height:14px;"></i> Row-</button>
+                    <button type="button" onclick="App.tableDeleteColumn()"><i data-lucide="columns-2" style="width:14px;height:14px;"></i> Col-</button>
+                    <button type="button" onclick="App.tableToggleHeaderRow()"><i data-lucide="heading-1" style="width:14px;height:14px;"></i> Header Row</button>
+                    <button type="button" onclick="App.tableMergeCellRight()"><i data-lucide="merge" style="width:14px;height:14px;"></i> Merge</button>
                 </div>
             </div>
             
@@ -1159,6 +1270,7 @@
                 <button id="tab-outline" class="active" onclick="App.switchRightTab('outline')">Outline</button>
                 <button id="tab-comments" onclick="App.switchRightTab('comments')">Comments</button>
                 <button id="tab-versions" onclick="App.switchRightTab('versions')">Timeline</button>
+                <button id="tab-pages" onclick="App.switchRightTab('pages')">Pages</button>
             </div>
             <div class="right-panel active" id="panel-outline">
                 <div class="outline-content" id="doc-outline">
@@ -1173,6 +1285,11 @@
             <div class="right-panel" id="panel-versions">
                 <div id="timeline-side-list">
                     <div class="panel-empty">No versions yet.</div>
+                </div>
+            </div>
+            <div class="right-panel" id="panel-pages">
+                <div id="page-thumb-list">
+                    <div class="panel-empty">No pages detected.</div>
                 </div>
             </div>
 
@@ -1191,6 +1308,7 @@
                 <span class="dot" id="status-dot"></span>
                 <span id="status-state">All changes saved locally</span>
             </div>
+            <div class="collab-presence" id="collab-presence"></div>
         </div>
         <div class="footer-right">
             <div class="analytics">
@@ -1505,6 +1623,14 @@
             lineSpacing: 1.5,
             paragraphSpacing: 1,
             spellcheckEnabled: true,
+            collabSessionId: `session_${Math.random().toString(36).slice(2, 9)}`,
+            collabUser: (localStorage.getItem('kx.auth.user') || 'Workspace User').trim(),
+            collabChannel: null,
+            presenceMap: new Map(),
+            lastSavedRevision: 0,
+            localDirtySinceRevision: false,
+            lastEditorText: '',
+            tableResizeState: null,
 
             async boot() {
                 // Intro Sequence Management
@@ -1534,6 +1660,8 @@
 
                 this.initQuill();
                 this.initProControls();
+                this.initCollaborationLayer();
+                this.renderPresence();
                 await this.loadDocList();
 
                 if (this.allDocsCache.length === 0) {
@@ -1621,6 +1749,12 @@
                         return;
                     }
 
+                    if (e.shiftKey && key === 'h') {
+                        e.preventDefault();
+                        this.configureHeaderFooter();
+                        return;
+                    }
+
                     if (e.shiftKey && key === 'b') {
                         e.preventDefault();
                         this.insertPageBreak();
@@ -1630,6 +1764,12 @@
                     if (e.shiftKey && key === 't') {
                         e.preventDefault();
                         this.insertQuickTable();
+                        return;
+                    }
+
+                    if (e.shiftKey && key === 'u') {
+                        e.preventDefault();
+                        this.insertSectionBreak();
                         return;
                     }
 
@@ -1676,6 +1816,11 @@
                 document.getElementById('security-help-modal').style.display = 'flex';
             },
 
+            openSovereignVariables() {
+                const wsId = new URLSearchParams(window.location.search).get('ws_id') || 'primary-workspace';
+                window.open(`/SovereignVariables/index.html?embed=1&ws_id=${encodeURIComponent(wsId)}`, '_blank', 'noopener,noreferrer');
+            },
+
             buildRecoveryCode() {
                 const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
                 const bytes = crypto.getRandomValues(new Uint8Array(24));
@@ -1715,13 +1860,22 @@
             ensureDocCollections(doc) {
                 if (!doc.comments) doc.comments = [];
                 if (!doc.suggestions) doc.suggestions = [];
+                if (!doc.pendingChanges) doc.pendingChanges = [];
                 if (!doc.versions) doc.versions = [];
                 if (!doc.meta) doc.meta = { author: '', classification: 'internal', tags: [], summary: '' };
+                if (!doc.meta.layout) {
+                    doc.meta.layout = {
+                        headerText: '',
+                        footerText: '',
+                        showPageNumbers: true,
+                    };
+                }
+                doc.comments = doc.comments.map((item) => ({ ...item, replies: Array.isArray(item.replies) ? item.replies : [] }));
             },
 
             switchRightTab(tab) {
                 this.activeRightTab = tab;
-                ['outline', 'comments', 'versions'].forEach((name) => {
+                ['outline', 'comments', 'versions', 'pages'].forEach((name) => {
                     const button = document.getElementById(`tab-${name}`);
                     const panel = document.getElementById(`panel-${name}`);
                     if (button) button.classList.toggle('active', name === tab);
@@ -1747,12 +1901,26 @@
                     <div class="comment-item ${comment.resolved ? 'resolved' : ''}">
                         <div class="comment-head">
                             <span>${comment.author || 'Unknown'} · ${new Date(comment.createdAt).toLocaleString()}</span>
-                            <button type="button" onclick="App.toggleCommentResolved('${comment.id}')">${comment.resolved ? 'Reopen' : 'Resolve'}</button>
+                            <div style="display:flex; gap:6px;">
+                                <button type="button" onclick="App.addReplyToComment('${comment.id}')">Reply</button>
+                                <button type="button" onclick="App.toggleCommentResolved('${comment.id}')">${comment.resolved ? 'Reopen' : 'Resolve'}</button>
+                            </div>
                         </div>
                         <div class="comment-snippet">Selection: ${comment.selection || 'N/A'}</div>
-                        <div class="comment-body">${comment.text}</div>
+                        <div class="comment-body">${App.formatMentions(comment.text)}</div>
+                        <div class="comment-replies">
+                            ${(comment.replies || []).map((reply) => `<div class="comment-reply"><b>${reply.author || 'User'}</b> · ${new Date(reply.createdAt).toLocaleString()}<br>${App.formatMentions(reply.text || '')}</div>`).join('') || '<div class="comment-reply" style="opacity:0.7;">No replies yet.</div>'}
+                        </div>
                     </div>
                 `).join('');
+            },
+
+            formatMentions(text) {
+                const safe = String(text || '')
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;');
+                return safe.replace(/@([a-z0-9._-]+)/gi, '<span class="mention-tag">@$1</span>');
             },
 
             async addCommentFromSelection() {
@@ -1773,7 +1941,8 @@
                     selection: selectedText || '(no selection)',
                     createdAt: Date.now(),
                     author: 'Workspace User',
-                    resolved: false
+                    resolved: false,
+                    replies: []
                 });
                 doc.updatedAt = Date.now();
                 await DB.put(STORE_DOCS, doc);
@@ -1782,6 +1951,34 @@
                 this.renderCommentsPanel();
                 this.switchRightTab('comments');
                 this.showToast('Comment thread added.');
+            },
+
+            async addReplyToComment(commentId) {
+                if (!this.activeDocId) return;
+                const replyText = await this.customPrompt('<i data-lucide="message-circle-reply"></i> Reply (use @mentions):');
+                refreshLucideIcons();
+                if (!replyText || !replyText.trim()) return;
+                const doc = await DB.get(STORE_DOCS, this.activeDocId);
+                if (!doc) return;
+                this.ensureDocCollections(doc);
+                doc.comments = doc.comments.map((item) => {
+                    if (item.id !== commentId) return item;
+                    const replies = Array.isArray(item.replies) ? item.replies : [];
+                    replies.push({
+                        id: `reply_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+                        text: replyText.trim(),
+                        author: this.collabUser || 'Workspace User',
+                        createdAt: Date.now(),
+                    });
+                    return { ...item, replies };
+                });
+                doc.updatedAt = Date.now();
+                await DB.put(STORE_DOCS, doc);
+                const idx = this.allDocsCache.findIndex(d => d.id === doc.id);
+                if (idx > -1) this.allDocsCache[idx] = doc;
+                this.renderCommentsPanel();
+                this.broadcastCollabEvent('comment_reply', { docId: doc.id, commentId });
+                this.showToast('Reply posted.');
             },
 
             async toggleCommentResolved(commentId) {
@@ -1801,28 +1998,91 @@
                 this.isSuggestionMode = !this.isSuggestionMode;
                 const button = document.getElementById('suggest-mode-btn');
                 if (button) button.classList.toggle('active', this.isSuggestionMode);
-                this.showToast(this.isSuggestionMode ? 'Suggestion mode enabled.' : 'Suggestion mode disabled.');
+                this.showToast(this.isSuggestionMode ? 'Track Changes enabled.' : 'Track Changes disabled.');
             },
 
-            captureSuggestion(delta) {
+            captureSuggestion(delta, beforeText = '') {
                 const doc = this.getActiveDocRecord();
                 if (!doc) return;
                 this.ensureDocCollections(doc);
-                const summary = (delta?.ops || []).map((op) => {
-                    if (typeof op.insert === 'string') return `insert "${op.insert.slice(0, 28)}"`;
-                    if (op.insert && typeof op.insert === 'object') return 'insert embed';
-                    if (typeof op.delete === 'number') return `delete ${op.delete} chars`;
-                    if (typeof op.retain === 'number' && op.attributes) return `format ${op.retain} chars`;
-                    return null;
-                }).filter(Boolean).join(', ');
-                if (!summary) return;
-                doc.suggestions.push({
-                    id: `sugg_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-                    createdAt: Date.now(),
-                    author: 'Workspace User',
-                    summary,
-                });
+                let cursor = 0;
+                const pending = [];
+                for (const op of (delta?.ops || [])) {
+                    if (typeof op.retain === 'number') {
+                        if (op.attributes) {
+                            pending.push({
+                                id: `chg_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+                                createdAt: Date.now(),
+                                author: this.collabUser || 'Workspace User',
+                                kind: 'format',
+                                index: cursor,
+                                length: op.retain,
+                                text: '',
+                                status: 'pending',
+                                summary: `Format change on ${op.retain} chars`,
+                                diffHtml: '<span style="opacity:0.8;">Formatting change</span>',
+                            });
+                        }
+                        cursor += op.retain;
+                        continue;
+                    }
+                    if (typeof op.insert === 'string') {
+                        const inserted = op.insert;
+                        pending.push({
+                            id: `chg_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+                            createdAt: Date.now(),
+                            author: this.collabUser || 'Workspace User',
+                            kind: 'insert',
+                            index: cursor,
+                            length: inserted.length,
+                            text: inserted,
+                            status: 'pending',
+                            summary: `Inserted "${inserted.slice(0, 28)}"`,
+                            diffHtml: `<ins>${inserted.replace(/</g, '&lt;')}</ins>`,
+                        });
+                        cursor += inserted.length;
+                        continue;
+                    }
+                    if (typeof op.delete === 'number') {
+                        const removed = String(beforeText || '').slice(cursor, cursor + op.delete);
+                        pending.push({
+                            id: `chg_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+                            createdAt: Date.now(),
+                            author: this.collabUser || 'Workspace User',
+                            kind: 'delete',
+                            index: cursor,
+                            length: op.delete,
+                            text: removed,
+                            status: 'pending',
+                            summary: `Deleted ${op.delete} chars`,
+                            diffHtml: `<del>${String(removed || '').replace(/</g, '&lt;')}</del>`,
+                        });
+                        continue;
+                    }
+                    if (op.insert && typeof op.insert === 'object') {
+                        pending.push({
+                            id: `chg_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+                            createdAt: Date.now(),
+                            author: this.collabUser || 'Workspace User',
+                            kind: 'embed',
+                            index: cursor,
+                            length: 1,
+                            text: '[embed]',
+                            status: 'pending',
+                            summary: 'Embedded object inserted',
+                            diffHtml: '<ins>[embed]</ins>',
+                        });
+                        cursor += 1;
+                    }
+                }
+
+                if (!pending.length) return;
+
+                doc.suggestions.push(...pending);
+                doc.pendingChanges.push(...pending.map((item) => item.id));
                 if (doc.suggestions.length > 300) doc.suggestions = doc.suggestions.slice(-300);
+                if (doc.pendingChanges.length > 400) doc.pendingChanges = doc.pendingChanges.slice(-400);
+                this.refreshInlineTrackHighlights();
             },
 
             openSuggestionLog() {
@@ -1839,10 +2099,107 @@
                         <div class="version-item">
                             <div class="version-head"><span>${new Date(item.createdAt).toLocaleString()}</span><span>${item.author || 'Workspace User'}</span></div>
                             <div class="comment-body">${item.summary}</div>
+                            <div class="comment-snippet" style="margin-top:6px;">${item.diffHtml || ''}</div>
+                            <div style="display:flex; gap:6px; margin-top:8px;">
+                                <button type="button" onclick="App.acceptSuggestion('${item.id}')" ${item.status === 'accepted' ? 'disabled' : ''}>${item.status === 'accepted' ? 'Accepted' : 'Accept'}</button>
+                                <button type="button" onclick="App.rejectSuggestion('${item.id}')" ${item.status === 'rejected' ? 'disabled' : ''}>${item.status === 'rejected' ? 'Rejected' : 'Reject'}</button>
+                            </div>
                         </div>
                     `).join('');
+                    host.innerHTML = `
+                        <div style="display:flex; gap:8px; margin-bottom:8px;">
+                            <button type="button" onclick="App.acceptAllSuggestions()">Accept All</button>
+                            <button type="button" onclick="App.rejectAllSuggestions()">Reject All</button>
+                        </div>
+                    ` + host.innerHTML;
                 }
                 document.getElementById('suggestions-modal').style.display = 'flex';
+            },
+
+            async acceptSuggestion(changeId) {
+                if (!this.activeDocId) return;
+                const doc = await DB.get(STORE_DOCS, this.activeDocId);
+                if (!doc) return;
+                this.ensureDocCollections(doc);
+                doc.suggestions = doc.suggestions.map((item) => item.id === changeId ? { ...item, status: 'accepted' } : item);
+                doc.pendingChanges = doc.pendingChanges.filter((id) => id !== changeId);
+                await DB.put(STORE_DOCS, doc);
+                const idx = this.allDocsCache.findIndex(d => d.id === doc.id);
+                if (idx > -1) this.allDocsCache[idx] = doc;
+                this.refreshInlineTrackHighlights();
+                this.openSuggestionLog();
+            },
+
+            async rejectSuggestion(changeId) {
+                if (!this.activeDocId) return;
+                const doc = await DB.get(STORE_DOCS, this.activeDocId);
+                if (!doc) return;
+                this.ensureDocCollections(doc);
+                const target = doc.suggestions.find((item) => item.id === changeId);
+                if (!target) return;
+
+                if (target.kind === 'insert' && target.length > 0) {
+                    this.quill.deleteText(target.index, target.length, 'user');
+                } else if (target.kind === 'delete' && target.text) {
+                    this.quill.insertText(target.index, target.text, 'user');
+                }
+
+                doc.suggestions = doc.suggestions.map((item) => item.id === changeId ? { ...item, status: 'rejected' } : item);
+                doc.pendingChanges = doc.pendingChanges.filter((id) => id !== changeId);
+                doc.content = this.resolveAssetsForStorage(this.quill.root.innerHTML);
+                doc.updatedAt = Date.now();
+                await DB.put(STORE_DOCS, doc);
+                const idx = this.allDocsCache.findIndex(d => d.id === doc.id);
+                if (idx > -1) this.allDocsCache[idx] = doc;
+                this.refreshInlineTrackHighlights();
+                this.openSuggestionLog();
+            },
+
+            async acceptAllSuggestions() {
+                const doc = await DB.get(STORE_DOCS, this.activeDocId);
+                if (!doc) return;
+                this.ensureDocCollections(doc);
+                const pending = new Set(doc.pendingChanges || []);
+                doc.suggestions = doc.suggestions.map((item) => pending.has(item.id) ? { ...item, status: 'accepted' } : item);
+                doc.pendingChanges = [];
+                await DB.put(STORE_DOCS, doc);
+                const idx = this.allDocsCache.findIndex(d => d.id === doc.id);
+                if (idx > -1) this.allDocsCache[idx] = doc;
+                this.refreshInlineTrackHighlights();
+                this.openSuggestionLog();
+            },
+
+            async rejectAllSuggestions() {
+                const doc = await DB.get(STORE_DOCS, this.activeDocId);
+                if (!doc) return;
+                this.ensureDocCollections(doc);
+                const pendingItems = doc.suggestions.filter((item) => (doc.pendingChanges || []).includes(item.id));
+                for (const item of pendingItems.reverse()) {
+                    if (item.kind === 'insert' && item.length > 0) this.quill.deleteText(item.index, item.length, 'user');
+                    if (item.kind === 'delete' && item.text) this.quill.insertText(item.index, item.text, 'user');
+                }
+                const pending = new Set(doc.pendingChanges || []);
+                doc.suggestions = doc.suggestions.map((item) => pending.has(item.id) ? { ...item, status: 'rejected' } : item);
+                doc.pendingChanges = [];
+                doc.content = this.resolveAssetsForStorage(this.quill.root.innerHTML);
+                doc.updatedAt = Date.now();
+                await DB.put(STORE_DOCS, doc);
+                const idx = this.allDocsCache.findIndex(d => d.id === doc.id);
+                if (idx > -1) this.allDocsCache[idx] = doc;
+                this.refreshInlineTrackHighlights();
+                this.openSuggestionLog();
+            },
+
+            refreshInlineTrackHighlights() {
+                const doc = this.getActiveDocRecord();
+                if (!doc || !this.quill) return;
+                this.ensureDocCollections(doc);
+                const inserts = doc.suggestions.filter((item) => (doc.pendingChanges || []).includes(item.id) && item.kind === 'insert');
+                for (const change of inserts) {
+                    if (change.length > 0) {
+                        this.quill.formatText(change.index, change.length, { background: '#fff2a8' }, 'silent');
+                    }
+                }
             },
 
             insertPageBreak() {
@@ -1988,11 +2345,17 @@
                 this.quill.root.addEventListener('drop', this.handleImageDrop.bind(this), false);
 
                 this.quill.on('text-change', (delta, _old, source) => {
-                    if (this.isSuggestionMode && source === 'user') this.captureSuggestion(delta);
+                    if (this.isSuggestionMode && source === 'user') this.captureSuggestion(delta, this.lastEditorText || '');
                     this.updateAnalytics();
+                    this.renderPageThumbnails();
+                    this.localDirtySinceRevision = source === 'user' ? true : this.localDirtySinceRevision;
+                    if (source === 'user') this.broadcastCollabEvent('typing', { docId: this.activeDocId, title: this.getActiveDocRecord()?.title || 'Untitled' });
+                    this.lastEditorText = this.quill.getText();
                     this.debouncedSave();
                     this.debouncedOutline();
                 });
+
+                this.enableTableResizeHandles();
             },
 
             debouncedSave: function() {
@@ -2215,6 +2578,9 @@
 
                 this.quill.clipboard.dangerouslyPasteHTML(safeHtml);
                 this.quill.history.clear();
+                this.lastEditorText = this.quill.getText();
+                this.lastSavedRevision = Number(doc.revision || 0);
+                this.localDirtySinceRevision = false;
                 
                 document.getElementById('doc-title-editor-container').style.display = 'flex';
                 document.getElementById('doc-title-input').value = doc.title;
@@ -2222,8 +2588,11 @@
                 this.renderDocList(this.allDocsCache, false);
                 this.updateAnalytics();
                 this.generateOutline();
+                this.renderPageThumbnails();
+                this.renderHeaderFooterBands();
                 this.renderCommentsPanel();
                 this.renderTimelineList('timeline-side-list');
+                this.broadcastCollabEvent('presence', { docId: doc.id, title: doc.title });
                 this.setStatus('saved');
             },
 
@@ -2246,6 +2615,19 @@
                 if (!this.activeDocId) return;
                 const doc = await DB.get(STORE_DOCS, this.activeDocId);
                 if (!doc) return;
+                const latestDoc = await DB.get(STORE_DOCS, this.activeDocId);
+                const latestRevision = Number(latestDoc?.revision || 0);
+                if (latestRevision > this.lastSavedRevision && this.localDirtySinceRevision) {
+                    const conflictId = `${doc.id}_conflict_${Date.now()}`;
+                    await DB.put(STORE_DOCS, {
+                        ...doc,
+                        id: conflictId,
+                        title: `${doc.title} (Conflict Copy)`,
+                        updatedAt: Date.now(),
+                        revision: latestRevision,
+                    });
+                    this.showToast('Conflict detected. A conflict copy was created.');
+                }
                 let html = this.quill.root.innerHTML;
                 
                 html = this.resolveAssetsForStorage(html);
@@ -2266,12 +2648,19 @@
 
                 doc.content = html;
                 doc.updatedAt = Date.now();
+                doc.revision = Number(doc.revision || 0) + 1;
+                doc.updatedBy = this.collabUser;
                 await DB.put(STORE_DOCS, doc);
 
                 const index = this.allDocsCache.findIndex(d => d.id === this.activeDocId);
                 if(index > -1) this.allDocsCache[index] = doc;
 
                 this.renderTimelineList('timeline-side-list');
+                this.renderPageThumbnails();
+                this.renderHeaderFooterBands();
+                this.lastSavedRevision = Number(doc.revision || 0);
+                this.localDirtySinceRevision = false;
+                this.broadcastCollabEvent('doc_saved', { docId: doc.id, title: doc.title, revision: this.lastSavedRevision });
                 
                 this.setStatus('saved');
             },
@@ -2583,6 +2972,289 @@
 
             openShortcutGuide() {
                 document.getElementById('shortcut-modal').style.display = 'flex';
+            },
+
+            insertSectionBreak() {
+                if (!this.activeDocId) return this.showToast('Open a document first.');
+                const range = this.quill.getSelection(true) || { index: this.quill.getLength() };
+                this.quill.clipboard.dangerouslyPasteHTML(range.index, '<hr class="section-break"/>');
+                this.quill.setSelection(range.index + 1, 0, 'user');
+                this.showToast('Section break inserted.');
+                this.debouncedSave();
+            },
+
+            async configureHeaderFooter() {
+                if (!this.activeDocId) return this.showToast('Open a document first.');
+                const doc = await DB.get(STORE_DOCS, this.activeDocId);
+                if (!doc) return;
+                this.ensureDocCollections(doc);
+                const layout = doc.meta.layout || {};
+                const header = await this.customPrompt('<i data-lucide="between-horizontal-start"></i> Header text:', layout.headerText || '');
+                refreshLucideIcons();
+                if (header === null) return;
+                const footer = await this.customPrompt('<i data-lucide="between-horizontal-end"></i> Footer text:', layout.footerText || '');
+                refreshLucideIcons();
+                if (footer === null) return;
+                const pageNumbers = await this.customConfirm('<i data-lucide="list-ordered"></i> Show page numbers in footer?', 'Enable page numbers across document pages?', false, (layout.showPageNumbers === false ? 'Enable' : 'Keep Enabled'));
+                refreshLucideIcons();
+                doc.meta.layout = {
+                    headerText: String(header || ''),
+                    footerText: String(footer || ''),
+                    showPageNumbers: pageNumbers !== false,
+                };
+                doc.updatedAt = Date.now();
+                await DB.put(STORE_DOCS, doc);
+                const idx = this.allDocsCache.findIndex((d) => d.id === doc.id);
+                if (idx > -1) this.allDocsCache[idx] = doc;
+                this.renderHeaderFooterBands();
+                this.showToast('Header/footer updated.');
+            },
+
+            renderHeaderFooterBands() {
+                const host = document.getElementById('editor-container');
+                if (!host) return;
+                const doc = this.getActiveDocRecord();
+                if (!doc) return;
+                this.ensureDocCollections(doc);
+                const layout = doc.meta.layout || {};
+
+                const oldHeader = host.querySelector('.doc-page-header');
+                const oldFooter = host.querySelector('.doc-page-footer');
+                if (oldHeader) oldHeader.remove();
+                if (oldFooter) oldFooter.remove();
+
+                const header = document.createElement('div');
+                header.className = 'doc-page-header';
+                header.innerText = layout.headerText || '';
+
+                const footer = document.createElement('div');
+                footer.className = 'doc-page-footer';
+                const left = document.createElement('span');
+                left.innerText = layout.footerText || '';
+                const right = document.createElement('span');
+                right.innerText = layout.showPageNumbers === false ? '' : 'Page 1';
+                footer.appendChild(left);
+                footer.appendChild(right);
+
+                host.prepend(header);
+                host.appendChild(footer);
+            },
+
+            renderPageThumbnails() {
+                const host = document.getElementById('page-thumb-list');
+                if (!host || !this.quill) return;
+                const html = this.quill.root.innerHTML || '';
+                const parts = html.split(/<hr class=\"(?:page-break|section-break)\"\/?>(?:<\/hr>)?/i).filter(Boolean);
+                if (!parts.length) {
+                    host.innerHTML = '<div class="panel-empty">No pages detected.</div>';
+                    return;
+                }
+                host.innerHTML = parts.map((part, index) => {
+                    const text = String(part).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 140);
+                    return `<div class="page-thumb" onclick="App.jumpToPage(${index})"><div class="page-thumb-title">Page ${index + 1}</div><div class="page-thumb-body">${text || '(blank page)'}</div></div>`;
+                }).join('');
+            },
+
+            jumpToPage(pageIndex) {
+                const markers = Array.from(document.querySelectorAll('.ql-editor .page-break, .ql-editor .section-break'));
+                if (pageIndex <= 0) {
+                    const root = document.querySelector('.ql-editor');
+                    if (root) root.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    return;
+                }
+                const target = markers[pageIndex - 1];
+                if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            },
+
+            getSelectedTableCell() {
+                const sel = window.getSelection();
+                if (!sel || !sel.anchorNode) return null;
+                const node = sel.anchorNode.nodeType === 3 ? sel.anchorNode.parentElement : sel.anchorNode;
+                return node && node.closest ? node.closest('td,th') : null;
+            },
+
+            tableAddRowAfter() {
+                const cell = this.getSelectedTableCell();
+                if (!cell) return this.showToast('Place cursor inside a table cell first.');
+                const row = cell.parentElement;
+                const clone = row.cloneNode(true);
+                clone.querySelectorAll('td,th').forEach((n) => { n.textContent = 'Cell'; n.removeAttribute('colspan'); });
+                row.parentElement.insertBefore(clone, row.nextSibling);
+                this.debouncedSave();
+            },
+
+            tableDeleteRow() {
+                const cell = this.getSelectedTableCell();
+                if (!cell) return this.showToast('Place cursor inside a table cell first.');
+                const row = cell.parentElement;
+                row.remove();
+                this.debouncedSave();
+            },
+
+            tableAddColumnRight() {
+                const cell = this.getSelectedTableCell();
+                if (!cell) return this.showToast('Place cursor inside a table cell first.');
+                const idx = Array.from(cell.parentElement.children).indexOf(cell);
+                const table = cell.closest('table');
+                table.querySelectorAll('tr').forEach((row) => {
+                    const tag = row.children[idx]?.tagName === 'TH' ? 'th' : 'td';
+                    const next = document.createElement(tag || 'td');
+                    next.style.border = '1px solid #d4d4d4';
+                    next.style.padding = '8px';
+                    next.textContent = 'Cell';
+                    row.insertBefore(next, row.children[idx + 1] || null);
+                });
+                this.debouncedSave();
+            },
+
+            tableDeleteColumn() {
+                const cell = this.getSelectedTableCell();
+                if (!cell) return this.showToast('Place cursor inside a table cell first.');
+                const idx = Array.from(cell.parentElement.children).indexOf(cell);
+                const table = cell.closest('table');
+                table.querySelectorAll('tr').forEach((row) => {
+                    if (row.children[idx]) row.children[idx].remove();
+                });
+                this.debouncedSave();
+            },
+
+            tableToggleHeaderRow() {
+                const cell = this.getSelectedTableCell();
+                if (!cell) return this.showToast('Place cursor inside a table cell first.');
+                const table = cell.closest('table');
+                const first = table.querySelector('tr');
+                if (!first) return;
+                const hasHeader = Array.from(first.children).some((el) => el.tagName === 'TH');
+                first.querySelectorAll('td,th').forEach((node) => {
+                    const repl = document.createElement(hasHeader ? 'td' : 'th');
+                    repl.innerHTML = node.innerHTML;
+                    repl.style.border = '1px solid #d4d4d4';
+                    repl.style.padding = '8px';
+                    if (!hasHeader) repl.style.background = '#f3f3f3';
+                    node.replaceWith(repl);
+                });
+                this.debouncedSave();
+            },
+
+            tableMergeCellRight() {
+                const cell = this.getSelectedTableCell();
+                if (!cell) return this.showToast('Place cursor inside a table cell first.');
+                const next = cell.nextElementSibling;
+                if (!next) return this.showToast('No adjacent cell to merge.');
+                const currentColspan = Number(cell.getAttribute('colspan') || '1');
+                const nextColspan = Number(next.getAttribute('colspan') || '1');
+                cell.setAttribute('colspan', String(currentColspan + nextColspan));
+                cell.innerHTML = `${cell.innerHTML}<br>${next.innerHTML}`;
+                next.remove();
+                this.debouncedSave();
+            },
+
+            enableTableResizeHandles() {
+                const root = this.quill?.root;
+                if (!root) return;
+
+                root.addEventListener('mousemove', (event) => {
+                    const cell = event.target && event.target.closest ? event.target.closest('td,th') : null;
+                    if (!cell) {
+                        root.style.cursor = '';
+                        return;
+                    }
+                    const rect = cell.getBoundingClientRect();
+                    const nearEdge = Math.abs(event.clientX - rect.right) < 6;
+                    root.style.cursor = nearEdge ? 'col-resize' : '';
+                });
+
+                root.addEventListener('mousedown', (event) => {
+                    const cell = event.target && event.target.closest ? event.target.closest('td,th') : null;
+                    if (!cell) return;
+                    const rect = cell.getBoundingClientRect();
+                    const nearEdge = Math.abs(event.clientX - rect.right) < 6;
+                    if (!nearEdge) return;
+                    const colIndex = Array.from(cell.parentElement.children).indexOf(cell);
+                    this.tableResizeState = {
+                        table: cell.closest('table'),
+                        colIndex,
+                        startX: event.clientX,
+                        startWidth: rect.width,
+                    };
+                    event.preventDefault();
+                });
+
+                document.addEventListener('mousemove', (event) => {
+                    if (!this.tableResizeState) return;
+                    const state = this.tableResizeState;
+                    const width = Math.max(48, state.startWidth + (event.clientX - state.startX));
+                    state.table.querySelectorAll('tr').forEach((row) => {
+                        if (!row.children[state.colIndex]) return;
+                        row.children[state.colIndex].style.width = `${width}px`;
+                        row.children[state.colIndex].style.minWidth = `${width}px`;
+                        row.children[state.colIndex].style.maxWidth = `${width}px`;
+                    });
+                });
+
+                document.addEventListener('mouseup', () => {
+                    if (!this.tableResizeState) return;
+                    this.tableResizeState = null;
+                    this.debouncedSave();
+                });
+            },
+
+            initCollaborationLayer() {
+                if (typeof BroadcastChannel === 'undefined') return;
+                this.collabChannel = new BroadcastChannel('skye-docx-collab');
+                this.collabChannel.onmessage = async (event) => {
+                    const msg = event?.data || {};
+                    if (!msg || msg.sessionId === this.collabSessionId) return;
+
+                    if (msg.type === 'presence' || msg.type === 'typing') {
+                        this.presenceMap.set(msg.sessionId, {
+                            user: msg.user || 'Guest',
+                            docId: msg.docId || '',
+                            at: Date.now(),
+                            state: msg.type,
+                        });
+                        this.renderPresence();
+                    }
+
+                    if (msg.type === 'doc_saved' && msg.docId === this.activeDocId) {
+                        const incomingRevision = Number(msg.revision || 0);
+                        if (incomingRevision > this.lastSavedRevision) {
+                            if (this.localDirtySinceRevision) {
+                                this.showToast('Remote update detected while you have local edits. Conflict-safe copy will be created on save.');
+                            } else {
+                                await this.openDoc(this.activeDocId);
+                                this.showToast(`Live sync applied from ${msg.user || 'collaborator'}.`);
+                            }
+                        }
+                    }
+                };
+                this.broadcastCollabEvent('presence', { docId: this.activeDocId || '', title: this.getActiveDocRecord()?.title || '' });
+            },
+
+            broadcastCollabEvent(type, payload = {}) {
+                if (!this.collabChannel) return;
+                this.collabChannel.postMessage({
+                    type,
+                    ...payload,
+                    sessionId: this.collabSessionId,
+                    user: this.collabUser || 'Workspace User',
+                    docId: payload.docId || this.activeDocId || '',
+                    at: Date.now(),
+                });
+            },
+
+            renderPresence() {
+                const host = document.getElementById('collab-presence');
+                if (!host) return;
+                const now = Date.now();
+                const active = Array.from(this.presenceMap.entries())
+                    .filter(([, value]) => now - Number(value.at || 0) < 12000)
+                    .map(([, value]) => value);
+                if (!active.length) {
+                    host.innerHTML = '<span class="presence-chip">Solo</span>';
+                    return;
+                }
+                host.innerHTML = active.slice(0, 4).map((p) => `<span class="presence-chip">${String(p.user || 'User').split('@')[0]} ${p.state === 'typing' ? 'typing…' : 'online'}</span>`).join('');
             },
 
             toggleFocusMode() {
