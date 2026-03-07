@@ -244,8 +244,9 @@ type MergePreviewState = {
   serverUpdatedAt: string;
 };
 
-type ResizeKind = "sidebar" | "chat" | "ide-split";
+type ResizeKind = "sidebar" | "rightpanel" | "ide-split";
 type WorkspaceStageApp = SkyeAppId | "Neural-Space-Pro";
+type RightDockApp = "SkyeChat" | "SovereignVariables";
 
 type TokenInventoryItem = {
   id: string;
@@ -869,10 +870,18 @@ export function App() {
     if (!Number.isFinite(raw)) return 420;
     return Math.min(640, Math.max(300, raw));
   });
-  const [chatPaneHeight, setChatPaneHeight] = useState(() => {
-    const raw = Number(localStorage.getItem("kx.layout.chat.height"));
-    if (!Number.isFinite(raw)) return 340;
-    return Math.min(560, Math.max(220, raw));
+  const [workspaceRightPanelWidth, setWorkspaceRightPanelWidth] = useState(() => {
+    const raw = Number(localStorage.getItem("kx.layout.rightpanel.width"));
+    if (!Number.isFinite(raw)) return 420;
+    return Math.min(620, Math.max(300, raw));
+  });
+  const [rightTopDockApp, setRightTopDockApp] = useState<RightDockApp>(() => {
+    const raw = String(localStorage.getItem("kx.layout.right.top.app") || "").trim();
+    return raw === "SovereignVariables" ? raw : "SkyeChat";
+  });
+  const [rightBottomDockApp, setRightBottomDockApp] = useState<RightDockApp>(() => {
+    const raw = String(localStorage.getItem("kx.layout.right.bottom.app") || "").trim();
+    return raw === "SkyeChat" ? raw : "SovereignVariables";
   });
   const [ideSplitRatio, setIdeSplitRatio] = useState(() => {
     const raw = Number(localStorage.getItem("kx.layout.ide.split"));
@@ -904,7 +913,7 @@ export function App() {
     startX: number;
     startY: number;
     sidebarWidth: number;
-    chatHeight: number;
+    rightPanelWidth: number;
     ideSplitRatio: number;
   } | null>(null);
   const ideSplitRef = useRef<HTMLDivElement | null>(null);
@@ -1349,8 +1358,16 @@ export function App() {
   }, [workspaceSidebarWidth]);
 
   useEffect(() => {
-    localStorage.setItem("kx.layout.chat.height", String(Math.round(chatPaneHeight)));
-  }, [chatPaneHeight]);
+    localStorage.setItem("kx.layout.rightpanel.width", String(Math.round(workspaceRightPanelWidth)));
+  }, [workspaceRightPanelWidth]);
+
+  useEffect(() => {
+    localStorage.setItem("kx.layout.right.top.app", rightTopDockApp);
+  }, [rightTopDockApp]);
+
+  useEffect(() => {
+    localStorage.setItem("kx.layout.right.bottom.app", rightBottomDockApp);
+  }, [rightBottomDockApp]);
 
   useEffect(() => {
     localStorage.setItem("kx.layout.ide.split", String(Math.round(ideSplitRatio)));
@@ -3993,7 +4010,7 @@ export function App() {
       startX,
       startY,
       sidebarWidth: workspaceSidebarWidth,
-      chatHeight: chatPaneHeight,
+      rightPanelWidth: workspaceRightPanelWidth,
       ideSplitRatio,
     };
 
@@ -4009,11 +4026,11 @@ export function App() {
         return;
       }
 
-      if (state.kind === "chat") {
-        const delta = state.startY - moveEvent.clientY;
-        const max = Math.max(360, Math.floor(window.innerHeight * 0.66));
-        const next = Math.min(max, Math.max(220, state.chatHeight + delta));
-        setChatPaneHeight(next);
+      if (state.kind === "rightpanel") {
+        const delta = state.startX - moveEvent.clientX;
+        const max = Math.max(420, Math.floor(window.innerWidth * 0.45));
+        const next = Math.min(max, Math.max(300, state.rightPanelWidth + delta));
+        setWorkspaceRightPanelWidth(next);
         return;
       }
 
@@ -4915,6 +4932,10 @@ export function App() {
   }
 
   const isSkyeDocsStackMode = appMode === "skyeide" && selectedSkyeApp === "SkyeDocs";
+  const rightTopDockUrl = buildAppSurfaceUrl(rightTopDockApp, workspaceId) || "/";
+  const rightTopDockEmbedUrl = `${rightTopDockUrl}${rightTopDockUrl.includes("?") ? "&" : "?"}embed=1`;
+  const rightBottomDockUrl = buildAppSurfaceUrl(rightBottomDockApp, workspaceId) || "/";
+  const rightBottomDockEmbedUrl = `${rightBottomDockUrl}${rightBottomDockUrl.includes("?") ? "&" : "?"}embed=1`;
 
   return (
     <div className="ide-shell">
@@ -5262,7 +5283,7 @@ export function App() {
           </div>
         </section>
       )}
-      <div className="workspace-body" style={{ ["--sidebar-width" as any]: `${workspaceSidebarWidth}px` }}>
+      <div className="workspace-body" style={{ ["--sidebar-width" as any]: `${workspaceSidebarWidth}px`, ["--right-panel-width" as any]: `${workspaceRightPanelWidth}px` }}>
         <aside className="file-pane">
           <div className="mode-switch">
             <button type="button" className={`switch-btn ${appMode === "skyeide" ? "active" : ""}`} onClick={() => setAppMode("skyeide")}>SkyeIDE</button>
@@ -5274,6 +5295,61 @@ export function App() {
 
           {appMode === "skyeide" ? (
             <>
+              <section className="side-settings-block">
+                <h3>Workspace Settings</h3>
+                <div className="tool-row split">
+                  <div>
+                    <label>Top Workspace</label>
+                    <select value={topWorkspaceApp} onChange={(event) => setTopWorkspaceApp(event.target.value as WorkspaceStageApp)}>
+                      <option value="Neural-Space-Pro">Neural-Space-Pro</option>
+                      {SKYE_APPS.map((app) => (
+                        <option key={`left-top-${app.id}`} value={app.id}>{app.id}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label>Middle Workspace</label>
+                    <select value={middleWorkspaceApp} onChange={(event) => setMiddleWorkspaceApp(event.target.value as WorkspaceStageApp)}>
+                      <option value="Neural-Space-Pro">Neural-Space-Pro</option>
+                      {SKYE_APPS.map((app) => (
+                        <option key={`left-mid-${app.id}`} value={app.id}>{app.id}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className="tool-row split">
+                  <div>
+                    <label>Bottom Workspace</label>
+                    <select value={bottomWorkspaceApp} onChange={(event) => setBottomWorkspaceApp(event.target.value as WorkspaceStageApp)}>
+                      <option value="Neural-Space-Pro">Neural-Space-Pro</option>
+                      {SKYE_APPS.map((app) => (
+                        <option key={`left-bottom-${app.id}`} value={app.id}>{app.id}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label>Right Panel Width</label>
+                    <input readOnly value={`${Math.round(workspaceRightPanelWidth)}px`} />
+                  </div>
+                </div>
+                <div className="tool-row split">
+                  <div>
+                    <label>Right Panel Top App</label>
+                    <select value={rightTopDockApp} onChange={(event) => setRightTopDockApp(event.target.value as RightDockApp)}>
+                      <option value="SkyeChat">SkyeChat</option>
+                      <option value="SovereignVariables">SovereignVariables</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label>Right Panel Bottom App</label>
+                    <select value={rightBottomDockApp} onChange={(event) => setRightBottomDockApp(event.target.value as RightDockApp)}>
+                      <option value="SkyeChat">SkyeChat</option>
+                      <option value="SovereignVariables">SovereignVariables</option>
+                    </select>
+                  </div>
+                </div>
+              </section>
+
               <div className="suite-progress">
                 Suite MVP Progress: {completeMvpItems}/{totalMvpItems}
               </div>
@@ -5773,168 +5849,227 @@ export function App() {
           )}
         </main>
 
-      </div>
+        <div
+          className="panel-resizer vertical"
+          role="separator"
+          aria-label="Resize right dock panel"
+          onPointerDown={(event) => beginResize("rightpanel", event)}
+        />
 
-      <div
-        className="panel-resizer horizontal"
-        role="separator"
-        aria-label="Resize workspace rows"
-        onPointerDown={(event) => beginResize("chat", event)}
-      />
-
-      <aside className="chat-pane chat-pane-bottom" style={{ height: `${chatPaneHeight}px` }}>
-          <header>
-            <div className="tool-tabs">
-              <button type="button" className={`tool-tab ${toolTab === "assistant" ? "active" : ""}`} onClick={() => setToolTab("assistant")}>Assistant</button>
-              <button type="button" className={`tool-tab ${toolTab === "smokehouse" ? "active" : ""}`} onClick={() => setToolTab("smokehouse")}>Smokehouse</button>
-              <button type="button" className={`tool-tab ${toolTab === "playground" ? "active" : ""}`} onClick={() => setToolTab("playground")}>API Playground</button>
-            </div>
-            <span>{healthUrl}</span>
-          </header>
-
-          {toolTab === "assistant" && (
-            <>
-              <section className="messages">
-                {messages.map((message) => (
-                  <article key={message.id} className={`bubble ${message.role}`}>
-                    <div className="meta">{message.role === "assistant" ? "kAIxU" : "You"}</div>
-                    <p>{message.text}</p>
-                  </article>
-                ))}
-              </section>
-
-              <form className="composer" onSubmit={onSend}>
-                <textarea value={input} onChange={(event) => setInput(event.target.value)} placeholder="Ask for code help, refactors, deployments, or debugging..." rows={3} />
-                <button type="submit" disabled={isSending || !input.trim()}>Send</button>
-              </form>
-            </>
-          )}
-
-          {toolTab === "smokehouse" && (
-            <div className="tool-panel">
-              <div className="release-cockpit">
-                <div>
-                  <strong>Release Cockpit</strong>
-                  <div className="muted-copy">Selected app: {selectedSkyeApp}</div>
-                </div>
-                <div className="readiness-chip">Readiness {selectedAppReadinessScore}%</div>
-              </div>
-              <div className="readiness-bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={selectedAppReadinessScore}>
-                <span style={{ width: `${selectedAppReadinessScore}%` }} />
-              </div>
-              <div className="dependency-grid">
-                {dependencyStatus.map((item) => (
-                  <div key={item.name} className={`dependency-item ${item.status === "ok" ? "pass" : "fail"}`}>
-                    <strong>{item.name}</strong>
-                    <div>{item.status === "ok" ? "OK" : "ATTENTION"}</div>
-                    <div>{item.detail}</div>
-                  </div>
-                ))}
-              </div>
-              <div className="tool-actions left">
-                <button type="button" className="ghost" onClick={() => void runAppProofFlow(selectedSkyeApp)} disabled={isSmokeChecking}>
-                  {isSmokeChecking ? "Running Proof..." : `Run ${selectedSkyeApp} App Proof`}
-                </button>
-              </div>
-              {appProofRuns.length > 0 && (
-                <div className="proof-runs">
-                  {appProofRuns.slice(0, 3).map((run) => (
-                    <div key={run.id} className="proof-run-item">
-                      <strong>{run.appId}</strong> · {new Date(run.at).toLocaleString()} · auth={run.auth_status} · runner={run.runner_status} · smoke_failures={run.smoke_failures}
-                    </div>
-                  ))}
-                </div>
-              )}
-              <div className="smoke-warning">
-                <strong>Health Gate Matrix</strong>
-                <div>Auth: {assistantAuthStatus.toUpperCase()} · Key: {hasApiKeyLoaded ? "LOADED" : "MISSING"}</div>
-                <div>Latest Smoke: {smokeResults.length ? `${smokeResults.length - smokeFailCount}/${smokeResults.length} passing` : "No run yet"}</div>
-                {smokeFailCount > 0 && <div>Blocking failures detected: {smokeFailCount}</div>}
-              </div>
-              <div className="tool-actions">
-                <button type="button" className="ghost" onClick={() => void runSmokehouseSuite("manual")} disabled={isSmokeChecking}>
-                  {isSmokeChecking ? "Running..." : "Run Full Smoke"}
-                </button>
-              </div>
-              <p className="muted-copy">Auto smoke runs every 13 minutes (append-only ledger).</p>
-              {smokeStaleWarningReason && (
-                <div className="smoke-warning">
-                  <strong>Warning: possible stale cached build/client state detected.</strong>
-                  <div>{smokeStaleWarningReason}</div>
-                  <div className="tool-actions left">
-                    <button type="button" className="ghost" onClick={resetSmokeClientState}>Reset Smoke Client State</button>
-                    <button type="button" className="ghost" onClick={dismissSmokeStaleWarning}>Dismiss</button>
-                  </div>
-                </div>
-              )}
-              <div className="smoke-list">
-                {smokeResults.length === 0 && <p className="muted-copy">No smoke results yet.</p>}
-                {smokeResults.map((result) => (
-                  <div key={`${result.name}-${result.url}`} className={`smoke-item ${result.ok ? "pass" : "fail"}`}>
-                    <strong>{result.ok ? "PASS" : "FAIL"}</strong> {result.name}
-                    <div>{result.method} {result.url}</div>
-                    <div>Status: {result.status}</div>
-                    <div>{result.summary}</div>
-                  </div>
-                ))}
-              </div>
-              <div className="tool-row">
-                <label>Export timeframe</label>
-                <select value={timeframe} onChange={(event) => setTimeframe(event.target.value as Timeframe)}>
-                  <option value="all">All</option>
-                  <option value="today">Today</option>
-                  <option value="7d">Last 7 days</option>
-                  <option value="30d">Last 30 days</option>
-                  <option value="custom">Custom</option>
-                </select>
-              </div>
-              {timeframe === "custom" && (
-                <div className="tool-row split">
-                  <input type="date" value={customFrom} onChange={(event) => setCustomFrom(event.target.value)} />
-                  <input type="date" value={customTo} onChange={(event) => setCustomTo(event.target.value)} />
-                </div>
-              )}
-              <div className="tool-actions left">
-                <button type="button" className="ghost" onClick={() => exportSmokeLedger(true)}>Export All Ledger</button>
-                <button type="button" className="ghost" onClick={() => exportSmokeLedger(false)}>Export Filtered</button>
-              </div>
-              <div className="ledger-meta">
-                Ledger runs: {smokeLedger.length} · Filtered: {getFilteredLedgerRuns().length}
-              </div>
-              <label>Smoke report</label>
-              <textarea className="report-box" readOnly value={buildSmokeReport()} rows={10} />
-            </div>
-          )}
-
-          {toolTab === "playground" && (
-            <form className="tool-panel" onSubmit={onApiPlaygroundSend}>
-              <label>Method</label>
-              <select value={playMethod} onChange={(event) => setPlayMethod(event.target.value)}>
-                <option>GET</option>
-                <option>POST</option>
-                <option>PUT</option>
-                <option>PATCH</option>
-                <option>DELETE</option>
+        <aside className="workspace-right-pane" aria-label="Right dock panel">
+          <section className="right-dock-module">
+            <header className="right-dock-head">
+              <strong>Top Dock</strong>
+              <select value={rightTopDockApp} onChange={(event) => setRightTopDockApp(event.target.value as RightDockApp)}>
+                <option value="SkyeChat">SkyeChat</option>
+                <option value="SovereignVariables">SovereignVariables</option>
               </select>
+            </header>
 
-              <label>URL</label>
-              <input value={playUrl} onChange={(event) => setPlayUrl(event.target.value)} />
+            {rightTopDockApp === "SkyeChat" ? (
+              <div className="chat-pane right-dock-chat-shell">
+                <header>
+                  <div className="tool-tabs">
+                    <button type="button" className={`tool-tab ${toolTab === "assistant" ? "active" : ""}`} onClick={() => setToolTab("assistant")}>Assistant</button>
+                    <button type="button" className={`tool-tab ${toolTab === "smokehouse" ? "active" : ""}`} onClick={() => setToolTab("smokehouse")}>Smokehouse</button>
+                    <button type="button" className={`tool-tab ${toolTab === "playground" ? "active" : ""}`} onClick={() => setToolTab("playground")}>API Playground</button>
+                  </div>
+                  <span>{healthUrl}</span>
+                </header>
 
-              <label>Headers (JSON)</label>
-              <textarea value={playHeaders} onChange={(event) => setPlayHeaders(event.target.value)} rows={5} />
+                {toolTab === "assistant" && (
+                  <>
+                    <section className="messages">
+                      {messages.map((message) => (
+                        <article key={message.id} className={`bubble ${message.role}`}>
+                          <div className="meta">{message.role === "assistant" ? "kAIxU" : "You"}</div>
+                          <p>{message.text}</p>
+                        </article>
+                      ))}
+                    </section>
 
-              <label>Body</label>
-              <textarea value={playBody} onChange={(event) => setPlayBody(event.target.value)} rows={7} />
+                    <form className="composer" onSubmit={onSend}>
+                      <textarea value={input} onChange={(event) => setInput(event.target.value)} placeholder="Ask for code help, refactors, deployments, or debugging..." rows={3} />
+                      <button type="submit" disabled={isSending || !input.trim()}>Send</button>
+                    </form>
+                  </>
+                )}
 
-              <div className="tool-actions">
-                <button type="submit" disabled={playLoading}>{playLoading ? "Sending..." : "Send Request"}</button>
+                {toolTab === "smokehouse" && (
+                  <div className="tool-panel">
+                    <div className="release-cockpit">
+                      <div>
+                        <strong>Release Cockpit</strong>
+                        <div className="muted-copy">Selected app: {selectedSkyeApp}</div>
+                      </div>
+                      <div className="readiness-chip">Readiness {selectedAppReadinessScore}%</div>
+                    </div>
+                    <div className="readiness-bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={selectedAppReadinessScore}>
+                      <span style={{ width: `${selectedAppReadinessScore}%` }} />
+                    </div>
+                    <div className="dependency-grid">
+                      {dependencyStatus.map((item) => (
+                        <div key={item.name} className={`dependency-item ${item.status === "ok" ? "pass" : "fail"}`}>
+                          <strong>{item.name}</strong>
+                          <div>{item.status === "ok" ? "OK" : "ATTENTION"}</div>
+                          <div>{item.detail}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="tool-actions left">
+                      <button type="button" className="ghost" onClick={() => void runAppProofFlow(selectedSkyeApp)} disabled={isSmokeChecking}>
+                        {isSmokeChecking ? "Running Proof..." : `Run ${selectedSkyeApp} App Proof`}
+                      </button>
+                    </div>
+                    {appProofRuns.length > 0 && (
+                      <div className="proof-runs">
+                        {appProofRuns.slice(0, 3).map((run) => (
+                          <div key={run.id} className="proof-run-item">
+                            <strong>{run.appId}</strong> · {new Date(run.at).toLocaleString()} · auth={run.auth_status} · runner={run.runner_status} · smoke_failures={run.smoke_failures}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <div className="smoke-warning">
+                      <strong>Health Gate Matrix</strong>
+                      <div>Auth: {assistantAuthStatus.toUpperCase()} · Key: {hasApiKeyLoaded ? "LOADED" : "MISSING"}</div>
+                      <div>Latest Smoke: {smokeResults.length ? `${smokeResults.length - smokeFailCount}/${smokeResults.length} passing` : "No run yet"}</div>
+                      {smokeFailCount > 0 && <div>Blocking failures detected: {smokeFailCount}</div>}
+                    </div>
+                    <div className="tool-actions">
+                      <button type="button" className="ghost" onClick={() => void runSmokehouseSuite("manual")} disabled={isSmokeChecking}>
+                        {isSmokeChecking ? "Running..." : "Run Full Smoke"}
+                      </button>
+                    </div>
+                    <p className="muted-copy">Auto smoke runs every 13 minutes (append-only ledger).</p>
+                    {smokeStaleWarningReason && (
+                      <div className="smoke-warning">
+                        <strong>Warning: possible stale cached build/client state detected.</strong>
+                        <div>{smokeStaleWarningReason}</div>
+                        <div className="tool-actions left">
+                          <button type="button" className="ghost" onClick={resetSmokeClientState}>Reset Smoke Client State</button>
+                          <button type="button" className="ghost" onClick={dismissSmokeStaleWarning}>Dismiss</button>
+                        </div>
+                      </div>
+                    )}
+                    <div className="smoke-list">
+                      {smokeResults.length === 0 && <p className="muted-copy">No smoke results yet.</p>}
+                      {smokeResults.map((result) => (
+                        <div key={`${result.name}-${result.url}`} className={`smoke-item ${result.ok ? "pass" : "fail"}`}>
+                          <strong>{result.ok ? "PASS" : "FAIL"}</strong> {result.name}
+                          <div>{result.method} {result.url}</div>
+                          <div>Status: {result.status}</div>
+                          <div>{result.summary}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="tool-row">
+                      <label>Export timeframe</label>
+                      <select value={timeframe} onChange={(event) => setTimeframe(event.target.value as Timeframe)}>
+                        <option value="all">All</option>
+                        <option value="today">Today</option>
+                        <option value="7d">Last 7 days</option>
+                        <option value="30d">Last 30 days</option>
+                        <option value="custom">Custom</option>
+                      </select>
+                    </div>
+                    {timeframe === "custom" && (
+                      <div className="tool-row split">
+                        <input type="date" value={customFrom} onChange={(event) => setCustomFrom(event.target.value)} />
+                        <input type="date" value={customTo} onChange={(event) => setCustomTo(event.target.value)} />
+                      </div>
+                    )}
+                    <div className="tool-actions left">
+                      <button type="button" className="ghost" onClick={() => exportSmokeLedger(true)}>Export All Ledger</button>
+                      <button type="button" className="ghost" onClick={() => exportSmokeLedger(false)}>Export Filtered</button>
+                    </div>
+                    <div className="ledger-meta">
+                      Ledger runs: {smokeLedger.length} · Filtered: {getFilteredLedgerRuns().length}
+                    </div>
+                    <label>Smoke report</label>
+                    <textarea className="report-box" readOnly value={buildSmokeReport()} rows={10} />
+                  </div>
+                )}
+
+                {toolTab === "playground" && (
+                  <form className="tool-panel" onSubmit={onApiPlaygroundSend}>
+                    <label>Method</label>
+                    <select value={playMethod} onChange={(event) => setPlayMethod(event.target.value)}>
+                      <option>GET</option>
+                      <option>POST</option>
+                      <option>PUT</option>
+                      <option>PATCH</option>
+                      <option>DELETE</option>
+                    </select>
+
+                    <label>URL</label>
+                    <input value={playUrl} onChange={(event) => setPlayUrl(event.target.value)} />
+
+                    <label>Headers (JSON)</label>
+                    <textarea value={playHeaders} onChange={(event) => setPlayHeaders(event.target.value)} rows={5} />
+
+                    <label>Body</label>
+                    <textarea value={playBody} onChange={(event) => setPlayBody(event.target.value)} rows={7} />
+
+                    <div className="tool-actions">
+                      <button type="submit" disabled={playLoading}>{playLoading ? "Sending..." : "Send Request"}</button>
+                    </div>
+
+                    <label>Response {playStatus !== null ? `(status ${playStatus})` : ""}</label>
+                    <textarea className="report-box" readOnly value={playResponse} rows={10} />
+                  </form>
+                )}
               </div>
+            ) : (
+              <div className="right-dock-embed-shell">
+                <div className="tool-actions left">
+                  <a className="ghost" href={rightTopDockUrl} target="_blank" rel="noreferrer">Open Standalone</a>
+                </div>
+                <iframe
+                  className="right-dock-embed"
+                  title={`Top Dock ${rightTopDockApp}`}
+                  src={rightTopDockEmbedUrl}
+                />
+              </div>
+            )}
+          </section>
 
-              <label>Response {playStatus !== null ? `(status ${playStatus})` : ""}</label>
-              <textarea className="report-box" readOnly value={playResponse} rows={10} />
-            </form>
-          )}
-      </aside>
+          <section className="right-dock-module">
+            <header className="right-dock-head">
+              <strong>Bottom Dock</strong>
+              <select value={rightBottomDockApp} onChange={(event) => setRightBottomDockApp(event.target.value as RightDockApp)}>
+                <option value="SkyeChat">SkyeChat</option>
+                <option value="SovereignVariables">SovereignVariables</option>
+              </select>
+            </header>
+
+            {rightBottomDockApp === "SkyeChat" ? (
+              <div className="right-dock-embed-shell">
+                <div className="tool-actions left">
+                  <a className="ghost" href={rightBottomDockUrl} target="_blank" rel="noreferrer">Open Standalone</a>
+                </div>
+                <iframe
+                  className="right-dock-embed"
+                  title="Bottom Dock SkyeChat"
+                  src={rightBottomDockEmbedUrl}
+                />
+              </div>
+            ) : (
+              <div className="right-dock-embed-shell">
+                <div className="tool-actions left">
+                  <a className="ghost" href={rightBottomDockUrl} target="_blank" rel="noreferrer">Open Standalone</a>
+                </div>
+                <iframe
+                  className="right-dock-embed"
+                  title="Bottom Dock SovereignVariables"
+                  src={rightBottomDockEmbedUrl}
+                />
+              </div>
+            )}
+          </section>
+        </aside>
+
+      </div>
       </div>
       <footer className="build-metadata-footer">
         <span>Build {buildMetadata.version}</span>
