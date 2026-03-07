@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Recover Account | SkyeIDE</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg-0: #07050d;
+      --bg-1: #110a1f;
+      --bg-2: #1a1030;
+      --panel: rgba(18, 12, 32, 0.9);
+      --border: rgba(138, 79, 255, 0.42);
+      --border-soft: rgba(255, 215, 0, 0.24);
+      --text: #f7f2ff;
+      --muted: #c8b8e8;
+      --gold: #ffd447;
+      --purple: #8a4fff;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Space Grotesk", "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 12% 14%, rgba(138, 79, 255, 0.24), transparent 34%),
+        radial-gradient(circle at 82% 18%, rgba(255, 212, 71, 0.2), transparent 38%),
+        linear-gradient(160deg, var(--bg-0), var(--bg-1) 52%, var(--bg-2));
+      display: grid;
+      place-items: center;
+      padding: 22px;
+    }
+
+    .card {
+      width: min(720px, 100%);
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      backdrop-filter: blur(16px);
+      box-shadow: 0 24px 48px rgba(0, 0, 0, 0.45), 0 0 26px rgba(138, 79, 255, 0.24);
+      overflow: hidden;
+    }
+
+    .head {
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(90deg, rgba(138, 79, 255, 0.26), rgba(255, 212, 71, 0.12));
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 1.06rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--gold);
+    }
+
+    p {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .body {
+      padding: 18px 20px 20px;
+      display: grid;
+      gap: 14px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--muted);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    input {
+      width: 100%;
+      border-radius: 12px;
+      border: 1px solid var(--border-soft);
+      background: rgba(0, 0, 0, 0.34);
+      color: var(--text);
+      padding: 10px 12px;
+      font-size: 0.94rem;
+    }
+
+    input:focus-visible {
+      outline: 2px solid rgba(255, 212, 71, 0.9);
+      outline-offset: 2px;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+
+    button, a.btn {
+      border-radius: 12px;
+      border: 1px solid var(--border-soft);
+      background: rgba(138, 79, 255, 0.18);
+      color: var(--text);
+      padding: 10px 14px;
+      font-size: 0.88rem;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.18s ease;
+    }
+
+    button:hover, a.btn:hover {
+      border-color: rgba(255, 212, 71, 0.7);
+      box-shadow: 0 0 18px rgba(255, 212, 71, 0.2);
+      background: rgba(255, 212, 71, 0.16);
+      color: #fff4c9;
+    }
+
+    .primary {
+      background: linear-gradient(90deg, rgba(138, 79, 255, 0.35), rgba(255, 212, 71, 0.24));
+      border-color: rgba(255, 212, 71, 0.5);
+      color: #fff4c9;
+      font-weight: 600;
+    }
+
+    .result {
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.04);
+      padding: 10px 12px;
+      color: #efe6ff;
+      min-height: 44px;
+      font-size: 0.9rem;
+    }
+
+    .muted {
+      color: var(--muted);
+      font-size: 0.8rem;
+    }
+
+    @media (max-width: 760px) {
+      .grid { grid-template-columns: 1fr; }
+      .card { border-radius: 14px; }
+    }
+  </style>
+</head>
+<body>
+  <section class="card" aria-label="Account recovery">
+    <header class="head">
+      <h1>Recover Account</h1>
+      <p>Focused recovery flow outside the IDE shell. Token and email are auto-read from reset links.</p>
+    </header>
+
+    <div class="body">
+      <div class="grid">
+        <div>
+          <label for="email">Account Email</label>
+          <input id="email" type="email" placeholder="owner@company.com" autocomplete="email" />
+        </div>
+        <div>
+          <label for="token">Reset Token</label>
+          <input id="token" type="text" placeholder="Paste token from email" autocomplete="one-time-code" />
+        </div>
+      </div>
+
+      <div>
+        <label for="newPassword">New Password</label>
+        <input id="newPassword" type="password" placeholder="At least 8 characters" autocomplete="new-password" />
+      </div>
+
+      <div class="actions">
+        <button id="sendLinkBtn" type="button">Send Reset Link</button>
+        <button id="resetBtn" class="primary" type="button">Reset Password</button>
+        <a class="btn" href="/" target="_self">Back To SkyeIDE</a>
+      </div>
+
+      <div class="result" id="result" role="status" aria-live="polite">Ready.</div>
+      <div class="muted">Tip: links sent by email can open this page with `reset_email` and `reset_token` pre-filled automatically.</div>
+    </div>
+  </section>
+
+  <script>
+    const emailEl = document.getElementById('email');
+    const tokenEl = document.getElementById('token');
+    const newPasswordEl = document.getElementById('newPassword');
+    const resultEl = document.getElementById('result');
+    const sendLinkBtn = document.getElementById('sendLinkBtn');
+    const resetBtn = document.getElementById('resetBtn');
+
+    function setResult(msg) {
+      resultEl.textContent = String(msg || '');
+    }
+
+    function readQuery() {
+      const p = new URLSearchParams(window.location.search);
+      const email = String(p.get('reset_email') || '').trim().toLowerCase();
+      const token = String(p.get('reset_token') || '').trim();
+      if (email) emailEl.value = email;
+      if (token) tokenEl.value = token;
+      if (email || token) {
+        setResult('Reset link detected. Enter your new password and submit.');
+      }
+    }
+
+    async function sendResetLink() {
+      const email = String(emailEl.value || '').trim().toLowerCase();
+      if (!email) {
+        setResult('Enter your account email first.');
+        return;
+      }
+      sendLinkBtn.disabled = true;
+      try {
+        const res = await fetch('/api/auth-password-reset-request', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          setResult(data?.error || `Reset request failed (${res.status}).`);
+          return;
+        }
+        setResult(data?.message || 'If that account exists, a reset link has been sent.');
+      } catch (e) {
+        setResult(e?.message || 'Reset request failed.');
+      } finally {
+        sendLinkBtn.disabled = false;
+      }
+    }
+
+    async function resetPassword() {
+      const email = String(emailEl.value || '').trim().toLowerCase();
+      const token = String(tokenEl.value || '').trim();
+      const newPassword = String(newPasswordEl.value || '');
+      if (!email || !token || !newPassword) {
+        setResult('Email, reset token, and new password are required.');
+        return;
+      }
+      if (newPassword.length < 8) {
+        setResult('New password must be at least 8 characters.');
+        return;
+      }
+      resetBtn.disabled = true;
+      try {
+        const res = await fetch('/api/auth-password-reset-confirm', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, token, newPassword }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          setResult(data?.error || `Password reset failed (${res.status}).`);
+          return;
+        }
+        newPasswordEl.value = '';
+        setResult(data?.message || 'Password reset complete. Return to sign in.');
+      } catch (e) {
+        setResult(e?.message || 'Password reset failed.');
+      } finally {
+        resetBtn.disabled = false;
+      }
+    }
+
+    sendLinkBtn.addEventListener('click', sendResetLink);
+    resetBtn.addEventListener('click', resetPassword);
+    readQuery();
+  </script>
+</body>
+</html>

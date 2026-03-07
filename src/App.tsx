@@ -954,6 +954,7 @@ export function App() {
   const [isResetSubmitting, setIsResetSubmitting] = useState(false);
   const [onboardingEmailDraft, setOnboardingEmailDraft] = useState<OnboardingEmailDraft | null>(null);
   const [onboardingIdentityDraft, setOnboardingIdentityDraft] = useState<OnboardingIdentityDraft | null>(null);
+  const [authSeededFromGenerators, setAuthSeededFromGenerators] = useState(false);
 
   const [sheetsModel, setSheetsModel] = useState<SheetsModel>(() => {
     const raw = localStorage.getItem("kx.skye.sheets.model");
@@ -1516,6 +1517,30 @@ export function App() {
     if (resetEmail) setAuthUser(resetEmail);
     if (token) setResetToken(token);
   }, []);
+
+  useEffect(() => {
+    if (authSeededFromGenerators) return;
+    let changed = false;
+
+    if (onboardingEmailDraft?.email) {
+      const current = authUser.trim().toLowerCase();
+      if (!current || current === "founder@skye.local") {
+        setAuthUser(onboardingEmailDraft.email.toLowerCase());
+        setApiTokenEmail(onboardingEmailDraft.email.toLowerCase());
+        changed = true;
+      }
+    }
+
+    if (onboardingIdentityDraft?.name) {
+      const org = authOrgName.trim();
+      if (!org || org === "Skye Workspace") {
+        setAuthOrgName(`${onboardingIdentityDraft.name} Workspace`);
+        changed = true;
+      }
+    }
+
+    if (changed) setAuthSeededFromGenerators(true);
+  }, [onboardingEmailDraft, onboardingIdentityDraft, authUser, authOrgName, authSeededFromGenerators]);
 
   useEffect(() => {
     localStorage.setItem("kx.skye.sheets.model", JSON.stringify(sheetsModel));
@@ -5037,6 +5062,9 @@ export function App() {
           <button className="ghost" type="button" onClick={() => void requestPasswordReset()} disabled={isResetSubmitting}>
             {isResetSubmitting ? "Requesting..." : "Send Reset Link"}
           </button>
+          <a className="ghost" href={`/recover-account/?reset_email=${encodeURIComponent(authUser.trim().toLowerCase())}`} target="_blank" rel="noreferrer">
+            Open Recover Page
+          </a>
         </div>
         <div className="tool-row split" style={{ marginTop: 8 }}>
           <div>
