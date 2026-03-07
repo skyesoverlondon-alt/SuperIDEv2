@@ -633,9 +633,15 @@ function asObject(value: unknown): Record<string, any> {
 
 function formatSkyeMailRecord(record: AppRecord): string {
   const payload = asObject(record.payload);
+  const direction = String(payload.direction || (record.app === "SkyeMailInbound" ? "inbound" : "outbound")).toLowerCase();
+  const mailbox = String(payload.mailbox || "").trim();
   const to = String(payload.to || "unknown");
+  const from = String(payload.from || "unknown");
   const subject = String(payload.subject || record.title || "(no subject)");
-  return `${subject} -> ${to}`;
+  if (direction === "inbound") {
+    return mailbox ? `[INBOX ${mailbox}] ${from} -> ${subject}` : `[INBOX] ${from} -> ${subject}`;
+  }
+  return mailbox ? `[SENT ${mailbox}] ${subject} -> ${to}` : `${subject} -> ${to}`;
 }
 
 function formatSkyeChatRecord(record: AppRecord): string {
@@ -4034,7 +4040,8 @@ export function App() {
           <header>
             <h2>SkyeMail Platform</h2>
             <p>Dedicated standalone mail workspace integrated into IDE. Users can create accounts, set mailbox profile, send mail, and work from inbox surface.</p>
-            <p className="muted-copy">Delivery path: outbound email is sent over public mail infrastructure, not limited to IDE-local records.</p>
+            <p className="muted-copy">Delivery path: outbound email now supports SMTP (Gmail-compatible) with fallback to Resend. Inbox stream unifies outbound + inbound records.</p>
+            <p className="muted-copy">Inbound bridge endpoint: <code>/api/skymail-inbound-ingest</code> (secured via <code>MAIL_INGEST_SECRET</code>).</p>
           </header>
           <div className="tool-actions left" style={{ marginBottom: 10 }}>
             <a className="ghost" href={`/SkyeMail/index.html?ws_id=${encodeURIComponent(workspaceId)}`} target="_blank" rel="noreferrer">Open SkyeMail Standalone</a>

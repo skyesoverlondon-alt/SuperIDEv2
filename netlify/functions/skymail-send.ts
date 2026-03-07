@@ -37,6 +37,27 @@ export const handler = async (event: any) => {
     if (!canRead) return json(403, { error: "Workspace access denied." });
   }
 
+  const senderAccount = await q(
+    `select mailbox_email, display_name, outbound_enabled
+     from skymail_accounts
+     where org_id=$1 and user_id=$2
+     limit 1`,
+    [u.org_id, u.user_id]
+  );
+  if (!senderAccount.rows.length) {
+    return json(400, { error: "SkyeMail account is not configured for this user." });
+  }
+  if (!senderAccount.rows[0]?.outbound_enabled) {
+    return json(403, { error: "Outbound mail is disabled for this mailbox account." });
+  }
+
+  const mailbox = String(senderAccount.rows[0]?.mailbox_email || "").trim().toLowerCase();
+  if (!mailbox) {
+    return json(400, { error: "SkyeMail account mailbox email is missing." });
+  }
+  const displayName = String(senderAccount.rows[0]?.display_name || "").trim();
+  const fromHeader = displayName ? `${displayName} <${mailbox}>` : mailbox;
+
   try {
     if (idempotencyKey) {
       const existing = await q(
@@ -63,7 +84,7 @@ export const handler = async (event: any) => {
       }
     }
 
-    const delivered = await sendMail({ to, subject, text });
+    const delivered = await sendMail({ to, subject, text, from: fromHeader });
 
     const saved = await q(
       "insert into app_records(org_id, ws_id, app, title, payload, created_by) values($1,$2,$3,$4,$5::jsonb,$6) returning id, created_at",
@@ -72,7 +93,17 @@ export const handler = async (event: any) => {
         wsId || null,
         "SkyeMail",
         subject,
-        JSON.stringify({ to, from_alias: fromAlias || null, subject, text, provider: delivered.provider, provider_id: delivered.id, idempotency_key: idempotencyKey || null }),
+        JSON.stringify({
+          direction: "outbound",
+          mailbox,
+          to,
+          from_alias: fromAlias || null,
+          subject,
+          text,
+          provider: delivered.provider,
+          provider_id: delivered.id,
+          idempotency_key: idempotencyKey || null,
+        }),
         u.user_id,
       ]
     );

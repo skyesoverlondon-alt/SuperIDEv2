@@ -3,6 +3,7 @@ import { q } from "./_shared/neon";
 import { hashPassword, createSession, setSessionCookie } from "./_shared/auth";
 import { audit } from "./_shared/audit";
 import { mintApiToken, tokenHash } from "./_shared/api_tokens";
+import { sendMail } from "./_shared/mailer";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -53,6 +54,29 @@ export const handler = async (event: any) => {
       [orgId, userId, "owner"]
     );
 
+    await q(
+      `insert into skymail_accounts(org_id, user_id, mailbox_email, display_name, provider, outbound_enabled, inbound_enabled, metadata)
+       values($1,$2,$3,$4,$5,$6,$7,$8::jsonb)
+       on conflict (org_id, user_id)
+       do update set
+         mailbox_email=excluded.mailbox_email,
+         display_name=excluded.display_name,
+         provider=excluded.provider,
+         outbound_enabled=excluded.outbound_enabled,
+         inbound_enabled=excluded.inbound_enabled,
+         updated_at=now()`,
+      [
+        orgId,
+        userId,
+        normalizedEmail,
+        normalizedOrg,
+        "gmail_smtp",
+        true,
+        true,
+        JSON.stringify({ source: "auth-signup" }),
+      ]
+    );
+
     // Auto-provision one kAIxU generate token at signup.
     const plaintextToken = mintApiToken();
     const tokenPrefix = plaintextToken.slice(0, 14);
@@ -77,7 +101,22 @@ export const handler = async (event: any) => {
       auto_token_issued: true,
       token_label: "signup-auto-1",
       token_scope: "generate",
+      skymail_account_provisioned: true,
     });
+
+    try {
+      await sendMail({
+        to: normalizedEmail,
+        subject: "Welcome to SkyeIDE",
+        text: [
+          `Welcome to ${normalizedOrg}.`,
+          "Your account, session, and kAIxU key are active.",
+          "SkyeMail mailbox routing is provisioned for this email.",
+        ].join("\n"),
+      });
+    } catch {
+      // Non-blocking: signup should succeed even if mail provider is temporarily unavailable.
+    }
     return json(
       200,
       {

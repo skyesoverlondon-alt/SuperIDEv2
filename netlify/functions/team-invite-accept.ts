@@ -4,6 +4,7 @@ import { q } from "./_shared/neon";
 import { hashPassword, createSession, setSessionCookie } from "./_shared/auth";
 import { audit } from "./_shared/audit";
 import { mintApiToken, tokenHash } from "./_shared/api_tokens";
+import { sendMail } from "./_shared/mailer";
 
 function sha256Hex(input: string): string {
   return crypto.createHash("sha256").update(input).digest("hex");
@@ -79,6 +80,28 @@ export const handler = async (event: any) => {
     [userId, invite.id]
   );
 
+  await q(
+    `insert into skymail_accounts(org_id, user_id, mailbox_email, display_name, provider, outbound_enabled, inbound_enabled, metadata)
+     values($1,$2,$3,$4,$5,$6,$7,$8::jsonb)
+     on conflict (org_id, user_id)
+     do update set
+       mailbox_email=excluded.mailbox_email,
+       provider=excluded.provider,
+       outbound_enabled=excluded.outbound_enabled,
+       inbound_enabled=excluded.inbound_enabled,
+       updated_at=now()`,
+    [
+      invite.org_id,
+      userId,
+      email,
+      email,
+      "gmail_smtp",
+      true,
+      true,
+      JSON.stringify({ source: "team-invite-accept" }),
+    ]
+  );
+
   const plaintextToken = mintApiToken();
   const tokenPrefix = plaintextToken.slice(0, 14);
   const tokenExpiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString();
@@ -102,7 +125,22 @@ export const handler = async (event: any) => {
     role: invite.role,
     auto_token_issued: true,
     token_label: "invite-auto-1",
+    skymail_account_provisioned: true,
   });
+
+  try {
+    await sendMail({
+      to: email,
+      subject: "Welcome to your SkyeIDE workspace",
+      text: [
+        "Your invite has been accepted.",
+        "Your session and key are active.",
+        "SkyeMail mailbox routing is now provisioned for this account.",
+      ].join("\n"),
+    });
+  } catch {
+    // Non-blocking: invite acceptance should still complete.
+  }
 
   return json(
     200,

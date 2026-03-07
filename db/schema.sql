@@ -184,3 +184,38 @@ create index if not exists idx_api_tokens_org_created on api_tokens(org_id, crea
 create index if not exists idx_api_tokens_status on api_tokens(status, expires_at);
 create index if not exists idx_api_tokens_locked_email on api_tokens(locked_email);
 create index if not exists idx_api_tokens_scopes on api_tokens using gin (scopes_json);
+
+-- SkyeMail account configuration scoped to each user within an org.
+create table if not exists skymail_accounts (
+  id uuid primary key default gen_random_uuid(),
+  org_id uuid not null references orgs(id) on delete cascade,
+  user_id uuid not null references users(id) on delete cascade,
+  mailbox_email text not null,
+  display_name text,
+  provider text not null default 'gmail_smtp' check (provider in ('gmail_smtp','resend','custom_smtp')),
+  outbound_enabled boolean not null default true,
+  inbound_enabled boolean not null default false,
+  metadata jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (org_id, user_id)
+);
+
+create index if not exists idx_skymail_accounts_org_user on skymail_accounts(org_id, user_id);
+create index if not exists idx_skymail_accounts_mailbox on skymail_accounts(org_id, lower(mailbox_email));
+
+-- Inbox sync checkpoints for pull-based providers and bridge workers.
+create table if not exists skymail_sync_state (
+  id uuid primary key default gen_random_uuid(),
+  org_id uuid not null references orgs(id) on delete cascade,
+  mailbox_email text not null,
+  provider text not null default 'gmail_smtp',
+  last_cursor text,
+  last_synced_at timestamptz,
+  status text not null default 'idle' check (status in ('idle','running','failed')),
+  error text,
+  updated_at timestamptz not null default now(),
+  unique (org_id, mailbox_email, provider)
+);
+
+create index if not exists idx_skymail_sync_org_mailbox on skymail_sync_state(org_id, lower(mailbox_email), provider);

@@ -24,12 +24,18 @@ export const handler = async (event: any) => {
     `select id, app, title, payload, created_at, updated_at
      from app_records
      where org_id=$1
-       and app='SkyeMail'
+       and app in ('SkyeMail', 'SkyeMailInbound')
        and ($2::timestamptz is null or updated_at < $2::timestamptz)
-       and ($3::text = '' or lower(coalesce(payload->>'to','')) = $3)
+       and (
+         $3::text = ''
+         or lower(coalesce(payload->>'to','')) = $3
+         or lower(coalesce(payload->>'mailbox','')) = $3
+       )
        and (
          $4::text = ''
          or lower(title) like $5
+         or lower(coalesce(payload->>'from','')) like $5
+         or lower(coalesce(payload->>'mailbox','')) like $5
          or lower(coalesce(payload->>'to','')) like $5
          or lower(coalesce(payload->>'subject','')) like $5
          or lower(coalesce(payload->>'text','')) like $5

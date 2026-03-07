@@ -31,6 +31,25 @@ export const handler = async (event: any) => {
     if (!ok) {
       return json(401, { error: "Invalid credentials." });
     }
+
+    if (user.org_id) {
+      await q(
+        `insert into skymail_accounts(org_id, user_id, mailbox_email, display_name, provider, outbound_enabled, inbound_enabled, metadata)
+         values($1,$2,$3,$4,$5,$6,$7,$8::jsonb)
+         on conflict (org_id, user_id) do nothing`,
+        [
+          user.org_id,
+          user.id,
+          user.email,
+          user.email,
+          "gmail_smtp",
+          true,
+          true,
+          JSON.stringify({ source: "auth-login-autoprovision" }),
+        ]
+      );
+    }
+
     const sess = await createSession(user.id);
     await audit(user.email, user.org_id, null, "auth.login", {});
     return json(
