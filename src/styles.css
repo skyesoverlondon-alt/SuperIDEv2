@@ -17,6 +17,161 @@
   --muted: #9cb8c6;
 }
 
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--text);
+  background:
+    radial-gradient(circle at 10% 12%, rgba(44, 230, 255, 0.18), transparent 36%),
+    radial-gradient(circle at 88% 14%, rgba(255, 203, 71, 0.14), transparent 40%),
+    radial-gradient(circle at 58% 88%, rgba(0, 182, 184, 0.14), transparent 44%),
+    linear-gradient(158deg, var(--bg-0), var(--bg-1) 52%, #020509);
+}
+
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+a:focus-visible {
+  outline: 2px solid rgba(255, 203, 71, 0.9);
+  outline-offset: 2px;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.ide-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  isolation: isolate;
+}
+
+.shell-atmo {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.atmo-grid {
+  position: absolute;
+  inset: -50% -30%;
+  background-image:
+    linear-gradient(rgba(44, 230, 255, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(44, 230, 255, 0.07) 1px, transparent 1px);
+  background-size: 46px 46px;
+  transform: perspective(900px) rotateX(70deg) translateY(-220px);
+  animation: atmo-drift 32s linear infinite;
+}
+
+.atmo-orb {
+  position: absolute;
+  width: 52vw;
+  height: 52vw;
+  filter: blur(56px);
+  border-radius: 50%;
+  opacity: 0.22;
+}
+
+.orb-a {
+  left: -16vw;
+  top: -10vw;
+  background: radial-gradient(circle, rgba(44, 230, 255, 0.72), rgba(44, 230, 255, 0));
+}
+
+.orb-b {
+  right: -20vw;
+  bottom: -18vw;
+  background: radial-gradient(circle, rgba(255, 203, 71, 0.66), rgba(255, 203, 71, 0));
+}
+
+@keyframes atmo-drift {
+  0% {
+    transform: perspective(900px) rotateX(70deg) translateY(-220px) translateX(0);
+  }
+  50% {
+    transform: perspective(900px) rotateX(70deg) translateY(220px) translateX(18px);
+  }
+  100% {
+    transform: perspective(900px) rotateX(70deg) translateY(-220px) translateX(0);
+  }
+}
+
+.cine-intro {
+  position: fixed;
+  inset: 0;
+  z-index: 1400;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 50% 45%, rgba(12, 9, 22, 0.62), rgba(3, 2, 8, 0.98));
+  animation: intro-blast 0.85s cubic-bezier(0.8, 0, 0.2, 1) 4.7s forwards;
+}
+
+.cine-grid {
+  position: absolute;
+  inset: -60% -35%;
+  background-image:
+    linear-gradient(rgba(44, 230, 255, 0.26) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(44, 230, 255, 0.24) 1px, transparent 1px);
+  background-size: 54px 54px;
+  transform: perspective(760px) rotateX(75deg) translateY(-220px);
+  opacity: 0;
+  animation: grid-boot 2s cubic-bezier(0.2, 0.8, 0.2, 1) 0s forwards;
+}
+
+.cine-scan {
+  position: absolute;
+  left: 0;
+  top: -12%;
+  width: 100%;
+  height: 3px;
+  background: var(--gold);
+  box-shadow: 0 0 28px rgba(255, 215, 0, 0.78);
+  opacity: 0;
+  animation: laser-scan 1.85s ease-in-out 0s forwards;
+}
+
+.cine-terminal {
+  position: absolute;
+  top: 12%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(92vw, 720px);
+  border-radius: 12px;
+  border: 1px solid rgba(0, 240, 255, 0.24);
+  background: rgba(3, 5, 14, 0.72);
+  color: rgba(0, 240, 255, 0.86);
+  box-shadow: 0 0 34px rgba(0, 240, 255, 0.18);
+  font-family: "Fira Code", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.76rem;
+  line-height: 1.48;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 10px 14px;
+  opacity: 0;
+  clip-path: inset(0 0 100% 0);
+  animation: terminal-boot 1.9s steps(20, end) 0s forwards;
+}
+
+.cine-core {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
 .cine-logo {
   width: clamp(122px, 14vw, 166px);
   height: clamp(122px, 14vw, 166px);
