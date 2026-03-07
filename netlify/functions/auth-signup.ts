@@ -1,6 +1,6 @@
 import { json } from "./_shared/response";
 import { q } from "./_shared/neon";
-import { hashPassword, createSession, setSessionCookie } from "./_shared/auth";
+import { hashPassword, createSession, setSessionCookie, ensureUserRecoveryEmailColumn } from "./_shared/auth";
 import { audit } from "./_shared/audit";
 import { mintApiToken, tokenHash } from "./_shared/api_tokens";
 import { sendMail } from "./_shared/mailer";
@@ -9,17 +9,28 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export const handler = async (event: any) => {
   try {
-    const { email, password, orgName } = JSON.parse(event.body || "{}");
+    await ensureUserRecoveryEmailColumn();
+
+    const { email, password, orgName, recoveryEmail, recovery_email } = JSON.parse(event.body || "{}");
     const normalizedEmail = String(email || "").trim().toLowerCase();
+    const normalizedRecoveryEmail = String(recoveryEmail || recovery_email || "").trim().toLowerCase();
     const normalizedOrg = String(orgName || "").trim();
     const rawPassword = String(password || "");
 
-    if (!normalizedEmail || !rawPassword || !normalizedOrg) {
-      return json(400, { error: "Email, password, and organization name are required." });
+    if (!normalizedEmail || !normalizedRecoveryEmail || !rawPassword || !normalizedOrg) {
+      return json(400, { error: "Primary SKYEMAIL login, recovery email, password, and organization name are required." });
     }
 
     if (!EMAIL_RE.test(normalizedEmail)) {
-      return json(400, { error: "Enter a valid email address." });
+      return json(400, { error: "Enter a valid SKYEMAIL login address." });
+    }
+
+    if (!EMAIL_RE.test(normalizedRecoveryEmail)) {
+      return json(400, { error: "Enter a valid third-party recovery email." });
+    }
+
+    if (normalizedRecoveryEmail === normalizedEmail) {
+      return json(400, { error: "Recovery email must be different from the SKYEMAIL primary login." });
     }
 
     if (rawPassword.length < 8) {
@@ -40,10 +51,10 @@ export const handler = async (event: any) => {
       `with created_org as (
          insert into orgs(name) values($1) returning id
        )
-       insert into users(email,password_hash,org_id)
-       select $2, $3, id from created_org
-       returning id,email,org_id`,
-      [normalizedOrg, normalizedEmail, pwHash]
+       insert into users(email,recovery_email,password_hash,org_id)
+       select $2, $3, $4, id from created_org
+       returning id,email,recovery_email,org_id`,
+      [normalizedOrg, normalizedEmail, normalizedRecoveryEmail, pwHash]
     );
 
     const orgId = userRow.rows[0].org_id;
@@ -98,6 +109,7 @@ export const handler = async (event: any) => {
     const sess = await createSession(userId);
     await audit(normalizedEmail, orgId, null, "auth.signup", {
       org: normalizedOrg,
+      recovery_email: normalizedRecoveryEmail,
       auto_token_issued: true,
       token_label: "signup-auto-1",
       token_scope: "generate",
@@ -106,12 +118,15 @@ export const handler = async (event: any) => {
 
     try {
       await sendMail({
-        to: normalizedEmail,
-        subject: "Welcome to SkyeIDE",
+        to: normalizedRecoveryEmail,
+        subject: "Your SKYEMAIL account is ready",
         text: [
           `Welcome to ${normalizedOrg}.`,
+          `Primary SKYEMAIL login: ${normalizedEmail}`,
+          `Backup recovery email: ${normalizedRecoveryEmail}`,
           "Your account, session, and kAIxU key are active.",
-          "SkyeMail mailbox routing is provisioned for this email.",
+          "Password recovery links will be sent to this backup recovery email.",
+          "SkyeMail mailbox routing is provisioned for your SKYEMAIL login.",
         ].join("\n"),
       });
     } catch {
@@ -130,6 +145,7 @@ export const handler = async (event: any) => {
         },
         user: {
           email: normalizedEmail,
+          recovery_email: normalizedRecoveryEmail,
           org_id: orgId,
           role: "owner",
         },

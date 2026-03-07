@@ -3,6 +3,7 @@ import { json } from "./_shared/response";
 import { q } from "./_shared/neon";
 import { audit } from "./_shared/audit";
 import { sendMail } from "./_shared/mailer";
+import { ensureUserRecoveryEmailColumn } from "./_shared/auth";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -46,6 +47,7 @@ function buildBaseUrl(event: any): string {
 export const handler = async (event: any) => {
   try {
     await ensurePasswordResetTable();
+    await ensureUserRecoveryEmailColumn();
 
     const body = JSON.parse(event.body || "{}");
     const normalizedEmail = String(body?.email || "").trim().toLowerCase();
@@ -53,7 +55,14 @@ export const handler = async (event: any) => {
       return json(400, { error: "Enter a valid email address." });
     }
 
-    const userRes = await q("select id, email, org_id from users where lower(email)=lower($1) limit 1", [normalizedEmail]);
+    const userRes = await q(
+      `select id, email, recovery_email, org_id
+       from users
+       where lower(email)=lower($1)
+          or lower(coalesce(recovery_email, ''))=lower($1)
+       limit 1`,
+      [normalizedEmail]
+    );
 
     // Always return success to prevent account enumeration.
     const generic = {
@@ -67,6 +76,8 @@ export const handler = async (event: any) => {
     }
 
     const user = userRes.rows[0];
+    const recoveryEmail = String(user.recovery_email || "").trim().toLowerCase();
+    const deliveryEmail = recoveryEmail || String(user.email || "").trim().toLowerCase();
     const token = base64url(crypto.randomBytes(32));
     const tokenHash = hashToken(token);
     const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
@@ -83,14 +94,16 @@ export const handler = async (event: any) => {
       ]
     );
 
-    const resetLink = `${buildBaseUrl(event)}/?reset_email=${encodeURIComponent(normalizedEmail)}&reset_token=${encodeURIComponent(token)}`;
+    const resetLink = `${buildBaseUrl(event)}/?reset_email=${encodeURIComponent(String(user.email || "").trim().toLowerCase())}&reset_token=${encodeURIComponent(token)}`;
 
     try {
       await sendMail({
-        to: normalizedEmail,
-        subject: "SkyeIDE Password Reset",
+        to: deliveryEmail,
+        subject: "SKYEMAIL Password Reset",
         text: [
-          "You requested a password reset for your SkyeIDE account.",
+          "You requested a password reset for your SKYEMAIL account.",
+          `Primary SKYEMAIL login: ${String(user.email || "").trim().toLowerCase()}`,
+          recoveryEmail ? `Backup recovery email: ${recoveryEmail}` : "",
           "",
           `Reset link: ${resetLink}`,
           `Reset token: ${token}`,
@@ -106,6 +119,8 @@ export const handler = async (event: any) => {
     await audit(normalizedEmail, user.org_id || null, null, "auth.password_reset.request", {
       expires_at: expiresAt,
       delivery: "email",
+      delivery_email: deliveryEmail,
+      requested_identifier: normalizedEmail,
     });
 
     return json(200, generic);

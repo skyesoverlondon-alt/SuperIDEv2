@@ -247,6 +247,7 @@ type MergePreviewState = {
 type ResizeKind = "sidebar" | "rightpanel" | "ide-split";
 type WorkspaceStageApp = SkyeAppId | "Neural-Space-Pro";
 type RightDockApp = "SkyeChat" | "SovereignVariables";
+type OnboardingAssistMode = "undecided" | "guided" | "later" | "self-serve";
 
 type TokenInventoryItem = {
   id: string;
@@ -316,6 +317,8 @@ const DEFAULT_SITE_BASE = (import.meta.env.VITE_SITE_BASE_URL as string | undefi
 const HISTORY_PAGE_SIZE = 50;
 const ONBOARDING_EMAIL_DRAFT_KEY = "kx.onboarding.emailDraft";
 const ONBOARDING_ID_DRAFT_KEY = "kx.onboarding.idDraft";
+const ONBOARDING_ASSIST_MODE_KEY = "kx.onboarding.assistMode";
+const ONBOARDING_WORKSPACE_EMAIL_KEY = "kx.onboarding.workspaceEmail";
 
 const SKYE_APPS: SkyeAppDefinition[] = [
   { id: "SkyeDocs", summary: "Collaborative document workspace.", mvp: ["Rich text", "Markdown mode", "Autosave"] },
@@ -970,6 +973,7 @@ export function App() {
 
   const [appSearch, setAppSearch] = useState("");
   const [authUser, setAuthUser] = useState(() => localStorage.getItem("kx.auth.user") || "founder@skye.local");
+  const [recoveryEmail, setRecoveryEmail] = useState(() => localStorage.getItem("kx.auth.recoveryEmail") || "");
   const [authRole, setAuthRole] = useState<AuthRole>(() => (localStorage.getItem("kx.auth.role") as AuthRole) || "owner");
   const [authPassword, setAuthPassword] = useState("");
   const [authOrgName, setAuthOrgName] = useState("Skye Workspace");
@@ -979,9 +983,24 @@ export function App() {
   const [resetToken, setResetToken] = useState("");
   const [resetNewPassword, setResetNewPassword] = useState("");
   const [isResetSubmitting, setIsResetSubmitting] = useState(false);
+  const [onboardingAssistMode, setOnboardingAssistMode] = useState<OnboardingAssistMode>(() => {
+    const raw = String(localStorage.getItem(ONBOARDING_ASSIST_MODE_KEY) || "").trim();
+    if (raw === "guided" || raw === "later" || raw === "self-serve") return raw;
+    return "undecided";
+  });
+  const [showOnboardingPrompt, setShowOnboardingPrompt] = useState(() => {
+    const mode = String(localStorage.getItem(ONBOARDING_ASSIST_MODE_KEY) || "").trim();
+    const hasInvite = Boolean(new URLSearchParams(window.location.search).get("invite_token"));
+    return !hasInvite && !mode;
+  });
+  const [showOnboardingGuide, setShowOnboardingGuide] = useState(() => {
+    const raw = String(localStorage.getItem(ONBOARDING_ASSIST_MODE_KEY) || "").trim();
+    return raw === "guided";
+  });
   const [onboardingEmailDraft, setOnboardingEmailDraft] = useState<OnboardingEmailDraft | null>(null);
   const [onboardingIdentityDraft, setOnboardingIdentityDraft] = useState<OnboardingIdentityDraft | null>(null);
   const [authSeededFromGenerators, setAuthSeededFromGenerators] = useState(false);
+  const [workspaceMailboxEmail, setWorkspaceMailboxEmail] = useState(() => localStorage.getItem(ONBOARDING_WORKSPACE_EMAIL_KEY) || "");
 
   const [sheetsModel, setSheetsModel] = useState<SheetsModel>(() => {
     const raw = localStorage.getItem("kx.skye.sheets.model");
@@ -1469,6 +1488,32 @@ export function App() {
   }, [authUser, authRole]);
 
   useEffect(() => {
+    const next = recoveryEmail.trim().toLowerCase();
+    if (!next) {
+      localStorage.removeItem("kx.auth.recoveryEmail");
+      return;
+    }
+    localStorage.setItem("kx.auth.recoveryEmail", next);
+  }, [recoveryEmail]);
+
+  useEffect(() => {
+    if (onboardingAssistMode === "undecided") {
+      localStorage.removeItem(ONBOARDING_ASSIST_MODE_KEY);
+      return;
+    }
+    localStorage.setItem(ONBOARDING_ASSIST_MODE_KEY, onboardingAssistMode);
+  }, [onboardingAssistMode]);
+
+  useEffect(() => {
+    const next = workspaceMailboxEmail.trim().toLowerCase();
+    if (!next) {
+      localStorage.removeItem(ONBOARDING_WORKSPACE_EMAIL_KEY);
+      return;
+    }
+    localStorage.setItem(ONBOARDING_WORKSPACE_EMAIL_KEY, next);
+  }, [workspaceMailboxEmail]);
+
+  useEffect(() => {
     function readOnboardingDrafts() {
       try {
         const emailRaw = localStorage.getItem(ONBOARDING_EMAIL_DRAFT_KEY);
@@ -1558,10 +1603,9 @@ export function App() {
     let changed = false;
 
     if (onboardingEmailDraft?.email) {
-      const current = authUser.trim().toLowerCase();
-      if (!current || current === "founder@skye.local") {
-        setAuthUser(onboardingEmailDraft.email.toLowerCase());
-        setApiTokenEmail(onboardingEmailDraft.email.toLowerCase());
+      const currentWorkspaceEmail = workspaceMailboxEmail.trim().toLowerCase();
+      if (!currentWorkspaceEmail) {
+        setWorkspaceMailboxEmail(onboardingEmailDraft.email.toLowerCase());
         changed = true;
       }
     }
@@ -1575,7 +1619,18 @@ export function App() {
     }
 
     if (changed) setAuthSeededFromGenerators(true);
-  }, [onboardingEmailDraft, onboardingIdentityDraft, authUser, authOrgName, authSeededFromGenerators]);
+  }, [onboardingEmailDraft, onboardingIdentityDraft, workspaceMailboxEmail, authOrgName, authSeededFromGenerators]);
+
+  useEffect(() => {
+    const hasSession = assistantAuthStatus === "ok" || assistantAuthStatus === "token";
+    if (inviteToken || hasSession) {
+      setShowOnboardingPrompt(false);
+      return;
+    }
+    if (onboardingAssistMode === "undecided") {
+      setShowOnboardingPrompt(true);
+    }
+  }, [assistantAuthStatus, onboardingAssistMode, inviteToken]);
 
   useEffect(() => {
     localStorage.setItem("kx.skye.sheets.model", JSON.stringify(sheetsModel));
@@ -2006,6 +2061,15 @@ export function App() {
     if (auth && auth !== email) return "token-email-mismatch";
     return "none";
   }, [apiAccessToken, apiTokenEmail, authUser]);
+  const linkedWorkspaceMailbox = useMemo(
+    () => workspaceMailboxEmail.trim().toLowerCase() || onboardingEmailDraft?.email?.toLowerCase() || "",
+    [workspaceMailboxEmail, onboardingEmailDraft]
+  );
+  const hasActiveAuthSession = assistantAuthStatus === "ok" || assistantAuthStatus === "token";
+  const onboardingGuideProgress = useMemo(
+    () => [Boolean(recoveryEmail.trim()), Boolean(linkedWorkspaceMailbox), hasActiveAuthSession, Boolean(onboardingIdentityDraft?.name), Boolean(apiAccessToken.trim())].filter(Boolean).length,
+    [recoveryEmail, linkedWorkspaceMailbox, hasActiveAuthSession, onboardingIdentityDraft, apiAccessToken]
+  );
   const selectedAppHealthSignal = useMemo(() => {
     const latestSmoke = smokeResults.length ? smokeResults[smokeResults.length - 1] : null;
     const appMvpDone = selectedAppDefinition.mvp.filter((item) => mvpChecks[makeMvpKey(selectedSkyeApp, item)]).length;
@@ -2809,6 +2873,7 @@ export function App() {
       }
 
       setAuthUser(String(data.email || authUser));
+      setRecoveryEmail(String(data.recovery_email || ""));
       if (data?.role && ["owner", "admin", "member", "viewer"].includes(String(data.role))) {
         setAuthRole(data.role as AuthRole);
       }
@@ -2870,6 +2935,9 @@ export function App() {
   async function persistOnboardingShowcase(emailForAuth: string, mode: "login" | "signup") {
     const notes: string[] = [];
     if (!onboardingEmailDraft && !onboardingIdentityDraft) return "";
+    const workspaceEmail = linkedWorkspaceMailbox;
+    const keyLockedEmail = apiTokenEmail.trim().toLowerCase() || emailForAuth;
+    const normalizedRecoveryEmail = recoveryEmail.trim().toLowerCase();
 
     try {
       if (onboardingEmailDraft) {
@@ -2887,7 +2955,13 @@ export function App() {
               source: onboardingEmailDraft.source,
               captured_at: onboardingEmailDraft.updatedAt,
               auth_flow: mode,
+              primary_auth_email: emailForAuth,
+              recovery_email: normalizedRecoveryEmail,
+              reset_contact_email: normalizedRecoveryEmail || emailForAuth,
+              key_locked_email: keyLockedEmail,
+              workspace_email: workspaceEmail || onboardingEmailDraft.email.toLowerCase(),
               used_for_auth: onboardingEmailDraft.email.toLowerCase() === emailForAuth,
+              used_for_workspace: (workspaceEmail || onboardingEmailDraft.email.toLowerCase()) === onboardingEmailDraft.email.toLowerCase(),
             },
           }),
         });
@@ -2913,6 +2987,9 @@ export function App() {
               source: onboardingIdentityDraft.source,
               captured_at: onboardingIdentityDraft.updatedAt,
               auth_email: emailForAuth,
+              recovery_email: normalizedRecoveryEmail,
+              workspace_email: workspaceEmail,
+              key_locked_email: keyLockedEmail,
               auth_flow: mode,
             },
           }),
@@ -2933,17 +3010,21 @@ export function App() {
 
   function openGeneratorApp(appId: "SKYEMAIL-GEN" | "Skye-ID") {
     setSelectedSkyeApp(appId);
-    setAuthResult(`${appId} opened in top app strip. Generate assets, then return to auth.`);
+    setShowOnboardingGuide(true);
+    setAuthResult(`${appId} opened so you can finish guided onboarding and return with the generated profile linked.`);
   }
 
-  function applyGeneratedEmailToAuth() {
+  function linkGeneratedEmailToWorkspace() {
     if (!onboardingEmailDraft?.email) {
       setAuthResult("No generated email found yet. Open SKYEMAIL-GEN and generate one first.");
       return;
     }
-    setAuthUser(onboardingEmailDraft.email.toLowerCase());
-    setApiTokenEmail(onboardingEmailDraft.email.toLowerCase());
-    setAuthResult(`Applied generated email ${onboardingEmailDraft.email} to auth.`);
+    const workspaceEmail = onboardingEmailDraft.email.toLowerCase();
+    setWorkspaceMailboxEmail(workspaceEmail);
+    setAuthUser(workspaceEmail);
+    setAuthResult(
+      `Linked generated SKYEMAIL ${onboardingEmailDraft.email} as the primary login. Password recovery will go to ${recoveryEmail.trim().toLowerCase() || "your backup third-party email once you add it"}.`
+    );
   }
 
   function applyGeneratedIdentityToOrg() {
@@ -2958,9 +3039,9 @@ export function App() {
   }
 
   async function requestPasswordReset() {
-    const email = authUser.trim().toLowerCase();
+    const email = recoveryEmail.trim().toLowerCase() || authUser.trim().toLowerCase();
     if (!email) {
-      setAuthResult("Enter your account email first, then request a reset link.");
+      setAuthResult("Enter your SKYEMAIL login or your backup recovery email first, then request a reset link.");
       return;
     }
     setIsResetSubmitting(true);
@@ -3018,8 +3099,15 @@ export function App() {
   }
 
   async function submitAuthFlow(mode: "login" | "signup") {
-    if (!authUser.trim() || !authPassword.trim()) {
+    const normalizedAuthEmail = authUser.trim().toLowerCase();
+    const normalizedRecoveryEmail = recoveryEmail.trim().toLowerCase();
+    if (!normalizedAuthEmail || !authPassword.trim()) {
       setAuthResult("Email and password are required.");
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedAuthEmail)) {
+      setAuthResult("Use a valid SKYEMAIL login address for signup or sign in.");
       return;
     }
 
@@ -3028,14 +3116,32 @@ export function App() {
       return;
     }
 
+    if (mode === "signup" && !normalizedRecoveryEmail) {
+      setAuthResult("A third-party recovery email is required for signup.");
+      return;
+    }
+
+    if (mode === "signup" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedRecoveryEmail)) {
+      setAuthResult("Enter a valid third-party recovery email for signup.");
+      return;
+    }
+
+    if (mode === "signup" && normalizedRecoveryEmail === normalizedAuthEmail) {
+      setAuthResult("Recovery email must be different from the SKYEMAIL primary login.");
+      return;
+    }
+
     setIsAuthSubmitting(true);
     setAuthResult("");
     try {
       const payload: Record<string, unknown> = {
-        email: authUser.trim().toLowerCase(),
+        email: normalizedAuthEmail,
         password: authPassword,
       };
-      if (mode === "signup") payload.orgName = authOrgName.trim();
+      if (mode === "signup") {
+        payload.orgName = authOrgName.trim();
+        payload.recoveryEmail = normalizedRecoveryEmail;
+      }
 
       const res = await fetch(mode === "signup" ? "/api/auth-signup" : "/api/auth-login", {
         method: "POST",
@@ -3051,7 +3157,7 @@ export function App() {
 
       if (mode === "signup" && data?.kaixu_token?.token) {
         setApiAccessToken(String(data.kaixu_token.token));
-        setApiTokenEmail(String(data.kaixu_token.locked_email || authUser.trim().toLowerCase()));
+        setApiTokenEmail(String(data.kaixu_token.locked_email || normalizedAuthEmail));
       }
 
       setAuthPassword("");
@@ -3068,12 +3174,18 @@ export function App() {
         }
       }
 
-      const profileSync = await persistOnboardingShowcase(authUser.trim().toLowerCase(), mode);
+      const profileSync = await persistOnboardingShowcase(normalizedAuthEmail, mode);
+      const workspaceSyncNote = linkedWorkspaceMailbox
+        ? ` SKYEMAIL primary login linked: ${linkedWorkspaceMailbox}.`
+        : " Generate and link your SKYEMAIL primary login next.";
+      const recoveryNote = normalizedRecoveryEmail
+        ? ` Recovery goes to ${normalizedRecoveryEmail}.`
+        : "";
 
       setAuthResult(
         mode === "signup"
-          ? `Signup complete. Session active, key minted, and onboarding is ready.${profileSync ? ` ${profileSync}.` : ""}`
-          : `Login complete. Session restored and key is active.${profileSync ? ` ${profileSync}.` : ""}`
+          ? `Signup complete. Session active, key minted, and onboarding is ready.${workspaceSyncNote}${recoveryNote}${profileSync ? ` ${profileSync}.` : ""}`
+          : `Login complete. Session restored and key is active.${workspaceSyncNote}${recoveryNote}${profileSync ? ` ${profileSync}.` : ""}`
       );
     } catch (error: any) {
       setAuthResult(error?.message || `${mode} failed.`);
@@ -3094,6 +3206,167 @@ export function App() {
     } finally {
       setIsAuthSubmitting(false);
     }
+  }
+
+  function chooseOnboardingAssistMode(mode: OnboardingAssistMode) {
+    setOnboardingAssistMode(mode);
+    setShowOnboardingPrompt(false);
+    if (mode === "guided") {
+      setShowOnboardingGuide(true);
+      setSelectedSkyeApp("SkyeDocs");
+      return;
+    }
+    setShowOnboardingGuide(false);
+  }
+
+  function renderGuidedOnboardingPanel() {
+    return (
+      <section className="app-module onboarding-guide-panel">
+        <header>
+          <h2>Workspace Onboarding</h2>
+          <p>Use a real email for account recovery and key lock. Generate a separate SKYEMAIL address for the workspace itself.</p>
+        </header>
+
+        <div className="onboarding-chip-row">
+          <span className={`telemetry-chip ${hasActiveAuthSession ? "active" : ""}`}>Account {hasActiveAuthSession ? "Ready" : "Pending"}</span>
+          <span className={`telemetry-chip ${linkedWorkspaceMailbox ? "active" : ""}`}>Workspace Mailbox {linkedWorkspaceMailbox || "Pending"}</span>
+          <span className={`telemetry-chip ${onboardingIdentityDraft?.name ? "active" : ""}`}>Identity {onboardingIdentityDraft?.name || "Pending"}</span>
+          <span className={`telemetry-chip ${apiAccessToken.trim() ? "active" : ""}`}>kAIxU Key {apiAccessToken.trim() ? "Ready" : "Pending"}</span>
+          <span className="telemetry-chip">Progress {onboardingGuideProgress}/5</span>
+        </div>
+
+        <div className="onboarding-guide-grid">
+          <article className="onboarding-step-card">
+            <div className="onboarding-step-index">1</div>
+            <h3>Set the backup recovery email</h3>
+            <p>Use Gmail, Yahoo, or another third-party email here. This is where backup login help and password reset links are sent if the user forgets their SKYEMAIL login.</p>
+            <div className="tool-row">
+              <label>Backup Recovery Email</label>
+              <input value={recoveryEmail} onChange={(event) => setRecoveryEmail(event.target.value)} placeholder="you@gmail.com" />
+            </div>
+            <div className="tool-row split">
+              <div>
+                <label>Password</label>
+                <input type="password" value={authPassword} onChange={(event) => setAuthPassword(event.target.value)} placeholder="At least 8 characters" />
+              </div>
+              <div>
+                <label>Organization</label>
+                <input value={authOrgName} onChange={(event) => setAuthOrgName(event.target.value)} placeholder="Skye Workspace" />
+              </div>
+            </div>
+          </article>
+
+          <article className="onboarding-step-card">
+            <div className="onboarding-step-index">2</div>
+            <h3>Generate the SKYEMAIL login</h3>
+            <p>Create the actual SKYEMAIL identity the user will log in with. This becomes the primary login and the mailbox inside the workspace.</p>
+            <div className="onboarding-summary-grid">
+              <div>
+                <strong>Backup recovery</strong>
+                <span>{recoveryEmail.trim().toLowerCase() || "Not set"}</span>
+              </div>
+              <div>
+                <strong>Primary SKYEMAIL login</strong>
+                <span>{linkedWorkspaceMailbox || authUser.trim().toLowerCase() || "Generate in SKYEMAIL-GEN"}</span>
+              </div>
+            </div>
+            <div className="tool-actions left">
+              <button className="ghost" type="button" onClick={() => openGeneratorApp("SKYEMAIL-GEN")}>Open SKYEMAIL-GEN</button>
+              <button className="ghost" type="button" onClick={linkGeneratedEmailToWorkspace}>Use Generated SKYEMAIL</button>
+            </div>
+          </article>
+
+          <article className="onboarding-step-card">
+            <div className="onboarding-step-index">3</div>
+            <h3>Create the account</h3>
+            <p>Sign up or sign in with the SKYEMAIL address as the primary login. The third-party email remains backup only.</p>
+            <div className="tool-row">
+              <label>Primary SKYEMAIL Login</label>
+              <input value={authUser} onChange={(event) => setAuthUser(event.target.value)} placeholder="founder@skyemail.com" />
+            </div>
+            <div className="onboarding-summary-grid">
+              <div>
+                <strong>Recovery email</strong>
+                <span>{recoveryEmail.trim().toLowerCase() || "Set in step 1"}</span>
+              </div>
+              <div>
+                <strong>SKYEMAIL login</strong>
+                <span>{authUser.trim().toLowerCase() || "Generate and link in step 2"}</span>
+              </div>
+            </div>
+            <div className="tool-actions left">
+              <button className="ghost" type="button" onClick={() => void submitAuthFlow("signup")} disabled={isAuthSubmitting}>
+                {isAuthSubmitting ? "Working..." : "Sign Up"}
+              </button>
+              <button className="ghost" type="button" onClick={() => void submitAuthFlow("login")} disabled={isAuthSubmitting}>
+                {isAuthSubmitting ? "Working..." : "Sign In"}
+              </button>
+            </div>
+          </article>
+
+          <article className="onboarding-step-card">
+            <div className="onboarding-step-index">4</div>
+            <h3>Link identity to the workspace</h3>
+            <p>Generate the user identity card and attach it to the workspace so the mailbox, account email, and ID record stay tied together.</p>
+            <div className="onboarding-summary-grid">
+              <div>
+                <strong>Identity draft</strong>
+                <span>{onboardingIdentityDraft ? `${onboardingIdentityDraft.name} / ${onboardingIdentityDraft.idNumber}` : "No linked identity yet"}</span>
+              </div>
+              <div>
+                <strong>Workspace name</strong>
+                <span>{authOrgName || "Skye Workspace"}</span>
+              </div>
+            </div>
+            <div className="tool-actions left">
+              <button className="ghost" type="button" onClick={() => openGeneratorApp("Skye-ID")}>Open Skye-ID</button>
+              <button className="ghost" type="button" onClick={applyGeneratedIdentityToOrg}>Link Generated ID</button>
+            </div>
+          </article>
+
+          <article className="onboarding-step-card">
+            <div className="onboarding-step-index">5</div>
+            <h3>Finish key and recovery</h3>
+            <p>Your kAIxU key should lock to the SKYEMAIL primary login. Password resets and backup recovery go to the third-party recovery email.</p>
+            <div className="onboarding-summary-grid">
+              <div>
+                <strong>Key lock email</strong>
+                <span>{apiTokenEmail.trim().toLowerCase() || authUser.trim().toLowerCase() || "Not minted yet"}</span>
+              </div>
+              <div>
+                <strong>Password recovery</strong>
+                <span>{recoveryEmail.trim().toLowerCase() || "Set your backup recovery email first"}</span>
+              </div>
+            </div>
+            <div className="tool-actions left">
+              <button
+                className="ghost"
+                type="button"
+                onClick={() => void ensureOnboardingKey({ force: true, labelPrefix: "manual-onboarding" })}
+                disabled={isAuthSubmitting || isEnsuringOnboardingKey}
+              >
+                {isEnsuringOnboardingKey ? "Minting Key..." : "Mint Key"}
+              </button>
+              <button className="ghost" type="button" onClick={() => void requestPasswordReset()} disabled={isResetSubmitting}>
+                {isResetSubmitting ? "Requesting..." : "Send Reset Link"}
+              </button>
+              <button className="ghost" type="button" onClick={() => void refreshAuthSession()} disabled={isAuthSubmitting}>Session Sync</button>
+            </div>
+          </article>
+        </div>
+
+        <div className="auth-session-feedback onboarding-flow-summary">
+          <strong>How this flow works</strong>
+          <div>Your generated SKYEMAIL address becomes the primary login and the mailbox inside the workspace.</div>
+          <div>Your third-party recovery email is only for backup login help and password reset delivery.</div>
+          <div>You can close this and come back any time with the Guided Onboarding button.</div>
+          <div className="tool-actions left" style={{ marginTop: 8 }}>
+            <button className="ghost" type="button" onClick={() => chooseOnboardingAssistMode("later")}>Maybe Later</button>
+            <button className="ghost" type="button" onClick={() => chooseOnboardingAssistMode("self-serve")}>Use Self-Serve Instead</button>
+          </div>
+        </div>
+      </section>
+    );
   }
 
   function openDetachedPreview() {
@@ -5062,18 +5335,21 @@ export function App() {
         <button className="ghost" type="button" onClick={() => { setApiAccessToken(""); setApiTokenEmail(""); setAssistantAuthStatus("unknown"); }}>
           Clear Auth
         </button>
+        <button className="ghost" type="button" onClick={() => chooseOnboardingAssistMode("guided")}>
+          Guided Onboarding
+        </button>
         <button className="ghost" type="button" onClick={() => setShowTutorialPanel((old) => !old)}>
           {showTutorialPanel ? "Hide Tutorials" : "Show Tutorials"}
         </button>
       </section>
 
       <section className="auth-session-bar">
-        <label htmlFor="auth-email">Email</label>
+        <label htmlFor="auth-email">SKYEMAIL Login</label>
         <input
           id="auth-email"
           value={authUser}
           onChange={(event) => setAuthUser(event.target.value)}
-          placeholder="owner@company.com"
+          placeholder="founder@skyemail.com"
         />
         <label htmlFor="auth-password">Password</label>
         <input
@@ -5082,6 +5358,13 @@ export function App() {
           value={authPassword}
           onChange={(event) => setAuthPassword(event.target.value)}
           placeholder="********"
+        />
+        <label htmlFor="auth-recovery-email">Recovery Email</label>
+        <input
+          id="auth-recovery-email"
+          value={recoveryEmail}
+          onChange={(event) => setRecoveryEmail(event.target.value)}
+          placeholder="you@gmail.com"
         />
         <label htmlFor="auth-org">Org (signup)</label>
         <input
@@ -5116,7 +5399,7 @@ export function App() {
 
       <section className="auth-session-feedback">
         <strong>Password Recovery</strong>
-        <div>Use this if you are locked out. Reset links and tokens are single-use and expire quickly.</div>
+        <div>Use this if you are locked out. Reset links are sent to the third-party recovery email when one is set.</div>
         <div className="tool-actions left" style={{ marginTop: 8 }}>
           <button className="ghost" type="button" onClick={() => void requestPasswordReset()} disabled={isResetSubmitting}>
             {isResetSubmitting ? "Requesting..." : "Send Reset Link"}
@@ -5157,6 +5440,8 @@ export function App() {
           SKYEMAIL-GEN draft: {onboardingEmailDraft?.email || "none"}
           {onboardingEmailDraft?.updatedAt ? ` · ${new Date(onboardingEmailDraft.updatedAt).toLocaleString()}` : ""}
         </div>
+        <div>Primary SKYEMAIL login: {authUser.trim().toLowerCase() || "none"}</div>
+        <div>Backup recovery email: {recoveryEmail.trim().toLowerCase() || "none"}</div>
         <div>
           Skye-ID draft: {onboardingIdentityDraft ? `${onboardingIdentityDraft.name} / ${onboardingIdentityDraft.idNumber}` : "none"}
           {onboardingIdentityDraft?.updatedAt ? ` · ${new Date(onboardingIdentityDraft.updatedAt).toLocaleString()}` : ""}
@@ -5165,8 +5450,8 @@ export function App() {
           <button className="ghost" type="button" onClick={() => openGeneratorApp("SKYEMAIL-GEN")}>
             Open SKYEMAIL-GEN
           </button>
-          <button className="ghost" type="button" onClick={applyGeneratedEmailToAuth}>
-            Use Generated Email
+          <button className="ghost" type="button" onClick={linkGeneratedEmailToWorkspace}>
+            Use Generated SKYEMAIL
           </button>
           <button className="ghost" type="button" onClick={() => openGeneratorApp("Skye-ID")}>
             Open Skye-ID
@@ -5209,12 +5494,16 @@ export function App() {
         <strong>Onboarding Checklist</strong>
         <div>Session: {assistantAuthStatus === "ok" || assistantAuthStatus === "token" ? "ready" : "missing"}</div>
         <div>Key: {apiAccessToken.trim() ? "loaded" : "missing"}</div>
+        <div>Primary SKYEMAIL login: {authUser.trim().toLowerCase() || "missing"}</div>
+        <div>Backup recovery email: {recoveryEmail.trim().toLowerCase() || "missing"}</div>
         <div>
           Email lock: {apiTokenEmail.trim().toLowerCase() && apiTokenEmail.trim().toLowerCase() === authUser.trim().toLowerCase() ? "aligned" : "needs alignment"}
         </div>
       </section>
 
       {authResult && <section className="auth-session-feedback">{authResult}</section>}
+
+      {showOnboardingGuide && !inviteToken && renderGuidedOnboardingPanel()}
 
       {showFailSafeBanner && (
         <section className="smoke-warning" style={{ margin: "10px 12px 0 12px" }}>
@@ -5230,6 +5519,23 @@ export function App() {
           <div>State: {tokenMisuseState}</div>
           <div>Set a valid token-locked email that matches the active auth user to avoid authorization failures.</div>
         </section>
+      )}
+
+      {showOnboardingPrompt && (
+        <div className="onboarding-prompt-overlay" role="dialog" aria-modal="true" aria-labelledby="onboarding-prompt-title">
+          <div className="onboarding-prompt-card">
+            <p className="platform-intro-kicker">Workspace Onboarding</p>
+            <h2 id="onboarding-prompt-title">Would you like help onboarding?</h2>
+            <p>
+              Choose <strong>Yes</strong> for the guided flow: add a third-party recovery email, generate the SKYEMAIL primary login, mint the key, and wire password recovery correctly.
+            </p>
+            <div className="tool-actions left onboarding-prompt-actions">
+              <button className="ghost" type="button" onClick={() => chooseOnboardingAssistMode("guided")}>Yes, guide me</button>
+              <button className="ghost" type="button" onClick={() => chooseOnboardingAssistMode("later")}>Maybe Later</button>
+              <button className="ghost" type="button" onClick={() => chooseOnboardingAssistMode("self-serve")}>No, I will sign in myself</button>
+            </div>
+          </div>
+        </div>
       )}
 
       <div className={`workspace-stack ${isSkyeDocsStackMode ? "workspace-stack-docs" : ""}`}>

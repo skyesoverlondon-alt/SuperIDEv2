@@ -604,7 +604,7 @@ a:focus-visible {
 
 .auth-session-bar {
   display: grid;
-  grid-template-columns: 72px 1fr 86px 1fr 104px 1fr auto auto auto auto auto auto;
+  grid-template-columns: 96px minmax(0, 1fr) 86px minmax(0, 1fr) 112px minmax(0, 1fr) 104px minmax(0, 1fr) auto auto auto auto auto auto;
   gap: 8px;
   align-items: center;
   padding: 8px 12px;
@@ -637,6 +637,136 @@ a:focus-visible {
   font-size: 0.82rem;
 }
 
+.onboarding-guide-panel {
+  margin: 8px 12px 0 12px;
+  border: 1px solid rgba(255, 214, 96, 0.28);
+  background:
+    radial-gradient(circle at top right, rgba(255, 214, 96, 0.09), transparent 32%),
+    linear-gradient(180deg, rgba(18, 10, 28, 0.94), rgba(8, 10, 18, 0.95));
+}
+
+.onboarding-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.onboarding-chip-row .telemetry-chip.active {
+  border-color: rgba(255, 214, 96, 0.55);
+  background: rgba(255, 214, 96, 0.12);
+  color: #fff2b3;
+}
+
+.onboarding-guide-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.onboarding-step-card {
+  position: relative;
+  border: 1px solid var(--border-soft);
+  border-radius: 14px;
+  padding: 16px 14px 14px;
+  background: rgba(255, 255, 255, 0.03);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.onboarding-step-card h3 {
+  margin: 0;
+  font-size: 0.92rem;
+  color: #fff3bf;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.onboarding-step-card p {
+  margin: 0;
+  color: #ddd0f2;
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.onboarding-step-index {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 214, 96, 0.48);
+  background: rgba(255, 214, 96, 0.12);
+  color: #fff3bf;
+  font-weight: 700;
+}
+
+.onboarding-summary-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.onboarding-summary-grid div {
+  display: grid;
+  gap: 4px;
+}
+
+.onboarding-summary-grid strong {
+  font-size: 0.72rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.onboarding-summary-grid span {
+  font-size: 0.84rem;
+  color: var(--text);
+  word-break: break-word;
+}
+
+.onboarding-flow-summary {
+  margin: 16px 0 0;
+}
+
+.onboarding-prompt-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2100;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(5, 6, 12, 0.74);
+  backdrop-filter: blur(8px);
+}
+
+.onboarding-prompt-card {
+  width: min(560px, calc(100vw - 32px));
+  border-radius: 18px;
+  border: 1px solid rgba(255, 214, 96, 0.32);
+  background:
+    radial-gradient(circle at top right, rgba(255, 214, 96, 0.12), transparent 34%),
+    linear-gradient(180deg, rgba(18, 10, 28, 0.98), rgba(7, 9, 16, 0.98));
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.48);
+  padding: 22px;
+}
+
+.onboarding-prompt-card h2 {
+  margin: 0 0 10px;
+  font-size: clamp(1.3rem, 3vw, 1.8rem);
+}
+
+.onboarding-prompt-card p {
+  margin: 0;
+  color: #ddd0f2;
+  line-height: 1.55;
+}
+
+.onboarding-prompt-actions {
+  margin-top: 18px;
+}
+
 .file-pane,
 .chat-pane {
   background: var(--glass);
@@ -660,6 +790,23 @@ a:focus-visible {
   border-radius: 12px;
   padding: 10px;
   background: rgba(255, 255, 255, 0.03);
+  min-width: 0;
+  overflow: hidden;
+}
+
+.side-settings-block .tool-row.split {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.side-settings-block .tool-row.split > div {
+  min-width: 0;
+}
+
+.side-settings-block input,
+.side-settings-block select {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .file-pane label,
@@ -996,6 +1143,21 @@ a:focus-visible {
 
 .right-dock-chat-shell {
   border-left: none;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  align-self: stretch;
+}
+
+.right-dock-chat-shell .messages,
+.right-dock-chat-shell .tool-panel,
+.right-dock-chat-shell .composer {
+  min-height: 0;
+}
+
+.right-dock-chat-shell .tool-panel {
+  height: 100%;
+  overflow: auto;
 }
 
 .right-dock-embed-shell {
@@ -1911,6 +2073,10 @@ a:focus-visible {
 
   .auth-session-bar label {
     display: none;
+  }
+
+  .onboarding-guide-grid {
+    grid-template-columns: 1fr;
   }
 
   .workspace-body {

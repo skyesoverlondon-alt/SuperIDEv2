@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import { json } from "./_shared/response";
 import { q } from "./_shared/neon";
-import { hashPassword } from "./_shared/auth";
+import { hashPassword, ensureUserRecoveryEmailColumn } from "./_shared/auth";
 import { audit } from "./_shared/audit";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -31,6 +31,7 @@ async function ensurePasswordResetTable() {
 export const handler = async (event: any) => {
   try {
     await ensurePasswordResetTable();
+    await ensureUserRecoveryEmailColumn();
 
     const body = JSON.parse(event.body || "{}");
     const normalizedEmail = String(body?.email || "").trim().toLowerCase();
@@ -51,13 +52,16 @@ export const handler = async (event: any) => {
     const tokenHash = hashToken(token);
 
     const lookup = await q(
-      `select prt.id as reset_id, prt.user_id, u.email, u.org_id
+      `select prt.id as reset_id, prt.user_id, u.email, u.recovery_email, u.org_id
        from password_reset_tokens prt
        join users u on u.id = prt.user_id
        where prt.token_hash=$1
          and prt.used_at is null
          and prt.expires_at > $2
-         and lower(u.email)=lower($3)
+         and (
+           lower(u.email)=lower($3)
+           or lower(coalesce(u.recovery_email, ''))=lower($3)
+         )
        limit 1`,
       [tokenHash, nowIso, normalizedEmail]
     );

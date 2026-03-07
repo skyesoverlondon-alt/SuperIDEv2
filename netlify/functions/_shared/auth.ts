@@ -96,6 +96,11 @@ export async function createSession(user_id: string) {
   return { token, expires };
 }
 
+export async function ensureUserRecoveryEmailColumn() {
+  await q("alter table if exists users add column if not exists recovery_email text", []);
+  await q("create index if not exists idx_users_recovery_email on users(lower(recovery_email))", []);
+}
+
 export function setSessionCookie(token: string, expires: Date): string {
   return `${COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax; Secure; Expires=${expires.toUTCString()}`;
 }

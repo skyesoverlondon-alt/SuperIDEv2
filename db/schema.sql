@@ -16,10 +16,15 @@ create table if not exists orgs (
 create table if not exists users (
   id uuid primary key default gen_random_uuid(),
   email text not null unique,
+  recovery_email text,
   password_hash text not null,
   org_id uuid references orgs(id),
   created_at timestamptz not null default now()
 );
+
+alter table if exists users add column if not exists recovery_email text;
+
+create index if not exists idx_users_recovery_email on users(lower(recovery_email));
 
 create table if not exists sessions (
   id uuid primary key default gen_random_uuid(),
