@@ -32,31 +32,39 @@ export const handler = async (event: any) => {
   const allowed = await canWriteWorkspace(u.org_id, u.user_id, wsId);
   if (!allowed) return json(403, { error: "Workspace write denied." });
 
-  const incomingFiles = Array.isArray(body.files) ? body.files : null;
-
-  const releasePlan = await buildSknoreReleasePlan(u.org_id, wsId, incomingFiles || undefined);
+  const incomingFiles = Array.isArray(body.files) ? body.files : undefined;
+  const releasePlan = await buildSknoreReleasePlan(u.org_id, wsId, incomingFiles);
   if (!releasePlan.files.length) {
     return json(400, { error: "Workspace has no files to push into SkyeDrive." });
   }
   if (!releasePlan.releaseFiles.length) {
-    return json(400, { error: "All workspace files are SKNore-protected. Nothing can be pushed into SkyeDrive." });
+    return json(400, { error: "All workspace files are SKNore-protected. Nothing can be saved into SkyeDrive." });
   }
 
-  const snapshotTitle = title || `${releasePlan.workspaceName || "SkyDex Workspace"} · SkyeDrive Snapshot`;
+  const workspaceResult = await q(
+    `select id, name, files_json, updated_at
+       from workspaces
+      where id=$1 and org_id=$2
+      limit 1`,
+    [wsId, u.org_id]
+  );
+
+  const workspace = workspaceResult.rows[0];
+  if (!workspace) return json(404, { error: "Workspace not found." });
+
+  const snapshotTitle = title || `${workspace.name || "SkyDex Workspace"} · SkyeDrive Snapshot`;
   const payload = {
     kind: "workspace-source",
     source: "SkyDex4.6",
     source_kind: sourceKind,
     source_name: sourceName || null,
     note: note || null,
-    workspace_name: releasePlan.workspaceName || null,
-    workspace_revision: new Date().toISOString(),
+    workspace_name: workspace.name || null,
+    workspace_revision: workspace.updated_at || null,
     file_count: releasePlan.releaseFiles.length,
+    blocked_file_count: releasePlan.blockedPaths.length,
+    blocked_paths: releasePlan.blockedPaths,
     files: releasePlan.releaseFiles,
-    sknore: {
-      patterns_count: releasePlan.patterns.length,
-      blocked_paths: releasePlan.blockedPaths,
-    },
   };
 
   const inserted = await q(
@@ -83,10 +91,11 @@ export const handler = async (event: any) => {
     record_id: recordId,
     title: snapshotTitle,
     files: releasePlan.releaseFiles.length,
+    original_files: releasePlan.files.length,
+    sknore_blocked: releasePlan.blockedPaths.length,
     source_kind: sourceKind,
     source_name: sourceName || null,
     note: note || null,
-    sknore_blocked: releasePlan.blockedPaths.length,
   });
 
   return json(200, {

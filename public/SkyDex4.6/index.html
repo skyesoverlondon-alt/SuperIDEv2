@@ -747,27 +747,33 @@
         </div>
 
         <div class="rail-block field-stack">
-          <div class="eyebrow">SKNore Release Guard</div>
-          <div class="integration-status" id="sknoreStatus">
-            <strong>SKNore status</strong>
-            <div class="muted">Checking workspace release policy.</div>
+          <div class="eyebrow">SKNore Release Truth</div>
+          <div class="integration-status" id="sknoreReleaseStatus">
+            <strong>SKNore policy</strong>
+            <div class="muted">Checking protected-file policy for this workspace.</div>
           </div>
-          <div class="diff-summary-list" id="sknoreBlockedList"></div>
+          <div class="diff-summary-list" id="sknoreReleaseList"></div>
           <div class="action-stack">
-            <button class="ghost" type="button" id="refreshSknoreBtn">Refresh SKNore</button>
-            <button class="ghost" type="button" id="openSknoreBtn">Open SKNore</button>
+            <button class="ghost" type="button" id="refreshSknoreBtn">Refresh SKNore Policy</button>
+            <button class="ghost" type="button" id="openSknoreBtn">Open SKNore Policy</button>
           </div>
         </div>
 
         <div class="rail-block field-stack">
-          <div class="eyebrow">Blog Recall</div>
+          <div class="eyebrow">SkyeBlog Recall</div>
           <div class="integration-status" id="blogRecallStatus">
-            <strong>SkyeBlog records</strong>
-            <div class="muted">Loading recent publishing records for this workspace.</div>
+            <strong>Recent blog records</strong>
+            <div class="muted">Loading recent SkyeBlog drafts linked to this workspace.</div>
+          </div>
+          <div class="field">
+            <label for="blogRecallSelect">Recent SkyeBlog draft</label>
+            <select id="blogRecallSelect" class="source-select"></select>
           </div>
           <div class="diff-summary-list" id="blogRecallList"></div>
           <div class="action-stack">
             <button class="ghost" type="button" id="refreshBlogRecallBtn">Refresh Blog Recall</button>
+            <button class="ghost" type="button" id="importBlogRecallBtn">Import Into Workspace</button>
+            <button class="ghost" type="button" id="openBlogRecallBtn">Open In SkyeBlog</button>
           </div>
         </div>
 
@@ -874,12 +880,17 @@
         skyedrive: { connected: false, ws_id: null, record_id: null, title: null },
         github: { connected: false, repo: null, branch: null, installation_id: null },
         netlify: { connected: false, site_id: null, site_name: null },
-        sknore: { connected: false, patterns: [], patterns_count: 0, blocked_count: 0, blocked_paths: [], included_count: 0, total_count: 0 },
       },
       skyedriveSources: [],
-      blogRecords: [],
       baselineFiles: [],
       sourceBaselineFiles: [],
+      blogRecords: [],
+      sknore: {
+        patterns: [],
+        scope: "workspace",
+        updatedAt: null,
+        lastRelease: null,
+      },
     };
 
     const defaultFiles = [
@@ -944,23 +955,16 @@
         .filter(Boolean)));
     }
 
-    function isSknoreProtectedPath(path, patterns) {
+    function isSknoreProtected(path, patterns) {
       const target = String(path || "").replace(/^\/+/, "");
       return normalizeSknorePatterns(patterns).some((pattern) => globToRegex(pattern).test(target));
     }
 
-    function getLocalSknoreStatus() {
-      const sknore = state.integrationStatus.sknore || {};
-      const patterns = normalizeSknorePatterns(sknore.patterns || []);
-      const blockedPaths = cloneFiles(state.files)
-        .filter((file) => isSknoreProtectedPath(file.path, patterns))
-        .map((file) => file.path);
-      return {
-        patterns,
-        blockedPaths,
-        includedCount: Math.max(state.files.length - blockedPaths.length, 0),
-        totalCount: state.files.length,
-      };
+    function slugify(value) {
+      return String(value || "draft")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "") || "draft";
     }
 
     function getFile(path) {
@@ -1060,7 +1064,7 @@
         : "Current files are aligned with the latest saved workspace revision.";
       renderSnapshotDiff();
       renderWorkspaceIntelligence();
-      renderSknoreStatus();
+      renderSknoreReleasePreview();
     }
 
     function renderFiles() {
@@ -1141,152 +1145,156 @@
       });
     }
 
-    function renderSknoreStatus() {
-      const box = $("sknoreStatus");
-      const list = $("sknoreBlockedList");
-      if (!box || !list) return;
-      const local = getLocalSknoreStatus();
-      if (!local.patterns.length) {
-        box.innerHTML = "<strong>SKNore status</strong><div class='muted'>No workspace SKNore rules are loaded. Open SKNore if you need to protect env files or secrets before Drive, GitHub, or Netlify release actions.</div>";
-        list.innerHTML = "<div class='diff-summary-item'>No SKNore patterns are active for this workspace.</div>";
-        return;
-      }
-      box.innerHTML = "<strong>SKNore status</strong><div class='muted'>" + local.patterns.length + " rules loaded · " + local.blockedPaths.length + " protected files will be excluded from SkyeDrive, GitHub, and Netlify release actions.</div>";
-      list.innerHTML = "";
-      if (!local.blockedPaths.length) {
-        list.innerHTML = "<div class='diff-summary-item'>No current workspace files match the active SKNore policy.</div>";
-        return;
-      }
-      local.blockedPaths.slice(0, 6).forEach((path) => {
-        const item = document.createElement("div");
-        item.className = "diff-summary-item";
-        item.textContent = "protected: " + path;
-        list.appendChild(item);
+    function computeSknoreReleasePreview(filesOverride) {
+      const files = cloneFiles(Array.isArray(filesOverride) ? filesOverride : state.files);
+      const patterns = normalizeSknorePatterns(state.sknore?.patterns || []);
+      const blockedPaths = [];
+      const releaseFiles = [];
+      files.forEach((file) => {
+        if (isSknoreProtected(file.path, patterns)) blockedPaths.push(file.path);
+        else releaseFiles.push(file);
       });
-      if (local.blockedPaths.length > 6) {
-        const item = document.createElement("div");
-        item.className = "diff-summary-item";
-        item.textContent = "+" + (local.blockedPaths.length - 6) + " more protected files";
-        list.appendChild(item);
-      }
+      return {
+        files,
+        releaseFiles,
+        blockedPaths,
+        patterns,
+      };
     }
 
-    function findBlogRecord(recordId) {
-      return (Array.isArray(state.blogRecords) ? state.blogRecords : []).find((record) => String(record?.id || "") === String(recordId || "")) || null;
+    function summarizeSknoreResult(sknore, fallbackIncluded) {
+      const included = Number(sknore?.included_count ?? fallbackIncluded ?? 0);
+      const blocked = Number(sknore?.blocked_count ?? 0);
+      const patterns = Number(sknore?.patterns_count ?? state.sknore?.patterns?.length ?? 0);
+      if (!patterns) return `No SKNore policy was active. ${included} file${included === 1 ? "" : "s"} stayed eligible for release.`;
+      return `SKNore included ${included} file${included === 1 ? "" : "s"} and blocked ${blocked} protected path${blocked === 1 ? "" : "s"}.`;
     }
 
-    function slugifySegment(value) {
-      return String(value || "record")
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-+|-+$/g, "")
-        .slice(0, 48) || "record";
+    function rememberReleaseResult(channel, payload, fallbackIncluded) {
+      state.sknore.lastRelease = {
+        channel,
+        includedCount: Number(payload?.sknore?.included_count ?? fallbackIncluded ?? 0),
+        blockedCount: Number(payload?.sknore?.blocked_count ?? 0),
+        blockedPaths: Array.isArray(payload?.sknore?.blocked_paths) ? payload.sknore.blocked_paths : [],
+        patternsCount: Number(payload?.sknore?.patterns_count ?? state.sknore?.patterns?.length ?? 0),
+      };
+      renderSknoreReleasePreview();
     }
 
-    function buildBlogRecallMarkdown(record) {
-      const payload = record?.payload && typeof record.payload === "object" ? record.payload : {};
-      const title = String(record?.title || payload.title || "Untitled Blog Record").trim() || "Untitled Blog Record";
-      const text = String(payload.text || payload.excerpt || "").trim();
-      const html = String(payload.html || "").trim();
-      const social = record?.social || null;
-      return [
-        "# " + title,
-        "",
-        "- record_id: " + String(record?.id || "n/a"),
-        "- updated_at: " + String(record?.updated_at || "n/a"),
-        "- source_app: " + String(payload.source_app || "SkyeBlog"),
-        social ? "- give_air: " + String(social.airScore || 0) : "- give_air: unavailable",
-        social?.channel ? "- skychat_channel: " + social.channel : null,
-        "",
-        "## Excerpt",
-        "",
-        text || "No text excerpt was saved in this record.",
-        "",
-        html ? "## HTML Snapshot\n\n```html\n" + html + "\n```" : null,
-      ].filter(Boolean).join("\n");
-    }
+    function renderSknoreReleasePreview() {
+      const statusBox = $("sknoreReleaseStatus");
+      const list = $("sknoreReleaseList");
+      if (!statusBox || !list) return;
+      const preview = computeSknoreReleasePreview();
+      const scope = state.sknore?.scope === "org" ? "org-wide" : "workspace";
+      const updatedText = state.sknore?.updatedAt ? new Date(state.sknore.updatedAt).toLocaleString() : "not saved yet";
+      const lastRelease = state.sknore?.lastRelease;
 
-    function loadBlogRecordIntoWorkspace(recordId) {
-      const record = findBlogRecord(recordId);
-      if (!record) throw new Error("Blog record not found.");
-      const payload = record?.payload && typeof record.payload === "object" ? record.payload : {};
-      const stamp = String(record?.updated_at || new Date().toISOString()).replace(/[:.]/g, "-");
-      const path = "notes/blog-recall-" + slugifySegment(record?.title || payload.title || record?.id) + "-" + stamp.slice(0, 19) + ".md";
-      upsertFile(path, buildBlogRecallMarkdown(record));
-      openFile(path);
-      setStatus("Blog record loaded", "Recovered " + (record.title || payload.title || "blog record") + " into the workspace as " + path + ".", "success");
-    }
+      statusBox.innerHTML = preview.patterns.length
+        ? "<strong>SKNore policy</strong><div class='muted'>" + preview.releaseFiles.length + " release-ready files and " + preview.blockedPaths.length + " blocked paths under the " + escapeHtml(scope) + " policy. Updated " + escapeHtml(updatedText) + ".</div>"
+        : "<strong>SKNore policy</strong><div class='muted'>No SKNore patterns are active for this workspace yet. Every current file is eligible for SkyeDrive, GitHub, and Netlify release actions.</div>";
 
-    function openBlogRecordInSkyeBlog(recordId) {
-      const record = findBlogRecord(recordId);
-      if (!record) throw new Error("Blog record not found.");
-      const payload = record?.payload && typeof record.payload === "object" ? record.payload : {};
-      localStorage.setItem("skye.blog.bridgeDraft", JSON.stringify({
-        title: String(record?.title || payload.title || "Untitled").trim(),
-        html: String(payload.html || "").trim(),
-        text: String(payload.text || payload.excerpt || "").trim(),
-        source_app: "SkyDex4.6",
-        source_record_id: String(record?.id || "").trim() || null,
-      }));
-      window.open("/SkyeBlog/index.html?ws_id=" + encodeURIComponent(state.workspaceId) + "&bridge_import=1", "_blank", "noopener,noreferrer");
-      setStatus("SkyeBlog handoff ready", "Loaded the selected blog record into the SkyeBlog bridge lane.", "success");
-    }
-
-    function promptWithBlogRecord(recordId) {
-      const record = findBlogRecord(recordId);
-      if (!record) throw new Error("Blog record not found.");
-      const payload = record?.payload && typeof record.payload === "object" ? record.payload : {};
-      $("promptInput").value = [
-        "Recall and integrate this SkyeBlog record into the current workspace.",
-        "record_id: " + String(record?.id || "n/a"),
-        "title: " + String(record?.title || payload.title || "Untitled"),
-        "excerpt: " + String(payload.text || payload.excerpt || "").trim().slice(0, 800),
-      ].join("\n");
-      setStatus("Prompt drafted", "Loaded the selected blog record into the kAIxU prompt lane.", "success");
-    }
-
-    function renderBlogRecords() {
-      const box = $("blogRecallStatus");
-      const list = $("blogRecallList");
-      if (!box || !list) return;
-      const records = Array.isArray(state.blogRecords) ? state.blogRecords : [];
-      if (!records.length) {
-        box.innerHTML = "<strong>SkyeBlog records</strong><div class='muted'>No SkyeBlog records have been saved for this workspace yet.</div>";
-        list.innerHTML = "<div class='diff-summary-item'>Publish from SkyeBlog or route a BookX draft into SkyeBlog to populate this recall lane.</div>";
-        return;
-      }
-      box.innerHTML = "<strong>SkyeBlog records</strong><div class='muted'>" + records.length + " recent records can be recalled into SkyDex, reopened in SkyeBlog, or used as a new prompt anchor.</div>";
       list.innerHTML = "";
-      records.forEach((record) => {
-        const payload = record?.payload && typeof record.payload === "object" ? record.payload : {};
-        const social = record?.social || null;
+      if (lastRelease) {
         const row = document.createElement("div");
         row.className = "diff-summary-item";
-        row.innerHTML = "<strong>" + escapeHtml(record.title || payload.title || "Untitled Blog Record") + "</strong>"
-          + " · " + escapeHtml(String(record.updated_at || ""))
-          + (social ? " · air=" + escapeHtml(String(social.airScore || 0)) : "")
-          + (social?.channel ? " · #" + escapeHtml(social.channel) : "")
-          + "<div class='muted'>" + escapeHtml(String(payload.text || payload.excerpt || "No excerpt saved.").trim().slice(0, 180)) + "</div>"
-          + "<div class='subheader-actions' style='margin-top:8px;'>"
-          + "<button class='ghost' type='button' data-blog-action='workspace' data-record-id='" + escapeHtml(String(record.id || "")) + "'>Load To Workspace</button>"
-          + "<button class='ghost' type='button' data-blog-action='open' data-record-id='" + escapeHtml(String(record.id || "")) + "'>Open In SkyeBlog</button>"
-          + "<button class='ghost' type='button' data-blog-action='prompt' data-record-id='" + escapeHtml(String(record.id || "")) + "'>Use In Prompt</button>"
-          + "</div>";
-        row.querySelectorAll("button[data-blog-action]").forEach((button) => {
-          button.addEventListener("click", () => {
-            const action = button.getAttribute("data-blog-action");
-            const recordId = button.getAttribute("data-record-id");
-            runAction(() => Promise.resolve(
-              action === "workspace"
-                ? loadBlogRecordIntoWorkspace(recordId)
-                : action === "open"
-                ? openBlogRecordInSkyeBlog(recordId)
-                : promptWithBlogRecord(recordId)
-            ));
-          });
-        });
+        row.textContent = `${lastRelease.channel}: included=${lastRelease.includedCount} · blocked=${lastRelease.blockedCount}`;
         list.appendChild(row);
+      }
+      if (preview.blockedPaths.length) {
+        preview.blockedPaths.slice(0, 6).forEach((path) => {
+          const item = document.createElement("div");
+          item.className = "diff-summary-item";
+          item.textContent = `blocked: ${path}`;
+          list.appendChild(item);
+        });
+        if (preview.blockedPaths.length > 6) {
+          const more = document.createElement("div");
+          more.className = "diff-summary-item";
+          more.textContent = `and ${preview.blockedPaths.length - 6} more protected path(s)`;
+          list.appendChild(more);
+        }
+        return;
+      }
+      if (preview.patterns.length) {
+        const clear = document.createElement("div");
+        clear.className = "diff-summary-item";
+        clear.textContent = "Current snapshot is clear to release under the active SKNore policy.";
+        list.appendChild(clear);
+        return;
+      }
+      const tip = document.createElement("div");
+      tip.className = "diff-summary-item";
+      tip.textContent = "Tip: open SKNore to add .env, secrets, or evidence paths before pushing from SkyDex.";
+      list.appendChild(tip);
+    }
+
+    function blogRecordTitle(record) {
+      return String(record?.title || record?.payload?.title || "Untitled blog draft").trim() || "Untitled blog draft";
+    }
+
+    function blogRecordHtml(record) {
+      return String(record?.payload?.html || "").trim();
+    }
+
+    function blogRecordText(record) {
+      return String(record?.payload?.text || record?.payload?.excerpt || "").trim();
+    }
+
+    function selectedBlogRecord() {
+      const selectedId = String($("blogRecallSelect")?.value || "").trim();
+      return state.blogRecords.find((record) => String(record?.id || "") === selectedId) || state.blogRecords[0] || null;
+    }
+
+    function renderBlogRecall() {
+      const statusBox = $("blogRecallStatus");
+      const select = $("blogRecallSelect");
+      const list = $("blogRecallList");
+      if (!statusBox || !select || !list) return;
+      const records = Array.isArray(state.blogRecords) ? state.blogRecords : [];
+      const currentSelection = String(select.value || "").trim();
+      select.innerHTML = "";
+      list.innerHTML = "";
+
+      if (!records.length) {
+        const option = document.createElement("option");
+        option.value = "";
+        option.textContent = "No SkyeBlog records found yet";
+        select.appendChild(option);
+        statusBox.innerHTML = "<strong>Recent blog records</strong><div class='muted'>No saved SkyeBlog records are linked to this workspace yet.</div>";
+        const item = document.createElement("div");
+        item.className = "diff-summary-item";
+        item.textContent = "Publish from SkyeBlog first, then recall drafts here into SkyDex or reopen them in SkyeBlog.";
+        list.appendChild(item);
+        return;
+      }
+
+      records.forEach((record) => {
+        const option = document.createElement("option");
+        option.value = String(record.id || "");
+        option.textContent = blogRecordTitle(record) + " · " + new Date(record.updated_at || record.created_at || Date.now()).toLocaleString();
+        if (String(record.id || "") === currentSelection) option.selected = true;
+        select.appendChild(option);
       });
+
+      if (!String(select.value || "").trim()) select.value = String(records[0]?.id || "");
+      const record = selectedBlogRecord();
+      if (!record) return;
+
+      const excerpt = blogRecordText(record) || blogRecordHtml(record).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+      statusBox.innerHTML = "<strong>Recent blog records</strong><div class='muted'>" + records.length + " SkyeBlog record(s) are available for recall into the workspace lane.</div>";
+      const meta = document.createElement("div");
+      meta.className = "diff-summary-item";
+      meta.textContent = `selected: ${blogRecordTitle(record)}`;
+      list.appendChild(meta);
+      const stamp = document.createElement("div");
+      stamp.className = "diff-summary-item";
+      stamp.textContent = `updated: ${new Date(record.updated_at || record.created_at || Date.now()).toLocaleString()}`;
+      list.appendChild(stamp);
+      const preview = document.createElement("div");
+      preview.className = "diff-summary-item";
+      preview.textContent = excerpt ? excerpt.slice(0, 220) : "Selected record does not include text yet, but it can still be reopened in SkyeBlog.";
+      list.appendChild(preview);
     }
 
     function computeWorkspaceInsights() {
@@ -1325,10 +1333,6 @@
       }
       if (!docCount) {
         risks.push("No docs or markdown notes are present, which weakens handoff and workspace memory inside the lane.");
-      }
-      const localSknore = getLocalSknoreStatus();
-      if (localSknore.blockedPaths.length) {
-        risks.push(localSknore.blockedPaths.length + " files are SKNore-protected and will be excluded from SkyeDrive, GitHub, and Netlify release actions.");
       }
       const prompts = [
         {
@@ -1413,7 +1417,6 @@
         ? "<strong>Netlify status</strong><div class='muted'>Connected to site <code>" + escapeHtml(netlify.site_id || "") + "</code>" + (netlify.site_name ? " (" + escapeHtml(netlify.site_name) + ")" : "") + ".</div>"
         : "<strong>Netlify status</strong><div class='muted'>No Netlify site is stored for this user yet.</div>";
 
-      renderSknoreStatus();
       updateHeader();
     }
 
@@ -1612,12 +1615,11 @@
     }
 
     async function loadIntegrationStatus() {
-      const payload = await jsonRequest("/api/integrations-status?ws_id=" + encodeURIComponent(state.workspaceId), "GET");
+      const payload = await jsonRequest("/api/integrations-status", "GET");
       state.integrationStatus = {
         skyedrive: payload.skyedrive || { connected: false },
         github: payload.github || { connected: false },
         netlify: payload.netlify || { connected: false },
-        sknore: payload.sknore || { connected: false, patterns: [] },
       };
 
       if (state.integrationStatus.skyedrive?.title) {
@@ -1643,29 +1645,18 @@
       renderIntegrationStatus();
     }
 
-    async function loadBlogRecords() {
-      const payload = await jsonRequest("/api/app-record-list?ws_id=" + encodeURIComponent(state.workspaceId) + "&app=SkyeBlog&limit=6", "GET");
-      const records = Array.isArray(payload.records) ? payload.records : [];
-      state.blogRecords = await Promise.all(records.map(async (record) => {
-        const recordId = String(record?.id || "").trim();
-        if (!recordId) return record;
-        try {
-          const chat = await jsonRequest("/api/skychat-list?q=" + encodeURIComponent(recordId) + "&sort=top&limit=10", "GET");
-          const match = (Array.isArray(chat.records) ? chat.records : []).find((item) => String(item?.payload?.message || "").includes(recordId));
-          if (!match) return record;
-          return {
-            ...record,
-            social: {
-              airScore: Number(match?.vote_score || 0),
-              channel: String(match?.payload?.channel_slug || match?.payload?.channel || "").trim() || null,
-              replyCount: Number(match?.reply_count || 0),
-            },
-          };
-        } catch {
-          return record;
-        }
-      }));
-      renderBlogRecords();
+    async function loadSknorePolicy() {
+      const payload = await jsonRequest("/api/sknore-policy-get?ws_id=" + encodeURIComponent(state.workspaceId), "GET");
+      state.sknore.patterns = normalizeSknorePatterns(payload?.patterns || []);
+      state.sknore.scope = String(payload?.scope || "workspace");
+      state.sknore.updatedAt = payload?.updated_at || null;
+      renderSknoreReleasePreview();
+    }
+
+    async function loadBlogRecall() {
+      const payload = await jsonRequest("/api/app-record-list?ws_id=" + encodeURIComponent(state.workspaceId) + "&app=SkyeBlog&limit=12", "GET");
+      state.blogRecords = Array.isArray(payload?.records) ? payload.records : [];
+      renderBlogRecall();
     }
 
     async function loadSkyeDriveSources() {
@@ -1731,7 +1722,7 @@
     }
 
     async function pushSkyeDrive() {
-      await pushSkyeDriveSourceFiles(null, {
+      return pushSkyeDriveSourceFiles(null, {
         title: $("skyedriveTitleInput").value.trim(),
         note: $("skyedriveNoteInput").value.trim(),
       });
@@ -1739,13 +1730,13 @@
 
     async function createRestorePoint() {
       const stamp = new Date().toISOString().replace("T", " ").slice(0, 16);
-      await pushSkyeDriveSourceFiles(null, {
+      const payload = await pushSkyeDriveSourceFiles(null, {
         title: $("skyedriveTitleInput").value.trim() || `${state.workspaceName} · Restore Point · ${stamp}`,
         note: $("skyedriveNoteInput").value.trim() || "Manual restore point captured from the active workspace.",
         sourceKind: "restore-point",
         sourceName: state.workspaceName,
       });
-      setStatus("Restore point created", "Current workspace snapshot was saved as a restore point in SkyeDrive.", "success");
+      setStatus("Restore point created", "Current workspace snapshot was saved as a restore point in SkyeDrive. " + summarizeSknoreResult(payload?.sknore, payload?.file_count), "success");
     }
 
     async function restoreLatestPoint() {
@@ -1759,6 +1750,7 @@
       await saveBeforeRelease();
       const title = String(options?.title || $("skyedriveTitleInput").value || "").trim();
       const note = String(options?.note || $("skyedriveNoteInput").value || "").trim();
+      const releasePreview = computeSknoreReleasePreview(Array.isArray(sourceFiles) ? sourceFiles : state.files);
       const payload = await jsonRequest("/api/skyedrive-push", "POST", {
         ws_id: state.workspaceId,
         title,
@@ -1773,7 +1765,7 @@
         record_id: payload.record_id || null,
         title: payload.title || title || null,
       };
-      state.sourceBaselineFiles = cloneFiles(state.files);
+      state.sourceBaselineFiles = cloneFiles(releasePreview.releaseFiles);
       const nextQuery = new URLSearchParams(window.location.search);
       nextQuery.set("ws_id", state.workspaceId);
       if (payload.record_id) nextQuery.set("drive_record_id", String(payload.record_id));
@@ -1782,8 +1774,9 @@
       await loadSkyeDriveSources();
       renderIntegrationStatus();
       renderRestorePoints();
-      const blocked = Number(payload?.sknore?.blocked_count || 0);
-      setStatus("SkyeDrive sync complete", "Saved workspace snapshot into SkyeDrive as " + (payload.title || title || "workspace-source") + "." + (blocked ? " SKNore excluded " + blocked + " protected files." : ""), "success");
+      rememberReleaseResult("SkyeDrive", payload, releasePreview.releaseFiles.length);
+      setStatus("SkyeDrive sync complete", "Saved workspace snapshot into SkyeDrive as " + (payload.title || title || "workspace-source") + ". " + summarizeSknoreResult(payload?.sknore, releasePreview.releaseFiles.length), "success");
+      return payload;
     }
 
     function deriveImportedWorkspaceName(name, fallback) {
@@ -1868,8 +1861,8 @@
         ws_id: state.workspaceId,
         message,
       });
-      const blocked = Number(payload?.sknore?.blocked_count || 0);
-      setStatus("GitHub push complete", "Commit " + (payload.commit_sha || "created") + " was pushed." + (blocked ? " SKNore excluded " + blocked + " protected files." : ""), "success");
+      rememberReleaseResult("GitHub", payload, payload?.included_count);
+      setStatus("GitHub push complete", "Commit " + (payload.commit_sha || "created") + " was pushed. " + summarizeSknoreResult(payload?.sknore, payload?.included_count), "success");
     }
 
     async function connectNetlify() {
@@ -1893,8 +1886,57 @@
         ws_id: state.workspaceId,
         title,
       });
-      const blocked = Number(payload?.sknore?.blocked_count || 0);
-      setStatus("Netlify deploy complete", "Deploy " + (payload.deploy_id || "created") + (payload.url ? " · " + payload.url : "") + "." + (blocked ? " SKNore excluded " + blocked + " protected files." : ""), "success");
+      rememberReleaseResult("Netlify", payload, payload?.included_count);
+      setStatus("Netlify deploy complete", "Deploy " + (payload.deploy_id || "created") + (payload.url ? " · " + payload.url : "") + ". " + summarizeSknoreResult(payload?.sknore, payload?.included_count), "success");
+    }
+
+    function openSknorePolicy() {
+      window.open("/SKNore/index.html?ws_id=" + encodeURIComponent(state.workspaceId), "_blank", "noopener,noreferrer");
+    }
+
+    function importBlogRecallToWorkspace() {
+      const record = selectedBlogRecord();
+      if (!record) throw new Error("Choose a SkyeBlog record first.");
+      const title = blogRecordTitle(record);
+      const html = blogRecordHtml(record);
+      const text = blogRecordText(record) || html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+      if (!html && !text) throw new Error("Selected SkyeBlog record has no importable content.");
+      const stamp = new Date(record.updated_at || record.created_at || Date.now()).toISOString().replace(/[.:]/g, "-");
+      const slug = slugify(title);
+      const base = "imports/skyeblog-recall/" + slug + "-" + stamp;
+      if (html) upsertFile(base + ".html", html);
+      upsertFile(base + ".md", [
+        "# " + title,
+        "",
+        "- source_app: SkyeBlog",
+        "- record_id: " + String(record.id || ""),
+        "- recalled_at: " + new Date().toISOString(),
+        "",
+        text || "No plain-text excerpt was stored with this record.",
+      ].join("\n"));
+      openFile((html ? base + ".html" : base + ".md"));
+      setStatus("Blog recall imported", "Pulled " + title + " back into the workspace lane. Save when ready to keep it inside the active SkyDex snapshot.", "success");
+    }
+
+    function openBlogRecallInSkyeBlog() {
+      const record = selectedBlogRecord();
+      if (!record) throw new Error("Choose a SkyeBlog record first.");
+      const html = blogRecordHtml(record);
+      if (!html) throw new Error("Selected SkyeBlog record does not include HTML content for bridge import.");
+      const payload = {
+        title: blogRecordTitle(record),
+        html,
+        text: blogRecordText(record),
+        source: "SkyDex Blog Recall",
+        record_id: String(record.id || ""),
+      };
+      try {
+        localStorage.setItem("skye.blog.bridgeDraft", JSON.stringify(payload));
+      } catch {
+        throw new Error("Browser storage is unavailable, so SkyDex could not stage the bridge draft for SkyeBlog.");
+      }
+      window.open("/SkyeBlog/index.html?ws_id=" + encodeURIComponent(state.workspaceId) + "&bridge_import=1", "_blank", "noopener,noreferrer");
+      setStatus("SkyeBlog reopened", "Queued " + payload.title + " for bridge import into SkyeBlog.", "success");
     }
 
     async function runPrompt() {
@@ -1944,22 +1986,11 @@
       setTimeout(() => URL.revokeObjectURL(href), 1200);
     }
 
-    function getExportableFiles() {
-      collectCurrentEditor();
-      const local = getLocalSknoreStatus();
-      const exportable = cloneFiles(state.files).filter((file) => !local.blockedPaths.includes(file.path));
-      return {
-        files: exportable,
-        blockedCount: local.blockedPaths.length,
-        blockedPaths: local.blockedPaths,
-      };
-    }
-
     function exportJson() {
-      const exportPlan = getExportableFiles();
-      const blob = new Blob([JSON.stringify({ workspace_id: state.workspaceId, revision: state.revision, files: exportPlan.files }, null, 2)], { type: "application/json" });
+      collectCurrentEditor();
+      const blob = new Blob([JSON.stringify({ workspace_id: state.workspaceId, revision: state.revision, files: state.files }, null, 2)], { type: "application/json" });
       downloadBlob((state.workspaceId || "workspace") + "-snapshot.json", blob);
-      setStatus("Export ready", "JSON snapshot downloaded." + (exportPlan.blockedCount ? " SKNore excluded " + exportPlan.blockedCount + " protected files." : ""), "success");
+      setStatus("Export ready", "JSON snapshot downloaded.", "success");
     }
 
     function crc32(buffer) {
@@ -1974,13 +2005,12 @@
     }
 
     async function exportZip() {
-      const exportPlan = getExportableFiles();
-      if (!exportPlan.files.length) throw new Error("All current files are SKNore-protected. ZIP export is empty.");
+      collectCurrentEditor();
       const encoder = new TextEncoder();
       const local = [];
       const central = [];
       let offset = 0;
-      exportPlan.files.forEach((file) => {
+      state.files.forEach((file) => {
         const nameBytes = encoder.encode(file.path);
         const data = encoder.encode(file.content);
         const crc = crc32(data);
@@ -2014,13 +2044,13 @@
       const end = new Uint8Array(22);
       const endView = new DataView(end.buffer);
       endView.setUint32(0, 0x06054b50, true);
-      endView.setUint16(8, exportPlan.files.length, true);
-      endView.setUint16(10, exportPlan.files.length, true);
+      endView.setUint16(8, state.files.length, true);
+      endView.setUint16(10, state.files.length, true);
       endView.setUint32(12, centralSize, true);
       endView.setUint32(16, offset, true);
       const blob = new Blob([...local, ...central, end], { type: "application/zip" });
       downloadBlob((state.workspaceId || "workspace") + ".zip", blob);
-      setStatus("Export ready", "ZIP snapshot downloaded." + (exportPlan.blockedCount ? " SKNore excluded " + exportPlan.blockedCount + " protected files." : ""), "success");
+      setStatus("Export ready", "ZIP snapshot downloaded.", "success");
     }
 
     function wireEvents() {
@@ -2098,11 +2128,12 @@
       $("pushSkyedriveBtn").addEventListener("click", () => runAction(pushSkyeDrive));
       $("createRestorePointBtn").addEventListener("click", () => runAction(createRestorePoint));
       $("restoreLatestPointBtn").addEventListener("click", () => runAction(restoreLatestPoint));
-      $("refreshSknoreBtn").addEventListener("click", () => runAction(loadIntegrationStatus));
-      $("openSknoreBtn").addEventListener("click", () => {
-        window.open("/SKNore/index.html?ws_id=" + encodeURIComponent(state.workspaceId), "_blank", "noopener,noreferrer");
-      });
-      $("refreshBlogRecallBtn").addEventListener("click", () => runAction(loadBlogRecords));
+      $("refreshSknoreBtn").addEventListener("click", () => runAction(loadSknorePolicy));
+      $("openSknoreBtn").addEventListener("click", openSknorePolicy);
+      $("blogRecallSelect").addEventListener("change", renderBlogRecall);
+      $("refreshBlogRecallBtn").addEventListener("click", () => runAction(loadBlogRecall));
+      $("importBlogRecallBtn").addEventListener("click", () => runAction(() => Promise.resolve(importBlogRecallToWorkspace())));
+      $("openBlogRecallBtn").addEventListener("click", () => runAction(() => Promise.resolve(openBlogRecallInSkyeBlog())));
       $("importZipSourceBtn").addEventListener("click", () => $("importZipSourceInput").click());
       $("importFolderSourceBtn").addEventListener("click", () => $("importFolderSourceInput").click());
       $("importZipSourceInput").addEventListener("change", (event) => {
@@ -2154,7 +2185,7 @@
           state.dirty = true;
           updateHeader();
         });
-        Promise.all([loadWorkspace(), loadSkyeDriveSources(), loadIntegrationStatus(), loadBlogRecords()])
+        Promise.all([loadWorkspace(), loadSkyeDriveSources(), loadIntegrationStatus(), loadSknorePolicy(), loadBlogRecall()])
           .then(() => {
             if (initialSkyedriveRecordId) {
               return runAction(() => openSkyeDriveSource(initialSkyedriveRecordId));
