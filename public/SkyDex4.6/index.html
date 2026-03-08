@@ -774,6 +774,8 @@
             <button class="ghost" type="button" id="refreshBlogRecallBtn">Refresh Blog Recall</button>
             <button class="ghost" type="button" id="importBlogRecallBtn">Import Into Workspace</button>
             <button class="ghost" type="button" id="openBlogRecallBtn">Open In SkyeBlog</button>
+            <button class="ghost" type="button" id="postBlogRecallBtn">Post To SkyeChat</button>
+            <button class="ghost" type="button" id="mailBlogRecallBtn">Send With SkyeMail</button>
           </div>
         </div>
 
@@ -886,9 +888,15 @@
       sourceBaselineFiles: [],
       blogRecords: [],
       sknore: {
-        patterns: [],
         scope: "workspace",
         updatedAt: null,
+        source: "workspace",
+        totalCount: 0,
+        includedCount: 0,
+        blockedCount: 0,
+        blockedPaths: [],
+        patternsCount: 0,
+        pending: false,
         lastRelease: null,
       },
     };
@@ -937,29 +945,6 @@
       return String(value || "").replace(/[&<>\"']/g, (match) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[match]));
     }
 
-    function escapeRegex(value) {
-      return String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    }
-
-    function globToRegex(glob) {
-      const normalized = String(glob || "").trim().replace(/^\/+/, "");
-      const escaped = escapeRegex(normalized)
-        .replace(/\\\*\\\*/g, ".*")
-        .replace(/\\\*/g, "[^/]*");
-      return new RegExp("^" + escaped + "$", "i");
-    }
-
-    function normalizeSknorePatterns(patterns) {
-      return Array.from(new Set((Array.isArray(patterns) ? patterns : [])
-        .map((pattern) => String(pattern || "").trim().replace(/^\/+/, ""))
-        .filter(Boolean)));
-    }
-
-    function isSknoreProtected(path, patterns) {
-      const target = String(path || "").replace(/^\/+/, "");
-      return normalizeSknorePatterns(patterns).some((pattern) => globToRegex(pattern).test(target));
-    }
-
     function slugify(value) {
       return String(value || "draft")
         .toLowerCase()
@@ -978,6 +963,9 @@
     function buildFileMap(files) {
       return new Map(cloneFiles(files).map((file) => [file.path, file.content]));
     }
+
+    let sknorePreviewTimer = null;
+    let sknorePreviewRequestId = 0;
 
     function countLines(value) {
       const text = typeof value === "string" ? value : "";
@@ -1145,27 +1133,10 @@
       });
     }
 
-    function computeSknoreReleasePreview(filesOverride) {
-      const files = cloneFiles(Array.isArray(filesOverride) ? filesOverride : state.files);
-      const patterns = normalizeSknorePatterns(state.sknore?.patterns || []);
-      const blockedPaths = [];
-      const releaseFiles = [];
-      files.forEach((file) => {
-        if (isSknoreProtected(file.path, patterns)) blockedPaths.push(file.path);
-        else releaseFiles.push(file);
-      });
-      return {
-        files,
-        releaseFiles,
-        blockedPaths,
-        patterns,
-      };
-    }
-
     function summarizeSknoreResult(sknore, fallbackIncluded) {
       const included = Number(sknore?.included_count ?? fallbackIncluded ?? 0);
       const blocked = Number(sknore?.blocked_count ?? 0);
-      const patterns = Number(sknore?.patterns_count ?? state.sknore?.patterns?.length ?? 0);
+      const patterns = Number(sknore?.patterns_count ?? state.sknore?.patternsCount ?? 0);
       if (!patterns) return `No SKNore policy was active. ${included} file${included === 1 ? "" : "s"} stayed eligible for release.`;
       return `SKNore included ${included} file${included === 1 ? "" : "s"} and blocked ${blocked} protected path${blocked === 1 ? "" : "s"}.`;
     }
@@ -1176,7 +1147,7 @@
         includedCount: Number(payload?.sknore?.included_count ?? fallbackIncluded ?? 0),
         blockedCount: Number(payload?.sknore?.blocked_count ?? 0),
         blockedPaths: Array.isArray(payload?.sknore?.blocked_paths) ? payload.sknore.blocked_paths : [],
-        patternsCount: Number(payload?.sknore?.patterns_count ?? state.sknore?.patterns?.length ?? 0),
+        patternsCount: Number(payload?.sknore?.patterns_count ?? state.sknore?.patternsCount ?? 0),
       };
       renderSknoreReleasePreview();
     }
@@ -1185,38 +1156,49 @@
       const statusBox = $("sknoreReleaseStatus");
       const list = $("sknoreReleaseList");
       if (!statusBox || !list) return;
-      const preview = computeSknoreReleasePreview();
       const scope = state.sknore?.scope === "org" ? "org-wide" : "workspace";
       const updatedText = state.sknore?.updatedAt ? new Date(state.sknore.updatedAt).toLocaleString() : "not saved yet";
       const lastRelease = state.sknore?.lastRelease;
+      const blockedPaths = Array.isArray(state.sknore?.blockedPaths) ? state.sknore.blockedPaths : [];
+      const includedCount = Number(state.sknore?.includedCount ?? 0);
+      const blockedCount = Number(state.sknore?.blockedCount ?? 0);
+      const patternsCount = Number(state.sknore?.patternsCount ?? 0);
+      const pending = Boolean(state.sknore?.pending);
+      const source = state.sknore?.source === "client-files" ? "current editor state" : "saved workspace snapshot";
 
-      statusBox.innerHTML = preview.patterns.length
-        ? "<strong>SKNore policy</strong><div class='muted'>" + preview.releaseFiles.length + " release-ready files and " + preview.blockedPaths.length + " blocked paths under the " + escapeHtml(scope) + " policy. Updated " + escapeHtml(updatedText) + ".</div>"
+      statusBox.innerHTML = patternsCount
+        ? "<strong>SKNore policy</strong><div class='muted'>" + includedCount + " release-ready files and " + blockedCount + " blocked paths under the " + escapeHtml(scope) + " policy. Preview source: " + escapeHtml(source) + ". Updated " + escapeHtml(updatedText) + ".</div>"
         : "<strong>SKNore policy</strong><div class='muted'>No SKNore patterns are active for this workspace yet. Every current file is eligible for SkyeDrive, GitHub, and Netlify release actions.</div>";
 
       list.innerHTML = "";
+      if (pending) {
+        const pendingItem = document.createElement("div");
+        pendingItem.className = "diff-summary-item";
+        pendingItem.textContent = "Refreshing authoritative SKNore preview on the server.";
+        list.appendChild(pendingItem);
+      }
       if (lastRelease) {
         const row = document.createElement("div");
         row.className = "diff-summary-item";
         row.textContent = `${lastRelease.channel}: included=${lastRelease.includedCount} · blocked=${lastRelease.blockedCount}`;
         list.appendChild(row);
       }
-      if (preview.blockedPaths.length) {
-        preview.blockedPaths.slice(0, 6).forEach((path) => {
+      if (blockedPaths.length) {
+        blockedPaths.slice(0, 6).forEach((path) => {
           const item = document.createElement("div");
           item.className = "diff-summary-item";
           item.textContent = `blocked: ${path}`;
           list.appendChild(item);
         });
-        if (preview.blockedPaths.length > 6) {
+        if (blockedPaths.length > 6) {
           const more = document.createElement("div");
           more.className = "diff-summary-item";
-          more.textContent = `and ${preview.blockedPaths.length - 6} more protected path(s)`;
+          more.textContent = `and ${blockedPaths.length - 6} more protected path(s)`;
           list.appendChild(more);
         }
         return;
       }
-      if (preview.patterns.length) {
+      if (patternsCount) {
         const clear = document.createElement("div");
         clear.className = "diff-summary-item";
         clear.textContent = "Current snapshot is clear to release under the active SKNore policy.";
@@ -1227,6 +1209,42 @@
       tip.className = "diff-summary-item";
       tip.textContent = "Tip: open SKNore to add .env, secrets, or evidence paths before pushing from SkyDex.";
       list.appendChild(tip);
+    }
+
+    async function refreshSknoreReleasePreview(filesOverride) {
+      const requestId = ++sknorePreviewRequestId;
+      const files = cloneFiles(Array.isArray(filesOverride) ? filesOverride : state.files);
+      state.sknore.pending = true;
+      renderSknoreReleasePreview();
+      try {
+        const payload = await jsonRequest("/api/sknore-release-preview", "POST", {
+          ws_id: state.workspaceId,
+          files,
+        });
+        if (requestId !== sknorePreviewRequestId) return;
+        state.sknore.scope = String(payload?.scope || "workspace");
+        state.sknore.updatedAt = payload?.updated_at || null;
+        state.sknore.source = String(payload?.source || "workspace");
+        state.sknore.totalCount = Number(payload?.sknore?.total_count ?? files.length);
+        state.sknore.includedCount = Number(payload?.sknore?.included_count ?? files.length);
+        state.sknore.blockedCount = Number(payload?.sknore?.blocked_count ?? 0);
+        state.sknore.blockedPaths = Array.isArray(payload?.sknore?.blocked_paths) ? payload.sknore.blocked_paths : [];
+        state.sknore.patternsCount = Number(payload?.sknore?.patterns_count ?? 0);
+      } finally {
+        if (requestId === sknorePreviewRequestId) {
+          state.sknore.pending = false;
+          renderSknoreReleasePreview();
+        }
+      }
+    }
+
+    function scheduleSknorePreview(filesOverride) {
+      if (sknorePreviewTimer) window.clearTimeout(sknorePreviewTimer);
+      const snapshot = cloneFiles(Array.isArray(filesOverride) ? filesOverride : state.files);
+      sknorePreviewTimer = window.setTimeout(() => {
+        sknorePreviewTimer = null;
+        runAction(() => refreshSknoreReleasePreview(snapshot));
+      }, 320);
     }
 
     function blogRecordTitle(record) {
@@ -1333,6 +1351,9 @@
       }
       if (!docCount) {
         risks.push("No docs or markdown notes are present, which weakens handoff and workspace memory inside the lane.");
+      }
+      if (state.sknore?.patternsCount && state.sknore?.blockedCount) {
+        risks.push(state.sknore.blockedCount + " files are SKNore-protected and will be excluded from SkyeDrive, GitHub, and Netlify release actions.");
       }
       const prompts = [
         {
@@ -1611,6 +1632,7 @@
       renderFiles();
       if (state.activePath) openFile(state.activePath);
       updateHeader();
+      void refreshSknoreReleasePreview(state.files);
       setStatus("Workspace loaded", "Workspace snapshot is ready for editing.", "success");
     }
 
@@ -1646,11 +1668,7 @@
     }
 
     async function loadSknorePolicy() {
-      const payload = await jsonRequest("/api/sknore-policy-get?ws_id=" + encodeURIComponent(state.workspaceId), "GET");
-      state.sknore.patterns = normalizeSknorePatterns(payload?.patterns || []);
-      state.sknore.scope = String(payload?.scope || "workspace");
-      state.sknore.updatedAt = payload?.updated_at || null;
-      renderSknoreReleasePreview();
+      await refreshSknoreReleasePreview(state.files);
     }
 
     async function loadBlogRecall() {
@@ -1679,6 +1697,7 @@
       state.baselineFiles = cloneFiles(state.files);
       state.dirty = false;
       updateHeader();
+      void refreshSknoreReleasePreview(state.files);
       setStatus("Workspace saved", "Full snapshot persisted before release actions.", "success");
     }
 
@@ -1718,6 +1737,7 @@
       if (state.activePath) openFile(state.activePath);
       renderIntegrationStatus();
       renderRestorePoints();
+      void refreshSknoreReleasePreview(state.files);
       setStatus("SkyeDrive source opened", "Loaded " + state.files.length + " files from " + (payload.title || "selected source") + ". Save when ready to persist this into the workspace lane.", "success");
     }
 
@@ -1750,7 +1770,7 @@
       await saveBeforeRelease();
       const title = String(options?.title || $("skyedriveTitleInput").value || "").trim();
       const note = String(options?.note || $("skyedriveNoteInput").value || "").trim();
-      const releasePreview = computeSknoreReleasePreview(Array.isArray(sourceFiles) ? sourceFiles : state.files);
+      const releasePreviewFiles = cloneFiles(Array.isArray(sourceFiles) ? sourceFiles : state.files);
       const payload = await jsonRequest("/api/skyedrive-push", "POST", {
         ws_id: state.workspaceId,
         title,
@@ -1765,7 +1785,8 @@
         record_id: payload.record_id || null,
         title: payload.title || title || null,
       };
-      state.sourceBaselineFiles = cloneFiles(releasePreview.releaseFiles);
+      const blockedPaths = Array.isArray(payload?.sknore?.blocked_paths) ? payload.sknore.blocked_paths : [];
+      state.sourceBaselineFiles = cloneFiles(releasePreviewFiles.filter((file) => !blockedPaths.includes(file.path)));
       const nextQuery = new URLSearchParams(window.location.search);
       nextQuery.set("ws_id", state.workspaceId);
       if (payload.record_id) nextQuery.set("drive_record_id", String(payload.record_id));
@@ -1774,8 +1795,9 @@
       await loadSkyeDriveSources();
       renderIntegrationStatus();
       renderRestorePoints();
-      rememberReleaseResult("SkyeDrive", payload, releasePreview.releaseFiles.length);
-      setStatus("SkyeDrive sync complete", "Saved workspace snapshot into SkyeDrive as " + (payload.title || title || "workspace-source") + ". " + summarizeSknoreResult(payload?.sknore, releasePreview.releaseFiles.length), "success");
+      rememberReleaseResult("SkyeDrive", payload, releasePreviewFiles.length - blockedPaths.length);
+      void refreshSknoreReleasePreview(state.files);
+      setStatus("SkyeDrive sync complete", "Saved workspace snapshot into SkyeDrive as " + (payload.title || title || "workspace-source") + ". " + summarizeSknoreResult(payload?.sknore, releasePreviewFiles.length - blockedPaths.length), "success");
       return payload;
     }
 
@@ -1937,6 +1959,44 @@
       }
       window.open("/SkyeBlog/index.html?ws_id=" + encodeURIComponent(state.workspaceId) + "&bridge_import=1", "_blank", "noopener,noreferrer");
       setStatus("SkyeBlog reopened", "Queued " + payload.title + " for bridge import into SkyeBlog.", "success");
+    }
+
+    async function postBlogRecallToSkyeChat() {
+      const record = selectedBlogRecord();
+      if (!record) throw new Error("Choose a SkyeBlog record first.");
+      const title = blogRecordTitle(record);
+      const excerpt = (blogRecordText(record) || blogRecordHtml(record).replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ").trim();
+      if (!excerpt) throw new Error("Selected SkyeBlog record does not include message content for SkyeChat.");
+      const channel = String(window.prompt("Publish selected blog record to SkyeChat channel:", "community") || "").trim();
+      if (!channel) return;
+      const topic = String(window.prompt("SkyeChat topic slug (optional):", "blog") || "blog").trim().toLowerCase();
+      const payload = await jsonRequest("/api/skychat-notify", "POST", {
+        ws_id: state.workspaceId,
+        channel,
+        topic,
+        message: `[SkyDex Recall] ${title}\n\n${excerpt.slice(0, 1400)}\n\nrecord_id=${String(record.id || "n/a")}`,
+        source: "SkyDex Blog Recall",
+      });
+      setStatus("SkyeChat post sent", "Posted " + title + " to #" + channel + (payload?.id ? " as record " + payload.id : "") + ".", "success");
+    }
+
+    async function sendBlogRecallToSkyeMail() {
+      const record = selectedBlogRecord();
+      if (!record) throw new Error("Choose a SkyeBlog record first.");
+      const title = blogRecordTitle(record);
+      const excerpt = (blogRecordText(record) || blogRecordHtml(record).replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ").trim();
+      if (!excerpt) throw new Error("Selected SkyeBlog record does not include message content for SkyeMail.");
+      const to = String(window.prompt("Recipient email:", "") || "").trim().toLowerCase();
+      if (!to) return;
+      const subject = String(window.prompt("Email subject:", `[SkyDex Recall] ${title}`) || "").trim();
+      if (!subject) return;
+      const payload = await jsonRequest("/api/skymail-send", "POST", {
+        ws_id: state.workspaceId,
+        to,
+        subject,
+        text: `${excerpt.slice(0, 4000)}\n\nSource: SkyDex Blog Recall\nrecord_id=${String(record.id || "n/a")}`,
+      });
+      setStatus("SkyeMail sent", "Delivered " + title + " to " + to + (payload?.mail_record_id ? " as record " + payload.mail_record_id : "") + ".", "success");
     }
 
     async function runPrompt() {
@@ -2105,6 +2165,7 @@
         state.dirty = true;
         renderFiles();
         openFile(clean);
+        scheduleSknorePreview(state.files);
       });
       $("deleteFileBtn").addEventListener("click", () => {
         if (!state.activePath) return;
@@ -2134,6 +2195,8 @@
       $("refreshBlogRecallBtn").addEventListener("click", () => runAction(loadBlogRecall));
       $("importBlogRecallBtn").addEventListener("click", () => runAction(() => Promise.resolve(importBlogRecallToWorkspace())));
       $("openBlogRecallBtn").addEventListener("click", () => runAction(() => Promise.resolve(openBlogRecallInSkyeBlog())));
+      $("postBlogRecallBtn").addEventListener("click", () => runAction(postBlogRecallToSkyeChat));
+      $("mailBlogRecallBtn").addEventListener("click", () => runAction(sendBlogRecallToSkyeMail));
       $("importZipSourceBtn").addEventListener("click", () => $("importZipSourceInput").click());
       $("importFolderSourceBtn").addEventListener("click", () => $("importFolderSourceInput").click());
       $("importZipSourceInput").addEventListener("change", (event) => {
@@ -2184,6 +2247,7 @@
           collectCurrentEditor();
           state.dirty = true;
           updateHeader();
+          scheduleSknorePreview(state.files);
         });
         Promise.all([loadWorkspace(), loadSkyeDriveSources(), loadIntegrationStatus(), loadSknorePolicy(), loadBlogRecall()])
           .then(() => {

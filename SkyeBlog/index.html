@@ -3530,11 +3530,30 @@
                 if (typeof refreshLucideIcons === 'function') refreshLucideIcons();
             }
 
+            async function consumeBridgeDraft() {
+                const params = new URLSearchParams(window.location.search);
+                if (params.get('bridge_import') !== '1') return;
+                let payload = null;
+                try {
+                    payload = JSON.parse(localStorage.getItem('skye.blog.bridgeDraft') || 'null');
+                } catch {
+                    payload = null;
+                }
+                if (!payload || !payload.title || !payload.html) return;
+                if (!window.App || typeof window.App.createDoc !== 'function') return;
+                await window.App.createDoc(String(payload.title || 'Imported Draft'), String(payload.html || ''), null);
+                setWorkflowTruth('last', 'ok', 'Draft Imported');
+                setWorkflowStatus(`Imported bridge draft from ${String(payload.source || 'another app')}.`, 'ok');
+                window.App.showToast(`Imported draft: ${String(payload.title || 'Untitled')}`);
+                try { localStorage.removeItem('skye.blog.bridgeDraft'); } catch {}
+            }
+
             window.addEventListener('load', () => {
                 ensureWorkflowHud();
                 refreshWorkflowTruth();
                 void refreshSessionTruth();
                 setTimeout(wireButtons, 220);
+                setTimeout(() => { void consumeBridgeDraft(); }, 400);
             });
         })();
     </script>
