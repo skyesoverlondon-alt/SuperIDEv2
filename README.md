@@ -106,6 +106,71 @@ npm run dev
 
 Netlify Functions and the Cloudflare Worker cannot be run directly via `npm run dev`.  They require deployment to their respective environments.  You can test the Worker locally using `wrangler dev`.
 
+## Docker local development
+
+This repo now includes a practical Docker workflow for local development and a separate production-oriented image for the Vite site.
+
+Files added for this flow:
+
+* `Dockerfile` – multi-stage image with app dev, worker dev, site build and site production targets.
+* `docker-compose.yml` – local stack for Postgres, SQL proxy, Netlify dev, Worker, and an optional production-style site container profile.
+* `.env.docker` – tracked starter env file with safe local defaults and no real secrets.
+* `.env.docker.example` – copyable root env template for Vite + Netlify Functions inside Docker.
+* `worker/.dev.vars.docker.example` – Worker env template for local Docker runs.
+
+### Local stack
+
+1. Review `.env.docker` and adjust ports or local defaults if needed.
+2. Copy `worker/.dev.vars.docker.example` to `worker/.dev.vars` and fill in Worker secrets.
+3. Start the local stack:
+
+```bash
+docker compose up --build db db-http netlify worker
+```
+
+Local endpoints:
+
+* Postgres: `localhost:5432`
+* SQL HTTP proxy used by the app runtime: `http://localhost:5540/sql`
+* Netlify dev gateway + Functions: `http://localhost:8888`
+* Vite dev server inside the Netlify container: `http://localhost:5173`
+* Cloudflare Worker local runtime: `http://localhost:8787`
+
+Notes:
+
+* `NEON_DATABASE_URL` in `.env.docker` points at the local SQL HTTP proxy so the existing Neon-style fetch code works against Docker Postgres.
+* `WORKER_RUNNER_URL` in `.env.docker` should stay on the internal Docker network URL `http://worker:8787` so Netlify Functions can reach the Worker container.
+* `VITE_WORKER_RUNNER_URL` should point at `http://localhost:8787` so the browser can reach the Worker from your host machine.
+* Docker volumes keep Postgres data, `node_modules`, Netlify local state, and Wrangler local state out of the bind-mounted workspace.
+* The Postgres init scripts only run on first boot of the `superide_db_data` volume. To rebuild the schema from scratch, run `docker compose down -v`.
+
+### Production site image
+
+Build the production-oriented Vite image:
+
+```bash
+docker build --target site-production -t superide-site:local .
+```
+
+Run it:
+
+```bash
+docker run --rm -p 8080:8080 superide-site:local
+```
+
+Or use the optional compose profile:
+
+```bash
+docker compose --profile site up --build site
+```
+
+### Container targets
+
+* `app-dev` – Node image with repo dependencies and Netlify CLI for local site/functions development.
+* `worker-dev` – Node image for local Wrangler development.
+* `site-builder` – build-only stage that produces `dist/`.
+* `site-production` – nginx image serving the Vite build with SPA fallback.
+
 ## Notes
 
 * The GitHub push flow expects that the user has installed your GitHub App on the target repository.  The user copies the `installation_id` from the GitHub installation page into the **Connect GitHub** modal.

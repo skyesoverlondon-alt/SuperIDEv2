@@ -1,0 +1,109 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-superidev2}
+      POSTGRES_USER: ${POSTGRES_USER:-superide}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-superide-local-only}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-superide} -d ${POSTGRES_DB:-superidev2}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - superide_db_data:/var/lib/postgresql/data
+      - ./docker/postgres/init/00-enable-extensions.sql:/docker-entrypoint-initdb.d/00-enable-extensions.sql:ro
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/10-schema.sql:ro
+
+  db-http:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: sql-proxy
+      args:
+        NODE_VERSION: ${NODE_VERSION:-22.14.0}
+    environment:
+      POSTGRES_URL: postgresql://${POSTGRES_USER:-superide}:${POSTGRES_PASSWORD:-superide-local-only}@db:5432/${POSTGRES_DB:-superidev2}
+      SQL_HTTP_PORT: ${SQL_HTTP_PORT:-5540}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${SQL_HTTP_PORT:-5540}:5540"
+
+  netlify:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: app-dev
+      args:
+        NODE_VERSION: ${NODE_VERSION:-22.14.0}
+    working_dir: /workspace
+    env_file:
+      - .env.docker
+    environment:
+      HOST: 0.0.0.0
+      VITE_DEV_PORT: ${VITE_DEV_PORT:-5173}
+      NETLIFY_DEV_PORT: ${NETLIFY_DEV_PORT:-8888}
+      CHOKIDAR_USEPOLLING: ${CHOKIDAR_USEPOLLING:-true}
+      WATCHPACK_POLLING: ${WATCHPACK_POLLING:-true}
+    command: /usr/local/bin/dev-netlify.sh
+    ports:
+      - "${NETLIFY_DEV_PORT:-8888}:8888"
+      - "${VITE_DEV_PORT:-5173}:5173"
+    volumes:
+      - .:/workspace
+      - superide_root_node_modules:/workspace/node_modules
+      - superide_netlify_state:/workspace/.netlify
+    depends_on:
+      db-http:
+        condition: service_started
+      worker:
+        condition: service_started
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: worker-dev
+      args:
+        NODE_VERSION: ${NODE_VERSION:-22.14.0}
+    working_dir: /workspace/worker
+    env_file:
+      - .env.docker
+      - worker/.dev.vars
+    environment:
+      NEON_DATABASE_URL: ${NEON_DATABASE_URL:-http://db-http:5540/sql}
+      RUNNER_SHARED_SECRET: ${RUNNER_SHARED_SECRET:-local-runner-secret-change-me}
+      WORKER_DEV_PORT: ${WORKER_DEV_PORT:-8787}
+    command: /usr/local/bin/dev-worker.sh
+    ports:
+      - "${WORKER_DEV_PORT:-8787}:8787"
+    volumes:
+      - .:/workspace
+      - superide_worker_node_modules:/workspace/worker/node_modules
+      - superide_worker_state:/workspace/worker/.wrangler
+    depends_on:
+      db-http:
+        condition: service_started
+
+  site:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: site-production
+      args:
+        NODE_VERSION: ${NODE_VERSION:-22.14.0}
+    profiles:
+      - site
+    ports:
+      - "${SITE_PORT:-8080}:8080"
+
+volumes:
+  superide_db_data:
+  superide_root_node_modules:
+  superide_netlify_state:
+  superide_worker_node_modules:
+  superide_worker_state:
