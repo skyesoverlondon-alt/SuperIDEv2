@@ -76,7 +76,7 @@
           </div>
           <label>kAIxU Access Key</label>
           <input id="apiKey" type="password" placeholder="kx_at_..." />
-          <label>Token Email</label>
+          <label>Key Lock Email</label>
           <input id="tokenEmail" placeholder="user@company.com" />
           <div class="actions">
             <button id="saveKeyBtn" type="button">Save Key</button>
@@ -313,6 +313,43 @@
     }
 
     const standaloneSession = window.SkyeStandaloneSession || null;
+
+    async function recordSuiteIntent(intentName, status, options = {}) {
+      if (!standaloneSession?.recordSuiteIntent) return null;
+      return standaloneSession.recordSuiteIntent({
+        sourceApp: 'SkyeMail',
+        targetApp: options.targetApp || 'SkyeMail',
+        intent: { name: intentName, status, summary: options.summary || '' },
+        context: {
+          workspace_id: state.wsId,
+          thread_id: options.threadId || null,
+          channel_id: options.channelId || null,
+          draft_id: options.draftId || null,
+          file_ids: options.fileIds || [],
+          asset_ids: options.assetIds || [],
+        },
+        detail: options.detail || '',
+        badge: options.badge || '',
+        payload: options.payload || {},
+      });
+    }
+
+    function applySuiteIntent(payload) {
+      const intent = payload?.intent || {};
+      const context = payload?.context || {};
+      const meta = payload?.payload || {};
+      if (intent.name === 'compose-mail') {
+        if (typeof meta.to === 'string') document.getElementById('to').value = meta.to;
+        if (typeof meta.subject === 'string') document.getElementById('subject').value = meta.subject;
+        if (typeof meta.text === 'string') document.getElementById('body').value = meta.text;
+        if (typeof context.channel_id === 'string' && context.channel_id) document.getElementById('channel').value = context.channel_id;
+        setStatus(payload?.detail || 'Suite handoff loaded into SkyeMail compose.', 'ok');
+        return;
+      }
+      if (intent.name === 'open-thread' && typeof context.thread_id === 'string' && context.thread_id) {
+        void loadInbox(false, context.thread_id).catch((error) => handleWorkflowError(error, 'Suite Thread Load Failed'));
+      }
+    }
 
     function getAccessAuthHeaders() {
       if (standaloneSession?.authHeaders) return standaloneSession.authHeaders('skyemail');
@@ -764,6 +801,21 @@
         persistOutboundAudit();
         persistDeliveryRecords();
         renderDeliveryPanel();
+        await recordSuiteIntent(channel ? 'open-thread' : 'compose-mail', delivered ? 'completed' : 'failed', {
+          targetApp: channel ? 'SkyeChat' : 'SkyeMail',
+          summary: channel ? 'Route post-send follow-up into SkyeChat.' : 'Persist outbound compose activity in SkyeMail.',
+          detail: channel
+            ? `SkyeMail sent ${subject || 'message'} and staged follow-up in #${channel}.`
+            : `SkyeMail sent ${subject || 'message'}.`,
+          channelId: channel || null,
+          draftId: eventId,
+          payload: {
+            to,
+            subject,
+            text,
+            mail_record_id: data?.mail_record_id || null,
+          },
+        });
         setTruth('delivery', delivered ? 'ok' : 'warn', delivered ? 'Delivery Sent' : 'Delivery Warn');
         setTruth('last', 'ok', delivered ? 'Send Complete' : 'Provider Warn');
         setStatus(`Mail sent via ${data?.provider || 'provider'} (record=${data?.mail_record_id || 'n/a'})`, 'ok');
@@ -993,6 +1045,12 @@
             } else if (action === 'open-thread') {
               const threadId = target.getAttribute('data-thread-id') || '';
               if (!threadId) return;
+              await recordSuiteIntent('open-thread', 'completed', {
+                targetApp: 'SkyeMail',
+                threadId,
+                detail: `SkyeMail opened thread ${threadId}.`,
+                badge: 'thread',
+              });
               await loadInbox(false, threadId);
             }
           } catch (err) {
@@ -1013,6 +1071,9 @@
     initTemplates();
     renderDeliveryPanel();
     runSendPreflight();
+    if (standaloneSession?.subscribeSuiteIntents) {
+      standaloneSession.subscribeSuiteIntents('SkyeMail', applySuiteIntent);
+    }
     refreshMe().then(loadProfile).then(loadMailDiagnostics).then(() => loadInbox(false)).catch((e) => handleWorkflowError(e, 'Mail Bootstrap Failed'));
   </script>
 <button id="skye-tutorial-fab" type="button" style="position:fixed;right:16px;bottom:16px;z-index:10000;padding:10px 14px;border-radius:999px;border:1px solid rgba(191,238,255,.42);background:rgba(44,230,255,.2);color:#eff9ff;font-weight:700;cursor:pointer;">Start Tutorial</button>

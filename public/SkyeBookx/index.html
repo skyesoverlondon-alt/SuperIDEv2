@@ -18,20 +18,11 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="/_shared/auth-unlock.js"></script>
     <script src="/_shared/standalone-session.js"></script>
+    <script src="/_shared/workspace-record-sync.js"></script>
     <script src="/_shared/gateway-retry.js"></script>
     <script src="/_shared/telemetry.js"></script>
     <script src="/_shared/error-fingerprint.js"></script>
     <script src="/_shared/correlation.js"></script>
-
-    <!-- Firebase SDKs -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
-        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
-        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
-
-        // Global Firebase handles
-        window.fb = { initializeApp, getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged, getFirestore, doc, setDoc, onSnapshot };
-    </script>
 
     <style>
         /* Print Styles for compiling the book */
@@ -281,28 +272,54 @@
             kaixuKey: "",
             consistencyReport: null
         };
-        let user = null;
-        let isSaving = false;
         let saveTimeout = null;
         const pageParams = new URLSearchParams(window.location.search);
         const wsId = pageParams.get('ws_id') || 'primary-workspace';
         const initialDriveRecordId = pageParams.get('drive_record_id') || '';
         const driveState = { recordId: '', title: '' };
-
-        // --- Firebase Init ---
-        const { initializeApp, getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged, getFirestore, doc, setDoc, onSnapshot } = window.fb;
-        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
-        let auth = null;
-        let db = null;
-        try {
-            if (firebaseConfig && typeof firebaseConfig === 'object' && Object.keys(firebaseConfig).length > 0) {
-                const app = initializeApp(firebaseConfig);
-                auth = getAuth(app);
-                db = getFirestore(app);
-            }
-        } catch (err) {
-            console.warn('SkyeBookx Firebase bootstrap disabled', err);
-        }
+        const workspaceSync = window.SkyeWorkspaceRecordSync.create({
+            appId: 'skyebookx',
+            recordApp: 'SkyeBookx',
+            wsId,
+            statusElementId: 'sync-status',
+            getState: () => state,
+            applyState: (payload) => {
+                state = { ...state, ...payload };
+                refreshUI();
+            },
+            serialize: (model) => ({
+                title: model.title,
+                activeChapterId: model.activeChapterId,
+                viewMode: model.viewMode,
+                kaixuKey: model.kaixuKey,
+                consistencyReport: model.consistencyReport || null,
+                chapters: JSON.stringify(model.chapters)
+            }),
+            deserialize: (payload) => {
+                if (payload && typeof payload.chapters === 'string') {
+                    try {
+                        payload.chapters = JSON.parse(payload.chapters);
+                    } catch (error) {
+                        console.error('Failed to parse chapters JSON', error);
+                    }
+                }
+                return payload;
+            },
+            getTitle: (model) => model.title || 'My Untitled Masterpiece',
+            onLoadError: (error) => {
+                console.error('Sync Error', error);
+                showToast(error?.message || 'Cloud sync failed.', 'error');
+            },
+            onSaveError: (error) => {
+                console.error('Save Error', error);
+                backupLocalRecoveryPack('cloud_save_error');
+                showToast(error?.message || 'Cloud save failed.', 'error');
+            },
+            onTooLarge: () => {
+                backupLocalRecoveryPack('cloud_limit_reached');
+                showToast("Cloud sync failed: Manuscript too large (over 1MB). Please use 'Save to Device' instead.", 'error');
+            },
+        });
 
         // --- Three.js Neon Background Logic ---
         function initThreeJS() {
@@ -417,74 +434,22 @@
                 }
             }
 
-            if (auth) {
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) { await signInWithCustomToken(auth, __initial_auth_token); } 
-                else { await signInAnonymously(auth); }
-
-                onAuthStateChanged(auth, (u) => { user = u; if (user) syncCloudData(); });
-            }
+            await syncCloudData();
         }
 
         async function syncCloudData() {
-            if (!user || !db) return;
-            const docRef = doc(db, 'artifacts', appId, 'users', user.uid, 'manuscript', 'current');
-            onSnapshot(docRef, (snap) => {
-                if (snap.exists() && !isSaving) {
-                    const data = snap.data();
-                    if (data.chapters && typeof data.chapters === 'string') {
-                        try {
-                            data.chapters = JSON.parse(data.chapters);
-                        } catch (e) {
-                            console.error("Failed to parse chapters JSON", e);
-                        }
-                    }
-                    state = { ...state, ...data };
-                    refreshUI();
-                }
-            }, (err) => console.error("Sync Error", err));
+            return workspaceSync.load(false);
         }
 
         function debouncedSave() {
             clearTimeout(saveTimeout);
-            saveTimeout = setTimeout(saveToCloud, 2000); 
+            saveTimeout = setTimeout(() => {
+                saveToCloud();
+            }, 2000); 
         }
 
         async function saveToCloud() {
-            if (!user || !db) return;
-            isSaving = true;
-            document.getElementById('sync-status').innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> <span>Syncing...</span>';
-            try {
-                const docRef = doc(db, 'artifacts', appId, 'users', user.uid, 'manuscript', 'current');
-                
-                const chaptersJson = JSON.stringify(state.chapters);
-                
-                // CRITICAL: Firestore Document Limit is ~1MB.
-                // Base64 images consume massive space.
-                if (chaptersJson.length > 1000000) {
-                     backupLocalRecoveryPack('cloud_limit_reached');
-                     document.getElementById('sync-status').innerHTML = '<i class="fa-solid fa-triangle-exclamation text-amber-500"></i> <span class="text-amber-500">Sync Limit Reached</span>';
-                     showToast("Cloud sync failed: Manuscript too large (over 1MB). Please use 'Save to Device' instead.", "error");
-                     return;
-                }
-
-                const dataToSave = {
-                    title: state.title,
-                    activeChapterId: state.activeChapterId,
-                    viewMode: state.viewMode,
-                    kaixuKey: state.kaixuKey,
-                    chapters: chaptersJson
-                };
-                
-                await setDoc(docRef, dataToSave, { merge: true });
-                document.getElementById('sync-status').innerHTML = '<i class="fa-solid fa-cloud"></i> <span>Saved to Cloud</span>';
-            } catch (err) {
-                console.error("Save Error", err);
-                backupLocalRecoveryPack('cloud_save_error');
-                document.getElementById('sync-status').innerHTML = '<i class="fa-solid fa-cloud-bolt text-red-500"></i> <span class="text-red-500">Sync Error</span>';
-                showToast("Cloud Save Failed: Document too large. Use 'Save to Device'.", "error");
-            } finally {
-                setTimeout(() => { isSaving = false; }, 500);
-            }
+            return workspaceSync.save({ prompt: false, silent: true, successText: 'Saved to Cloud' });
         }
 
         window.exportToDevice = () => {
@@ -627,6 +592,23 @@
             try { window.postMessage(envelope, window.location.origin); } catch {}
         }
 
+        async function recordSuiteIntent(intentName, status, options = {}) {
+            if (!standaloneSession?.recordSuiteIntent) return null;
+            return standaloneSession.recordSuiteIntent({
+                sourceApp: 'SkyeBookx',
+                targetApp: options.targetApp || 'SkyeBookx',
+                intent: { name: intentName, status, summary: options.summary || '' },
+                context: {
+                    workspace_id: wsId,
+                    file_ids: options.fileIds || [state.activeChapterId].filter(Boolean),
+                    asset_ids: options.assetIds || [],
+                },
+                detail: options.detail || '',
+                badge: options.badge || '',
+                payload: options.payload || {},
+            });
+        }
+
         function getBookSnapshot() {
             const compiledHtml = buildCompiledManuscriptHtml();
             const plainText = state.chapters.map((chapter, index) => {
@@ -749,6 +731,13 @@
                 driveState.title = payload.title;
                 renderWorkflowTruth();
                 showToast('Saved manuscript to SkyeDrive.', 'success');
+                await recordSuiteIntent('attach-drive-assets', 'completed', {
+                    targetApp: 'SkyeDrive',
+                    summary: 'Attach the active manuscript package to SkyeDrive.',
+                    detail: `SkyeBookX saved ${payload.title} into SkyeDrive.`,
+                    assetIds: driveState.recordId ? [driveState.recordId] : [],
+                    payload: { title: payload.title, drive_record_id: driveState.recordId || null },
+                });
                 publishBridgeEvent({ kind: 'open-app', appId: 'SkyeDrive', note: `SkyeBookX saved ${payload.title} into SkyeDrive.`, drive_record_id: driveState.recordId });
             } catch (error) {
                 console.error(error);
@@ -814,6 +803,18 @@
                     source: 'SkyeBookx Publisher',
                     message: `[SkyeBookx] ${snapshot.title}\n\n${snapshot.excerpt}\n\nchapters=${state.chapters.length} · export_ready=pdf/html/.skye`,
                 });
+                await recordSuiteIntent('open-thread', 'completed', {
+                    targetApp: 'SkyeChat',
+                    summary: 'Route the active manuscript excerpt into SkyeChat.',
+                    detail: `SkyeBookX published ${snapshot.title} to #${channel.trim()}.`,
+                    fileIds: [state.activeChapterId].filter(Boolean),
+                    payload: {
+                        channel: channel.trim(),
+                        message: `[SkyeBookx] ${snapshot.title}\n\n${snapshot.excerpt}\n\nchapters=${state.chapters.length} · export_ready=pdf/html/.skye`,
+                        chapter_count: state.chapters.length,
+                        title: snapshot.title,
+                    },
+                });
                 publishBridgeEvent({ kind: 'open-app', appId: 'SkyeChat', channel: channel.trim(), note: `SkyeBookX published ${snapshot.title} to #${channel.trim()}.` });
                 showToast(`Published ${snapshot.title} to #${channel.trim()}.`, 'success');
             } catch (error) {
@@ -835,6 +836,19 @@
                     to: to.trim().toLowerCase(),
                     subject: subject.trim(),
                     text: `${snapshot.excerpt}\n\nSent from SkyeBookX. Chapters=${state.chapters.length}. Export lanes: PDF, HTML, ZIP, .skye.`,
+                });
+                await recordSuiteIntent('compose-mail', 'completed', {
+                    targetApp: 'SkyeMail',
+                    summary: 'Route the active manuscript excerpt into SkyeMail.',
+                    detail: `SkyeBookX delivered ${snapshot.title} via SkyeMail${result?.mail_record_id ? ` (mail_record_id=${result.mail_record_id})` : ''}.`,
+                    fileIds: [state.activeChapterId].filter(Boolean),
+                    payload: {
+                        to: to.trim().toLowerCase(),
+                        subject: subject.trim(),
+                        text: `${snapshot.excerpt}\n\nSent from SkyeBookX. Chapters=${state.chapters.length}. Export lanes: PDF, HTML, ZIP, .skye.`,
+                        title: snapshot.title,
+                        mail_record_id: result?.mail_record_id || null,
+                    },
                 });
                 publishBridgeEvent({ kind: 'open-app', appId: 'SkyeMail', note: `SkyeBookX delivered ${snapshot.title} via SkyeMail${result?.mail_record_id ? ` (mail_record_id=${result.mail_record_id})` : ''}.` });
                 showToast(`Delivered ${snapshot.title} via SkyeMail.`, 'success');
@@ -1210,6 +1224,16 @@
                     },
                 });
                 showToast('Export pack generated (PDF + manifest + checksum).', 'success');
+                await recordSuiteIntent('attach-drive-assets', 'completed', {
+                    targetApp: 'SkyeDrive',
+                    summary: 'Attach the manuscript export pack to SkyeDrive.',
+                    detail: `SkyeBookX archived export pack ${a.download} to SkyeDrive.${saved?.record_id || saved?.id ? ` record_id=${saved.record_id || saved.id}` : ''}`,
+                    assetIds: saved?.record_id || saved?.id ? [String(saved.record_id || saved.id)] : [],
+                    payload: {
+                        archive_name: a.download,
+                        drive_record_id: saved?.record_id || saved?.id || null,
+                    },
+                });
                 publishBridgeEvent({ kind: 'open-app', appId: 'SkyeDrive', note: `SkyeBookX archived export pack ${a.download} to SkyeDrive.${saved?.record_id || saved?.id ? ` record_id=${saved.record_id || saved.id}` : ''}` });
             } catch (error) {
                 console.error(error);

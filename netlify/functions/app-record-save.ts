@@ -5,8 +5,33 @@ import { audit } from "./_shared/audit";
 import { canWriteWorkspace } from "./_shared/rbac";
 import { readIdempotencyKey } from "./_shared/idempotency";
 import { readCorrelationId } from "./_shared/correlation";
+import { emitSovereignEvent } from "./_shared/sovereign-events";
 
-const ALLOWED_APPS = new Set(["SkyeCalendar", "SkyeDrive", "SkyeVault", "SkyeForms", "SkyeNotes", "SkyeBlog", "SkyeDocxPro", "SkyeBookx"]);
+const ALLOWED_APPS = new Set([
+  "SkyeCalendar",
+  "SkyeDrive",
+  "SkyeVault",
+  "SkyeForms",
+  "SkyeNotes",
+  "SkyeBlog",
+  "SkyeDocxPro",
+  "SkyeBookx",
+  "SkyePlatinum",
+  "kAIxu-Cinematic",
+  "kAIxu-Persona",
+  "kAIxu-Mythos",
+  "kAIxu-Atlas",
+  "kAIxu-Atmos",
+  "kAIxu-Bestiary",
+  "kAIxu-Forge",
+  "kAIxu-Quest",
+  "kAIxU-Codex",
+  "kAIxU-Faction",
+  "kAIxU-Matrix",
+  "kAIxU-PrimeCommand",
+  "kAIxU-Vision",
+  "kAixU-Chronos",
+]);
 
 export const handler = async (event: any) => {
   const u = await requireUser(event);
@@ -74,6 +99,7 @@ export const handler = async (event: any) => {
       [u.org_id, wsId, app, u.user_id]
     );
 
+    const isUpdate = existing.rows.length > 0;
     let saved: any;
     if (existing.rows.length) {
       saved = await q(
@@ -98,6 +124,28 @@ export const handler = async (event: any) => {
       correlation_id: correlationId || null,
       record_id: saved.rows[0]?.id || null,
       title,
+    });
+
+    await emitSovereignEvent({
+      actor: u.email,
+      actorUserId: u.user_id,
+      orgId: u.org_id,
+      wsId,
+      eventType: isUpdate ? "document.updated" : "document.created",
+      sourceApp: app,
+      sourceRoute: "/api/app-record-save",
+      subjectKind: "app_record",
+      subjectId: String(saved.rows[0]?.id || ""),
+      severity: "info",
+      summary: `${app} ${isUpdate ? "updated" : "created"}: ${title}`,
+      correlationId,
+      idempotencyKey,
+      payload: {
+        app,
+        title,
+        record_id: saved.rows[0]?.id || null,
+        operation: isUpdate ? "update" : "create",
+      },
     });
 
     return json(200, {

@@ -9,14 +9,9 @@
     
     <!-- Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-
-    <!-- Firebase SDKs -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        window.fb = { initializeApp, getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged, getFirestore, doc, setDoc, onSnapshot };
-    </script>
+    <script src="/_shared/auth-unlock.js"></script>
+    <script src="/_shared/standalone-session.js"></script>
+    <script src="/_shared/workspace-record-sync.js"></script>
 
     <style>
         /* PDF/PRINT ENGINE - FULLY WIRED */
@@ -29,7 +24,7 @@
             
             .shot-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
             .shot-table th, .shot-table td { border: 1px solid #000; padding: 8px; text-align: left; font-size: 10pt; }
-            .shot-table th { background: #f3f4f6 !important; -webkit-print-color-adjust: exact; }
+            .shot-table th { background: #f3f4f6 !important; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
             
             .print-header { border-bottom: 4px solid #000; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: flex-end; }
             .print-header h1 { font-size: 28pt; font-weight: 900; margin: 0; }
@@ -56,7 +51,8 @@
         .glass-nav { background: rgba(255, 255, 255, 0.98) !important; backdrop-filter: blur(16px); border-bottom: 2px solid #e2e8f0 !important; }
         .editor-card { background: white !important; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1); border: 1px solid #e2e8f0; }
         
-        .nexus-link { @apply text-[10px] text-slate-500 hover:text-indigo-600 flex items-center gap-1.5 transition-colors py-0.5 font-bold uppercase tracking-tighter; }
+        .nexus-link { font-size: 10px; color: #64748b; display: flex; align-items: center; gap: 0.375rem; transition: color 150ms ease; padding: 0.125rem 0; font-weight: 700; text-transform: uppercase; letter-spacing: -0.05em; }
+        .nexus-link:hover { color: #4f46e5; }
         #tutorial-modal { background: rgba(2, 6, 23, 0.9); backdrop-filter: blur(15px); }
     </style>
 </head>
@@ -295,13 +291,26 @@
             viewMode: "editor",
             openaiKey: ""
         };
-        let user = null, isSaving = false, saveTimeout = null;
-
-        const { initializeApp, getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged, getFirestore, doc, setDoc, onSnapshot } = window.fb;
-        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
+        let saveTimeout = null;
+        const workspaceSync = window.SkyeWorkspaceRecordSync.create({
+            appId: 'kaixu-cinematic',
+            recordApp: 'kAIxu-Cinematic',
+            wsId: getWsId(),
+            statusElementId: 'sync-status',
+            getState: () => state,
+            applyState: (payload) => {
+                state = { ...state, ...payload };
+                refreshUI();
+            },
+            serialize: (model) => ({ ...model, shots: JSON.stringify(model.shots) }),
+            deserialize: (payload) => {
+                if (payload && typeof payload.shots === 'string') {
+                    try { payload.shots = JSON.parse(payload.shots); } catch (error) { console.error('Failed to parse synced shots', error); }
+                }
+                return payload;
+            },
+            getTitle: (model) => model.title || 'Project Cinema One',
+        });
 
         // --- Three.js Cinematic Grid ---
         function initThreeJS() {
@@ -349,47 +358,18 @@
             });
             document.getElementById('import-input').addEventListener('change', handleImport);
 
-            try {
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token);
-                else await signInAnonymously(auth);
-            } catch (err) { console.error("Auth Error", err); }
-
-            onAuthStateChanged(auth, u => { 
-                user = u; 
-                if(user) syncCloud();
-            });
+            await syncCloud();
             renderNav();
         }
 
         async function syncCloud() {
-            if(!user) return;
-            const docRef = doc(db, 'artifacts', appId, 'users', user.uid, 'cinema', 'current');
-            onSnapshot(docRef, snap => {
-                if (snap.exists() && !isSaving) {
-                    const data = snap.data();
-                    if (data.shots && typeof data.shots === 'string') {
-                        try { data.shots = JSON.parse(data.shots); } catch(e) {}
-                    }
-                    state = { ...state, ...data };
-                    refreshUI();
-                }
-            });
+            return workspaceSync.load(false);
         }
 
-        function debouncedSave() { clearTimeout(saveTimeout); saveTimeout = setTimeout(saveToCloud, 2000); }
+        function debouncedSave() { workspaceSync.debouncedSave(); }
 
         async function saveToCloud() {
-            if (!user) return;
-            isSaving = true;
-            document.getElementById('sync-status').innerHTML = '<i class="fa-solid fa-circle-notch fa-spin text-indigo-500"></i> <span>Syncing...</span>';
-            try {
-                const jsonShots = JSON.stringify(state.shots);
-                if (jsonShots.length > 1000000) { statusEl.innerHTML = '<span class="text-amber-500">Local Only</span>'; return; }
-                const docRef = doc(db, 'artifacts', appId, 'users', user.uid, 'cinema', 'current');
-                await setDoc(docRef, { ...state, shots: jsonShots }, { merge: true });
-                document.getElementById('sync-status').innerHTML = '<i class="fa-solid fa-cloud text-indigo-400"></i> <span>Synced</span>';
-            } catch (err) { document.getElementById('sync-status').innerHTML = '<span>Error</span>'; }
-            finally { setTimeout(() => isSaving = false, 500); }
+            return workspaceSync.save({ prompt: false, silent: true });
         }
 
         window.exportToDevice = () => {

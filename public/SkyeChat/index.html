@@ -74,7 +74,7 @@
         </div>
         <label>kAIxU Access Key</label>
         <input id="apiKey" type="password" placeholder="kx_at_..." />
-        <label>Token Email</label>
+        <label>Key Lock Email</label>
         <input id="tokenEmail" placeholder="user@company.com" />
         <div class="actions">
           <button id="saveKeyBtn" type="button">Save Key</button>
@@ -549,6 +549,44 @@
     }
 
     const standaloneSession = window.SkyeStandaloneSession || null;
+
+    async function recordSuiteIntent(intentName, status, options = {}) {
+      if (!standaloneSession?.recordSuiteIntent) return null;
+      return standaloneSession.recordSuiteIntent({
+        sourceApp: 'SkyeChat',
+        targetApp: options.targetApp || 'SkyeChat',
+        intent: { name: intentName, status, summary: options.summary || '' },
+        context: {
+          workspace_id: wsId,
+          thread_id: options.threadId || null,
+          channel_id: options.channelId || null,
+          mission_id: options.missionId || null,
+          draft_id: options.draftId || null,
+          asset_ids: options.assetIds || [],
+        },
+        detail: options.detail || '',
+        badge: options.badge || '',
+        payload: options.payload || {},
+      });
+    }
+
+    function applySuiteIntent(payload) {
+      const intent = payload?.intent || {};
+      const context = payload?.context || {};
+      const meta = payload?.payload || {};
+      if (typeof context.channel_id === 'string' && context.channel_id) {
+        document.getElementById('channel').value = context.channel_id;
+        document.getElementById('filterChannel').value = context.channel_id;
+      }
+      if (intent.name === 'open-thread' && typeof context.thread_id === 'string' && context.thread_id) {
+        void loadThread(context.thread_id).catch((error) => handleWorkflowError(error, 'Suite Thread Load Failed'));
+        return;
+      }
+      if (intent.name === 'open-thread' && typeof meta.message === 'string' && meta.message) {
+        document.getElementById('message').value = meta.message;
+        setStatus(payload?.detail || 'Suite handoff loaded into SkyeChat.', 'ok');
+      }
+    }
 
     function getAccessAuthHeaders() {
       if (standaloneSession?.authHeaders) return standaloneSession.authHeaders('skychat');
@@ -1038,6 +1076,15 @@
       });
       moderationState.lastPostAt = now;
       setReplyTarget('');
+      await recordSuiteIntent('open-thread', 'completed', {
+        targetApp: 'SkyeChat',
+        summary: parentId ? 'Persist reply handoff inside SkyeChat.' : 'Persist channel post inside SkyeChat.',
+        detail: `SkyeChat posted to #${channel}${topic ? ` topic:${topic}` : ''}${parentId ? ' as reply' : ''}.`,
+        channelId: channel,
+        threadId: parentId || null,
+        draftId: idempotencyKey,
+        payload: { message, topic, parent_id: parentId || null },
+      });
       setTruth('room', 'ok', 'Room Posted');
       setTruth('last', 'ok', parentId ? 'Reply Sent' : 'Post Sent');
       setStatus(`Posted to #${channel}${topic ? ` (topic:${topic})` : ''}${parentId ? ' as reply' : ''}`, 'ok');
@@ -1119,6 +1166,9 @@
     ensureWorkflowHud();
     hydrateAuthInputs();
     refreshAccessTruth();
+    if (standaloneSession?.subscribeSuiteIntents) {
+      standaloneSession.subscribeSuiteIntents('SkyeChat', applySuiteIntent);
+    }
 
     document.getElementById('signupBtn').onclick = () => signup().catch((e) => handleWorkflowError(e, 'Signup Failed'));
     document.getElementById('loginBtn').onclick = () => login().catch((e) => handleWorkflowError(e, 'Login Failed'));
@@ -1170,6 +1220,13 @@
         } else if (action === 'open-thread') {
           const rootId = target.getAttribute('data-root-id') || '';
           if (!rootId) return;
+          await recordSuiteIntent('open-thread', 'completed', {
+            targetApp: 'SkyeChat',
+            threadId: rootId,
+            channelId: document.getElementById('filterChannel').value.trim() || document.getElementById('channel').value.trim(),
+            detail: `SkyeChat opened thread ${rootId}.`,
+            badge: 'thread',
+          });
           await loadThread(rootId);
         }
       } catch (err) {

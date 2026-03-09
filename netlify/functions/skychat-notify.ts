@@ -4,6 +4,7 @@ import { q } from "./_shared/neon";
 import { audit } from "./_shared/audit";
 import { readIdempotencyKey } from "./_shared/idempotency";
 import { readCorrelationId } from "./_shared/correlation";
+import { emitSovereignEvent } from "./_shared/sovereign-events";
 import {
   canPostToChannel,
   ensureCoreSkychatChannels,
@@ -140,6 +141,56 @@ export const handler = async (event: any) => {
       idempotency_key: idempotencyKey || null,
       correlation_id: correlationId || null,
       record_id: row.rows[0]?.id || null,
+    });
+
+    if (!resolvedParentId) {
+      await emitSovereignEvent({
+        actor: u.email,
+        actorUserId: u.user_id,
+        orgId: u.org_id,
+        wsId: effectiveWsId,
+        eventType: "chat.thread.created",
+        sourceApp: "SkyeChat",
+        sourceRoute: "/api/skychat-notify",
+        subjectKind: "chat_thread",
+        subjectId: String(row.rows[0]?.id || ""),
+        severity: priority === "critical" ? "critical" : priority === "high" ? "warning" : "info",
+        summary: `SkyeChat thread started in #${channelInfo.slug}`,
+        correlationId,
+        idempotencyKey,
+        payload: {
+          channel: channelInfo.slug,
+          channel_kind: channelInfo.kind,
+          topic: topic || null,
+          root_id: row.rows[0]?.id || null,
+          priority,
+        },
+      });
+    }
+
+    await emitSovereignEvent({
+      actor: u.email,
+      actorUserId: u.user_id,
+      orgId: u.org_id,
+      wsId: effectiveWsId,
+      eventType: "chat.post.created",
+      sourceApp: "SkyeChat",
+      sourceRoute: "/api/skychat-notify",
+      subjectKind: "chat_post",
+      subjectId: String(row.rows[0]?.id || ""),
+      severity: priority === "critical" ? "critical" : priority === "high" ? "warning" : "info",
+      summary: `SkyeChat post sent to #${channelInfo.slug}`,
+      correlationId,
+      idempotencyKey,
+      payload: {
+        channel: channelInfo.slug,
+        channel_kind: channelInfo.kind,
+        parent_id: resolvedParentId || null,
+        root_id: rootId || row.rows[0]?.id || null,
+        topic: topic || null,
+        priority,
+        source,
+      },
     });
 
     return json(200, { ok: true, id: row.rows[0]?.id || null, created_at: row.rows[0]?.created_at || null });

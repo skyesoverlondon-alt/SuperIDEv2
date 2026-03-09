@@ -2,6 +2,8 @@ import { json } from "./_shared/response";
 import { q } from "./_shared/neon";
 import { verifyPassword, createSession, setSessionCookie, ensureUserRecoveryEmailColumn, ensureUserPinColumns } from "./_shared/auth";
 import { audit } from "./_shared/audit";
+import { getOrgRole } from "./_shared/rbac";
+import { ensurePrimaryWorkspace, getOrgSeatSummary } from "./_shared/orgs";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -53,6 +55,15 @@ export const handler = async (event: any) => {
       );
     }
 
+    let role: string | null = null;
+    let workspace = null;
+    let org = null;
+    if (user.org_id) {
+      role = await getOrgRole(user.org_id, user.id);
+      workspace = await ensurePrimaryWorkspace(user.org_id, user.id, role || "member");
+      org = await getOrgSeatSummary(user.org_id);
+    }
+
     const sess = await createSession(user.id);
     await audit(user.email, user.org_id, null, "auth.login", {});
     return json(
@@ -63,8 +74,12 @@ export const handler = async (event: any) => {
           email: user.email,
           recovery_email: user.recovery_email || "",
           org_id: user.org_id,
+          workspace_id: workspace?.id || null,
+          role,
           has_pin: Boolean(String(user.pin_hash || "").trim()),
         },
+        workspace,
+        org,
         onboarding: {
           key_required: true,
           pin_configured: Boolean(String(user.pin_hash || "").trim()),

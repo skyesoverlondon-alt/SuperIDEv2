@@ -102,6 +102,18 @@ These are used by files under [netlify/functions](../netlify/functions).
 | `CF_ACCESS_CLIENT_ID` | no | Service token client ID when Worker is protected by Cloudflare Access |
 | `CF_ACCESS_CLIENT_SECRET` | no | Service token secret when Worker is protected by Cloudflare Access |
 
+### Optional Contractor Network bridge variables
+
+| Variable | Required | Purpose |
+|---|---|---|
+| `CONTRACTOR_NETWORK_ORG_ID` | yes for `/api/intake` on the main runtime | Org that owns public Contractor Network submissions and sovereign event fanout |
+| `CONTRACTOR_NETWORK_WS_ID` | no | Workspace scope used for intake timeline entries when submissions should land in a specific workspace |
+| `CONTRACTOR_NETWORK_MISSION_ID` | no | Mission scope used to auto-attach incoming submissions as mission assets and timeline activity |
+| `ADMIN_PASSWORD` | yes for ContractorNetwork admin password login on the main runtime | Password-based admin lane for `/api/admin/login` |
+| `ADMIN_JWT_SECRET` | yes for ContractorNetwork admin auth on the main runtime | Signs and verifies admin bearer tokens used by the public ContractorNetwork surface |
+| `ADMIN_EMAIL_ALLOWLIST` | no | Comma-separated allowlist for optional Netlify Identity admin login |
+| `ADMIN_IDENTITY_ANYONE` | no | If `true`, any authenticated Netlify Identity user can access ContractorNetwork admin routes |
+
 ### Mail and onboarding variables
 
 | Variable | Required | Purpose |

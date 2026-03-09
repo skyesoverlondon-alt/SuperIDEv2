@@ -7,6 +7,7 @@ import { canReadWorkspace } from "./_shared/rbac";
 import { readIdempotencyKey } from "./_shared/idempotency";
 import { readCorrelationId } from "./_shared/correlation";
 import { computeThreadId, normalizeLabels } from "./_shared/skymail";
+import { emitSovereignEvent } from "./_shared/sovereign-events";
 
 export const handler = async (event: any) => {
   const u = await requireUser(event);
@@ -175,6 +176,33 @@ export const handler = async (event: any) => {
       correlation_id: correlationId || null,
       chat_hooked: !!chatHookId,
       chat_channel: channel || null,
+    });
+
+    await emitSovereignEvent({
+      actor: u.email,
+      actorUserId: u.user_id,
+      orgId: u.org_id,
+      wsId: wsId || null,
+      eventType: "mail.sent",
+      sourceApp: "SkyeMail",
+      sourceRoute: "/api/skymail-send",
+      subjectKind: "mail_thread",
+      subjectId: threadId,
+      severity: "info",
+      summary: `SkyeMail sent: ${subject}`,
+      correlationId,
+      idempotencyKey,
+      payload: {
+        to,
+        from: mailbox,
+        subject,
+        thread_id: threadId,
+        provider: delivered.provider,
+        provider_id: delivered.id,
+        labels,
+        attachment_count: preparedAttachments.length,
+        chat_hook_id: chatHookId,
+      },
     });
 
     return json(200, {

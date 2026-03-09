@@ -540,6 +540,7 @@
         <span class="chip" id="workspaceChip">workspace: loading</span>
         <span class="chip" id="revisionChip">revision: none</span>
         <span class="chip" id="sourceChip">source: workspace only</span>
+        <button class="ghost" type="button" id="syncSovereignBtn">Sync To SovereignVariables</button>
         <button class="ghost" type="button" id="openAdminBtn">Open Key Control</button>
         <button class="ghost" type="button" id="reloadWorkspaceBtn">Reload Workspace</button>
         <button class="primary" type="button" id="saveWorkspaceBtn">Save Workspace</button>
@@ -1618,6 +1619,41 @@
       return payload;
     }
 
+    async function recordSuiteIntent(intentName, status, options = {}) {
+      if (!window.SkyeStandaloneSession?.recordSuiteIntent) return null;
+      return window.SkyeStandaloneSession.recordSuiteIntent({
+        sourceApp: "SkyDex4.6",
+        targetApp: options.targetApp || "SovereignVariables",
+        intent: { name: intentName, status, summary: options.summary || "" },
+        context: {
+          workspace_id: state.workspaceId,
+          file_ids: options.fileIds || (state.activePath ? [state.activePath] : []),
+          asset_ids: options.assetIds || [],
+        },
+        detail: options.detail || "",
+        badge: options.badge || "",
+        payload: options.payload || {},
+      });
+    }
+
+    async function syncWorkspaceToSovereignVariables() {
+      collectCurrentEditor();
+      const fileIds = state.activePath ? [state.activePath] : state.files.slice(0, 6).map((file) => file.path);
+      const evidence = fileIds.map((path) => ({ path, length: String(getFile(path)?.content || "").length }));
+      await recordSuiteIntent("sync-case", "completed", {
+        targetApp: "SovereignVariables",
+        summary: "Route SkyDex workspace context into SovereignVariables.",
+        detail: `SkyDex synchronized ${fileIds.length} workspace file reference${fileIds.length === 1 ? "" : "s"} into SovereignVariables.`,
+        fileIds,
+        badge: `${fileIds.length} files`,
+        payload: { evidence },
+      });
+      if (window.SkyeStandaloneSession?.openApp) {
+        window.SkyeStandaloneSession.openApp("SovereignVariables", { source: "SkyDex4.6", note: "Workspace sync queued from SkyDex.", channel: "release-ops" });
+      }
+      setStatus("SovereignVariables sync queued", `Handed ${fileIds.length} workspace file reference${fileIds.length === 1 ? "" : "s"} to SovereignVariables and queued analytics proof automation.`, "success");
+    }
+
     async function loadWorkspace() {
       setStatus("Loading", "Fetching workspace snapshot.");
       const payload = await jsonRequest("/api/ws-get?id=" + encodeURIComponent(state.workspaceId), "GET");
@@ -1977,6 +2013,14 @@
         message: `[SkyDex Recall] ${title}\n\n${excerpt.slice(0, 1400)}\n\nrecord_id=${String(record.id || "n/a")}`,
         source: "SkyDex Blog Recall",
       });
+      await recordSuiteIntent("open-thread", "completed", {
+        targetApp: "SkyeChat",
+        summary: "Route recalled content into SkyeChat.",
+        detail: `SkyDex posted ${title} to #${channel}.`,
+        channelId: channel,
+        fileIds: state.activePath ? [state.activePath] : [],
+        payload: { record_id: String(record.id || ""), topic },
+      });
       setStatus("SkyeChat post sent", "Posted " + title + " to #" + channel + (payload?.id ? " as record " + payload.id : "") + ".", "success");
     }
 
@@ -1995,6 +2039,13 @@
         to,
         subject,
         text: `${excerpt.slice(0, 4000)}\n\nSource: SkyDex Blog Recall\nrecord_id=${String(record.id || "n/a")}`,
+      });
+      await recordSuiteIntent("compose-mail", "completed", {
+        targetApp: "SkyeMail",
+        summary: "Route recalled content into SkyeMail.",
+        detail: `SkyDex delivered ${title} via SkyeMail.`,
+        fileIds: state.activePath ? [state.activePath] : [],
+        payload: { record_id: String(record.id || ""), to, subject },
       });
       setStatus("SkyeMail sent", "Delivered " + title + " to " + to + (payload?.mail_record_id ? " as record " + payload.mail_record_id : "") + ".", "success");
     }
@@ -2179,6 +2230,7 @@
         window.open(href, "_blank", "noopener,noreferrer");
         setTimeout(() => URL.revokeObjectURL(href), 6000);
       });
+      $("syncSovereignBtn").addEventListener("click", () => runAction(syncWorkspaceToSovereignVariables));
       $("openAdminBtn").addEventListener("click", () => {
         window.open("/SkyeAdmin/index.html?ws_id=" + encodeURIComponent(state.workspaceId), "_blank", "noopener,noreferrer");
       });

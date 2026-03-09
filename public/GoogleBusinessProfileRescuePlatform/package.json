@@ -1,0 +1,27 @@
+{
+  "name": "gbp-rescue-platform",
+  "private": true,
+  "version": "0.4.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:web": "npm --workspace apps/web run dev",
+    "dev:api": "npm --workspace apps/worker-api run dev",
+    "build:web": "npm --workspace apps/web run build",
+    "build:api": "npm --workspace apps/worker-api run build",
+    "build": "npm run build:web && npm run build:api",
+    "check": "npm --workspace apps/web run check && npm --workspace apps/worker-api run check",
+    "deploy:api": "npm --workspace apps/worker-api run deploy",
+    "count:files": "node scripts/count-files.mjs",
+    "verify:phase1": "node scripts/verify-phase1.mjs",
+    "seed:demo": "node scripts/seed-demo-case.mjs",
+    "verify:phase2": "node scripts/verify-phase2.mjs",
+    "seed:monitoring": "node scripts/seed-monitoring-demo.mjs",
+    "verify:release": "npm run check && npm run build",
+    "migrations:list": "node scripts/apply-migrations.mjs",
+    "closeout": "node scripts/release-closeout.mjs",
+    "smoke:live": "node scripts/smoke-live.mjs"
+  }
+}

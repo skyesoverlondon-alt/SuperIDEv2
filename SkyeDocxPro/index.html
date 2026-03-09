@@ -4140,6 +4140,25 @@
                 } catch {}
             }
 
+            async function recordSuiteIntent(intentName, status, options = {}) {
+                if (!window.SkyeStandaloneSession?.recordSuiteIntent) return null;
+                return window.SkyeStandaloneSession.recordSuiteIntent({
+                    sourceApp: appId,
+                    targetApp: options.targetApp || 'SkyeMail',
+                    intent: { name: intentName, status, summary: options.summary || '' },
+                    context: {
+                        workspace_id: wsId,
+                        file_ids: options.fileIds || [],
+                        channel_id: options.channelId || null,
+                        draft_id: options.draftId || null,
+                        asset_ids: options.assetIds || [],
+                    },
+                    detail: options.detail || '',
+                    badge: options.badge || '',
+                    payload: options.payload || {},
+                });
+            }
+
             function getDocSnapshot() {
                 const doc = (window.App && window.App.getActiveDocRecord) ? window.App.getActiveDocRecord() : null;
                 const title = String(doc?.title || 'Untitled').trim();
@@ -4193,6 +4212,13 @@
                     message,
                     source: `${appId} Publisher`,
                 });
+                await recordSuiteIntent('open-thread', 'completed', {
+                    targetApp: 'SkyeChat',
+                    summary: 'Route the active document into SkyeChat.',
+                    detail: `${appId} published ${title} to #${channel.trim()}.`,
+                    channelId: channel.trim(),
+                    payload: { title, topic: (topic || 'blog').trim().toLowerCase() },
+                });
                 window.App.showToast(`Published ${title} to #${channel.trim()}.`);
             }
 
@@ -4211,6 +4237,12 @@
                     to: String(to).trim().toLowerCase(),
                     subject: String(subject).trim(),
                     text: `${excerpt}\n\nSent from ${appId}. Export options remain available: .skye / HTML ZIP / PDF.`,
+                });
+                await recordSuiteIntent('compose-mail', 'completed', {
+                    targetApp: 'SkyeMail',
+                    summary: 'Route the active document into SkyeMail.',
+                    detail: `${appId} delivered ${title} via SkyeMail.`,
+                    payload: { to: String(to).trim().toLowerCase(), subject: String(subject).trim(), title },
                 });
                 window.App.showToast(`Delivered ${title} via SkyeMail.`);
             }
@@ -4254,6 +4286,13 @@
                     drive_record_id: recordId,
                     bookx_launch_url: bookxLaunchUrl,
                     note: `SkyeDocxPro saved ${title} to SkyeDrive.${recordId ? ` record_id=${recordId}` : ''}`,
+                });
+                await recordSuiteIntent('attach-drive-assets', 'completed', {
+                    targetApp: 'SkyeDrive',
+                    summary: 'Attach document assets to the shared drive lane.',
+                    detail: `${appId} saved ${title} to SkyeDrive.`,
+                    assetIds: recordId ? [recordId] : [],
+                    payload: { record_id: recordId, title },
                 });
                 if (options?.launchBookx && recordId) {
                     launchBookxForDriveRecord(recordId);

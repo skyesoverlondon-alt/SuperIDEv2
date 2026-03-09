@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SkyeAdmin Standalone</title>
+  <script src="/_shared/standalone-session.js"></script>
   <style>
     @import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Space+Grotesk:wght@400;500;600&display=swap");
     :root { --bg:#060d13; --bg2:#0d1d27; --line:rgba(44,230,255,.34); --line2:rgba(191,238,255,.2); --text:#f6fbff; --muted:#9ab6c4; --gold:#ffcb47; }
@@ -49,8 +50,8 @@
       </div>
       <h3 style="margin:0;color:var(--gold);font-size:13px;text-transform:uppercase;letter-spacing:.06em;">Policy Center</h3>
       <div class="row">
-        <input id="tokenTtl" type="number" min="1" max="365" placeholder="Token TTL days" />
-        <input id="namingPrefix" placeholder="Token naming prefix" />
+        <input id="tokenTtl" type="number" min="1" max="365" placeholder="Key TTL days" />
+        <input id="namingPrefix" placeholder="Key naming prefix" />
       </div>
       <div class="row">
         <select id="allowedScope">
@@ -91,6 +92,7 @@
 <script>
 const qs = new URLSearchParams(location.search);
 const ws = qs.get("ws_id") || "default";
+const standaloneSession = window.SkyeStandaloneSession || null;
 document.getElementById("meta").textContent = `ws_id=${ws}`;
 const key = `skye.admin.${ws}`;
 const policyKey = `skye.admin.policy.${ws}`;
@@ -103,6 +105,32 @@ const usersEl = document.getElementById("users");
 const policyStatusEl = document.getElementById("policyStatus");
 const governanceStatusEl = document.getElementById('governanceStatus');
 const templatePreviewEl = document.getElementById('templatePreview');
+
+async function recordSuiteIntent(intentName, status, options = {}) {
+  if (!standaloneSession?.recordSuiteIntent) return null;
+  return standaloneSession.recordSuiteIntent({
+    sourceApp: 'SkyeAdmin',
+    targetApp: options.targetApp || 'SkyeAdmin',
+    intent: { name: intentName, status, summary: options.summary || '' },
+    context: {
+      workspace_id: ws,
+      case_id: options.caseId || null,
+      asset_ids: options.assetIds || [],
+    },
+    detail: options.detail || '',
+    badge: options.badge || '',
+    payload: options.payload || {},
+  });
+}
+
+function applySuiteIntent(payload) {
+  const intent = payload?.intent || {};
+  const context = payload?.context || {};
+  if (intent.name === 'escalate-admin') {
+    document.getElementById('riskyAction').value = payload?.detail || 'Escalated suite action awaiting admin review';
+    governanceStatusEl.textContent = `Escalated into SkyeAdmin${context.case_id ? ` for ${context.case_id}` : ''}.`;
+  }
+}
 
 function save() { localStorage.setItem(key, JSON.stringify(users)); }
 function savePolicy() { localStorage.setItem(policyKey, JSON.stringify(policy)); }
@@ -197,6 +225,11 @@ document.getElementById('startCampaign').onclick = () => {
   campaigns.unshift(campaign);
   pushAudit('campaign_started', campaign);
   governanceStatusEl.textContent = `Access review campaign started: ${name} (${users.length} member(s)).`;
+  void recordSuiteIntent('escalate-admin', 'completed', {
+    detail: `SkyeAdmin started access review campaign ${name}.`,
+    badge: 'campaign',
+    payload: campaign,
+  });
 };
 
 document.getElementById('policyTemplate').onchange = applyTemplatePreview;
@@ -211,6 +244,12 @@ document.getElementById('queueRisky').onclick = () => {
   riskyQueue.unshift(req);
   pushAudit('risky_action_queued', req);
   governanceStatusEl.textContent = `Risky action queued: ${req.id}`;
+  void recordSuiteIntent('escalate-admin', 'queued', {
+    detail: `SkyeAdmin queued risky action ${req.id}.`,
+    caseId: req.id,
+    badge: 'risk',
+    payload: req,
+  });
 };
 
 document.getElementById('approveRisky').onclick = () => {
@@ -222,6 +261,12 @@ document.getElementById('approveRisky').onclick = () => {
   riskyQueue[0].approved_at = new Date().toISOString();
   pushAudit('risky_action_approved', riskyQueue[0]);
   governanceStatusEl.textContent = `Approved risky request: ${riskyQueue[0].id}`;
+  void recordSuiteIntent('escalate-admin', 'completed', {
+    detail: `SkyeAdmin approved risky action ${riskyQueue[0].id}.`,
+    caseId: riskyQueue[0].id,
+    badge: 'approval',
+    payload: riskyQueue[0],
+  });
 };
 
 document.getElementById('exportAudit').onclick = () => {
@@ -240,11 +285,19 @@ document.getElementById('exportAudit').onclick = () => {
   link.download = 'skyeadmin-audit-pack.json';
   link.click();
   governanceStatusEl.textContent = 'Admin audit pack exported.';
+  void recordSuiteIntent('open-proof', 'completed', {
+    targetApp: 'SkyeAnalytics',
+    detail: 'SkyeAdmin exported an audit proof pack for suite review.',
+    badge: 'export',
+  });
 };
 
 hydratePolicyInputs();
 applyTemplatePreview();
 render();
+if (standaloneSession?.subscribeSuiteIntents) {
+  standaloneSession.subscribeSuiteIntents('SkyeAdmin', applySuiteIntent);
+}
 </script>
 <button id="skye-tutorial-fab" type="button" style="position:fixed;right:16px;bottom:16px;z-index:10000;padding:10px 14px;border-radius:999px;border:1px solid rgba(191,238,255,.42);background:rgba(44,230,255,.2);color:#eff9ff;font-weight:700;cursor:pointer;">Start Tutorial</button>
 <div id="skye-tutorial-modal" style="display:none;position:fixed;inset:0;z-index:10001;background:rgba(2,6,23,.72);"></div>

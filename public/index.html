@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <title>Skyes Over London LC • Contractor Network Console (Neon + Blobs)</title>
+
+  <!-- Netlify Identity widget (optional owner login lane) -->
+  <script defer src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+
+  <style>
+    :root{
+      --paper:#070812;
+      --paper2:#0b0c18;
+      --gold:#ffd36a;
+      --purple:#a243ff;
+      --cyan:#27f2ff;
+      --display:'Georgia', serif;
+      --body:system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      --mono:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      --shadow2: 0 12px 40px rgba(0,0,0,.40);
+      --max:1400px;
+
+      --solLogo: url("https://cdn1.sharemyimage.com/2026/02/16/logo1_transparent.png");
+      --bgLedger: url("https://cdn1.sharemyimage.com/2026/03/03/41aec1679fe2c1b54.png");
+      --founderImg: url("https://cdn1.sharemyimage.com/2026/03/08/1-1.png");
+    }
+    *{margin:0;padding:0;box-sizing:border-box}
+    html{scroll-behavior:smooth;font-size:16px}
+    body{
+      font-family:var(--body);
+      color:rgba(255,255,255,.92);
+      background:
+        radial-gradient(1200px 740px at 18% 12%, rgba(162,67,255,.26), transparent 58%),
+        radial-gradient(1100px 820px at 82% 22%, rgba(39,242,255,.16), transparent 58%),
+        radial-gradient(900px 700px at 62% 88%, rgba(255,211,106,.14), transparent 60%),
+        linear-gradient(180deg, var(--paper), #05050b 45%, var(--paper2));
+      overflow-x:hidden;
+      -webkit-font-smoothing:antialiased;
+      min-height:100vh;
+    }
+    a{color:inherit;text-decoration:none}
+    .watermark{
+      position:fixed; inset:0; z-index:0; pointer-events:none; opacity:.08;
+      background:
+        radial-gradient(900px 520px at 50% 40%, rgba(162,67,255,.10), transparent 62%),
+        radial-gradient(820px 520px at 52% 62%, rgba(255,211,106,.10), transparent 62%),
+        var(--solLogo) center 44% / min(560px, 70vw) no-repeat;
+      filter: drop-shadow(0 0 18px rgba(255,211,106,.10));
+    }
+    .grain{
+      position:fixed; inset:0; z-index:1; pointer-events:none;
+      opacity:.12; mix-blend-mode:overlay;
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)' opacity='.55'/%3E%3C/svg%3E");
+      background-size:260px 260px;
+    }
+    .scanlines{
+      position:fixed; inset:0; z-index:1; pointer-events:none;
+      opacity:.08;
+      background:repeating-linear-gradient(to bottom, rgba(255,255,255,.05), rgba(255,255,255,.05) 1px, rgba(0,0,0,0) 3px, rgba(0,0,0,0) 6px);
+    }
+
+    .nav{
+      position:fixed; top:0; left:0; width:100%;
+      padding:1.05rem 1.25rem;
+      display:flex; align-items:center; justify-content:space-between;
+      z-index:1000;
+      background:rgba(5,5,11,.72);
+      backdrop-filter:blur(18px);
+      border-bottom:1px solid rgba(255,255,255,.08);
+    }
+    .brand{display:flex; align-items:center; gap:12px;}
+    .brandLogo{
+      width:54px; height:auto;
+      filter: drop-shadow(0 0 16px rgba(255,211,106,.18)) drop-shadow(0 0 18px rgba(39,242,255,.10));
+      animation:pulseLogo 2.8s ease-in-out infinite;
+      user-select:none; -webkit-user-drag:none;
+    }
+    @keyframes pulseLogo{
+      0%,100%{transform:translateY(0) scale(1); opacity:.92;}
+      50%{transform:translateY(-2px) scale(1.02); opacity:1;}
+    }
+    .brandText{display:flex; flex-direction:column; gap:2px; line-height:1;}
+    .brandName{font-family:var(--display); font-weight:800; font-size:1.02rem; letter-spacing:.02em;}
+    .brandSub{font-family:var(--mono); font-size:.62rem; letter-spacing:.12em; text-transform:uppercase; color:rgba(255,255,255,.62);}
+
+    .navLinks{display:flex; gap:1rem; flex-wrap:wrap; align-items:center;}
+    .navLinks a{
+      font-family:var(--mono);
+      font-size:.72rem;
+      letter-spacing:.12em;
+      text-transform:uppercase;
+      padding:.6rem .75rem;
+      border:1px solid rgba(255,255,255,.10);
+      background:rgba(0,0,0,.18);
+      transition:all .25s ease;
+      white-space:nowrap;
+    }
+    .navLinks a:hover{
+      transform:translateY(-2px);
+      border-color:rgba(39,242,255,.28);
+      background:rgba(255,255,255,.06);
+    }
+    .navRight{display:flex; gap:.6rem; align-items:center;}
+    .pill{
+      font-family:var(--mono);
+      font-size:.66rem;
+      letter-spacing:.12em;
+      text-transform:uppercase;
+      padding:.55rem .7rem;
+      border:1px solid rgba(255,255,255,.10);
+      background:rgba(255,255,255,.03);
+      color:rgba(255,255,255,.72);
+    }
+    .btn{
+      cursor:pointer;
+      border:1px solid rgba(255,211,106,.34);
+      background:linear-gradient(90deg, rgba(39,242,255,.22), rgba(255,211,106,.20), rgba(162,67,255,.20));
+      color:rgba(255,255,255,.95);
+      font-family:var(--mono);
+      font-size:.72rem;
+      font-weight:900;
+      letter-spacing:.14em;
+      text-transform:uppercase;
+      padding:.65rem .85rem;
+      transition:all .25s ease;
+      white-space:nowrap;
+    }
+    .btn:hover{transform:translateY(-2px); border-color:rgba(39,242,255,.30); background:rgba(255,255,255,.06);}
+
+    .wrap{position:relative; z-index:2; max-width:var(--max); margin:0 auto; padding:7rem 1.25rem 3rem;}
+    .hero{
+      padding:2.0rem 1.25rem;
+      border:1px solid rgba(255,255,255,.10);
+      background:rgba(0,0,0,.20);
+      box-shadow:var(--shadow2);
+      overflow:hidden;
+      position:relative;
+    }
+    .hero::before{
+      content:"";
+      position:absolute; inset:0;
+      background:
+        radial-gradient(900px 600px at 12% 28%, rgba(162,67,255,.12), transparent 62%),
+        radial-gradient(900px 600px at 88% 52%, rgba(255,211,106,.10), transparent 62%);
+      opacity:.95;
+      pointer-events:none;
+    }
+    .hero > *{position:relative; z-index:1;}
+    .hero h1{
+      font-family:var(--display);
+      font-size:clamp(1.9rem, 4.5vw, 3.1rem);
+      line-height:1.05;
+      margin-bottom:.8rem;
+    }
+    .hero p{
+      color:rgba(255,255,255,.74);
+      line-height:1.85;
+      max-width:78ch;
+      font-size:1.02rem;
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns: 1.35fr 1fr;
+      gap:1.25rem;
+      margin-top:1.25rem;
+      align-items:start;
+    }
+    .card{
+      border:1px solid rgba(255,255,255,.10);
+      background:rgba(0,0,0,.18);
+      backdrop-filter:blur(14px);
+      box-shadow:var(--shadow2);
+      padding:1.1rem;
+    }
+    .card h2{
+      font-family:var(--display);
+      font-size:1.35rem;
+      margin:0 0 .75rem;
+    }
+    .kicker{
+      font-family:var(--mono);
+      font-size:.68rem;
+      letter-spacing:.14em;
+      text-transform:uppercase;
+      color:rgba(255,255,255,.62);
+      margin-bottom:.6rem;
+      display:flex; gap:.6rem; align-items:center;
+    }
+    .dot{width:10px;height:10px;border-radius:99px;background:rgba(39,242,255,.85); box-shadow:0 0 18px rgba(39,242,255,.35);}
+    .row{display:grid; grid-template-columns: 1fr 1fr; gap:.85rem;}
+    .field{display:flex; flex-direction:column; gap:.35rem; margin-bottom:.75rem;}
+    label{
+      font-family:var(--mono);
+      font-size:.66rem;
+      letter-spacing:.14em;
+      text-transform:uppercase;
+      color:rgba(255,255,255,.70);
+    }
+    input, select, textarea{
+      width:100%;
+      padding:.85rem .85rem;
+      border-radius:0;
+      border:1px solid rgba(255,255,255,.12);
+      background:rgba(0,0,0,.30);
+      color:rgba(255,255,255,.92);
+      font-family:var(--body);
+      font-size:1rem;
+    }
+    textarea{min-height:92px; resize:vertical;}
+    .help{font-size:.92rem; color:rgba(255,255,255,.66); line-height:1.6;}
+    .actions{display:flex; gap:.75rem; flex-wrap:wrap; align-items:center; margin-top:.25rem;}
+    .ghost{
+      cursor:pointer;
+      border:1px solid rgba(255,255,255,.14);
+      background:rgba(255,255,255,.04);
+      color:rgba(255,255,255,.90);
+      font-family:var(--mono);
+      font-size:.72rem;
+      font-weight:900;
+      letter-spacing:.14em;
+      text-transform:uppercase;
+      padding:.65rem .85rem;
+      transition:all .25s ease;
+    }
+    .ghost:hover{transform:translateY(-2px); border-color:rgba(255,211,106,.22); background:rgba(255,211,106,.06);}
+
+    .toast{
+      display:none;
+      margin-top:.75rem;
+      border:1px solid rgba(39,242,255,.22);
+      background:rgba(39,242,255,.06);
+      padding:.85rem;
+    }
+    .toast.on{display:block;}
+    .sep{height:1px; background:rgba(255,255,255,.10); margin:1rem 0;}
+
+    .toolbar{
+      display:flex; gap:.6rem; flex-wrap:wrap; align-items:center; justify-content:space-between;
+      margin-bottom:.75rem;
+    }
+    .toolbar .left{display:flex; gap:.6rem; flex-wrap:wrap; align-items:center;}
+    .toolbar .right{display:flex; gap:.6rem; flex-wrap:wrap; align-items:center;}
+    .tag{
+      display:inline-flex; align-items:center; gap:.5rem;
+      padding:.35rem .55rem;
+      border:1px solid rgba(255,255,255,.12);
+      background:rgba(0,0,0,.18);
+      font-family:var(--mono);
+      font-size:.66rem;
+      letter-spacing:.10em;
+      text-transform:uppercase;
+      color:rgba(255,255,255,.74);
+    }
+
+    .tableWrap{overflow:auto; border:1px solid rgba(255,255,255,.10);}
+    table{width:100%; border-collapse:collapse; min-width:980px;}
+    th, td{
+      border-bottom:1px solid rgba(255,255,255,.08);
+      padding:.65rem .65rem;
+      text-align:left;
+      vertical-align:top;
+    }
+    th{
+      font-family:var(--mono);
+      font-size:.66rem;
+      letter-spacing:.14em;
+      text-transform:uppercase;
+      color:rgba(255,255,255,.68);
+      background:rgba(255,255,255,.03);
+      position:sticky; top:0;
+    }
+    td{color:rgba(255,255,255,.86); font-size:.95rem; line-height:1.55;}
+    .badge{
+      font-family:var(--mono);
+      font-size:.66rem;
+      letter-spacing:.12em;
+      text-transform:uppercase;
+      padding:.25rem .45rem;
+      border:1px solid rgba(255,255,255,.14);
+      background:rgba(255,255,255,.04);
+      display:inline-flex;
+      align-items:center;
+      gap:.4rem;
+      white-space:nowrap;
+    }
+    .badge i{width:8px;height:8px;border-radius:99px;background:rgba(255,211,106,.85); box-shadow:0 0 14px rgba(255,211,106,.22);}
+    .link{color:rgba(39,242,255,.86); text-decoration:underline; text-underline-offset:3px;}
+    .small{font-size:.86rem;color:rgba(255,255,255,.68);}
+    .muted{color:rgba(255,255,255,.68);}
+    .mono{font-family:var(--mono);}
+
+    .founder{
+      margin-top:1.25rem;
+      border:1px solid rgba(255,255,255,.10);
+      background:
+        linear-gradient(180deg, rgba(5,5,11,.86), rgba(5,5,11,.72)),
+        var(--bgLedger) center / cover no-repeat;
+      padding:1.2rem;
+      position:relative;
+      overflow:hidden;
+      box-shadow:var(--shadow2);
+    }
+    .founderGrid{
+      display:grid;
+      grid-template-columns: 1.3fr .7fr;
+      gap:1.1rem;
+      align-items:center;
+    }
+    .founder h3{font-family:var(--display); font-size:1.55rem; margin:0 0 .6rem;}
+    .founder p{margin:0; color:rgba(255,255,255,.74); line-height:1.85;}
+    .founderPortrait{
+      width:100%;
+      min-height:240px;
+      background:
+        radial-gradient(900px 520px at 50% 20%, rgba(39,242,255,.10), transparent 62%),
+        radial-gradient(900px 520px at 52% 72%, rgba(255,211,106,.10), transparent 62%),
+        var(--founderImg) center / contain no-repeat;
+      filter: drop-shadow(0 0 16px rgba(255,211,106,.12));
+      animation: pulsePortrait 3.2s ease-in-out infinite;
+    }
+    @keyframes pulsePortrait{
+      0%,100%{transform:translateY(0) scale(1); opacity:.95;}
+      50%{transform:translateY(-2px) scale(1.01); opacity:1;}
+    }
+
+    @media (max-width: 1100px){
+      .grid{grid-template-columns:1fr;}
+      .row{grid-template-columns:1fr;}
+      .founderGrid{grid-template-columns:1fr;}
+      table{min-width:900px;}
+    }
+  </style>
+</head>
+
+<body>
+  <div class="watermark" aria-hidden="true"></div>
+  <div class="grain" aria-hidden="true"></div>
+  <div class="scanlines" aria-hidden="true"></div>
+
+  <nav class="nav" aria-label="Primary">
+    <div class="brand">
+      <img class="brandLogo" src="https://cdn1.sharemyimage.com/2026/02/16/logo1_transparent.png" alt="Skyes Over London LC logo" />
+      <div class="brandText">
+        <div class="brandName">Skyes Over London LC</div>
+        <div class="brandSub">Contractor Network Console • Neon + Blobs</div>
+      </div>
+    </div>
+
+    <div class="navLinks" aria-label="Sections">
+      <a href="#intake">Onboard</a>
+      <a href="#admin">Admin</a>
+      <a href="#ops">Ops</a>
+      <a href="#setup">Setup</a>
+      <a href="#founder">Founder</a>
+    </div>
+
+    <div class="navRight">
+      <span class="pill" id="pillDb">DB: <b class="mono">unknown</b></span>
+      <button class="btn" id="btnIdentity" type="button">Identity</button>
+    </div>
+  </nav>
+
+  <main class="wrap">
+    <section class="hero" id="top">
+      <h1>Contractor Network Console</h1>
+      <p>
+        One console. Two lanes.
+        Contractors onboard through the intake form, and your admin lane reviews, tags, verifies, exports, and dispatches.
+        Data persists in <b>Neon Postgres</b>. Attachments persist in <b>Netlify Blobs</b>.
+        Admin access is controlled by an <b>ADMIN_PASSWORD</b> env var (with optional Netlify Identity support).
+      </p>
+      <div class="sep"></div>
+      <p class="help">
+        Built to be walk-away deployable: set env vars once, then intake and admin are live.
+      </p>
+    </section>
+
+    <div class="grid">
+      <section class="card" id="intake" aria-label="Contractor intake">
+        <div class="kicker"><span class="dot"></span> Contractor Intake • Writes to Neon</div>
+        <h2>Onboard an Independent Contractor</h2>
+        <p class="help">Submissions persist in Neon. Attachments persist in Netlify Blobs.</p>
+        <div class="sep"></div>
+
+        <form id="intakeForm">
+          <div class="row">
+            <div class="field">
+              <label for="full_name">Full Name *</label>
+              <input id="full_name" name="full_name" required autocomplete="name" />
+            </div>
+            <div class="field">
+              <label for="business_name">Business Name</label>
+              <input id="business_name" name="business_name" autocomplete="organization" />
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="field">
+              <label for="email">Email *</label>
+              <input id="email" name="email" type="email" required autocomplete="email" />
+            </div>
+            <div class="field">
+              <label for="phone">Phone</label>
+              <input id="phone" name="phone" autocomplete="tel" />
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="field">
+              <label for="coverage">Coverage Area</label>
+              <input id="coverage" name="coverage" placeholder="Phoenix Metro • Remote US • Global" />
+            </div>
+            <div class="field">
+              <label for="availability">Availability</label>
+              <select id="availability" name="availability">
+                <option value="unknown">Not specified</option>
+                <option value="part-time">Part-time</option>
+                <option value="full-time">Full-time</option>
+                <option value="project">Project-based</option>
+                <option value="urgent">Urgent / immediate</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="lanes">Service Lanes (pick up to 6)</label>
+            <select id="lanes" name="lanes" multiple size="8">
+              <option>Web Design / UI</option>
+              <option>Frontend Engineering</option>
+              <option>Backend Engineering</option>
+              <option>DevOps / Cloud</option>
+              <option>Cloudflare Workers</option>
+              <option>Netlify Functions</option>
+              <option>Database (Postgres/Neon)</option>
+              <option>Cybersecurity</option>
+              <option>SEO / Local SEO</option>
+              <option>Google Business Profile</option>
+              <option>Copywriting / Editorial</option>
+              <option>Graphic Design</option>
+              <option>Video Editing</option>
+              <option>Photography</option>
+              <option>Branding / Strategy</option>
+              <option>Sales / AE</option>
+              <option>Operations / Dispatch</option>
+              <option>Bookkeeping</option>
+              <option>Legal / Contracts</option>
+              <option>Other</option>
+            </select>
+            <div class="help">Tip: hold Ctrl (Chromebook/Windows) or Cmd (Mac) to select multiple.</div>
+          </div>
+
+          <div class="field">
+            <label for="service_summary">Service Summary *</label>
+            <textarea id="service_summary" name="service_summary" required placeholder="What do you do? What outcomes can you deliver?"></textarea>
+          </div>
+
+          <div class="row">
+            <div class="field">
+              <label for="proof_link">Portfolio / Proof Link</label>
+              <input id="proof_link" name="proof_link" placeholder="https://..." />
+            </div>
+            <div class="field">
+              <label for="entity_type">Entity Type</label>
+              <select id="entity_type" name="entity_type">
+                <option value="independent_contractor">Independent Contractor</option>
+                <option value="llc">LLC</option>
+                <option value="corp">Corporation</option>
+                <option value="sole_prop">Sole Proprietor</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="licenses">Licenses / Certifications</label>
+            <input id="licenses" name="licenses" placeholder="OSHA 10 • CompTIA Security+ • License #..." />
+          </div>
+
+          <div class="field">
+            <label for="attachments">Attachments (optional)</label>
+            <input id="attachments" name="attachments" type="file" multiple />
+            <div class="help">Keep files modest; very large uploads may fail due to runtime limits.</div>
+          </div>
+
+          <div class="actions">
+            <button class="btn" type="submit">Submit Intake</button>
+            <button class="ghost" type="button" id="btnIntakeReset">Reset</button>
+          </div>
+
+          <div class="toast" id="intakeToast"></div>
+        </form>
+      </section>
+
+      <section class="card" id="admin" aria-label="Admin console">
+        <div class="kicker"><span class="dot"></span> Admin • Reads Neon + Blobs</div>
+        <h2>Admin Console</h2>
+        <p class="help">
+          Primary: ADMIN_PASSWORD (env var). Optional: Netlify Identity (allowlisted).
+          Login attempts are captured by Netlify Forms (no secrets).
+        </p>
+        <div class="sep"></div>
+
+        <form name="admin-login" data-netlify="true" hidden>
+          <input type="hidden" name="form-name" value="admin-login" />
+          <input type="text" name="mode" />
+          <input type="text" name="ts" />
+          <input type="text" name="ua" />
+        </form>
+
+        <div class="field">
+          <label for="admin_password">Admin Password</label>
+          <input id="admin_password" type="password" placeholder="••••••••••" autocomplete="current-password" />
+        </div>
+
+        <div class="actions">
+          <button class="btn" id="btnAdminLogin" type="button">Login</button>
+          <button class="ghost" id="btnAdminLogout" type="button">Logout</button>
+          <button class="ghost" id="btnAdminRefresh" type="button">Refresh</button>
+          <button class="ghost" id="btnAdminExport" type="button">Export CSV</button>
+        </div>
+
+        <div class="toast" id="adminToast"></div>
+        <div class="sep"></div>
+
+        <div class="toolbar">
+          <div class="left">
+            <span class="tag">Status</span>
+            <select id="filterStatus">
+              <option value="">All</option>
+              <option value="new">New</option>
+              <option value="reviewing">Reviewing</option>
+              <option value="approved">Approved</option>
+              <option value="on_hold">On Hold</option>
+              <option value="rejected">Rejected</option>
+            </select>
+
+            <span class="tag">Search</span>
+            <input id="filterQ" placeholder="name / email / lane / tag" />
+          </div>
+          <div class="right">
+            <span class="tag">Auth</span>
+            <span class="small mono" id="authMode">none</span>
+          </div>
+        </div>
+
+        <div class="tableWrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Created</th>
+                <th>Contractor</th>
+                <th>Lanes</th>
+                <th>Status</th>
+                <th>Coverage</th>
+                <th>Proof</th>
+                <th>Files</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="submissionsTbody">
+              <tr><td colspan="8" class="muted">Login and click Refresh.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="sep"></div>
+
+        <div class="field">
+          <label for="adminNotes">Admin Notes (selected)</label>
+          <textarea id="adminNotes" placeholder="Select a row → write notes → Save"></textarea>
+        </div>
+
+        <div class="row">
+          <div class="field">
+            <label for="adminTags">Tags (comma-separated)</label>
+            <input id="adminTags" placeholder="phoenix, urgent, seo, devops" />
+          </div>
+          <div class="field">
+            <label for="adminStatus">Set Status</label>
+            <select id="adminStatus">
+              <option value="reviewing">Reviewing</option>
+              <option value="approved">Approved</option>
+              <option value="on_hold">On Hold</option>
+              <option value="rejected">Rejected</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="btn" id="btnAdminSave" type="button">Save Changes</button>
+          <button class="ghost" id="btnAdminClear" type="button">Clear Selection</button>
+        </div>
+      </section>
+    </div>
+
+    <section class="card" id="ops">
+      <div class="kicker"><span class="dot"></span> Ops • Health + Diagnostics</div>
+      <h2>Ops Panel</h2>
+      <div class="sep"></div>
+      <div class="actions">
+        <button class="btn" id="btnHealth" type="button">Run Health Check</button>
+        <button class="ghost" id="btnPingAdmin" type="button">Ping Admin List</button>
+      </div>
+      <div class="toast" id="opsToast"></div>
+    </section>
+
+    <section class="card" id="setup">
+      <div class="kicker"><span class="dot"></span> 2026 Setup • Netlify + Neon</div>
+      <h2>Setup Notes</h2>
+      <div class="sep"></div>
+      <p class="help">
+        1) Run <b>neon-schema.sql</b> in Neon.<br/>
+        2) Netlify env vars: <span class="mono">DATABASE_URL</span>, <span class="mono">ADMIN_PASSWORD</span>, <span class="mono">ADMIN_JWT_SECRET</span>.<br/>
+        3) Enable Netlify Blobs (+ optional Identity).<br/>
+        4) Deploy via Git (functions require it).
+      </p>
+    </section>
+
+    <section class="founder" id="founder">
+      <div class="founderGrid">
+        <div>
+          <div class="kicker"><span class="dot"></span> About the Founder</div>
+          <h3>Skyes Over London LC</h3>
+          <p>
+            Operator-grade systems: infrastructure, portals, networks. This console turns contractor capacity into an auditable pipeline:
+            onboard talent, dispatch work, keep evidence in the database.
+          </p>
+          <div class="sep"></div>
+          <p class="help"><span class="mono">SkyesOverLondonLC@solenterprises.org</span> • <span class="mono">480-469-5416</span></p>
+        </div>
+        <div class="founderPortrait" aria-hidden="true"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    (function(){
+      const API = {
+        health: "/api/health",
+        intake: "/api/intake",
+        adminLogin: "/api/admin/login",
+        adminList: "/api/admin/submissions",
+        adminUpdate: "/api/admin/submission",
+        adminExport: "/api/admin/export",
+        fileDownload: "/api/admin/file"
+      };
+
+      const el = (id)=>document.getElementById(id);
+      const pillDb = el("pillDb");
+      const authMode = el("authMode");
+
+      const state = {
+        adminToken: localStorage.getItem("sol_admin_token") || "",
+        selectedId: "",
+        identityToken: ""
+      };
+
+      function setToast(targetId, html, ok=true){
+        const box = el(targetId);
+        box.classList.add("on");
+        box.style.borderColor = ok ? "rgba(39,242,255,.22)" : "rgba(255,102,102,.40)";
+        box.style.background = ok ? "rgba(39,242,255,.06)" : "rgba(255,102,102,.08)";
+        box.innerHTML = html;
+      }
+      function clearToast(targetId){
+        const box = el(targetId);
+        box.classList.remove("on");
+        box.innerHTML = "";
+      }
+
+      function authHeader(){
+        const token = state.identityToken || state.adminToken;
+        if (!token) return {};
+        return { "Authorization": "Bearer " + token };
+      }
+
+      async function apiJSON(url, opts={}){
+        const res = await fetch(url, {
+          ...opts,
+          headers: { ...(opts.headers || {}), ...authHeader() }
+        });
+        const txt = await res.text();
+        let data = null;
+        try { data = txt ? JSON.parse(txt) : null; } catch { data = { raw: txt }; }
+        if (!res.ok) {
+          const msg = (data && (data.error || data.message)) ? (data.error || data.message) : ("HTTP " + res.status);
+          throw new Error(msg);
+        }
+        return data;
+      }
+
+      async function checkHealth(){
+        try{
+          const data = await apiJSON(API.health);
+          if (data && data.ok) {
+            pillDb.innerHTML = 'DB: <b class="mono">ok</b>';
+            setToast("opsToast", "<b>Health OK</b><br/><span class='small'>build " + (data.build || "n/a") + "</span>", true);
+          } else {
+            pillDb.innerHTML = 'DB: <b class="mono">down</b>';
+            setToast("opsToast", "<b>Health failed</b>", false);
+          }
+        }catch(e){
+          pillDb.innerHTML = 'DB: <b class="mono">down</b>';
+          setToast("opsToast", "<b>Health failed</b><br/><span class='small'>" + (e.message || "unknown") + "</span>", false);
+        }
+      }
+
+      function lanesFromSelect(sel){
+        const out = [];
+        for (const opt of sel.options) if (opt.selected) out.push(opt.value);
+        return out.slice(0, 6);
+      }
+
+      async function submitIntake(ev){
+        ev.preventDefault();
+        clearToast("intakeToast");
+
+        const form = el("intakeForm");
+        const fd = new FormData(form);
+        fd.set("lanes_json", JSON.stringify(lanesFromSelect(el("lanes"))));
+
+        const filesInput = el("attachments");
+        if (filesInput && filesInput.files && filesInput.files.length) {
+          for (const f of filesInput.files) fd.append("files", f, f.name);
+        }
+
+        try{
+          const res = await fetch(API.intake, { method: "POST", body: fd });
+          const data = await res.json().catch(()=>({}));
+          if (!res.ok) throw new Error(data.error || ("HTTP " + res.status));
+          setToast("intakeToast", "<b>Submitted</b><br/>ID: <span class='mono'>" + data.id + "</span>", true);
+          form.reset();
+          el("lanes").selectedIndex = -1;
+        }catch(e){
+          setToast("intakeToast", "<b>Submit failed</b><br/><span class='small'>" + (e.message || "unknown") + "</span>", false);
+        }
+      }
+
+      async function postNetlifyForm(formName, fields){
+        try{
+          const body = new URLSearchParams();
+          body.set("form-name", formName);
+          for (const k of Object.keys(fields || {})) body.set(k, String(fields[k] ?? ""));
+          await fetch("/", { method:"POST", headers: { "Content-Type":"application/x-www-form-urlencoded" }, body });
+        }catch{}
+      }
+
+      async function adminLogin(){
+        clearToast("adminToast");
+        const password = el("admin_password").value || "";
+        if (!password) {
+          setToast("adminToast", "<b>Missing password</b>", false);
+          return;
+        }
+
+        postNetlifyForm("admin-login", { mode:"password", ts:new Date().toISOString(), ua:navigator.userAgent });
+
+        try{
+          const data = await apiJSON(API.adminLogin, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ password })
+          });
+          state.adminToken = data.token;
+          state.identityToken = "";
+          localStorage.setItem("sol_admin_token", state.adminToken);
+          authMode.textContent = "password";
+          setToast("adminToast", "<b>Admin authenticated</b>", true);
+          await adminRefresh();
+        }catch(e){
+          setToast("adminToast", "<b>Login failed</b><br/><span class='small'>" + (e.message || "unknown") + "</span>", false);
+        }
+      }
+
+      function adminLogout(){
+        state.adminToken = "";
+        state.identityToken = "";
+        state.selectedId = "";
+        localStorage.removeItem("sol_admin_token");
+        authMode.textContent = "none";
+        setToast("adminToast", "<b>Logged out</b>", true);
+        el("submissionsTbody").innerHTML = "<tr><td colspan='8' class='muted'>Logged out.</td></tr>";
+      }
+
+      function fmtDate(iso){
+        if (!iso) return "";
+        try{ return new Date(iso).toLocaleString(); } catch { return iso; }
+      }
+
+      function escapeHtml(s){
+        return String(s ?? "")
+          .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+          .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+      }
+      function escapeAttr(s){ return escapeHtml(s).replace(/`/g,"&#96;"); }
+
+      function renderFiles(files){
+        if (!files || !files.length) return "<span class='small muted'>none</span>";
+        return files.map(f=>{
+          const name = (f.filename || "file").replace(/</g,"&lt;");
+          return "<div><a class='link' href='" + API.fileDownload + "/" + encodeURIComponent(f.id) + "' target='_blank' rel='noopener'>" + name + "</a></div>";
+        }).join("");
+      }
+
+      async function adminRefresh(){
+        clearToast("adminToast");
+        const status = el("filterStatus").value || "";
+        const q = el("filterQ").value || "";
+        try{
+          const qs = new URLSearchParams();
+          if (status) qs.set("status", status);
+          if (q) qs.set("q", q);
+
+          const data = await apiJSON(API.adminList + (qs.toString() ? ("?" + qs.toString()) : ""));
+          const rows = data.items || [];
+          if (!rows.length){
+            el("submissionsTbody").innerHTML = "<tr><td colspan='8' class='muted'>No results.</td></tr>";
+            return;
+          }
+
+          el("submissionsTbody").innerHTML = rows.map(r=>{
+            const lanes = (r.lanes || []).map(x=>"<div class='small'>" + escapeHtml(x) + "</div>").join("");
+            const proof = r.proof_link ? "<a class='link' href='" + escapeAttr(r.proof_link) + "' target='_blank' rel='noopener'>link</a>" : "<span class='small muted'>—</span>";
+            const files = renderFiles(r.files);
+            const statusBadge = "<span class='badge'><i></i>" + escapeHtml(r.status || "new") + "</span>";
+
+            return "<tr>" +
+              "<td class='small'>" + escapeHtml(fmtDate(r.created_at)) + "</td>" +
+              "<td><b>" + escapeHtml(r.full_name || "") + "</b><div class='small muted'>" + escapeHtml(r.email || "") + "</div></td>" +
+              "<td>" + lanes + "</td>" +
+              "<td>" + statusBadge + "</td>" +
+              "<td class='small'>" + escapeHtml(r.coverage || "") + "</td>" +
+              "<td>" + proof + "</td>" +
+              "<td>" + files + "</td>" +
+              "<td><button class='ghost actSelect' data-id='" + escapeAttr(r.id) + "' type='button'>Select</button></td>" +
+            "</tr>";
+          }).join("");
+
+          for (const btn of document.querySelectorAll(".actSelect")){
+            btn.addEventListener("click", ()=>{
+              const id = btn.getAttribute("data-id");
+              selectSubmission(id, rows);
+            });
+          }
+
+          setToast("adminToast", "<b>Loaded</b><br/><span class='small'>" + rows.length + " submissions.</span>", true);
+        }catch(e){
+          setToast("adminToast", "<b>Fetch failed</b><br/><span class='small'>" + (e.message || "unknown") + "</span>", false);
+        }
+      }
+
+      function selectSubmission(id, rows){
+        state.selectedId = id;
+        const row = rows.find(x=>x.id === id);
+        if (!row) return;
+        el("adminNotes").value = row.admin_notes || "";
+        el("adminTags").value = (row.tags || []).join(", ");
+        el("adminStatus").value = row.status || "reviewing";
+        setToast("adminToast", "<b>Selected</b><br/><span class='small mono'>" + id + "</span>", true);
+      }
+
+      async function adminSave(){
+        clearToast("adminToast");
+        if (!state.selectedId){
+          setToast("adminToast", "<b>No selection</b>", false);
+          return;
+        }
+        const admin_notes = el("adminNotes").value || "";
+        const tags = (el("adminTags").value || "")
+          .split(",").map(s=>s.trim()).filter(Boolean).slice(0, 20);
+        const status = el("adminStatus").value || "reviewing";
+
+        try{
+          const data = await apiJSON(API.adminUpdate + "/" + encodeURIComponent(state.selectedId), {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ admin_notes, tags, status })
+          });
+          setToast("adminToast", "<b>Saved</b><br/><span class='small'>Updated: " + escapeHtml(data.id) + "</span>", true);
+          await adminRefresh();
+        }catch(e){
+          setToast("adminToast", "<b>Save failed</b><br/><span class='small'>" + (e.message || "unknown") + "</span>", false);
+        }
+      }
+
+      function adminClear(){
+        state.selectedId = "";
+        el("adminNotes").value = "";
+        el("adminTags").value = "";
+        el("adminStatus").value = "reviewing";
+        setToast("adminToast", "<b>Cleared</b>", true);
+      }
+
+      async function adminExport(){
+        clearToast("adminToast");
+        try{
+          const res = await fetch(API.adminExport, { headers: authHeader() });
+          if (!res.ok) {
+            const data = await res.json().catch(()=>({}));
+            throw new Error(data.error || ("HTTP " + res.status));
+          }
+          const blob = await res.blob();
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = "skyes-contractors-submissions.csv";
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          URL.revokeObjectURL(url);
+          setToast("adminToast", "<b>Export ready</b>", true);
+        }catch(e){
+          setToast("adminToast", "<b>Export failed</b><br/><span class='small'>" + (e.message || "unknown") + "</span>", false);
+        }
+      }
+
+      async function pingAdmin(){
+        clearToast("opsToast");
+        try{
+          await apiJSON(API.adminList + "?limit=1");
+          setToast("opsToast", "<b>Admin list OK</b>", true);
+        }catch(e){
+          setToast("opsToast", "<b>Admin list blocked</b><br/><span class='small'>" + (e.message || "unauthenticated") + "</span>", false);
+        }
+      }
+
+      function wireIdentity(){
+        const btn = el("btnIdentity");
+        btn.addEventListener("click", ()=>{
+          if (!window.netlifyIdentity){
+            setToast("opsToast", "<b>Identity widget not loaded</b>", false);
+            return;
+          }
+          window.netlifyIdentity.open();
+        });
+
+        if (window.netlifyIdentity){
+          window.netlifyIdentity.on("login", async (user)=>{
+            postNetlifyForm("admin-login", { mode:"identity", ts:new Date().toISOString(), ua:navigator.userAgent });
+            try{
+              const token = await user.jwt();
+              state.identityToken = token;
+              authMode.textContent = "identity";
+              setToast("adminToast", "<b>Identity login</b>", true);
+              window.netlifyIdentity.close();
+              await adminRefresh();
+            }catch(e){
+              setToast("adminToast", "<b>Identity login failed</b>", false);
+            }
+          });
+          window.netlifyIdentity.on("logout", ()=>{
+            state.identityToken = "";
+            if (!state.adminToken) authMode.textContent = "none";
+          });
+        }
+      }
+
+      el("intakeForm").addEventListener("submit", submitIntake);
+      el("btnIntakeReset").addEventListener("click", ()=>{ el("intakeForm").reset(); el("lanes").selectedIndex = -1; clearToast("intakeToast"); });
+
+      el("btnAdminLogin").addEventListener("click", adminLogin);
+      el("btnAdminLogout").addEventListener("click", adminLogout);
+      el("btnAdminRefresh").addEventListener("click", adminRefresh);
+      el("btnAdminSave").addEventListener("click", adminSave);
+      el("btnAdminClear").addEventListener("click", adminClear);
+      el("btnAdminExport").addEventListener("click", adminExport);
+
+      el("btnHealth").addEventListener("click", checkHealth);
+      el("btnPingAdmin").addEventListener("click", pingAdmin);
+
+      el("filterStatus").addEventListener("change", adminRefresh);
+      el("filterQ").addEventListener("keydown", (e)=>{ if (e.key === "Enter") { e.preventDefault(); adminRefresh(); } });
+
+      if (state.adminToken) authMode.textContent = "password";
+      wireIdentity();
+      checkHealth();
+    })();
+  </script>
+</body>
+</html>

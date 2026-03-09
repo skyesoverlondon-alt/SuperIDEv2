@@ -3,7 +3,31 @@ import { requireUser, forbid } from "./_shared/auth";
 import { q } from "./_shared/neon";
 import { canReadWorkspace } from "./_shared/rbac";
 
-const ALLOWED_APPS = new Set(["SkyeCalendar", "SkyeDrive", "SkyeVault", "SkyeForms", "SkyeNotes", "SkyeBlog", "SkyeDocxPro", "SkyeBookx"]);
+const ALLOWED_APPS = new Set([
+  "SkyeCalendar",
+  "SkyeDrive",
+  "SkyeVault",
+  "SkyeForms",
+  "SkyeNotes",
+  "SkyeBlog",
+  "SkyeDocxPro",
+  "SkyeBookx",
+  "SkyePlatinum",
+  "kAIxu-Cinematic",
+  "kAIxu-Persona",
+  "kAIxu-Mythos",
+  "kAIxu-Atlas",
+  "kAIxu-Atmos",
+  "kAIxu-Bestiary",
+  "kAIxu-Forge",
+  "kAIxu-Quest",
+  "kAIxU-Codex",
+  "kAIxU-Faction",
+  "kAIxU-Matrix",
+  "kAIxU-PrimeCommand",
+  "kAIxU-Vision",
+  "kAixU-Chronos",
+]);
 
 function parseLimit(raw: string | undefined): number {
   const n = Number(raw || 20);

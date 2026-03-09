@@ -1,15 +1,27 @@
 (function () {
   const ACCESS_TOKEN_KEY = "kx.api.accessToken";
   const TOKEN_EMAIL_KEY = "kx.api.tokenEmail";
+  const KEY_ALIAS = "kaixu_api_key";
   const HAS_PIN_KEY = "kx.auth.hasPin";
   const PIN_UNLOCKED_AT_KEY = "kx.auth.pinUnlockedAt";
+  const KAIXU_SYNC_EVENT = "kaixu:key-sync";
 
   function readToken() {
-    return String(localStorage.getItem(ACCESS_TOKEN_KEY) || "").trim();
+    return String(localStorage.getItem(ACCESS_TOKEN_KEY) || localStorage.getItem(KEY_ALIAS) || "").trim();
   }
 
   function readTokenEmail() {
     return String(localStorage.getItem(TOKEN_EMAIL_KEY) || "").trim().toLowerCase();
+  }
+
+  function broadcastKeySync(token, lockedEmail) {
+    const detail = {
+      hasKey: Boolean(String(token || "").trim()),
+      lockedEmail: String(lockedEmail || "").trim().toLowerCase(),
+    };
+    try {
+      window.dispatchEvent(new CustomEvent(KAIXU_SYNC_EVENT, { detail }));
+    } catch {}
   }
 
   function persistUnlockedToken(token, lockedEmail) {
@@ -18,13 +30,17 @@
     localStorage.setItem(ACCESS_TOKEN_KEY, nextToken);
     localStorage.setItem(TOKEN_EMAIL_KEY, nextEmail);
     localStorage.setItem(PIN_UNLOCKED_AT_KEY, new Date().toISOString());
-    if (nextToken) localStorage.setItem("kaixu_api_key", nextToken);
+    if (nextToken) localStorage.setItem(KEY_ALIAS, nextToken);
+    else localStorage.removeItem(KEY_ALIAS);
+    broadcastKeySync(nextToken, nextEmail);
   }
 
   function clearUnlockedToken() {
     localStorage.removeItem(ACCESS_TOKEN_KEY);
     localStorage.removeItem(TOKEN_EMAIL_KEY);
     localStorage.removeItem(PIN_UNLOCKED_AT_KEY);
+    localStorage.removeItem(KEY_ALIAS);
+    broadcastKeySync("", "");
   }
 
   async function jsonRequest(path, body, method) {
@@ -129,7 +145,9 @@
     clearUnlockedToken,
     ensureUnlockedAccess,
     issueSessionToken,
+    KAIXU_SYNC_EVENT,
     persistUnlockedToken,
+    readKaixuKey: readToken,
     readSessionMeta,
     readToken,
     readTokenEmail,

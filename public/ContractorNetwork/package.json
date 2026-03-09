@@ -1,0 +1,17 @@
+{
+  "name": "skyes-contractor-neon-console",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Skyes Over London LC Contractor Network Console (Neon + Netlify Blobs + optional Identity)",
+  "type": "module",
+  "scripts": {
+    "dev": "netlify dev"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "1.0.2",
+    "@netlify/blobs": "10.4.1"
+  },
+  "devDependencies": {
+    "netlify-cli": "17.38.0"
+  }
+}

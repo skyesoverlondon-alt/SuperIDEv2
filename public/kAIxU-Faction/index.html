@@ -6,18 +6,14 @@
     <title>kAIxu Faction - Political & Guild Architect</title>
     <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="/_shared/auth-unlock.js"></script>
+    <script src="/_shared/standalone-session.js"></script>
+    <script src="/_shared/workspace-record-sync.js"></script>
     <script src="/_shared/gateway-retry.js"></script>
     
     <!-- Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
-    <!-- Firebase SDKs -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        window.fb = { initializeApp, getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged, getFirestore, doc, setDoc, onSnapshot };
-    </script>
 
     <style>
         /* PDF/PRINT ENGINE - FULLY WIRED STRATEGIC DOSSIER */
@@ -56,7 +52,8 @@
         .glass-nav { background: rgba(255, 255, 255, 0.98) !important; backdrop-filter: blur(16px); border-bottom: 2px solid #e2e8f0 !important; }
         .editor-card { background: white !important; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1); border: 1px solid #e2e8f0; }
         
-        .nexus-link { @apply text-[10px] text-slate-500 hover:text-indigo-600 flex items-center gap-1.5 transition-colors py-0.5 font-bold uppercase tracking-tighter; }
+        .nexus-link { font-size: 10px; color: #64748b; display: flex; align-items: center; gap: 0.375rem; transition: color 150ms ease; padding: 0.125rem 0; font-weight: 700; text-transform: uppercase; letter-spacing: -0.05em; }
+        .nexus-link:hover { color: #4f46e5; }
         #tutorial-modal { background: rgba(2, 6, 23, 0.9); backdrop-filter: blur(15px); }
     </style>
 </head>
@@ -247,13 +244,26 @@
             viewMode: "editor",
             openaiKey: ""
         };
-        let user = null, isSaving = false, saveTimeout = null;
-
-        const { initializeApp, getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged, getFirestore, doc, setDoc, onSnapshot } = window.fb;
-        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
+        let saveTimeout = null;
+        const workspaceSync = window.SkyeWorkspaceRecordSync.create({
+            appId: 'kaixu-faction',
+            recordApp: 'kAIxU-Faction',
+            wsId: getWsId(),
+            statusElementId: 'sync-status',
+            getState: () => state,
+            applyState: (payload) => {
+                state = { ...state, ...payload };
+                refreshUI();
+            },
+            serialize: (model) => ({ ...model, factions: JSON.stringify(model.factions) }),
+            deserialize: (payload) => {
+                if (payload && typeof payload.factions === 'string') {
+                    try { payload.factions = JSON.parse(payload.factions); } catch (error) { console.error('Failed to parse synced factions', error); }
+                }
+                return payload;
+            },
+            getTitle: (model) => model.title || 'Network Zero',
+        });
 
         // --- Three.js Power Grid Background ---
         function initThreeJS() {
@@ -311,48 +321,18 @@
             });
             document.getElementById('import-input').addEventListener('change', handleImport);
 
-            try {
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token);
-                else await signInAnonymously(auth);
-            } catch (err) { console.error("Auth Error", err); }
-
-            onAuthStateChanged(auth, u => { 
-                user = u; 
-                if(user) syncCloud();
-            });
+            await syncCloud();
             renderNav();
         }
 
         async function syncCloud() {
-            if(!user) return;
-            const docRef = doc(db, 'artifacts', appId, 'users', user.uid, 'factions', 'current');
-            onSnapshot(docRef, snap => {
-                if (snap.exists() && !isSaving) {
-                    const data = snap.data();
-                    if (data.factions && typeof data.factions === 'string') {
-                        try { data.factions = JSON.parse(data.factions); } catch(e) {}
-                    }
-                    state = { ...state, ...data };
-                    refreshUI();
-                }
-            });
+            return workspaceSync.load(false);
         }
 
-        function debouncedSave() { clearTimeout(saveTimeout); saveTimeout = setTimeout(saveToCloud, 2000); }
+        function debouncedSave() { workspaceSync.debouncedSave(); }
 
         async function saveToCloud() {
-            if (!user) return;
-            isSaving = true;
-            const statusEl = document.getElementById('sync-status');
-            statusEl.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin text-indigo-500"></i> <span>Syncing...</span>';
-            try {
-                const jsonFactions = JSON.stringify(state.factions);
-                if (jsonFactions.length > 1000000) { statusEl.innerHTML = '<span class="text-amber-500">Local Only</span>'; return; }
-                const docRef = doc(db, 'artifacts', appId, 'users', user.uid, 'factions', 'current');
-                await setDoc(docRef, { ...state, factions: jsonFactions }, { merge: true });
-                statusEl.innerHTML = '<i class="fa-solid fa-cloud text-indigo-400"></i> <span>Synced</span>';
-            } catch (err) { statusEl.innerHTML = '<span>Error</span>'; }
-            finally { setTimeout(() => isSaving = false, 500); }
+            return workspaceSync.save({ prompt: false, silent: true });
         }
 
         window.exportToDevice = () => {
@@ -456,53 +436,7 @@
                 body: JSON.stringify({
                     ws_id: getWsId(),
                     activePath: window.location.pathname,
-                    prompt: String(system || '').trim() + '
-
-' + String(prompt || '').trim(),
-                })
-            });
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok) throw new Error(data?.error || data?.message || ('Gateway failure (' + res.status + ')'));
-            return data?.text || data?.output || '';
-        }
-        function renderPromptPoster(promptText, label) {
-            const esc = (s) => String(s || '').replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
-            const body = esc(String(promptText || '').slice(0, 520));
-            const tag = esc(label || 'kAIxU Gateway Render');
-            const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">'
-                + '<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#0f172a"/><stop offset="100%" stop-color="#312e81"/></linearGradient></defs>'
-                + '<rect width="1024" height="1024" fill="url(#g)"/>'
-                + '<rect x="44" y="44" width="936" height="936" rx="24" fill="none" stroke="#eab308" stroke-opacity="0.55" stroke-width="4"/>'
-                + '<text x="72" y="118" fill="#eab308" font-size="36" font-family="Arial, sans-serif" font-weight="700">' + tag + '</text>'
-                + '<foreignObject x="72" y="168" width="880" height="780"><div xmlns="http://www.w3.org/1999/xhtml" style="font-family:Arial,sans-serif;color:#e2e8f0;font-size:30px;line-height:1.35;white-space:pre-wrap;">' + body + '</div></foreignObject>'
-                + '</svg>';
-            return 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)));
-        }
-        const gatewayFetch = (window.SkyeGateway && window.SkyeGateway.fetchWithRetry) || fetch;
-        function getWsId() {
-            return new URLSearchParams(window.location.search).get('ws_id') || 'primary-workspace';
-        }
-        function getGatewayHeaders() {
-            const keyInput = document.getElementById('openai-key');
-            const raw = (state.openaiKey || (keyInput && keyInput.value) || localStorage.getItem('kx.api.accessToken') || '').trim();
-            const headers = { 'Content-Type': 'application/json' };
-            if (raw) headers.Authorization = 'Bearer ' + raw;
-            if (window.SkyeCorrelation && typeof window.SkyeCorrelation.nextId === 'function') {
-                headers['x-correlation-id'] = window.SkyeCorrelation.nextId('kaixu-standalone');
-            }
-            return headers;
-        }
-        async function callGatewayText(prompt, system) {
-            const res = await gatewayFetch('/api/kaixu-generate', {
-                method: 'POST',
-                headers: getGatewayHeaders(),
-                credentials: 'include',
-                body: JSON.stringify({
-                    ws_id: getWsId(),
-                    activePath: window.location.pathname,
-                    prompt: String(system || '').trim() + '
-
-' + String(prompt || '').trim(),
+                    prompt: String(system || '').trim() + '\n\n' + String(prompt || '').trim(),
                 })
             });
             const data = await res.json().catch(() => ({}));
@@ -525,10 +459,6 @@
 
         async function fetchOpenAI(prompt, system) {
             return callGatewayText(prompt, system || 'You are kAIxU gateway intelligence.');
-        });
-            if (!res.ok) throw new Error("API Connection Failure");
-            const data = await res.json();
-            return data.choices[0].message.content;
         }
 
         window.generateFromScratch = async () => {

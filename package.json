@@ -21,9 +21,11 @@
     "check:skye-schema": "node scripts/check-skye-schema.js",
     "test:gateway-shape": "node scripts/test-gateway-shape-fixtures.js",
     "test:auth-regression": "node scripts/test-auth-regressions.js",
+    "test:neural-session-regression": "node scripts/test-neural-session-regression.js",
     "test:export-import-schema": "node scripts/test-export-import-schema.js",
     "check:smoke-snapshot": "node scripts/check-smoke-snapshot.js",
     "smoke:interactions": "node scripts/smoke-interactions-playwright.mjs",
+    "smoke:neural-authenticated": "node scripts/smoke-neural-authenticated-playwright.mjs",
     "release:artifacts": "node scripts/generate-release-artifacts.js",
     "release:gates": "node scripts/evaluate-release-gates.js",
     "release:checklist": "node scripts/run-release-checklist.js",
@@ -31,6 +33,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@netlify/blobs": "^10.4.1",
     "@monaco-editor/react": "^4.6.0",
     "@sentry/browser": "^8.55.0",
     "clsx": "^2.1.1",

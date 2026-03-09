@@ -3282,6 +3282,26 @@
                     },
                 };
                 try {
+
+                async function recordSuiteIntent(intentName, status, options = {}) {
+                    const session = window.SkyeStandaloneSession || standaloneSession;
+                    if (!session?.recordSuiteIntent) return null;
+                    return session.recordSuiteIntent({
+                        sourceApp: appId,
+                        targetApp: options.targetApp || appId,
+                        intent: { name: intentName, status, summary: options.summary || '' },
+                        context: {
+                            workspace_id: wsId,
+                            channel_id: options.channelId || null,
+                            draft_id: options.draftId || null,
+                            file_ids: options.fileIds || [],
+                            asset_ids: options.assetIds || [],
+                        },
+                        detail: options.detail || '',
+                        badge: options.badge || '',
+                        payload: options.payload || {},
+                    });
+                }
                     localStorage.setItem('kx.app.bridge', JSON.stringify(envelope));
                 } catch {}
                 try {
@@ -3403,11 +3423,20 @@
                     message,
                     source: `${appId} Publisher`,
                 });
-                publishBridgeEvent({
-                    appId: 'SkyeChat',
-                    channel: channel.trim(),
-                    note: `Published ${title} from SkyeBlog into #${channel.trim()}${recordId ? ` (record_id=${recordId})` : ''}.`,
+                await recordSuiteIntent('open-thread', 'completed', {
+                    targetApp: 'SkyeChat',
+                    summary: 'Route the active blog draft into SkyeChat.',
+                    detail: `Published ${title} from SkyeBlog into #${channel.trim()}${recordId ? ` (record_id=${recordId})` : ''}.`,
+                    channelId: channel.trim(),
+                    assetIds: recordId ? [recordId] : [],
+                    payload: {
+                        topic: (topic || 'blog').trim().toLowerCase(),
+                        message,
+                        title,
+                        record_id: recordId || null,
+                    },
                 });
+                setWorkflowTruth('route', 'ok', 'Route Armed');
                 setWorkflowTruth('last', 'ok', 'Chat Routed');
                 setWorkflowStatus(`Published ${title} to SkyeChat channel #${channel.trim()}.`, 'ok');
                 window.App.showToast(`Published ${title} to #${channel.trim()}${recordId ? ` · record_id=${recordId}` : ''}.`);
@@ -3443,10 +3472,19 @@
                         source_app: appId,
                     },
                 });
-                publishBridgeEvent({
-                    appId: 'SkyeMail',
-                    note: `Delivered ${title} via SkyeMail to ${String(to).trim().toLowerCase()}${result?.mail_record_id ? ` (mail_record_id=${result.mail_record_id})` : ''}.`,
+                await recordSuiteIntent('compose-mail', 'completed', {
+                    targetApp: 'SkyeMail',
+                    summary: 'Route the active blog draft into SkyeMail.',
+                    detail: `Delivered ${title} via SkyeMail to ${String(to).trim().toLowerCase()}${result?.mail_record_id ? ` (mail_record_id=${result.mail_record_id})` : ''}.`,
+                    payload: {
+                        to: String(to).trim().toLowerCase(),
+                        subject: String(subject).trim(),
+                        text: `${excerpt}\n\nSent from ${appId}. Export options remain available: .skye / HTML ZIP / PDF.`,
+                        title,
+                        mail_record_id: result?.mail_record_id || null,
+                    },
                 });
+                setWorkflowTruth('route', 'ok', 'Route Armed');
                 setWorkflowTruth('last', 'ok', 'Mail Routed');
                 setWorkflowStatus(`Delivered ${title} to ${String(to).trim().toLowerCase()} via SkyeMail.`, 'ok');
                 window.App.showToast(`Delivered ${title} via SkyeMail${result?.mail_record_id ? ` · mail_record_id=${result.mail_record_id}` : ''}.`);

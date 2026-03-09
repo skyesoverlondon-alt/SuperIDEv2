@@ -169,6 +169,81 @@ router.post("/v1/brain/backup/generate", async (req: Request, env: any) => {
   }
 });
 
+router.post("/v1/brain/backup/generate-stream", async (req: Request, env: any) => {
+  const { text, json: body } = await readBody(req);
+  await requireRunnerAuth(env, req, "/v1/brain/backup/generate-stream", text);
+
+  const messages = Array.isArray(body?.messages) ? body.messages : [];
+  if (!messages.length) {
+    return j({ ok: false, error: "Missing messages.", brain: { route: "backup", failed: true } }, 400, corsHeaders(env, req));
+  }
+
+  const endpoint = normalizeKaixuEndpoint(String(env.KAIXU_BACKUP_ENDPOINT || ""));
+  if (!endpoint) {
+    return j({ ok: false, error: "Backup brain not configured.", brain: { route: "backup", failed: true } }, 503, corsHeaders(env, req));
+  }
+
+  const token = String(env.KAIXU_APP_TOKEN || env.KAIXU_BACKUP_TOKEN || "").trim();
+  if (!token) {
+    return j({ ok: false, error: "Backup brain token not configured.", brain: { route: "backup", failed: true } }, 500, corsHeaders(env, req));
+  }
+
+  const provider = String(body?.provider || env.KAIXU_BACKUP_PROVIDER || env.KAIXU_GATEWAY_PROVIDER || "Skyes Over London Backup").trim() || "Skyes Over London Backup";
+  const model = String(body?.model || env.KAIXU_BACKUP_MODEL || env.KAIXU_GATEWAY_MODEL || "kAIxU-Prime6.7").trim() || "kAIxU-Prime6.7";
+
+  try {
+    const upstream = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "text/event-stream",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ provider, model, messages, stream: true }),
+    });
+    const contentType = String(upstream.headers.get("content-type") || "").toLowerCase();
+    if (!upstream.ok || !contentType.includes("text/event-stream") || !upstream.body) {
+      const upstreamText = await upstream.text();
+      let data: any = null;
+      try {
+        data = upstreamText ? JSON.parse(upstreamText) : null;
+      } catch {
+        data = { raw: upstreamText };
+      }
+      return j(
+        {
+          ok: false,
+          stream_supported: false,
+          error: `Backup brain streaming unavailable (${upstream.status}): ${compactBrainError(data, upstreamText)}`,
+          brain: { route: "backup", failed: true, provider, model, request_id: String(upstream.headers.get("x-kaixu-request-id") || "").trim() || null },
+        },
+        409,
+        corsHeaders(env, req)
+      );
+    }
+    return new Response(upstream.body, {
+      status: 200,
+      headers: {
+        ...corsHeaders(env, req),
+        "Content-Type": "text/event-stream; charset=utf-8",
+        "Cache-Control": "no-cache, no-transform",
+        Connection: "keep-alive",
+        "X-Accel-Buffering": "no",
+      },
+    });
+  } catch (e: any) {
+    return j(
+      {
+        ok: false,
+        error: String(e?.message || "Backup brain request failed.").replace(/\s+/g, " ").trim().slice(0, 220),
+        brain: { route: "backup", failed: true, provider, model, request_id: null },
+      },
+      502,
+      corsHeaders(env, req)
+    );
+  }
+});
+
 // Public landing page: this worker is an API runner, not the app UI.
 router.get("/", (req: Request, env: any) => {
   const html = `<!DOCTYPE html>
@@ -506,22 +581,14 @@ router.post("/v1/ws/export", async (req: Request, env: any) => {
 router.post("/v1/github/app/push", async (req: Request, env: any) => {
   const { text, json: body } = await readBody(req);
   await requireRunnerAuth(env, req, "/v1/github/app/push", text);
-  const { user_id, org_id, ws_id, repo, branch, installation_id, message, files } = body;
+  const { user_id, org_id, ws_id, repo, branch, installation_id, message } = body;
   if (!user_id || !org_id || !ws_id || !repo || !installation_id) return j({ error: "Missing fields." }, 400, corsHeaders(env, req));
   // Guard: ensure the workspace belongs to the org
   const ws = await q(env, "select org_id from workspaces where id=$1", [ws_id]);
   if (!ws.rows.length) return j({ error: "Workspace not found." }, 404, corsHeaders(env, req));
   if (ws.rows[0].org_id !== org_id) return j({ error: "Forbidden." }, 403, corsHeaders(env, req));
   try {
-    const out = await githubAppPushFromWorkspace(
-      env,
-      Number(installation_id),
-      String(ws_id),
-      String(repo),
-      String(branch || "main"),
-      String(message || "kAIxU update"),
-      Array.isArray(files) ? files : undefined
-    );
+    const out = await githubAppPushFromWorkspace(env, Number(installation_id), String(ws_id), String(repo), String(branch || "main"), String(message || "kAIxU update"));
     return j(out, 200, corsHeaders(env, req));
   } catch (e: any) {
     return j({ error: e?.message || "GitHub push failed." }, 500, corsHeaders(env, req));
@@ -535,7 +602,7 @@ router.post("/v1/github/app/push", async (req: Request, env: any) => {
 router.post("/v1/netlify/deploy", async (req: Request, env: any) => {
   const { text, json: body } = await readBody(req);
   await requireRunnerAuth(env, req, "/v1/netlify/deploy", text);
-  const { user_id, org_id, ws_id, site_id, title, files } = body;
+  const { user_id, org_id, ws_id, site_id, title } = body;
   if (!user_id || !org_id || !ws_id || !site_id) return j({ error: "Missing fields." }, 400, corsHeaders(env, req));
   const raw = await env.KX_SECRETS_KV.get(`netlify:${user_id}`);
   if (!raw) return j({ error: "Netlify not vaulted for user." }, 400, corsHeaders(env, req));
@@ -547,14 +614,7 @@ router.post("/v1/netlify/deploy", async (req: Request, env: any) => {
   if (!ws.rows.length) return j({ error: "Workspace not found." }, 404, corsHeaders(env, req));
   if (ws.rows[0].org_id !== org_id) return j({ error: "Forbidden." }, 403, corsHeaders(env, req));
   try {
-    const out = await netlifyDeployFromWorkspace(
-      env,
-      String(token),
-      String(ws_id),
-      String(site_id),
-      String(title || "kAIxU deploy"),
-      Array.isArray(files) ? files : undefined
-    );
+    const out = await netlifyDeployFromWorkspace(env, String(token), String(ws_id), String(site_id), String(title || "kAIxU deploy"));
     return j(out, 200, corsHeaders(env, req));
   } catch (e: any) {
     return j({ error: e?.message || "Netlify deploy failed." }, 500, corsHeaders(env, req));

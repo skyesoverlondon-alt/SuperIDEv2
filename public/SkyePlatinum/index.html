@@ -10,18 +10,13 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/_shared/auth-unlock.js"></script>
+    <script src="/_shared/standalone-session.js"></script>
+    <script src="/_shared/workspace-record-sync.js"></script>
     <script src="/_shared/gateway-retry.js"></script>
     <script src="/_shared/telemetry.js"></script>
     <script src="/_shared/error-fingerprint.js"></script>
     <script src="/_shared/correlation.js"></script>
-    <!-- Firebase SDKs -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, doc, setDoc, addDoc, onSnapshot, serverTimestamp, updateDoc, deleteDoc, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        window.Firebase = { initializeApp, getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, getFirestore, collection, doc, setDoc, addDoc, onSnapshot, serverTimestamp, updateDoc, deleteDoc, writeBatch };
-    </script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;300;400;700;900&display=swap');
         
@@ -61,9 +56,62 @@
     <script type="text/babel">
         const { useState, useEffect, useMemo, useRef } = React;
 
-        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'skye-platinum-hub-v1';
+        const pageParams = new URLSearchParams(window.location.search);
+        const wsId = pageParams.get('ws_id') || 'primary-workspace';
+        const workspaceRecordApp = 'SkyePlatinum';
         const logoSrc = "https://cdn1.sharemyimage.com/2026/02/16/logo1_transparent.png";
+
+        const createRecordId = (prefix) => {
+            if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+                return `${prefix}-${window.crypto.randomUUID()}`;
+            }
+            return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+        };
+
+        const getTimestampValue = (value) => {
+            if (!value) return 0;
+            if (typeof value === 'number' && Number.isFinite(value)) return value;
+            if (typeof value === 'string') {
+                const parsed = Date.parse(value);
+                return Number.isNaN(parsed) ? 0 : parsed;
+            }
+            if (typeof value === 'object' && typeof value.seconds === 'number') {
+                return (value.seconds * 1000) + Math.round(Number(value.nanoseconds || 0) / 1000000);
+            }
+            return 0;
+        };
+
+        const normalizeClient = (client) => {
+            const record = client && typeof client === 'object' ? client : {};
+            return {
+                id: record.id || createRecordId('client'),
+                name: String(record.name || ''),
+                entityType: String(record.entityType || 'Corporation'),
+                status: String(record.status || 'Active'),
+                totalValue: Number(record.totalValue || 0),
+                createdAt: record.createdAt || null,
+            };
+        };
+
+        const normalizeLedgerEntry = (entry) => {
+            const record = entry && typeof entry === 'object' ? entry : {};
+            return {
+                id: record.id || createRecordId('ledger'),
+                clientId: String(record.clientId || ''),
+                clientName: String(record.clientName || ''),
+                amount: Number(record.amount || 0),
+                type: record.type === 'Debit' ? 'Debit' : 'Credit',
+                description: String(record.description || ''),
+                timestamp: record.timestamp || new Date().toISOString(),
+            };
+        };
+
+        const sortLedgerEntries = (entries) => {
+            return (Array.isArray(entries) ? entries : [])
+                .map(normalizeLedgerEntry)
+                .sort((a, b) => getTimestampValue(b.timestamp) - getTimestampValue(a.timestamp));
+        };
 
         const ecosystemNodes = [
             { name: "SKye Sol", url: "https://skyesol.netlify.app/" },
@@ -192,7 +240,7 @@
         };
 
         const App = () => {
-            const [user, setUser] = useState(null);
+            const [sessionReady, setSessionReady] = useState(false);
             const [showIntro, setShowIntro] = useState(true);
             const [activeTab, setActiveTab] = useState('dashboard');
             const [notifications, setNotifications] = useState([]);
@@ -219,86 +267,24 @@
             const [tempKey, setTempKey] = useState('');
 
             const particlesRef = useRef(null);
+            const workspaceStateRef = useRef({ clients: [], ledger: [], kaixuAccessKey: '' });
+            const workspaceSyncRef = useRef(null);
+            const hasHydratedRef = useRef(false);
+            const isApplyingRemoteRef = useRef(false);
+            const autosaveTimerRef = useRef(null);
 
-            // --- Rule 3: Auth First ---
             useEffect(() => {
-                const initAuth = async () => {
-                    try {
-                        const { initializeApp, getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } = window.Firebase;
-                        const fbApp = initializeApp(firebaseConfig);
-                        const auth = getAuth(fbApp);
-                        
-                        // Rule 3: Await sign-in
-                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                            await signInWithCustomToken(auth, __initial_auth_token);
-                        } else {
-                            await signInAnonymously(auth);
-                        }
-
-                        const unsubAuth = onAuthStateChanged(auth, (usr) => {
-                            if (usr) setUser(usr);
-                        });
-                        
-                        return unsubAuth;
-                    } catch (err) {
-                        console.error("Authentication Failure:", err);
-                        notify("Auth Error: Check Node Shards");
-                    }
-                };
-                
-                initAuth();
                 const timer = setTimeout(() => setShowIntro(false), 4500);
                 return () => clearTimeout(timer);
             }, []);
 
-            // --- Data Loaders (Guarded by Rule 3) ---
-            useEffect(() => {
-                if (!user) return;
-                const { getFirestore, doc, onSnapshot, collection } = window.Firebase;
-                const db = getFirestore();
-
-                // 1. Config Sync (Private)
-                const configDoc = doc(db, 'artifacts', appId, 'users', user.uid, 'settings', 'config');
-                const unsubConfig = onSnapshot(configDoc, 
-                    (snap) => {
-                        if (snap.exists()) {
-                            const syncedKey = snap.data().kaixuAccessKey || "";
-                            setKaixuAccessKey(syncedKey);
-                            setTempKey(syncedKey);
-                        }
-                    },
-                    (err) => console.error("Config Sync Error:", err)
-                );
-
-                // 2. Clients Sync (Public)
-                const clientCol = collection(db, 'artifacts', appId, 'public', 'data', 'clients');
-                const unsubClients = onSnapshot(clientCol, 
-                    (snap) => {
-                        setClients(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-                    },
-                    (err) => console.error("Client Sync Error:", err)
-                );
-
-                // 3. Ledger Sync (Public)
-                const ledgerCol = collection(db, 'artifacts', appId, 'public', 'data', 'ledger');
-                const unsubLedger = onSnapshot(ledgerCol, 
-                    (snap) => {
-                        const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-                        setLedger(list.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0)));
-                    },
-                    (err) => console.error("Ledger Sync Error:", err)
-                );
-
-                return () => { unsubConfig(); unsubClients(); unsubLedger(); };
-            }, [user]);
-
             const analytics = useMemo(() => {
                 const totalRevenue = ledger.reduce((acc, tx) => tx.type === 'Credit' ? acc + Number(tx.amount) : acc - Number(tx.amount), 0);
-                const sortedLedger = [...ledger].sort((a, b) => (a.timestamp?.seconds || 0) - (b.timestamp?.seconds || 0));
+                const sortedLedger = [...ledger].sort((a, b) => getTimestampValue(a.timestamp) - getTimestampValue(b.timestamp));
                 let runningTotal = 0;
                 const history = sortedLedger.map(tx => {
                     runningTotal += (tx.type === 'Credit' ? Number(tx.amount) : -Number(tx.amount));
-                    return { val: runningTotal, date: tx.timestamp?.seconds || 0 };
+                    return { val: runningTotal, date: getTimestampValue(tx.timestamp) };
                 });
                 const composition = clients.reduce((acc, c) => {
                     acc[c.entityType] = (acc[c.entityType] || 0) + 1;
@@ -308,7 +294,7 @@
             }, [ledger, clients]);
 
             const anomalyTrend = useMemo(() => {
-                const sorted = [...ledger].sort((a, b) => (a.timestamp?.seconds || 0) - (b.timestamp?.seconds || 0));
+                const sorted = [...ledger].sort((a, b) => getTimestampValue(a.timestamp) - getTimestampValue(b.timestamp));
                 const movements = sorted.map((tx) => ({
                     ...tx,
                     movement: tx.type === 'Credit' ? Number(tx.amount || 0) : -Number(tx.amount || 0),
@@ -360,6 +346,106 @@
 
             const updateDirectiveState = (id, patch) => {
                 setDirectiveWorkflow((old) => old.map((item) => (item.id === id ? { ...item, ...patch } : item)));
+            };
+
+            workspaceStateRef.current = { clients, ledger, kaixuAccessKey };
+
+            if (!workspaceSyncRef.current && window.SkyeWorkspaceRecordSync && typeof window.SkyeWorkspaceRecordSync.create === 'function') {
+                workspaceSyncRef.current = window.SkyeWorkspaceRecordSync.create({
+                    appId,
+                    recordApp: workspaceRecordApp,
+                    wsId,
+                    getState: () => workspaceStateRef.current,
+                    applyState: (payload) => {
+                        const model = payload && typeof payload === 'object' ? payload : {};
+                        isApplyingRemoteRef.current = true;
+                        setClients(Array.isArray(model.clients) ? model.clients.map(normalizeClient) : []);
+                        setLedger(Array.isArray(model.ledger) ? sortLedgerEntries(model.ledger) : []);
+                        const nextKey = typeof model.kaixuAccessKey === 'string' ? model.kaixuAccessKey : '';
+                        setKaixuAccessKey(nextKey);
+                        setTempKey(nextKey);
+                        setSessionReady(true);
+                        window.setTimeout(() => {
+                            isApplyingRemoteRef.current = false;
+                        }, 0);
+                    },
+                    serialize: (model) => ({
+                        clients: (Array.isArray(model.clients) ? model.clients : []).map(normalizeClient),
+                        ledger: sortLedgerEntries(model.ledger),
+                        kaixuAccessKey: String(model.kaixuAccessKey || ''),
+                    }),
+                    deserialize: (payload) => (payload && typeof payload === 'object' ? payload : {}),
+                    getTitle: () => 'Skye Platinum Workspace',
+                    onLoadError: (error) => {
+                        console.error('Workspace load failed', error);
+                        setSessionReady(false);
+                    },
+                    onSaveError: (error) => {
+                        console.error('Workspace save failed', error);
+                        setSessionReady(false);
+                    },
+                });
+            }
+
+            const loadWorkspace = async (prompt = false) => {
+                const sync = workspaceSyncRef.current;
+                if (!sync) return null;
+                const payload = await sync.load(prompt);
+                setSessionReady(true);
+                return payload;
+            };
+
+            const saveWorkspace = async (options = {}) => {
+                const sync = workspaceSyncRef.current;
+                if (!sync) return null;
+                const result = await sync.save(options);
+                if (result) setSessionReady(true);
+                return result;
+            };
+
+            useEffect(() => {
+                let isMounted = true;
+
+                const hydrateWorkspace = async () => {
+                    try {
+                        await loadWorkspace(false);
+                    } catch (error) {
+                        console.error('Workspace hydration failed', error);
+                    } finally {
+                        if (isMounted) {
+                            hasHydratedRef.current = true;
+                            isApplyingRemoteRef.current = false;
+                        }
+                    }
+                };
+
+                hydrateWorkspace();
+
+                return () => {
+                    isMounted = false;
+                    window.clearTimeout(autosaveTimerRef.current);
+                };
+            }, []);
+
+            useEffect(() => {
+                if (!hasHydratedRef.current || isApplyingRemoteRef.current) return;
+                window.clearTimeout(autosaveTimerRef.current);
+                autosaveTimerRef.current = window.setTimeout(() => {
+                    saveWorkspace({ prompt: false, silent: true, successText: 'Synced' }).catch((error) => {
+                        console.error('Autosave failed', error);
+                    });
+                }, 1500);
+
+                return () => window.clearTimeout(autosaveTimerRef.current);
+            }, [clients, ledger, kaixuAccessKey]);
+
+            const handleSyncUnlock = async () => {
+                try {
+                    await loadWorkspace(true);
+                    notify('Workspace sync unlocked');
+                } catch (error) {
+                    notify(error?.message || 'Workspace sync unavailable');
+                }
             };
 
             const exportExecutiveReport = () => {
@@ -463,7 +549,7 @@
                         action: 'generate_kaixu_insight',
                         outcome: 'success',
                         duration_ms: Date.now() - startedAt,
-                        ws_id: new URLSearchParams(window.location.search).get('ws_id') || '',
+                        ws_id: wsId,
                         context: { entities: clients.length }
                     });
                     notify("kAIxU Neural Link Synchronized");
@@ -476,7 +562,7 @@
                         outcome: 'error',
                         error_code: String(err?.message || 'unknown').slice(0, 64),
                         duration_ms: Date.now() - startedAt,
-                        ws_id: new URLSearchParams(window.location.search).get('ws_id') || '',
+                        ws_id: wsId,
                         context: { error_id: errorId },
                     });
                     notify(`${err?.message || "kAIxU gateway error"} [${errorId}]`);
@@ -496,15 +582,14 @@
 
             const handleAddClient = async (e) => {
                 e.preventDefault();
-                if (!user) return;
-                const { getFirestore, collection, addDoc, serverTimestamp } = window.Firebase;
-                const db = getFirestore();
                 try {
-                    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'clients'), {
+                    const newClient = normalizeClient({
+                        id: createRecordId('client'),
                         ...clientForm,
-                        createdAt: serverTimestamp(),
-                        totalValue: 0
+                        createdAt: new Date().toISOString(),
+                        totalValue: 0,
                     });
+                    setClients((prev) => [...prev, newClient]);
                     setClientForm({ name: '', entityType: 'Corporation', status: 'Active' });
                     setShowAddClient(false);
                     notify("Client Registered");
@@ -513,9 +598,6 @@
 
             const handleAddTransaction = async (e) => {
                 e.preventDefault();
-                if (!user) return;
-                const { getFirestore, collection, doc, addDoc, updateDoc, serverTimestamp } = window.Firebase;
-                const db = getFirestore();
                 const client = clients.find(c => c.id === txForm.clientId);
                 if (!client) return;
 
@@ -525,19 +607,22 @@
                 }
 
                 try {
-                    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'ledger'), {
+                    const nextAmount = Number(txForm.amount);
+                    const newEntry = normalizeLedgerEntry({
+                        id: createRecordId('ledger'),
                         ...txForm,
-                        amount: Number(txForm.amount),
+                        amount: nextAmount,
                         clientName: client.name,
-                        timestamp: serverTimestamp()
+                        timestamp: new Date().toISOString(),
                     });
-                    
-                    const clientDoc = doc(db, 'artifacts', appId, 'public', 'data', 'clients', client.id);
                     const newVal = txForm.type === 'Credit' 
-                        ? (Number(client.totalValue || 0) + Number(txForm.amount))
-                        : (Number(client.totalValue || 0) - Number(txForm.amount));
-                    
-                    await updateDoc(clientDoc, { totalValue: newVal });
+                        ? (Number(client.totalValue || 0) + nextAmount)
+                        : (Number(client.totalValue || 0) - nextAmount);
+
+                    setLedger((prev) => sortLedgerEntries([newEntry, ...prev]));
+                    setClients((prev) => prev.map((row) => (
+                        row.id === client.id ? { ...row, totalValue: newVal } : row
+                    )));
                     setShowAddTransaction(false);
                     setTxForm({ clientId: '', amount: '', type: 'Credit', description: '' });
                     notify("Ledger Verified");
@@ -590,6 +675,9 @@
                                     {activeTab === tab && <div className="absolute -bottom-1 left-0 w-full h-0.5 bg-yellow-500 shadow-[0_0_15px_gold]" />}
                                 </button>
                             ))}
+                            <button onClick={handleSyncUnlock} className={`px-4 py-2 rounded-full border transition-colors ${sessionReady ? 'border-yellow-500/40 bg-yellow-500/10 text-yellow-300' : 'border-white/10 bg-white/5 text-gray-300 hover:border-yellow-500/30 hover:text-yellow-300'}`}>
+                                {sessionReady ? 'Workspace Synced' : 'Unlock Sync'}
+                            </button>
                             <button onClick={() => setShowSettings(true)} className="p-2 bg-white/5 rounded-xl hover:bg-yellow-500/10 transition-colors">
                                 <Icon name="settings" size={18} />
                             </button>
@@ -603,7 +691,7 @@
                                     {[
                                         { label: "Aggregate Protocol Value", val: `$${analytics.totalRevenue.toLocaleString()}`, icon: "dashboard" },
                                         { label: "Neural Entity Registry", val: clients.length, icon: "users" },
-                                        { label: "Shard Sync Status", val: user ? "Optimal" : "Connecting...", icon: "shield" }
+                                        { label: "Shard Sync Status", val: sessionReady ? "Optimal" : "Standby", icon: "shield" }
                                     ].map((m, i) => (
                                         <div key={i} className="p-10 rounded-[45px] bg-black/60 backdrop-blur-3xl border border-white/5 shadow-2xl relative overflow-hidden group hover:border-yellow-500/20 transition-all">
                                             <div className="absolute top-0 right-0 p-8 opacity-10 text-yellow-500 transition-transform group-hover:scale-125"><Icon name={m.icon} size={48} /></div>
@@ -744,6 +832,39 @@
                         )}
                     </main>
 
+                    {showAddClient && (
+                        <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-3xl flex items-center justify-center p-6">
+                            <form onSubmit={handleAddClient} className="max-w-2xl w-full p-10 bg-[#08080c] border border-yellow-500/20 rounded-[40px] space-y-8 shadow-2xl">
+                                <div className="flex justify-between items-center">
+                                    <h3 className="text-2xl font-black uppercase tracking-tighter text-yellow-500">Register Client</h3>
+                                    <button type="button" onClick={() => setShowAddClient(false)} className="p-3 bg-white/5 rounded-full"><Icon name="plus" className="rotate-45" size={18} /></button>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <input required value={clientForm.name} onChange={(event) => setClientForm((old) => ({ ...old, name: event.target.value }))} placeholder="Client name" className="md:col-span-2 bg-white/5 border border-white/10 p-4 rounded-2xl text-sm" />
+                                    <select value={clientForm.entityType} onChange={(event) => setClientForm((old) => ({ ...old, entityType: event.target.value }))} className="bg-white/5 border border-white/10 p-4 rounded-2xl text-sm">
+                                        <option value="Corporation">Corporation</option>
+                                        <option value="LLC">LLC</option>
+                                        <option value="Nonprofit">Nonprofit</option>
+                                        <option value="Trust">Trust</option>
+                                        <option value="Private">Private</option>
+                                    </select>
+                                    <select value={clientForm.status} onChange={(event) => setClientForm((old) => ({ ...old, status: event.target.value }))} className="bg-white/5 border border-white/10 p-4 rounded-2xl text-sm">
+                                        <option value="Active">Active</option>
+                                        <option value="Prospect">Prospect</option>
+                                        <option value="Watch">Watch</option>
+                                        <option value="Inactive">Inactive</option>
+                                    </select>
+                                </div>
+
+                                <div className="flex justify-end gap-3">
+                                    <button type="button" onClick={() => setShowAddClient(false)} className="px-6 py-3 rounded-2xl bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-widest">Cancel</button>
+                                    <button type="submit" className="px-8 py-3 rounded-2xl bg-yellow-500 text-black text-[10px] font-black uppercase tracking-widest">Register Client</button>
+                                </div>
+                            </form>
+                        </div>
+                    )}
+
                     {showSettings && (
                         <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-3xl flex items-center justify-center p-6">
                             <div className="max-w-3xl w-full max-h-[90vh] overflow-y-auto custom-scrollbar p-12 bg-[#08080c] border border-yellow-500/20 rounded-[60px] space-y-12 shadow-2xl relative">
@@ -772,12 +893,17 @@
                                         </label>
                                         <div className="flex gap-4">
                                             <input type="password" value={tempKey} onChange={e => setTempKey(e.target.value)} className="flex-1 bg-white/5 border border-white/10 p-5 rounded-2xl outline-none focus:border-yellow-500 font-mono text-sm" placeholder="kx-..." />
-                                            <button onClick={() => {
-                                                if(!user) return notify("Auth Required");
-                                                const { getFirestore, doc, setDoc } = window.Firebase;
-                                                setDoc(doc(getFirestore(), 'artifacts', appId, 'users', user.uid, 'settings', 'config'), { kaixuAccessKey: tempKey }, { merge: true });
-                                                setKaixuAccessKey(tempKey);
+                                            <button type="button" onClick={() => {
+                                                const nextKey = tempKey.trim();
+                                                setTempKey(nextKey);
+                                                setKaixuAccessKey(nextKey);
                                                 notify("kAIxU gateway secured");
+                                                if (!hasHydratedRef.current) return;
+                                                window.clearTimeout(autosaveTimerRef.current);
+                                                saveWorkspace({ prompt: false, silent: true, successText: 'Key Synced' }).catch((error) => {
+                                                    console.error('Manual key sync failed', error);
+                                                    notify(error?.message || 'Workspace sync failed');
+                                                });
                                             }} className="px-8 bg-yellow-500 text-black font-black uppercase text-[10px] rounded-2xl">Deploy</button>
                                         </div>
                                     </div>

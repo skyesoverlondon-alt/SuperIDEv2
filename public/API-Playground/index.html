@@ -73,13 +73,13 @@
           <option value="ide-tree">IDE Tree</option>
           <option value="ide-file">IDE File</option>
           <option value="team-members">Team Members</option>
-          <option value="token-list">Token List</option>
+          <option value="token-list">Key List</option>
         </select>
         <label>Method</label>
         <select id="method"><option>POST</option><option>GET</option></select>
-        <label>Access Token (optional)</label>
-        <input id="token" type="password" placeholder="Bearer token for gate" />
-        <label>Token Email (optional)</label>
+        <label>kAIxU Access Key (optional)</label>
+        <input id="token" type="password" placeholder="kx_at_..." />
+        <label>Key Lock Email (optional)</label>
         <input id="tokenEmail" placeholder="owner@company.com" />
         <label>Payload (JSON)</label>
         <textarea id="payload">{
@@ -159,6 +159,24 @@
     const truthRequestEl = document.getElementById("truthRequest");
     const truthGatewayEl = document.getElementById("truthGateway");
     const statusEl = document.getElementById("status");
+
+    async function recordSuiteIntent(intentName, status, options = {}) {
+      if (!window.SkyeStandaloneSession?.recordSuiteIntent) return null;
+      const wsId = new URLSearchParams(window.location.search).get("ws_id") || "primary-workspace";
+      return window.SkyeStandaloneSession.recordSuiteIntent({
+        sourceApp: "API-Playground",
+        targetApp: options.targetApp || "SkyeAnalytics",
+        intent: { name: intentName, status, summary: options.summary || "" },
+        context: {
+          workspace_id: wsId,
+          file_ids: options.fileIds || [],
+          asset_ids: options.assetIds || [],
+        },
+        detail: options.detail || "",
+        badge: options.badge || "",
+        payload: options.payload || {},
+      });
+    }
 
     async function sha256(text) {
       const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
@@ -420,6 +438,14 @@
         request_preview: payloadText.slice(0, 600),
         response_preview: bodyText.slice(0, 600),
       });
+
+      await recordSuiteIntent('open-proof', status >= 200 && status < 500 ? 'completed' : 'failed', {
+        targetApp: 'SkyeAnalytics',
+        summary: 'Route API proof into the analytics evidence lane.',
+        detail: `API Playground ${method} ${endpoint} completed with status ${status || 0}.`,
+        badge: String(status || 0),
+        payload: { endpoint, method, status, request_preview: payloadText.slice(0, 280) },
+      });
     }
 
     function applyPreset() {
@@ -524,6 +550,13 @@
       setTruth(truthGatewayEl, passed > 0 ? "Reached" : "Failing", passed > 0 ? "ok" : "fail");
       setStatus(`Sweep complete: ${passed}/${sweep.length} returned 2xx.`, passed === sweep.length ? "ok" : passed > 0 ? "warn" : "fail");
       document.getElementById("response").textContent = `Sweep complete: ${passed}/${sweep.length} returned 2xx. Inspect ledger for endpoint-level details.`;
+      await recordSuiteIntent('open-proof', passed > 0 ? 'completed' : 'failed', {
+        targetApp: 'SkyeAnalytics',
+        summary: 'Publish API sweep proof into analytics.',
+        detail: `API Playground sweep finished with ${passed}/${sweep.length} passing endpoints.`,
+        badge: `${passed}/${sweep.length}`,
+        payload: { passed, total: sweep.length },
+      });
     }
 
     document.getElementById("sendBtn").onclick = () => send();
@@ -546,6 +579,12 @@
       a.download = `api-playground-ledger-${Date.now()}.json`;
       a.click();
       URL.revokeObjectURL(a.href);
+      void recordSuiteIntent('open-proof', 'completed', {
+        targetApp: 'SkyeAnalytics',
+        summary: 'Export API proof package.',
+        detail: 'API Playground exported the persistent ledger for suite proof review.',
+        badge: 'export',
+      });
     };
     document.getElementById("clearBtn").onclick = () => {
       localStorage.removeItem(LOG_KEY);

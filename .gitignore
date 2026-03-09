@@ -2,7 +2,9 @@ node_modules/
 dist/
 .netlify/
 .wrangler/
+artifacts/*.zip
 *.log
 *.tmp
 .DS_Store
 nexver_export_add_gitignore.html
+SKNore.env

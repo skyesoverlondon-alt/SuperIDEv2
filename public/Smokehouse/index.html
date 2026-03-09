@@ -46,9 +46,9 @@
         <input id="baseUrl" />
         <label style="display:block;margin-top:8px;">Worker URL (optional override)</label>
         <input id="workerUrl" placeholder="https://kaixu-superide-runner.skyesoverlondon.workers.dev" />
-        <label style="display:block;margin-top:8px;">Access Token (optional)</label>
+        <label style="display:block;margin-top:8px;">kAIxU Access Key (optional)</label>
         <input id="token" type="password" placeholder="kx_at_..." />
-        <label style="display:block;margin-top:8px;">Token Email (optional)</label>
+        <label style="display:block;margin-top:8px;">Key Lock Email (optional)</label>
         <input id="tokenEmail" placeholder="owner@company.com" />
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px;">
           <button id="runBtn" class="primary">Run Smoke</button>
@@ -118,6 +118,20 @@
     const truthWorkerEl = document.getElementById("truthWorker");
     const statusEl = document.getElementById("status");
     const smokeState = { lastPass: 0, lastTotal: 0, lastWorkerOk: null };
+
+    async function recordSuiteIntent(intentName, status, options = {}) {
+      if (!window.SkyeStandaloneSession?.recordSuiteIntent) return null;
+      const wsId = new URLSearchParams(window.location.search).get("ws_id") || "primary-workspace";
+      return window.SkyeStandaloneSession.recordSuiteIntent({
+        sourceApp: "Smokehouse-Standalone",
+        targetApp: options.targetApp || "SkyeAnalytics",
+        intent: { name: intentName, status, summary: options.summary || "" },
+        context: { workspace_id: wsId, asset_ids: options.assetIds || [] },
+        detail: options.detail || "",
+        badge: options.badge || "",
+        payload: options.payload || {},
+      });
+    }
 
     async function sha256(text) {
       const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
@@ -401,6 +415,13 @@
       runs.unshift(run);
       writeRuns(runs.slice(0, 300));
       setStatus(`Smoke complete: ${pass}/${checks.length} pass. ${pass === checks.length ? "System truth is green." : "Failures are present and visible in the summary below."}`, pass === checks.length ? "ok" : pass > 0 ? "warn" : "fail");
+      await recordSuiteIntent('open-proof', pass > 0 ? 'completed' : 'failed', {
+        targetApp: 'SkyeAnalytics',
+        summary: 'Route smoke evidence into analytics proof.',
+        detail: `Smokehouse finished with ${pass}/${checks.length} passing checks.`,
+        badge: `${pass}/${checks.length}`,
+        payload: { pass, total: checks.length, worker_ok: smokeState.lastWorkerOk },
+      });
       renderTruth();
       await renderRuns();
     }
@@ -463,6 +484,12 @@
       a.download = `smokehouse-ledger-${Date.now()}.json`;
       a.click();
       URL.revokeObjectURL(a.href);
+      void recordSuiteIntent('open-proof', 'completed', {
+        targetApp: 'SkyeAnalytics',
+        summary: 'Export smoke proof package.',
+        detail: 'Smokehouse exported the tamper-evident run ledger for suite proof review.',
+        badge: 'export',
+      });
     };
     document.getElementById("clearBtn").onclick = () => { localStorage.removeItem(LOG_KEY); renderRuns(); setStatus("Run history cleared."); };
 

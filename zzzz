@@ -1,4 +1,261 @@
-please make the public smokehouse and the api playground have a login and request key flow. this way users can test kaixu, also basically get the first month free, because they get keys loaded with 20 bucks. but now that i think about it, i need also to add in a pricing page. so lets also do that add in a page for pricing and clearly label it pricing. this file cannot inject anything via partials it must be fully inlined. this way ican swap it in/out later if i want to easily  but we will have kAixu Lite subscription be 23 dollars a month and we will just sayit has a reduced AI integration, so no like video picture creation outside of like the id gen shit everybody get that and one email. then we will have a kAIxUg0 plan and that 46 and that has the picture creation and shit plus an email, and be published full featured editorial backlinking to your website on all solenterprises.org and skyesol.netlify.app and northstarofficexaccounting.netlify.app and skyeletix.netlify.app and https://valleyverified-v1.netlify.app/
-thats basicaly a seo booster and advertisement you know its a lot in that just for 46 bucks bro! make that shit sound worth it please! Do not think of this as just a pricing page for the superide, think of it as the overall product guide at a certain point we will need to go very in depth on the pricing page about the specs and featuires and platforms within the shit ive architect here you be in depth and make it sound interesting, because this shit really is and its very useful and helpful, and also tell about how many dev hours this project is worth and all of that man like be over the top with the details and specifics and hsit like bro i had to make a whole super container for this workspace like this shit is amazing and so smart like the  email and chat and the crm and the fact that you can literally write a while ass book and publish it write to th eweb and if we have not made it loike that tuet then that sthat i mean by all of my apps talk to each other the skye bookx should be talking to skye docx and to skyechat my reddit type chat room that we have wired uo to get hit posted right from skye blog so somebody should be able to make a draft in SkyeDocxPro and save it to the drive then take it to skyebookx have the ai flesh out the rest of the book and generate ah couple pictures export those pdfs from skyebookx right to te drive or as pdfs or as .skye files which are fucking encrypted baby and only open in app, and cango from skyebookx toback to drive over to skye blogx draw up the blog, post it to skyechat go to skye chat send it to my email and send it to another user go back to my skydex say hey i want to get that blog i just had people "give air" wwhich is how i wil equate likes of affirmation to user created post, and aim my skyedex at my drive grab my files load them into worksapce say shoot i need to grab soimething from git offload my drive from the workspace, cconnect git, save files to drive, disconnect git, open drive and grab files i had from git, save to workspace, go back to drive  tel ai i need to integrate this file with my current work sapce, handle that the ai goes gotchu bro
+You are upgrading an existing production-scale beta platform called SuperIVNX / kAIxU Super IDE vNext. This is NOT a greenfield scaffold. You must work additively on the existing repo and preserve all current functionality, branding, routes, gateway integrations, smoke systems, audit behavior, and app interplay.
 
-handles edits puts actual edits onto files but thats okay because i have diffs and i have rollbacks, i look at changes ai made via preview...im liking it, i save and merge push allat typa shit but wait i got my envvs up in here so i say okay add that env file to SKNore before i push to skyedrive or git or netlify and now ai koows not to push or incude those becasue those have been SKNored. then i basically have ended up with a full production ecolohgy in one belt and i just went through one lane but you see how this has to go for one one the architecture in my head for the overall product and why i say this is million dollartech im hardening right now. i need my pricing and allat shit to reflect but most importantly i need the tech to be on point and to function just how i have laid out in this message because i have said repeated ly all my shit must ytalk to one another  on every level because if we can get a basic network down where we have a central lane of command and i beliebe we have that with the bridge wev ebuilt and havingthings also be going throgh gateway13, if im not misaken that is the heavy ass auth behind our product corect thatin addition to all this other pepper and shit we got goin on. 
+CRITICAL RULES
+1. Do NOT replace the repo with a simplified rewrite.
+2. Do NOT remove or degrade any existing features.
+3. Do NOT ship skeletons, placeholders, TODOs, fake handlers, or mock-only architecture.
+4. Every phase must be cumulative and preserve prior work.
+5. All code must be full, real, and production-oriented.
+6. Maintain the existing ecosystem model: the apps already talk to each other, Gateway13 remains sovereign authority, SuperIVNX remains command-center-first, and cross-app state/workflow must be preserved and expanded.
+7. Maintain existing branding names and app identities unless clearly abstracted behind config labels.
+8. Do not break the current Cloudflare Worker + Netlify + Gateway13 architecture. Extend it.
+9. Keep security posture strong: signed internal calls, scoped entitlements, audit logging, replay protection, role-aware actions, and durable event history.
+10. Output the full updated repo structure and a file ledger for every phase.
+
+GOAL
+Upgrade the platform from a multi-app command center into a governed executive operating system by implementing these four major capabilities:
+
+A. SOVEREIGN COMMAND BUS
+Build a real internal event fabric so that major actions across apps emit governed, typed, auditable events that other authorized apps and workflows can subscribe to and act on.
+
+B. EXECUTIVE TIMELINE / MEMORY SPINE
+Build a platform-wide memory and activity spine that records important actions, decisions, artifact lineage, app handoffs, AI interactions, and mission context across the entire ecosystem.
+
+C. MISSION LAYER
+Build a top-level mission system above the apps. A mission is a scoped operational container that unifies docs, chat, mail, drive, repo, AI, tasks, approvals, exports, and logs around a business objective.
+
+D. GATE-AWARE IDENTITY + TOKEN THRONE
+Deepen the Gateway13 authority model so every user, workspace, mission, and app capability is visibly governed by gate-issued entitlements, scoped tokens, capability maps, and traceable access lanes.
+
+ARCHITECTURAL REQUIREMENTS
+
+1. SOVEREIGN COMMAND BUS
+Implement:
+- typed internal event model
+- event producer helpers
+- event consumer/subscriber registry
+- event routing rules
+- retry / dead-letter behavior
+- idempotency keys
+- replay-safe event dispatch
+- event signing / verification for trusted internal hops
+- audit log of every emitted event
+- per-app and per-mission event scope
+- permission-aware event subscriptions
+- internal event explorer UI
+- event search / filter by app, actor, mission, workspace, org, severity, type, and time
+- event lineage display (what triggered what)
+
+Minimum first-class event families:
+- document.created
+- document.updated
+- document.exported
+- skye.secure_package.created
+- skye.secure_package.opened
+- chat.thread.created
+- chat.post.created
+- mail.draft.created
+- mail.sent
+- drive.asset.saved
+- drive.asset.opened
+- task.created
+- task.completed
+- repo.synced
+- repo.pushed
+- deploy.requested
+- deploy.completed
+- ai.request.completed
+- ai.fallback.used
+- mission.created
+- mission.state.changed
+- gate.entitlement.issued
+- gate.token.minted
+- gate.token.revoked
+- smoke.check.completed
+- policy.block.triggered
+
+2. EXECUTIVE TIMELINE / MEMORY SPINE
+Implement:
+- unified timeline store across apps
+- actor timeline
+- workspace timeline
+- mission timeline
+- org timeline
+- artifact lineage graph
+- relationship edges between docs, chats, mails, tasks, repos, exports, and deployments
+- “show me everything related to X” retrieval lane
+- cross-app memory cards
+- AI action trace summaries
+- decision log entries
+- approval log entries
+- secure package movement history
+- source-to-output provenance where practical
+- timeline pinning/bookmarking
+- timeline redaction policy for privileged data
+- retention controls
+- searchable timeline UI with filters and drill-down panels
+
+The memory spine must support:
+- related entities
+- parent/child action lineage
+- before/after state summaries
+- user-visible explanation of what happened
+- internal forensic detail for admins
+
+3. MISSION LAYER
+Implement a new top-level system called Mission Control or SkyeMission Control.
+
+A mission must include:
+- id
+- title
+- org/workspace scope
+- owner
+- collaborators
+- status
+- priority
+- goals
+- linked apps
+- linked artifacts
+- linked chat threads
+- linked mail threads
+- linked docs
+- linked drive assets
+- linked repos
+- linked tasks
+- linked AI context
+- linked approvals
+- timeline feed
+- audit trail
+- mission variables / notes
+- mission-specific entitlement snapshot
+
+Mission UX must support:
+- create mission from template
+- open mission dashboard
+- attach existing assets from any app
+- create new assets directly into mission scope
+- view all cross-app work in one place
+- trigger mission actions
+- mission next-actions panel
+- mission risk / blocked-state indicators
+- mission export pack
+- mission archive / restore
+- mission summary generator
+- mission-specific AI context window
+
+Mission templates to include:
+- client onboarding
+- product launch
+- content campaign
+- repo release
+- executive review
+- sales pursuit
+- compliance review
+
+4. GATE-AWARE IDENTITY + TOKEN THRONE
+Implement deeper sovereign gate visibility and authority so the product clearly shows that Gateway13 governs capability issuance.
+
+Build:
+- capability map UI
+- entitlement inspector
+- token lineage view
+- workspace entitlement sync
+- mission entitlement snapshot
+- gate-backed feature flags
+- per-app access reason display
+- token issue / revoke / rotate history
+- fallback-brain usage traceability
+- backup-brain escalation logging
+- gate dependency health indicator
+- user capability manifest
+- app access matrix
+- scoped app tokens by user/workspace/mission/app
+- least-privilege issuance defaults
+- explicit privileged action prompts for sensitive actions
+- admin entitlement override lane with audit requirement
+- internal signed gate-to-app population flow
+- app startup entitlement hydration
+- visible “why do I have access” explanation panel
+
+DATA + STORAGE
+Add or update all necessary schema, migrations, indexes, and storage contracts for:
+- command bus events
+- subscriber registry
+- dead-letter queue records
+- memory spine entities
+- artifact lineage edges
+- mission tables
+- mission asset junctions
+- entitlement snapshots
+- token lineage
+- access reason records
+- audit expansions
+- timeline search indexing
+
+INTEGRATION REQUIREMENTS
+You must integrate these features into existing major app surfaces where relevant:
+- Super IDE workspace
+- SkyeBookX
+- SkyeDocxPro
+- SkyeChat
+- SkyeMail
+- SkyeDrive
+- SkyTasks
+- SkyCalendar if present
+- deploy/repo lanes
+- secure .skye package flows
+- SKNore policy events
+- smoke + heartbeat reporting
+- Gateway13 auth/token issuance flows
+
+UX REQUIREMENTS
+- keep the command-center feel
+- keep the multi-column executive workspace philosophy
+- add dedicated panels/pages for:
+  - Mission Control
+  - Event Explorer
+  - Executive Timeline
+  - Capability Map
+  - Token Throne / Gate Authority
+- add contextual drawers/modals rather than making the user jump all over the place
+- design for operator-grade use, not casual consumer gimmicks
+- make cross-app handoffs obvious and satisfying
+- every important action should either emit an event, enrich memory, attach to a mission, or update gate-aware state
+
+SECURITY + GOVERNANCE
+- signed internal events where appropriate
+- timestamp verification
+- replay protection
+- scoped permissions for subscriptions and mission access
+- audit every privileged action
+- redact protected content in broad timeline views when needed
+- never expose secrets client-side
+- preserve existing protected file / SKNore posture
+- keep fallback brain traceable
+- maintain or improve smoke coverage
+
+DELIVERABLE FORMAT
+Return the upgrade in phases.
+For each phase provide:
+1. phase name
+2. what is being added
+3. full file ledger
+4. schema/migration changes
+5. API/routes/functions added or modified
+6. UI surfaces added or modified
+7. security implications
+8. smoke/test coverage added
+9. exact env vars required
+10. exact manual verification steps
+
+Start with PHASE 1 only.
+PHASE 1 must lay the real foundations, not fake scaffolding:
+- base event schema
+- producer/consumer primitives
+- timeline schema
+- mission core schema
+- gate capability snapshot schema
+- initial admin/operator UI shells wired to real data
+- first integrations in at least SkyeDocxPro, SkyeChat, SkyeMail, and the main Super IDE shell
+- migrations, real routes, and first smoke tests
+- full additive repo output only

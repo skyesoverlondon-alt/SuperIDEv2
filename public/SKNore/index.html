@@ -65,7 +65,7 @@
         <h2 style="margin-top:14px;">Policy</h2>
         <label>kAIxU Key (optional bearer)</label>
         <input id="apiKey" type="password" placeholder="kx_at_..." />
-        <label>Token Email</label>
+        <label>Key Lock Email</label>
         <input id="tokenEmail" placeholder="user@company.com" />
         <div class="actions">
           <button id="saveKeyBtn" type="button">Save Key</button>
@@ -311,7 +311,7 @@ secrets/**
       const token = document.getElementById('apiKey').value.trim();
       const email = document.getElementById('tokenEmail').value.trim().toLowerCase();
       if (window.SkyeStandaloneSession?.saveManualToken) window.SkyeStandaloneSession.saveManualToken(token, email);
-      setStatus('Saved key + token email to local auth context.');
+      setStatus('Saved key + key lock email to local auth context.');
     }
 
     function clearKeyLocally() {

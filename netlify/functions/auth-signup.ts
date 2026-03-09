@@ -4,6 +4,7 @@ import { hashPassword, createSession, setSessionCookie, ensureUserRecoveryEmailC
 import { audit } from "./_shared/audit";
 import { mintApiToken, tokenHash } from "./_shared/api_tokens";
 import { hasMailDeliveryConfig, sendMail } from "./_shared/mailer";
+import { ensureOrgSeatColumns, ensurePrimaryWorkspace, getOrgSeatSummary } from "./_shared/orgs";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -11,6 +12,7 @@ export const handler = async (event: any) => {
   try {
     await ensureUserRecoveryEmailColumn();
     await ensureUserPinColumns();
+    await ensureOrgSeatColumns();
 
     const { email, password, orgName, recoveryEmail, recovery_email } = JSON.parse(event.body || "{}");
     const normalizedEmail = String(email || "").trim().toLowerCase();
@@ -71,6 +73,8 @@ export const handler = async (event: any) => {
       "insert into org_memberships(org_id, user_id, role) values($1,$2,$3) on conflict (org_id, user_id) do nothing",
       [orgId, userId, "owner"]
     );
+
+    const workspace = await ensurePrimaryWorkspace(orgId, userId, "owner");
 
     await q(
       `insert into skymail_accounts(org_id, user_id, mailbox_email, display_name, provider, outbound_enabled, inbound_enabled, metadata)
@@ -141,9 +145,13 @@ export const handler = async (event: any) => {
     }
 
     const sess = await createSession(userId);
+    const orgSummary = await getOrgSeatSummary(orgId);
+
     await audit(normalizedEmail, orgId, null, "auth.signup", {
       org: normalizedOrg,
       recovery_email: normalizedRecoveryEmail,
+      default_workspace_id: workspace.id,
+      default_workspace_name: workspace.name,
       auto_token_issued: true,
       token_label: "signup-auto-1",
       token_scope: "generate",
@@ -167,9 +175,12 @@ export const handler = async (event: any) => {
           email: normalizedEmail,
           recovery_email: normalizedRecoveryEmail,
           org_id: orgId,
+          workspace_id: workspace.id,
           role: "owner",
           has_pin: false,
         },
+        org: orgSummary,
+        workspace,
         warning: "kAIxU token is shown once on signup. Store it now.",
       },
       { "Set-Cookie": setSessionCookie(sess.token, sess.expires) }

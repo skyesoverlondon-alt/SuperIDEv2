@@ -33,6 +33,31 @@
   status = 200
 
 [[redirects]]
+  from = "/api/admin/login"
+  to = "/.netlify/functions/admin-login"
+  status = 200
+
+[[redirects]]
+  from = "/api/admin/submissions"
+  to = "/.netlify/functions/admin-submissions"
+  status = 200
+
+[[redirects]]
+  from = "/api/admin/submission/*"
+  to = "/.netlify/functions/admin-submission/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/api/admin/export"
+  to = "/.netlify/functions/admin-export"
+  status = 200
+
+[[redirects]]
+  from = "/api/admin/file/*"
+  to = "/.netlify/functions/admin-file/:splat"
+  status = 200
+
+[[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"
   status = 200

@@ -75,6 +75,8 @@ export const handler = async (event: any) => {
   }
   const providerRaw = opt("KAIXU_GATEWAY_PROVIDER", "Skyes Over London");
   const modelRaw = opt("KAIXU_GATEWAY_MODEL", "kAIxU-Prime6.7");
+  const provider = String(providerRaw || "Skyes Over London").trim() || "Skyes Over London";
+  const model = String(body.model || modelRaw || "kAIxU-Prime6.7").trim() || "kAIxU-Prime6.7";
   // Emit audit before calling the model
   await audit(actorEmail, actorOrg, ws_id, "kaixu.generate.requested", {
     activePath: activePath || null,

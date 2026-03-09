@@ -1,0 +1,15 @@
+# API Additions — Phase 2
+- GET /v1/cases/:caseId/timeline
+- GET /v1/cases/:caseId/checklist
+- POST /v1/cases/:caseId/checklist/:itemId/toggle
+- GET /v1/monitoring
+- POST /v1/monitoring/:caseId/run
+- GET /v1/notifications
+- POST /v1/cases/:caseId/notifications/send
+- GET /v1/settings
+- POST /v1/settings
+- GET /v1/cases/:caseId/export-pack
+- GET /v1/audit/events
+- GET /v1/billing/plans
+- POST /v1/billing/checkout
+- POST /v1/webhooks/stripe

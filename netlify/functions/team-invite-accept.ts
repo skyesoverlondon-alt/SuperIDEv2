@@ -5,12 +5,15 @@ import { hashPassword, createSession, setSessionCookie } from "./_shared/auth";
 import { audit } from "./_shared/audit";
 import { mintApiToken, tokenHash } from "./_shared/api_tokens";
 import { sendMail } from "./_shared/mailer";
+import { ensureOrgSeatColumns, ensurePrimaryWorkspace, getOrgSeatSummary } from "./_shared/orgs";
 
 function sha256Hex(input: string): string {
   return crypto.createHash("sha256").update(input).digest("hex");
 }
 
 export const handler = async (event: any) => {
+  await ensureOrgSeatColumns();
+
   let body: any = {};
   try {
     body = JSON.parse(event.body || "{}");
@@ -25,13 +28,13 @@ export const handler = async (event: any) => {
     return json(400, { error: "Missing token, email, or password." });
   }
 
-  const tokenHash = sha256Hex(token);
+  const inviteTokenHash = sha256Hex(token);
   const inviteRes = await q(
     `select id, org_id, invited_email, role, status, expires_at
      from org_invites
      where token_hash=$1
      limit 1`,
-    [tokenHash]
+    [inviteTokenHash]
   );
 
   if (!inviteRes.rows.length) return json(404, { error: "Invite not found." });
@@ -74,6 +77,8 @@ export const handler = async (event: any) => {
      on conflict (org_id, user_id) do update set role=excluded.role`,
     [invite.org_id, userId, invite.role]
   );
+
+  const workspace = await ensurePrimaryWorkspace(invite.org_id, userId, invite.role);
 
   await q(
     "update org_invites set status='accepted', accepted_at=now(), accepted_by=$1 where id=$2",
@@ -119,10 +124,13 @@ export const handler = async (event: any) => {
     ]
   );
 
+  const orgSummary = await getOrgSeatSummary(invite.org_id);
   const sess = await createSession(userId);
   await audit(email, invite.org_id, null, "org.team.invite.accept", {
     invite_id: invite.id,
     role: invite.role,
+    default_workspace_id: workspace.id,
+    default_workspace_name: workspace.name,
     auto_token_issued: true,
     token_label: "invite-auto-1",
     skymail_account_provisioned: true,
@@ -148,6 +156,8 @@ export const handler = async (event: any) => {
       ok: true,
       org_id: invite.org_id,
       role: invite.role,
+      org: orgSummary,
+      workspace,
       kaixu_token: {
         token: plaintextToken,
         label: "invite-auto-1",

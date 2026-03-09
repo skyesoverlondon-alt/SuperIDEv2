@@ -69,6 +69,8 @@ type SkyeAppId =
   | "SkyDex4.6"
   | "SkyeDocxPro"
   | "SkyeBlog"
+  | "AE-Flow"
+  | "GoogleBusinessProfileRescuePlatform"
   | "SovereignVariables"
   | "SkyeBookx"
   | "SkyePlatinum"
@@ -216,6 +218,24 @@ type DriveAsset = {
 
 type CommandFeedTone = "ok" | "fail" | "boundary" | "info";
 
+type CommandFeedAction =
+  | {
+      kind: "show-file-list";
+      title: string;
+      description?: string;
+      paths: string[];
+    }
+  | {
+      kind: "focus-contractor";
+      submissionId?: string;
+      filter?: string;
+    }
+  | {
+      kind: "open-sovereign-variables";
+      focus?: "inbox" | "auth" | "import";
+      importKey?: string;
+    };
+
 type CommandFeedItem = {
   id: string;
   source: string;
@@ -223,6 +243,24 @@ type CommandFeedItem = {
   tone: CommandFeedTone;
   at: string;
   appId?: SkyeAppId | "SkyeMail" | "SkyeChat" | "SkyeDrive";
+  action?: CommandFeedAction;
+  badge?: string;
+};
+
+type CommandFeedInspector = {
+  title: string;
+  description?: string;
+  paths: string[];
+};
+
+type SovereignVariablesInboxEntry = {
+  id: string;
+  title: string;
+  source: string;
+  content: string;
+  created_at: string;
+  project_name?: string;
+  environment_name?: string;
 };
 
 type DroppedDriveFile = {
@@ -321,6 +359,128 @@ type IntegrationRuntimeStatus = {
   error?: string;
 };
 
+type SuiteIntentStatus = "requested" | "queued" | "completed" | "failed";
+
+type SuiteIntentRecord = {
+  name: string;
+  version: "suite-intent-v1";
+  status: SuiteIntentStatus;
+  summary?: string | null;
+};
+
+type SuiteIntentContext = {
+  workspace_id: string;
+  file_ids?: string[];
+  thread_id?: string | null;
+  channel_id?: string | null;
+  mission_id?: string | null;
+  draft_id?: string | null;
+  case_id?: string | null;
+  asset_ids?: string[];
+};
+
+type SuiteEventRecord = {
+  id: string;
+  occurred_at: string;
+  source_app: string;
+  target_app: string | null;
+  summary: string;
+  detail: string;
+  correlation_id?: string | null;
+  idempotency_key?: string | null;
+  intent: SuiteIntentRecord;
+  context: SuiteIntentContext;
+  payload?: Record<string, unknown>;
+};
+
+type SovereignEvent = {
+  id: string;
+  occurred_at: string;
+  ws_id?: string | null;
+  mission_id?: string | null;
+  event_type: string;
+  event_family?: string | null;
+  source_app?: string | null;
+  source_route?: string | null;
+  actor?: string | null;
+  subject_kind?: string | null;
+  subject_id?: string | null;
+  severity?: "info" | "warning" | "error" | "critical" | null;
+  correlation_id?: string | null;
+  summary?: string | null;
+  payload?: unknown;
+};
+
+type TimelineEntry = {
+  id: string;
+  at: string;
+  ws_id?: string | null;
+  mission_id?: string | null;
+  event_id?: string | null;
+  entry_type: string;
+  source_app?: string | null;
+  actor?: string | null;
+  subject_kind?: string | null;
+  subject_id?: string | null;
+  title: string;
+  summary?: string | null;
+  visibility?: string | null;
+  detail?: unknown;
+};
+
+type MissionRecord = {
+  id: string;
+  ws_id?: string | null;
+  title: string;
+  status: "draft" | "active" | "blocked" | "completed" | "archived";
+  priority: "low" | "medium" | "high" | "critical";
+  goals_json?: string[];
+  linked_apps_json?: string[];
+  variables_json?: unknown;
+  entitlement_snapshot?: unknown;
+  collaborator_count?: number;
+  asset_count?: number;
+  created_at?: string;
+  updated_at?: string;
+};
+
+type MissionCollaboratorRole = "owner" | "collaborator" | "viewer";
+
+type ContractorSubmissionFile = {
+  id: string;
+  filename?: string | null;
+  content_type?: string | null;
+  bytes?: number | null;
+  created_at?: string | null;
+};
+
+type ContractorSubmissionRecord = {
+  id: string;
+  ws_id?: string | null;
+  mission_id?: string | null;
+  full_name: string;
+  business_name?: string | null;
+  email: string;
+  phone?: string | null;
+  coverage?: string | null;
+  availability?: string | null;
+  lanes?: string[];
+  service_summary?: string | null;
+  proof_link?: string | null;
+  entity_type?: string | null;
+  licenses?: string | null;
+  status: "new" | "reviewing" | "approved" | "on_hold" | "rejected";
+  admin_notes?: string | null;
+  tags?: string[];
+  verified?: boolean;
+  dispatched?: boolean;
+  last_contacted_at?: string | null;
+  event_id?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  files?: ContractorSubmissionFile[];
+};
+
 type TokenInventoryItem = {
   id: string;
   label: string;
@@ -331,6 +491,53 @@ type TokenInventoryItem = {
   created_at: string;
   expires_at: string | null;
   last_used_at: string | null;
+};
+
+type OrgSeatSummary = {
+  org_id: string;
+  org_name: string;
+  plan_tier: "base" | "scaling" | "executive" | "corporate" | "enterprise";
+  seat_limit: number | null;
+  active_members: number;
+  pending_invites: number;
+  seats_reserved: number;
+  seats_available: number | null;
+  allow_personal_key_override: boolean;
+};
+
+type OrgWorkspaceSummary = {
+  id: string;
+  name: string;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
+type OrgKeyTokenSummary = {
+  id: string;
+  label: string;
+  prefix: string;
+  locked_email: string | null;
+  scopes: string[];
+  status: string;
+  created_at: string;
+  expires_at: string | null;
+  last_used_at: string | null;
+};
+
+type OrgKeyAssignmentSummary = {
+  user_id: string;
+  email: string;
+  assigned_token: OrgKeyTokenSummary | null;
+  personal_token: OrgKeyTokenSummary | null;
+  effective_token: OrgKeyTokenSummary | null;
+  effective_source: "personal" | "assigned" | "org_default" | "none";
+};
+
+type OrgKeyPolicySummary = {
+  org_id: string;
+  allow_personal_key_override: boolean;
+  default_token: OrgKeyTokenSummary | null;
+  assignments: OrgKeyAssignmentSummary[];
 };
 
 type OnboardingEmailDraft = {
@@ -397,6 +604,7 @@ const AUTH_CENTER_AUTO_OPENED_SESSION_KEY = "kx.authCenter.autoOpened";
 const APP_BRIDGE_EVENT_KEY = "kx.app.bridge";
 const DRIVE_DROP_LATEST_KEY = "kx.drive.drop.latest";
 const COMMAND_FEED_KEY = "kx.command.feed";
+const SOVEREIGN_VARIABLES_INBOX_KEY = "sovereign.variables.inbox.v1";
 const AUTH_HAS_PIN_KEY = "kx.auth.hasPin";
 const AUTH_PIN_UNLOCKED_AT_KEY = "kx.auth.pinUnlockedAt";
 
@@ -405,6 +613,8 @@ const SKYE_APPS: SkyeAppDefinition[] = [
   { id: "SkyDex4.6", summary: "Secure codex IDE surface wired to workspace, gateway, GitHub, and Netlify flows.", mvp: ["Workspace editing", "Gateway prompt lane", "Push + deploy controls"] },
   { id: "SkyeDocxPro", summary: "Full document production suite integrated into SuperIDE.", mvp: ["Advanced editor", "Offline-ready workflows", "Production-grade exports"] },
   { id: "SkyeBlog", summary: "AI-first blog studio with direct community publishing flows.", mvp: ["AI draft generation", "Editorial workspace", "Push to chat/mail"] },
+  { id: "AE-Flow", summary: "Embedded CRM platform with operator workflows and cross-app command routing.", mvp: ["CRM shell", "Workspace context", "Command network handoff"] },
+  { id: "GoogleBusinessProfileRescuePlatform", summary: "Business rescue platform capsule for case diagnostics and reinstatement ops.", mvp: ["Platform launchpad", "Workspace sync", "Rescue handoff"] },
   { id: "SovereignVariables", summary: "Secure environment variable vault with portable exports.", mvp: ["Project/env management", "Encrypted .skye export", "Push to chat/mail"] },
   { id: "SkyeBookx", summary: "AI-native authoring and publishing surface.", mvp: ["Chapter drafting", "AI rewrite", "Compile preview"] },
   { id: "SkyePlatinum", summary: "Executive command hub with kAIxU analysis.", mvp: ["Client registry", "Ledger ops", "AI directives"] },
@@ -439,6 +649,8 @@ const SKYE_APPS: SkyeAppDefinition[] = [
   { id: "Smokehouse-Standalone", summary: "Standalone smoke runner with tamper-evident run history.", mvp: ["Contract checks", "Hash chain", "Runbook export"] },
 ];
 
+const SKYE_APP_ID_SET = new Set<string>(SKYE_APPS.map((app) => app.id));
+
 const PLATFORM_INTRO_PILLARS = [
   {
     title: "Full Email Service",
@@ -455,6 +667,16 @@ const PLATFORM_INTRO_PILLARS = [
     detail:
       "SkyeDocxPro and SkyeDocs combine advanced editing, offline-safe workflows, and production exports to operate as a full document platform replacement.",
   },
+  {
+    title: "CRM Platform System",
+    detail:
+      "AE-Flow sits inside the deck as a full CRM platform with workspace-aware routing into chat, mail, neural, and admin lanes.",
+  },
+  {
+    title: "Business Rescue Platform",
+    detail:
+      "Google Business Profile Rescue Platform is staged as a dedicated recovery system for diagnostics, evidence prep, and reinstatement execution inside SuperIDE.",
+  },
 ];
 
 const APP_SURFACE_PATHS: Partial<Record<SkyeAppId, string>> = {
@@ -462,6 +684,8 @@ const APP_SURFACE_PATHS: Partial<Record<SkyeAppId, string>> = {
   "SkyDex4.6": "/SkyDex4.6/index.html",
   SkyeDocxPro: "/SkyeDocxPro/index.html",
   SkyeBlog: "/SkyeBlog/index.html",
+  "AE-Flow": "/AE-Flow/index.html",
+  GoogleBusinessProfileRescuePlatform: "/GoogleBusinessProfileRescuePlatform/index.html",
   SovereignVariables: "/SovereignVariables/index.html",
   SkyeBookx: "/SkyeBookx/index.html",
   SkyePlatinum: "/SkyePlatinum/index.html",
@@ -543,6 +767,18 @@ const APP_TUTORIALS: Record<SkyeAppId, string[]> = {
     "Edit and export the post as .skye / HTML / PDF artifacts.",
     "Push the post directly into SkyeChat community or admin board.",
     "Send campaign-ready summary to SkyeMail recipients.",
+  ],
+  "AE-Flow": [
+    "Open AE-Flow as a full CRM platform inside SuperIDE.",
+    "Verify workspace context and the shared kAIxU key are already available without another paste step.",
+    "Use the platform for operator workflow handoff, then route follow-up into SkyeChat or SkyeMail.",
+    "Confirm the embedded platform still feels like the original system and keeps its visual language intact.",
+  ],
+  GoogleBusinessProfileRescuePlatform: [
+    "Open the GBP Rescue platform capsule from the SuperIDE app drawer.",
+    "Review the rescue workflow summary, key status, and command network links inside the embedded launchpad.",
+    "Jump from the platform capsule into SkyeChat, SkyeMail, Neural Space Pro, or SkyeAdmin for follow-up work.",
+    "Treat the rescue surface as a platform lane, not as an isolated app tile.",
   ],
   SovereignVariables: [
     "Create a project and at least one environment.",
@@ -633,7 +869,7 @@ const APP_TUTORIALS: Record<SkyeAppId, string[]> = {
   SkyeAdmin: [
     "Invite teammates with role assignment.",
     "Review org membership roster.",
-    "Issue scoped test tokens for controlled validation.",
+    "Issue scoped test keys for controlled validation.",
   ],
   "kAIxU-Vision": [
     "Open Vision and confirm gateway route controls are active.",
@@ -721,6 +957,12 @@ const APP_DRAWER_GROUPS: AppDrawerGroup[] = [
     label: "Workspace + Content",
     description: "Documents, publishing, books, forms, notes, sheets, and slide workflows.",
     apps: ["SkyeDocs", "SkyeDocxPro", "SkyeBlog", "SkyeBookx", "SkyeSheets", "SkyeSlides", "SkyeForms", "SkyeNotes"],
+  },
+  {
+    id: "platforms",
+    label: "Platform Systems",
+    description: "Full platform systems embedded in the command deck and linked to the shared workspace command network.",
+    apps: ["AE-Flow", "GoogleBusinessProfileRescuePlatform"],
   },
   {
     id: "communications",
@@ -872,6 +1114,62 @@ function inferCommandTone(text: string): CommandFeedTone {
   if (/boundary|queued|sync|processing|loading|minting|requesting/.test(lowered)) return "boundary";
   if (/sent|loaded|saved|linked|ready|complete|accepted|imported|exported|shared|published|registered|queued/.test(lowered)) return "ok";
   return "info";
+}
+
+function parseEnvTemplateLines(text: string): Array<{ key: string; value: string }> {
+  const lines = String(text || "").split(/\r?\n/);
+  const items: Array<{ key: string; value: string }> = [];
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith("#") || line.startsWith("//")) continue;
+    const normalized = line.startsWith("export ") ? line.slice(7).trim() : line;
+    const match = normalized.match(/^([A-Za-z_][A-Za-z0-9_.-]*)\s*=\s*(.+)$/);
+    if (!match) continue;
+    const key = match[1].trim();
+    const value = match[2].trim();
+    if (!key || !value) continue;
+    items.push({ key, value });
+  }
+
+  return items;
+}
+
+function formatEnvTemplateValue(value: string): string {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) return '""';
+  if (/\s|,|#/.test(trimmed) || /["']/.test(trimmed)) return JSON.stringify(trimmed);
+  return trimmed;
+}
+
+function buildEnvTemplateContent(entries: Array<{ key: string; value: string | null | undefined }>): string {
+  return entries
+    .map(({ key, value }) => ({ key: String(key || "").trim(), value: String(value || "").trim() }))
+    .filter((entry) => entry.key && entry.value)
+    .map((entry) => `${entry.key}=${formatEnvTemplateValue(entry.value)}`)
+    .join("\n");
+}
+
+function readSovereignVariablesInbox(): SovereignVariablesInboxEntry[] {
+  try {
+    const raw = localStorage.getItem(SOVEREIGN_VARIABLES_INBOX_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as SovereignVariablesInboxEntry[];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function queueSovereignVariablesInboxEntry(entry: Omit<SovereignVariablesInboxEntry, "id" | "created_at">) {
+  const nextEntry: SovereignVariablesInboxEntry = {
+    id: makeId(),
+    created_at: new Date().toISOString(),
+    ...entry,
+  };
+  const next = [nextEntry, ...readSovereignVariablesInbox()].slice(0, 20);
+  localStorage.setItem(SOVEREIGN_VARIABLES_INBOX_KEY, JSON.stringify(next));
+  return nextEntry;
 }
 
 function inferDriveAssetKind(name: string, mimeType: string): DriveAsset["kind"] {
@@ -1277,6 +1575,8 @@ export function App() {
     { email: "ops@skye.local", role: "admin" },
     { email: "dev@skye.local", role: "member" },
   ]);
+  const [orgSeatSummary, setOrgSeatSummary] = useState<OrgSeatSummary | null>(null);
+  const [primaryWorkspace, setPrimaryWorkspace] = useState<OrgWorkspaceSummary | null>(null);
   const [tasksModel, setTasksModel] = useState<TaskCard[]>(() => {
     const raw = localStorage.getItem("kx.skye.tasks.model");
     if (raw) {
@@ -1343,6 +1643,17 @@ export function App() {
   const [tokenLabelPrefix, setTokenLabelPrefix] = useState("ide-key");
   const [tokenTtlPreset, setTokenTtlPreset] = useState("day");
   const [tokenInventory, setTokenInventory] = useState<TokenInventoryItem[]>([]);
+  const [orgKeyPolicy, setOrgKeyPolicy] = useState<OrgKeyPolicySummary | null>(null);
+  const [isLoadingOrgKeyPolicy, setIsLoadingOrgKeyPolicy] = useState(false);
+  const [isRunningOrgKeyAction, setIsRunningOrgKeyAction] = useState(false);
+  const [orgKeyActionResult, setOrgKeyActionResult] = useState("");
+  const [orgKeyIssuedToken, setOrgKeyIssuedToken] = useState("");
+  const [orgKeyIssuedMeta, setOrgKeyIssuedMeta] = useState("");
+  const [orgDefaultKeyLabelPrefix, setOrgDefaultKeyLabelPrefix] = useState("org-default");
+  const [orgDefaultKeyTtlPreset, setOrgDefaultKeyTtlPreset] = useState("quarter");
+  const [assignedKeyEmail, setAssignedKeyEmail] = useState("");
+  const [assignedKeyLabelPrefix, setAssignedKeyLabelPrefix] = useState("member-assigned");
+  const [assignedKeyTtlPreset, setAssignedKeyTtlPreset] = useState("quarter");
   const authCenterWindowRef = useRef<Window | null>(null);
   const [authCenterLaunchBlocked, setAuthCenterLaunchBlocked] = useState(false);
   const [isLoadingTokenInventory, setIsLoadingTokenInventory] = useState(false);
@@ -1415,9 +1726,13 @@ export function App() {
       return [];
     }
   });
+  const [commandFeedInspector, setCommandFeedInspector] = useState<CommandFeedInspector | null>(null);
   const [isGlobalDropActive, setIsGlobalDropActive] = useState(false);
   const dropDepthRef = useRef(0);
   const actionFeedSeenRef = useRef<Record<string, string>>({});
+  const sovereignFeedSeenRef = useRef<Record<string, string>>({});
+  const sovereignVariablesBootstrapSeenRef = useRef<Record<string, string>>({});
+  const contractorQueueSeenRef = useRef("");
 
   const [vaultSecrets, setVaultSecrets] = useState<VaultSecret[]>([
     { id: "vault-1", label: "NETLIFY_TOKEN", scope: "deploy", owner: "ops@skye.local", last_rotated: "2026-02-21", status: "active", redacted_value: "****token" },
@@ -1503,12 +1818,62 @@ export function App() {
   const [mailRuntimeStatus, setMailRuntimeStatus] = useState<MailRuntimeStatus | null>(null);
   const [integrationRuntimeStatus, setIntegrationRuntimeStatus] = useState<IntegrationRuntimeStatus | null>(null);
   const [isPlatformStatusLoading, setIsPlatformStatusLoading] = useState(false);
+  const [sovereignEvents, setSovereignEvents] = useState<SovereignEvent[]>([]);
+  const [isSovereignEventsLoading, setIsSovereignEventsLoading] = useState(false);
+  const [suiteEvents, setSuiteEvents] = useState<SuiteEventRecord[]>([]);
+  const [isSuiteEventsLoading, setIsSuiteEventsLoading] = useState(false);
+  const [timelineEntries, setTimelineEntries] = useState<TimelineEntry[]>([]);
+  const [isTimelineLoading, setIsTimelineLoading] = useState(false);
+  const [missions, setMissions] = useState<MissionRecord[]>([]);
+  const [isMissionsLoading, setIsMissionsLoading] = useState(false);
+  const [missionDraftTitle, setMissionDraftTitle] = useState("");
+  const [missionDraftGoal, setMissionDraftGoal] = useState("");
+  const [missionDraftPriority, setMissionDraftPriority] = useState<MissionRecord["priority"]>("medium");
+  const [selectedMissionId, setSelectedMissionId] = useState("");
+  const [missionEditTitle, setMissionEditTitle] = useState("");
+  const [missionEditGoal, setMissionEditGoal] = useState("");
+  const [missionEditPriority, setMissionEditPriority] = useState<MissionRecord["priority"]>("medium");
+  const [missionEditStatus, setMissionEditStatus] = useState<MissionRecord["status"]>("active");
+  const [missionCollaboratorEmail, setMissionCollaboratorEmail] = useState("");
+  const [missionCollaboratorRole, setMissionCollaboratorRole] = useState<MissionCollaboratorRole>("collaborator");
+  const [missionAssetSourceApp, setMissionAssetSourceApp] = useState("");
+  const [missionAssetKind, setMissionAssetKind] = useState("workspace_file");
+  const [missionAssetId, setMissionAssetId] = useState("");
+  const [missionAssetTitle, setMissionAssetTitle] = useState("");
+  const [missionResult, setMissionResult] = useState("");
+  const [isCreatingMission, setIsCreatingMission] = useState(false);
+  const [isUpdatingMission, setIsUpdatingMission] = useState(false);
+  const [isAttachingMissionCollaborator, setIsAttachingMissionCollaborator] = useState(false);
+  const [isAttachingMissionAsset, setIsAttachingMissionAsset] = useState(false);
+  const [contractorAdminPassword, setContractorAdminPassword] = useState("");
+  const [contractorAdminToken, setContractorAdminToken] = useState(() => localStorage.getItem("sol_admin_token") || "");
+  const [contractorStatusFilter, setContractorStatusFilter] = useState("");
+  const [contractorSearch, setContractorSearch] = useState("");
+  const [contractorSubmissions, setContractorSubmissions] = useState<ContractorSubmissionRecord[]>([]);
+  const [isContractorLoading, setIsContractorLoading] = useState(false);
+  const [isContractorLoggingIn, setIsContractorLoggingIn] = useState(false);
+  const [selectedContractorSubmissionId, setSelectedContractorSubmissionId] = useState("");
+  const [contractorAdminNotes, setContractorAdminNotes] = useState("");
+  const [contractorAdminTags, setContractorAdminTags] = useState("");
+  const [contractorAdminStatus, setContractorAdminStatus] = useState<ContractorSubmissionRecord["status"]>("reviewing");
+  const [contractorAdminResult, setContractorAdminResult] = useState("");
+  const [isContractorSaving, setIsContractorSaving] = useState(false);
+  const [isContractorExporting, setIsContractorExporting] = useState(false);
+  const [adminBoardKey, setAdminBoardKey] = useState("");
+  const [adminBoardUnlocked, setAdminBoardUnlocked] = useState(() => sessionStorage.getItem("kx.admin.board.unlocked") === "1");
+  const [adminBoardResult, setAdminBoardResult] = useState("");
+  const [isAdminBoardVerifying, setIsAdminBoardVerifying] = useState(false);
 
   useEffect(() => {
     if (initialMode === "neural") {
       setAppMode("neural");
     }
   }, [initialMode]);
+
+  useEffect(() => {
+    if (adminBoardUnlocked) sessionStorage.setItem("kx.admin.board.unlocked", "1");
+    else sessionStorage.removeItem("kx.admin.board.unlocked");
+  }, [adminBoardUnlocked]);
 
   useEffect(() => {
     function onShellHotkey(event: KeyboardEvent) {
@@ -1578,10 +1943,75 @@ export function App() {
     () => getPreviewHealthState(effectivePreviewDocument, effectivePreviewUrl, previewFrameError),
     [effectivePreviewDocument, effectivePreviewUrl, previewFrameError]
   );
+  const selectedMission = useMemo(
+    () => missions.find((mission) => mission.id === selectedMissionId) || null,
+    [missions, selectedMissionId]
+  );
+  const selectedContractorSubmission = useMemo(
+    () => contractorSubmissions.find((submission) => submission.id === selectedContractorSubmissionId) || null,
+    [contractorSubmissions, selectedContractorSubmissionId]
+  );
   const sknorePatterns = useMemo(() => normalizeSknorePatterns(sknoreText.split("\n")), [sknoreText]);
+  const sknoreBlockedFiles = useMemo(
+    () => files.filter((file) => isSknoreProtected(file.path, sknorePatterns)).map((file) => file.path),
+    [files, sknorePatterns]
+  );
   const sknoreBlockedCount = useMemo(
     () => files.filter((file) => isSknoreProtected(file.path, sknorePatterns)).length,
     [files, sknorePatterns]
+  );
+  const contractorNewCount = useMemo(
+    () => contractorSubmissions.filter((submission) => submission.status === "new").length,
+    [contractorSubmissions]
+  );
+  const contractorPendingCount = useMemo(
+    () => contractorSubmissions.filter((submission) => submission.status === "new" || submission.status === "reviewing").length,
+    [contractorSubmissions]
+  );
+  const contractorMiniRailItems = useMemo(() => {
+    return sovereignEvents
+      .filter((event) => isContractorSovereignEvent(event))
+      .slice(0, 4)
+      .map((event) => {
+        const payload = asObject(event.payload);
+        const matchingSubmission = contractorSubmissions.find((submission) => submission.id === event.subject_id);
+        const statusValue = String(
+          matchingSubmission?.status || payload.status || (event.event_type === "contractor.submission.received" ? "new" : "reviewing")
+        ).toLowerCase();
+        const label =
+          String(matchingSubmission?.full_name || payload.full_name || "").trim() ||
+          String(event.summary || event.subject_id || "Contractor intake").replace(/^Contractor (intake received|submission updated):\s*/i, "");
+        const detailParts = [
+          String(matchingSubmission?.email || payload.email || "").trim(),
+          String(matchingSubmission?.coverage || payload.coverage || "").trim(),
+        ].filter(Boolean);
+        const tone: CommandFeedTone =
+          statusValue === "rejected"
+            ? "fail"
+            : statusValue === "approved"
+              ? "ok"
+              : statusValue === "new" || statusValue === "reviewing" || statusValue === "on_hold"
+                ? "boundary"
+                : getSovereignEventTone(event);
+
+        return {
+          id: event.id,
+          name: label,
+          status: statusValue,
+          detail: detailParts.join(" · ") || String(event.event_type || "contractor").replace(/^contractor\./, ""),
+          tone,
+          submissionId: matchingSubmission?.id || event.subject_id || undefined,
+        };
+      });
+  }, [sovereignEvents, contractorSubmissions]);
+  const contractorEventCount = useMemo(
+    () => sovereignEvents.filter((event) => {
+      const family = String(event.event_family || "").toLowerCase();
+      const source = String(event.source_app || "").toLowerCase();
+      const subject = String(event.subject_kind || "").toLowerCase();
+      return family === "contractor" || source === "contractornetwork" || subject === "contractor_submission";
+    }).length,
+    [sovereignEvents]
   );
   const smokeStaleWarningReason = useMemo(() => {
     if (dismissedStaleSmokeWarning) return "";
@@ -1730,6 +2160,11 @@ export function App() {
     localStorage.setItem("kx.skye.spotlight.dismissed", JSON.stringify(dismissedSpotlightByApp));
   }, [dismissedSpotlightByApp]);
 
+  useEffect(() => {
+    if (contractorAdminToken.trim()) localStorage.setItem("sol_admin_token", contractorAdminToken.trim());
+    else localStorage.removeItem("sol_admin_token");
+  }, [contractorAdminToken]);
+
   function pushIdeDiagnostic(level: "info" | "warn" | "error", message: string) {
     const entry: IdeDiagnostic = {
       id: makeId(),
@@ -1740,11 +2175,735 @@ export function App() {
     setIdeDiagnostics((old) => [entry, ...old].slice(0, 12));
   }
 
+  function stageSovereignVariablesSuggestion(options: {
+    title: string;
+    source: string;
+    content: string;
+    detail: string;
+    projectName?: string;
+    environmentName?: string;
+    tone?: CommandFeedTone;
+    badge?: string;
+  }) {
+    const content = String(options.content || "").trim();
+    if (!content) return null;
+    const lines = parseEnvTemplateLines(content);
+    if (!lines.length) return null;
+
+    const inboxEntry = queueSovereignVariablesInboxEntry({
+      title: options.title,
+      source: options.source,
+      content,
+      project_name: options.projectName,
+      environment_name: options.environmentName,
+    });
+
+    pushCommandFeed(
+      "SovereignVariables",
+      options.detail,
+      options.tone || "info",
+      "SovereignVariables",
+      {
+        kind: "open-sovereign-variables",
+        focus: "inbox",
+        importKey: inboxEntry.id,
+      },
+      options.badge || `${lines.length} vars`
+    );
+
+    return inboxEntry;
+  }
+
+  function maybeStageWorkspaceBootstrapEnv(triggerPath?: string) {
+    const normalizedWorkspaceId = workspaceId.trim();
+    if (!normalizedWorkspaceId) return;
+    if (sovereignVariablesBootstrapSeenRef.current[normalizedWorkspaceId]) return;
+
+    const content = buildEnvTemplateContent([
+      { key: "KX_WORKSPACE_ID", value: normalizedWorkspaceId },
+      { key: "KX_ACTIVE_APP", value: selectedSkyeApp },
+      { key: "KX_SITE_BASE", value: siteBaseUrl.trim() },
+      { key: "KX_WORKER_URL", value: workerUrl.trim() },
+      { key: "KX_PRIMARY_EMAIL", value: authUser.trim().toLowerCase() },
+    ]);
+
+    const staged = stageSovereignVariablesSuggestion({
+      title: `${selectedSkyeApp} workspace bootstrap`,
+      source: "Project Bootstrap",
+      content,
+      detail: triggerPath
+        ? `Project bootstrap detected in ${normalizedWorkspaceId}. SovereignVariables can stage the env baseline for ${triggerPath}.`
+        : `Project bootstrap detected in ${normalizedWorkspaceId}. SovereignVariables can stage the env baseline now.`,
+      projectName: normalizedWorkspaceId,
+      environmentName: "Workspace Bootstrap",
+      tone: "info",
+    });
+
+    if (staged) sovereignVariablesBootstrapSeenRef.current[normalizedWorkspaceId] = staged.id;
+  }
+
   function isWorkerBoundarySummary(summary: string | null | undefined) {
     return /boundary|cors|access policy|browser/i.test(String(summary || ""));
   }
 
-  function pushCommandFeed(source: string, detail: string, tone: CommandFeedTone = inferCommandTone(detail), appId?: SkyeAppId | "SkyeMail" | "SkyeChat" | "SkyeDrive") {
+  function getSovereignEventTone(event: SovereignEvent): CommandFeedTone {
+    if (event.severity === "critical" || event.severity === "error") return "fail";
+    if (event.severity === "warning") return "boundary";
+    return "ok";
+  }
+
+  function getSovereignEventAppId(event: SovereignEvent): SkyeAppId | "SkyeMail" | "SkyeChat" | "SkyeDrive" | null {
+    const value = String(event.source_app || "").trim();
+    if (!value || !SKYE_APP_ID_SET.has(value)) return null;
+    return value as SkyeAppId;
+  }
+
+  function isContractorSovereignEvent(event: SovereignEvent) {
+    const family = String(event.event_family || "").toLowerCase();
+    const source = String(event.source_app || "").toLowerCase();
+    const subject = String(event.subject_kind || "").toLowerCase();
+    return family === "contractor" || source === "contractornetwork" || subject === "contractor_submission";
+  }
+
+  function syncSovereignEventAlerts(items: SovereignEvent[]) {
+    const nextIds = items.map((item) => item.id);
+    if (!Object.keys(sovereignFeedSeenRef.current).length) {
+      sovereignFeedSeenRef.current = Object.fromEntries(nextIds.map((id) => [id, id]));
+      return;
+    }
+
+    const fresh = items.filter((item) => !sovereignFeedSeenRef.current[item.id]);
+    if (!fresh.length) return;
+
+    for (const item of fresh) {
+      sovereignFeedSeenRef.current[item.id] = item.id;
+    }
+
+    const freshContractor = fresh.filter((item) => isContractorSovereignEvent(item));
+    if (!freshContractor.length) return;
+
+    const latest = freshContractor[0];
+    const intakeCount = freshContractor.filter((item) => item.event_type === "contractor.submission.received").length;
+
+    pushCommandFeed(
+      "ContractorNetwork",
+      intakeCount
+        ? `Contractor intake detected on the sovereign rail: ${intakeCount} new submission${intakeCount === 1 ? "" : "s"} landed.`
+        : `ContractorNetwork activity detected on the sovereign rail: ${freshContractor.length} new event${freshContractor.length === 1 ? "" : "s"}.`,
+      intakeCount ? "boundary" : getSovereignEventTone(latest),
+      undefined,
+      {
+        kind: "focus-contractor",
+        submissionId: latest.subject_id || undefined,
+        filter: intakeCount ? "reviewing" : undefined,
+      },
+      intakeCount ? `${intakeCount} intake` : `${freshContractor.length} events`
+    );
+  }
+
+  function summarizeContractorQueue(items: ContractorSubmissionRecord[]) {
+    if (!items.length) return null;
+    const latest = items[0];
+    const nextPending = items.filter((submission) => submission.status === "new" || submission.status === "reviewing").length;
+    const nextNew = items.filter((submission) => submission.status === "new").length;
+    return {
+      latest,
+      pending: nextPending,
+      queued: nextNew,
+      badge: `${nextPending} pending`,
+      detail: nextNew
+        ? `ContractorNetwork queue updated: ${nextNew} new and ${nextPending} awaiting review. Latest intake: ${latest.full_name}.`
+        : `ContractorNetwork queue synced: ${nextPending} submission${nextPending === 1 ? "" : "s"} awaiting review. Latest intake: ${latest.full_name}.`,
+      tone: nextNew ? ("boundary" as const) : ("ok" as const),
+    };
+  }
+
+  function focusSovereignVariables(action?: Extract<CommandFeedAction, { kind: "open-sovereign-variables" }>) {
+    setAppMode("skyeide");
+    setSelectedSkyeApp("SovereignVariables");
+    setRightTopDockApp("SovereignVariables");
+    if (action?.focus === "inbox" || action?.importKey) {
+      const inbox = readSovereignVariablesInbox();
+      const entry = action.importKey ? inbox.find((item) => item.id === action.importKey) || inbox[0] : inbox[0];
+      if (entry) {
+        setCommandFeedInspector({
+          title: "SovereignVariables intake ready",
+          description: `${entry.title} from ${entry.source} is queued for import when you open SovereignVariables.`,
+          paths: parseEnvTemplateLines(entry.content).map((item) => `${item.key}=${item.value}`),
+        });
+      }
+    }
+  }
+
+  function handleCommandFeedEntryClick(entry: CommandFeedItem) {
+    if (entry.action?.kind === "show-file-list") {
+      setAppMode("skyeide");
+      setSelectedSkyeApp("SkyDex4.6");
+      setCommandFeedInspector({
+        title: entry.action.title,
+        description: entry.action.description,
+        paths: entry.action.paths,
+      });
+      return;
+    }
+
+    if (entry.action?.kind === "focus-contractor") {
+      if (entry.action.filter) setContractorStatusFilter(entry.action.filter);
+      if (entry.action.submissionId) setSelectedContractorSubmissionId(entry.action.submissionId);
+      if (contractorAdminToken.trim()) {
+        void loadContractorSubmissions({ status: entry.action.filter || contractorStatusFilter, q: contractorSearch });
+      }
+      setCommandFeedInspector(null);
+      return;
+    }
+
+    if (entry.action?.kind === "open-sovereign-variables") {
+      focusSovereignVariables(entry.action);
+      return;
+    }
+
+    setCommandFeedInspector(null);
+    if (entry.appId === "SkyeMail" || entry.appId === "SkyeChat" || entry.appId === "SkyeDrive") {
+      routeCrossAppFocus(entry.appId);
+    } else if (entry.appId) {
+      setAppMode("skyeide");
+      setSelectedSkyeApp(entry.appId);
+    }
+  }
+
+  async function loadSovereignEvents() {
+    if (!hasActiveAuthSession) {
+      setSovereignEvents([]);
+      return;
+    }
+
+    setIsSovereignEventsLoading(true);
+    try {
+      const qs = new URLSearchParams();
+      qs.set("limit", "6");
+      if (workspaceId.trim()) qs.set("ws_id", workspaceId.trim());
+      const res = await fetch(`/api/sovereign-events?${qs.toString()}`, { credentials: "include" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || `Event feed failed (${res.status}).`);
+      const items = Array.isArray(data?.items) ? (data.items as SovereignEvent[]) : [];
+      setSovereignEvents(items);
+      syncSovereignEventAlerts(items);
+    } catch {
+      setSovereignEvents([]);
+    } finally {
+      setIsSovereignEventsLoading(false);
+    }
+  }
+
+  async function loadSuiteEvents() {
+    if (!hasActiveAuthSession) {
+      setSuiteEvents([]);
+      return;
+    }
+
+    setIsSuiteEventsLoading(true);
+    try {
+      const qs = new URLSearchParams();
+      qs.set("limit", "24");
+      if (workspaceId.trim()) qs.set("ws_id", workspaceId.trim());
+      const res = await fetch(`/api/suite-events?${qs.toString()}`, { credentials: "include" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || `Suite event feed failed (${res.status}).`);
+      setSuiteEvents(Array.isArray(data?.items) ? (data.items as SuiteEventRecord[]) : []);
+    } catch {
+      setSuiteEvents([]);
+    } finally {
+      setIsSuiteEventsLoading(false);
+    }
+  }
+
+  async function loadTimelineEntries() {
+    if (!hasActiveAuthSession) {
+      setTimelineEntries([]);
+      return;
+    }
+
+    setIsTimelineLoading(true);
+    try {
+      const qs = new URLSearchParams();
+      qs.set("limit", "6");
+      if (workspaceId.trim()) qs.set("ws_id", workspaceId.trim());
+      const res = await fetch(`/api/timeline-feed?${qs.toString()}`, { credentials: "include" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || `Timeline feed failed (${res.status}).`);
+      setTimelineEntries(Array.isArray(data?.items) ? (data.items as TimelineEntry[]) : []);
+    } catch {
+      setTimelineEntries([]);
+    } finally {
+      setIsTimelineLoading(false);
+    }
+  }
+
+  async function loadMissionRecords() {
+    if (!hasActiveAuthSession) {
+      setMissions([]);
+      return;
+    }
+
+    setIsMissionsLoading(true);
+    try {
+      const qs = new URLSearchParams();
+      qs.set("limit", "6");
+      if (workspaceId.trim()) qs.set("ws_id", workspaceId.trim());
+      const res = await fetch(`/api/missions?${qs.toString()}`, { credentials: "include" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || `Mission query failed (${res.status}).`);
+      setMissions(Array.isArray(data?.items) ? (data.items as MissionRecord[]) : []);
+    } catch {
+      setMissions([]);
+    } finally {
+      setIsMissionsLoading(false);
+    }
+  }
+
+  async function createMissionRecord() {
+    const title = missionDraftTitle.trim();
+    const goal = missionDraftGoal.trim();
+    if (!title) {
+      setMissionResult("Mission title is required.");
+      return;
+    }
+
+    setIsCreatingMission(true);
+    setMissionResult("");
+    try {
+      const linkedApps = selectedSkyeApp ? [selectedSkyeApp] : [];
+      const res = await fetch("/api/missions", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ws_id: workspaceId.trim() || undefined,
+          title,
+          priority: missionDraftPriority,
+          goals: goal ? [goal] : [],
+          linked_apps: linkedApps,
+          note: `Created from main shell while focused on ${selectedSkyeApp}.`,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || `Mission create failed (${res.status}).`);
+
+      setMissionDraftTitle("");
+      setMissionDraftGoal("");
+      setMissionDraftPriority("medium");
+      setMissionResult(`Mission created: ${data?.title || title}`);
+      pushCommandFeed("Mission", `Mission created: ${data?.title || title}`, "ok", "SkyeTasks");
+      void Promise.all([loadMissionRecords(), loadTimelineEntries(), loadSovereignEvents()]);
+    } catch (error: any) {
+      setMissionResult(error?.message || "Mission create failed.");
+    } finally {
+      setIsCreatingMission(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!missions.length) {
+      setSelectedMissionId("");
+      return;
+    }
+    if (!selectedMissionId || !missions.some((mission) => mission.id === selectedMissionId)) {
+      const firstMission = missions[0];
+      setSelectedMissionId(firstMission.id);
+      setMissionEditTitle(firstMission.title);
+      setMissionEditGoal(Array.isArray(firstMission.goals_json) ? firstMission.goals_json[0] || "" : "");
+      setMissionEditPriority(firstMission.priority);
+      setMissionEditStatus(firstMission.status);
+    }
+  }, [missions, selectedMissionId]);
+
+  useEffect(() => {
+    if (!selectedMission) return;
+    setMissionEditTitle(selectedMission.title);
+    setMissionEditGoal(Array.isArray(selectedMission.goals_json) ? selectedMission.goals_json[0] || "" : "");
+    setMissionEditPriority(selectedMission.priority);
+    setMissionEditStatus(selectedMission.status);
+    setMissionAssetSourceApp(selectedSkyeApp || "SkyeTasks");
+    setMissionAssetKind(activeFile?.path ? "workspace_file" : "workspace_record");
+    setMissionAssetId(activeFile?.path || `${selectedSkyeApp}:${workspaceId || "org-scope"}`);
+    setMissionAssetTitle(activeFile?.path || `${selectedSkyeApp} asset`);
+  }, [selectedMission, selectedSkyeApp, activeFile, workspaceId]);
+
+  async function updateMissionRecord() {
+    if (!selectedMission) {
+      setMissionResult("Select a mission to update.");
+      return;
+    }
+
+    const nextTitle = missionEditTitle.trim();
+    const nextGoal = missionEditGoal.trim();
+    if (!nextTitle) {
+      setMissionResult("Mission title is required.");
+      return;
+    }
+
+    setIsUpdatingMission(true);
+    setMissionResult("");
+    try {
+      const linkedApps = Array.isArray(selectedMission.linked_apps_json) && selectedMission.linked_apps_json.length
+        ? selectedMission.linked_apps_json
+        : selectedSkyeApp
+          ? [selectedSkyeApp]
+          : [];
+      const res = await fetch("/api/mission-update", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mission_id: selectedMission.id,
+          title: nextTitle,
+          status: missionEditStatus,
+          priority: missionEditPriority,
+          goals: nextGoal ? [nextGoal] : [],
+          linked_apps: linkedApps,
+          note: `Updated from main shell while focused on ${selectedSkyeApp}.`,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || `Mission update failed (${res.status}).`);
+      setMissionResult(`Mission updated: ${data?.item?.title || nextTitle}`);
+      pushCommandFeed("Mission", `Mission updated: ${data?.item?.title || nextTitle}`, "ok", "SkyeTasks");
+      void Promise.all([loadMissionRecords(), loadTimelineEntries(), loadSovereignEvents()]);
+    } catch (error: any) {
+      setMissionResult(error?.message || "Mission update failed.");
+    } finally {
+      setIsUpdatingMission(false);
+    }
+  }
+
+  async function attachMissionCollaborator() {
+    if (!selectedMission) {
+      setMissionResult("Select a mission before attaching a collaborator.");
+      return;
+    }
+
+    const email = missionCollaboratorEmail.trim().toLowerCase();
+    if (!email) {
+      setMissionResult("Collaborator email is required.");
+      return;
+    }
+
+    setIsAttachingMissionCollaborator(true);
+    setMissionResult("");
+    try {
+      const res = await fetch("/api/mission-collaborator", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mission_id: selectedMission.id,
+          email,
+          role: missionCollaboratorRole,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || `Collaborator attach failed (${res.status}).`);
+      setMissionCollaboratorEmail("");
+      setMissionResult(`Collaborator attached: ${data?.item?.email || email}`);
+      pushCommandFeed("Mission", `Collaborator attached: ${data?.item?.email || email}`, "ok", "SkyeTasks");
+      void Promise.all([loadMissionRecords(), loadTimelineEntries(), loadSovereignEvents()]);
+    } catch (error: any) {
+      setMissionResult(error?.message || "Collaborator attach failed.");
+    } finally {
+      setIsAttachingMissionCollaborator(false);
+    }
+  }
+
+  async function attachMissionAsset() {
+    if (!selectedMission) {
+      setMissionResult("Select a mission before attaching an asset.");
+      return;
+    }
+
+    const assetIdValue = missionAssetId.trim();
+    if (!assetIdValue) {
+      setMissionResult("Asset id is required.");
+      return;
+    }
+
+    setIsAttachingMissionAsset(true);
+    setMissionResult("");
+    try {
+      const res = await fetch("/api/mission-asset-attach", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mission_id: selectedMission.id,
+          source_app: missionAssetSourceApp.trim() || selectedSkyeApp || undefined,
+          asset_kind: missionAssetKind.trim(),
+          asset_id: assetIdValue,
+          title: missionAssetTitle.trim() || undefined,
+          detail: {
+            active_path: activeFile?.path || null,
+            workspace_id: workspaceId || null,
+            selected_app: selectedSkyeApp,
+          },
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || `Asset attach failed (${res.status}).`);
+      setMissionResult(`Asset attached: ${data?.item?.title || assetIdValue}`);
+      pushCommandFeed("Mission", `Asset attached: ${data?.item?.title || assetIdValue}`, "ok", "SkyeTasks");
+      void Promise.all([loadMissionRecords(), loadTimelineEntries(), loadSovereignEvents()]);
+    } catch (error: any) {
+      setMissionResult(error?.message || "Asset attach failed.");
+    } finally {
+      setIsAttachingMissionAsset(false);
+    }
+  }
+
+  function contractorAdminHeaders(extraHeaders: Record<string, string> = {}) {
+    const token = contractorAdminToken.trim();
+    return token ? { ...extraHeaders, Authorization: `Bearer ${token}` } : extraHeaders;
+  }
+
+  async function loadContractorSubmissions(options: { status?: string; q?: string } = {}) {
+    if (!contractorAdminToken.trim()) {
+      setContractorSubmissions([]);
+      return;
+    }
+
+    setIsContractorLoading(true);
+    setContractorAdminResult("");
+    try {
+      const qs = new URLSearchParams();
+      qs.set("limit", "12");
+      const nextStatus = String(options.status ?? contractorStatusFilter).trim();
+      const nextSearch = String(options.q ?? contractorSearch).trim();
+      if (nextStatus) qs.set("status", nextStatus);
+      if (nextSearch) qs.set("q", nextSearch);
+      const res = await fetch(`/api/admin/submissions?${qs.toString()}`, {
+        headers: contractorAdminHeaders(),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || `Contractor submission query failed (${res.status}).`);
+      const items = Array.isArray(data?.items) ? (data.items as ContractorSubmissionRecord[]) : [];
+      setContractorSubmissions(items);
+      if (items.length && !items.some((submission) => submission.id === selectedContractorSubmissionId)) {
+        setSelectedContractorSubmissionId(items[0].id);
+      }
+      if (!items.length) {
+        setSelectedContractorSubmissionId("");
+      }
+    } catch (error: any) {
+      setContractorSubmissions([]);
+      setContractorAdminResult(error?.message || "Contractor submission query failed.");
+    } finally {
+      setIsContractorLoading(false);
+    }
+  }
+
+  async function loginContractorAdmin() {
+    const password = contractorAdminPassword.trim();
+    if (!password) {
+      setContractorAdminResult("Admin password is required.");
+      return;
+    }
+
+    setIsContractorLoggingIn(true);
+    setContractorAdminResult("");
+    try {
+      const res = await fetch("/api/admin/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || `Contractor admin login failed (${res.status}).`);
+      setContractorAdminToken(String(data?.token || ""));
+      setContractorAdminPassword("");
+      setContractorAdminResult("ContractorNetwork admin authenticated.");
+      void loadContractorSubmissions();
+    } catch (error: any) {
+      setContractorAdminResult(error?.message || "Contractor admin login failed.");
+    } finally {
+      setIsContractorLoggingIn(false);
+    }
+  }
+
+  function logoutContractorAdmin() {
+    setContractorAdminToken("");
+    setContractorSubmissions([]);
+    setSelectedContractorSubmissionId("");
+    setContractorAdminNotes("");
+    setContractorAdminTags("");
+    setContractorAdminStatus("reviewing");
+    setContractorAdminResult("ContractorNetwork admin logged out.");
+  }
+
+  async function verifyAdminBoardKey() {
+    const key = adminBoardKey.trim();
+    if (!key) {
+      setAdminBoardResult("ADMIN_KEY is required.");
+      return;
+    }
+    setIsAdminBoardVerifying(true);
+    setAdminBoardResult("");
+    try {
+      const res = await fetch("/api/admin-key-verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data?.ok !== true) throw new Error(data?.error || `Admin key verification failed (${res.status}).`);
+      setAdminBoardUnlocked(true);
+      setAdminBoardKey("");
+      setAdminBoardResult("Admin board unlocked.");
+    } catch (error: any) {
+      setAdminBoardUnlocked(false);
+      setAdminBoardResult(error?.message || "Admin key verification failed.");
+    } finally {
+      setIsAdminBoardVerifying(false);
+    }
+  }
+
+  function lockAdminBoard() {
+    setAdminBoardUnlocked(false);
+    setAdminBoardKey("");
+    setAdminBoardResult("Admin board locked.");
+  }
+
+  async function copyAdminBoardText(value: string, successMessage: string) {
+    try {
+      await navigator.clipboard.writeText(value);
+      setAdminBoardResult(successMessage);
+    } catch (error: any) {
+      setAdminBoardResult(error?.message || "Clipboard copy failed.");
+    }
+  }
+
+  useEffect(() => {
+    if (!selectedContractorSubmission) return;
+    setContractorAdminNotes(selectedContractorSubmission.admin_notes || "");
+    setContractorAdminTags((selectedContractorSubmission.tags || []).join(", "));
+    setContractorAdminStatus(selectedContractorSubmission.status || "reviewing");
+  }, [selectedContractorSubmission]);
+
+  useEffect(() => {
+    if (!contractorAdminToken.trim()) {
+      contractorQueueSeenRef.current = "";
+      return;
+    }
+    if (contractorStatusFilter.trim() || contractorSearch.trim()) return;
+
+    void loadContractorSubmissions({ status: "", q: "" });
+    const timer = window.setInterval(() => {
+      void loadContractorSubmissions({ status: "", q: "" });
+    }, 20000);
+
+    return () => window.clearInterval(timer);
+  }, [contractorAdminToken, contractorStatusFilter, contractorSearch]);
+
+  useEffect(() => {
+    if (!contractorAdminToken.trim()) return;
+    if (contractorStatusFilter.trim() || contractorSearch.trim()) return;
+    const summary = summarizeContractorQueue(contractorSubmissions);
+    if (!summary) return;
+
+    const snapshot = contractorSubmissions.map((submission) => `${submission.id}:${submission.status}:${submission.updated_at || submission.created_at || ""}`).join("|");
+    if (contractorQueueSeenRef.current === snapshot) return;
+    contractorQueueSeenRef.current = snapshot;
+
+    pushCommandFeed(
+      "ContractorNetwork",
+      summary.detail,
+      summary.tone,
+      undefined,
+      {
+        kind: "focus-contractor",
+        submissionId: summary.latest.id,
+        filter: summary.queued ? "new" : summary.pending ? "reviewing" : undefined,
+      },
+      summary.badge
+    );
+  }, [contractorAdminToken, contractorStatusFilter, contractorSearch, contractorSubmissions]);
+
+  async function saveContractorSubmission() {
+    if (!selectedContractorSubmission) {
+      setContractorAdminResult("Select a submission to update.");
+      return;
+    }
+
+    setIsContractorSaving(true);
+    setContractorAdminResult("");
+    try {
+      const tags = contractorAdminTags
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean)
+        .slice(0, 20);
+      const res = await fetch(`/api/admin/submission/${encodeURIComponent(selectedContractorSubmission.id)}`, {
+        method: "PATCH",
+        headers: contractorAdminHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({
+          admin_notes: contractorAdminNotes,
+          tags,
+          status: contractorAdminStatus,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || `Contractor submission save failed (${res.status}).`);
+      setContractorAdminResult(`Submission updated: ${selectedContractorSubmission.full_name}`);
+      pushCommandFeed("ContractorNetwork", `Submission updated: ${selectedContractorSubmission.full_name}`, "ok", undefined);
+      void Promise.all([loadContractorSubmissions(), loadTimelineEntries(), loadSovereignEvents()]);
+    } catch (error: any) {
+      setContractorAdminResult(error?.message || "Contractor submission save failed.");
+    } finally {
+      setIsContractorSaving(false);
+    }
+  }
+
+  async function exportContractorSubmissions() {
+    if (!contractorAdminToken.trim()) {
+      setContractorAdminResult("ContractorNetwork admin login is required.");
+      return;
+    }
+
+    setIsContractorExporting(true);
+    setContractorAdminResult("");
+    try {
+      const res = await fetch("/api/admin/export", {
+        headers: contractorAdminHeaders(),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || `Contractor export failed (${res.status}).`);
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = "skyes-contractors-submissions.csv";
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+      setContractorAdminResult("Contractor submission export ready.");
+      pushCommandFeed("ContractorNetwork", "Contractor submission export ready.", "ok", undefined, {
+        kind: "focus-contractor",
+      }, `${contractorPendingCount} pending`);
+    } catch (error: any) {
+      setContractorAdminResult(error?.message || "Contractor export failed.");
+    } finally {
+      setIsContractorExporting(false);
+    }
+  }
+
+  function pushCommandFeed(
+    source: string,
+    detail: string,
+    tone: CommandFeedTone = inferCommandTone(detail),
+    appId?: SkyeAppId | "SkyeMail" | "SkyeChat" | "SkyeDrive",
+    action?: CommandFeedAction,
+    badge?: string
+  ) {
     const nextItem: CommandFeedItem = {
       id: makeId(),
       source,
@@ -1752,6 +2911,8 @@ export function App() {
       tone,
       appId,
       at: new Date().toISOString(),
+      action,
+      badge,
     };
     setCommandFeed((old) => {
       if (old[0] && old[0].source === source && old[0].detail === detail) return old;
@@ -1873,10 +3034,7 @@ export function App() {
     pushCommandFeed("Global Drop", detail, "ok", "SkyeDrive");
   }
 
-  function routeCrossAppFocus(
-    appId: "SkyeChat" | "SkyeMail" | "SkyeDrive",
-    options: { channel?: string; note?: string } = {}
-  ) {
+  function routeCrossAppFocus(appId: SkyeAppId, options: { channel?: string; note?: string } = {}) {
     setAppMode("skyeide");
     setSelectedSkyeApp(appId);
     if (appId === "SkyeChat") {
@@ -1897,11 +3055,74 @@ export function App() {
     if (options.note) pushIdeDiagnostic("info", options.note);
   }
 
+  function triggerSuiteRoute(targetAppId: WorkspaceStageApp, options: { note: string; channel?: string; tone?: CommandFeedTone } = { note: "" }) {
+    const note = String(options.note || "").trim();
+    if (targetAppId === "Neural-Space-Pro") {
+      pushCommandFeed(selectedSkyeApp, `${selectedSkyeApp} routed context into Neural Space Pro.${note ? ` ${note}` : ""}`, options.tone || "info");
+      setAppMode("neural");
+      if (note) pushIdeDiagnostic("info", note);
+      return;
+    }
+    emitAppBridge({
+      kind: "action",
+      source: selectedSkyeApp,
+      appId: targetAppId,
+      tone: options.tone || "info",
+      detail: `${selectedSkyeApp} routed context into ${targetAppId}.${note ? ` ${note}` : ""}`,
+    });
+    emitAppBridge({
+      kind: "open-app",
+      source: selectedSkyeApp,
+      appId: targetAppId,
+      channel: options.channel,
+      note: note || `Opened from ${selectedSkyeApp}.`,
+    });
+  }
+
   function handleAppBridgePayload(payload: any) {
     if (!payload) return;
 
+    if (payload.kind === "suite-intent" && payload.intent) {
+      const targetApp = typeof payload.targetApp === "string" ? payload.targetApp : typeof payload.appId === "string" ? payload.appId : undefined;
+      const tone = payload.tone || (payload.intent.status === "failed" ? "fail" : payload.intent.status === "completed" ? "ok" : "info");
+      setSuiteEvents((old) => {
+        const optimistic: SuiteEventRecord = {
+          id: `local-${Date.now()}`,
+          occurred_at: String(payload.at || new Date().toISOString()),
+          source_app: String(payload.source || "Suite"),
+          target_app: targetApp || null,
+          summary: String(payload.detail || `${payload.source || "Suite"} ${payload.intent.status} ${payload.intent.name}`),
+          detail: String(payload.detail || ""),
+          intent: payload.intent as SuiteIntentRecord,
+          context: (payload.context || { workspace_id: workspaceId }) as SuiteIntentContext,
+          payload: (payload.payload || {}) as Record<string, unknown>,
+        };
+        const duplicate = old.find((item) => item.occurred_at === optimistic.occurred_at && item.source_app === optimistic.source_app && item.target_app === optimistic.target_app && item.intent.name === optimistic.intent.name);
+        if (duplicate) return old;
+        return [optimistic, ...old].slice(0, 24);
+      });
+      pushCommandFeed(
+        String(payload.source || "Suite"),
+        String(payload.detail || `${payload.source || "Suite"} ${payload.intent.status} ${payload.intent.name}`),
+        tone,
+        targetApp && (SKYE_APP_ID_SET.has(targetApp) || targetApp === "SkyeMail" || targetApp === "SkyeChat" || targetApp === "SkyeDrive") ? targetApp : undefined,
+        undefined,
+        payload.badge || payload.intent.name
+      );
+      if (targetApp === "Neural-Space-Pro" && payload.intent.status !== "failed") {
+        setAppMode("neural");
+      }
+      return;
+    }
+
     if (payload.kind === "open-app") {
-      const appId = payload.appId === "SkyeMail" ? "SkyeMail" : payload.appId === "SkyeChat" ? "SkyeChat" : payload.appId === "SkyeDrive" ? "SkyeDrive" : null;
+      if (payload.appId === "Neural-Space-Pro") {
+        const noteParts = [payload.source, payload.note].filter(Boolean);
+        setAppMode("neural");
+        if (noteParts.length) pushIdeDiagnostic("info", noteParts.join(" :: "));
+        return;
+      }
+      const appId = typeof payload.appId === "string" && SKYE_APP_ID_SET.has(payload.appId) ? (payload.appId as SkyeAppId) : null;
       if (!appId) return;
       const noteParts = [payload.source, payload.note].filter(Boolean);
       routeCrossAppFocus(appId, {
@@ -2267,12 +3488,14 @@ export function App() {
       { key: "members", source: "Workspace Access", value: workspaceMemberResult, appId: "SkyeAdmin" as const },
       { key: "invite", source: "Invite Flow", value: inviteAcceptResult, appId: "SkyeAdmin" as const },
       { key: "suite", source: "Suite Sync", value: suiteSyncResult, appId: selectedSkyeApp },
-      { key: "tokens", source: "Token Control", value: tokenOpsResult, appId: "SkyeAdmin" as const },
+      { key: "tokens", source: "Key Control", value: tokenOpsResult, appId: "SkyeAdmin" as const },
     ];
 
     for (const item of tracked) {
       const next = item.value.trim();
       if (!next) continue;
+      if (item.key === "ide" && next.startsWith("Workspace saved (")) continue;
+      if (item.key === "suite" && (/^Exported .* as \.skye$/i.test(next) || /^Exported health snapshot for /i.test(next))) continue;
       if (actionFeedSeenRef.current[item.key] === next) continue;
       actionFeedSeenRef.current[item.key] = next;
       pushCommandFeed(item.source, next, inferCommandTone(next), item.appId);
@@ -2485,6 +3708,7 @@ export function App() {
     setFiles((old) => [...old, next]);
     setActivePath(nextPath);
     setIdeOpsResult(`File created: ${nextPath}`);
+    maybeStageWorkspaceBootstrapEnv(nextPath);
   }
 
   function deleteActiveWorkspaceFile() {
@@ -2566,6 +3790,23 @@ export function App() {
       setWorkspaceConflict(null);
       setIdeOpsResult(`Workspace saved (${files.length} files).`);
       pushIdeDiagnostic("info", `Workspace saved (${files.length} files).`);
+      pushCommandFeed(
+        "IDE",
+        sknoreBlockedFiles.length
+          ? `Workspace saved (${files.length} files). SKNore is shielding ${sknoreBlockedFiles.length} files from AI flows.`
+          : `Workspace saved (${files.length} files). SKNore reports no blocked files.`,
+        "ok",
+        "SkyDex4.6",
+        sknoreBlockedFiles.length
+          ? {
+              kind: "show-file-list",
+              title: `SKNore blocked ${sknoreBlockedFiles.length} files`,
+              description: "These files remain protected from AI context and command-side generation flows.",
+              paths: sknoreBlockedFiles,
+            }
+          : undefined,
+        `${sknoreBlockedFiles.length} protected`
+      );
     } catch (error: any) {
       const isConflict = Number(error?.status || 0) === 409;
       if (isConflict) {
@@ -2800,6 +4041,185 @@ export function App() {
       detail: message,
     } as const;
   }, [authResult, hasActiveAuthSession, isAuthSubmitting, isEnsuringOnboardingKey, isResetSubmitting]);
+  const suiteRouteSuggestions = useMemo(() => {
+    const routingPlaybook: Partial<Record<WorkspaceStageApp, Array<{ appId: WorkspaceStageApp; title: string; detail: string; channel?: string }>>> = {
+      SkyeDocs: [
+        { appId: "SkyeChat", title: "Push draft into chat", detail: "Open a live discussion lane for the active document.", channel: "editorial-room" },
+        { appId: "SkyeMail", title: "Stage a mail follow-up", detail: "Turn the current document into a deliverable for outbound mail." },
+        { appId: "SkyeDrive", title: "Capture source assets", detail: "Route attachments and references into the shared drive plane." },
+      ],
+      "SkyDex4.6": [
+        { appId: "SovereignVariables", title: "Sync env pack", detail: "Hand the active workspace into the variable vault for deployment-safe secrets." },
+        { appId: "SkyeAnalytics", title: "Open release telemetry", detail: "Verify smoke, policy, and rollout signals against the current workspace." },
+        { appId: "Neural-Space-Pro", title: "Open neural copilot room", detail: "Carry the current build context into Neural Space Pro for deeper reasoning." },
+      ],
+      SkyeDocxPro: [
+        { appId: "SkyeChat", title: "Review in chat", detail: "Route the output into a threaded review lane.", channel: "docx-review" },
+        { appId: "SkyeMail", title: "Prepare client send", detail: "Move the finished document into outbound messaging." },
+        { appId: "SkyeDrive", title: "Archive generated files", detail: "Store exported artifacts in the suite drive plane." },
+      ],
+      SkyeMail: [
+        { appId: "SkyeChat", title: "Open campaign room", detail: "Carry outbound context into a live chat lane.", channel: "mail-ops" },
+        { appId: "SkyeAnalytics", title: "Inspect delivery telemetry", detail: "Jump straight from outbound operations into KPI and proof signals." },
+        { appId: "SkyeAdmin", title: "Escalate to admin", detail: "Move delivery issues into the protected admin board." },
+      ],
+      SkyeChat: [
+        { appId: "SkyeMail", title: "Convert thread to outbound", detail: "Promote the active channel into a mail-ready follow-up." },
+        { appId: "Neural-Space-Pro", title: "Open neural synthesis", detail: "Send the current thread into Neural Space Pro for synthesis and reasoning." },
+        { appId: "SkyeAnalytics", title: "Read engagement telemetry", detail: "Switch from conversation to governed suite analytics." },
+      ],
+      "Neural-Space-Pro": [
+        { appId: "SkyDex4.6", title: "Return to build surface", detail: "Move neural output back into the secure IDE workspace." },
+        { appId: "SkyeChat", title: "Publish to command room", detail: "Drop the neural result into the active discussion lane.", channel: "neural-room" },
+        { appId: "SkyeDrive", title: "Save generated artifacts", detail: "Capture generated files and source packs in the shared asset rail." },
+      ],
+      "AE-Flow": [
+        { appId: "SkyeMail", title: "Open CRM outreach", detail: "Carry CRM context into outbound mail operations." },
+        { appId: "SkyeChat", title: "Escalate to ops chat", detail: "Route the active case into the shared command room.", channel: "crm-ops" },
+        { appId: "SkyeAdmin", title: "Escalate to admin board", detail: "Bring platform issues into the protected admin surface." },
+      ],
+      GoogleBusinessProfileRescuePlatform: [
+        { appId: "SkyeChat", title: "Open rescue war room", detail: "Send reinstatement context into a live command channel.", channel: "rescue-war-room" },
+        { appId: "SkyeMail", title: "Draft client update", detail: "Convert the current rescue state into outbound customer messaging." },
+        { appId: "Neural-Space-Pro", title: "Open evidence synthesis", detail: "Move rescue notes into neural reasoning for evidence prep." },
+      ],
+      SovereignVariables: [
+        { appId: "SkyDex4.6", title: "Return to deploy surface", detail: "Take the current env pack back into the secure IDE lane." },
+        { appId: "SkyeAdmin", title: "Review protected controls", detail: "Move variable and runtime decisions into admin review." },
+        { appId: "SkyeChat", title: "Notify command room", detail: "Post the variable handoff into a governed chat lane.", channel: "release-ops" },
+      ],
+      SkyeAdmin: [
+        { appId: "SkyeAnalytics", title: "Audit suite telemetry", detail: "Jump from admin controls into suite health and proof signals." },
+        { appId: "Smokehouse-Standalone", title: "Open smoke operations", detail: "Inspect live smoke and regression evidence from the admin board." },
+        { appId: "API-Playground", title: "Inspect API behavior", detail: "Move admin review into direct API validation and contract checks." },
+      ],
+    };
+
+    const fallback = [
+      { appId: "SkyeChat" as SkyeAppId, title: "Open command room", detail: "Carry the current app context into a live chat lane.", channel: "command-deck" },
+      { appId: "SkyeDrive" as SkyeAppId, title: "Save to drive plane", detail: "Move current outputs into the shared asset layer." },
+      { appId: "SkyeAnalytics" as SkyeAppId, title: "Inspect governed telemetry", detail: "Check whether the current surface is producing usable signals." },
+    ];
+
+    return (routingPlaybook[selectedSkyeApp] || fallback).filter((item) => item.appId !== selectedSkyeApp).slice(0, 3);
+  }, [selectedSkyeApp]);
+  const selectedSuiteIntegrationCard = useMemo(() => {
+    const relevant = suiteEvents.filter((item) => item.source_app === selectedSkyeApp || item.target_app === selectedSkyeApp);
+    const upstream = new Map<string, { appId: string; intentName: string; count: number }>();
+    const downstream = new Map<string, { appId: string; intentName: string; count: number }>();
+    let lastSuccessful: SuiteEventRecord | null = null;
+
+    for (const item of relevant) {
+      if (item.intent.status === "completed" && (!lastSuccessful || item.occurred_at > lastSuccessful.occurred_at)) {
+        lastSuccessful = item;
+      }
+      if (item.target_app === selectedSkyeApp && item.source_app) {
+        const key = `${item.source_app}:${item.intent.name}`;
+        const current = upstream.get(key) || { appId: item.source_app, intentName: item.intent.name, count: 0 };
+        current.count += 1;
+        upstream.set(key, current);
+      }
+      if (item.source_app === selectedSkyeApp && item.target_app) {
+        const key = `${item.target_app}:${item.intent.name}`;
+        const current = downstream.get(key) || { appId: item.target_app, intentName: item.intent.name, count: 0 };
+        current.count += 1;
+        downstream.set(key, current);
+      }
+    }
+
+    return {
+      upstream: Array.from(upstream.values()).sort((a, b) => b.count - a.count).slice(0, 4),
+      downstream: Array.from(downstream.values()).sort((a, b) => b.count - a.count).slice(0, 4),
+      lastSuccessful,
+    };
+  }, [selectedSkyeApp, suiteEvents]);
+  const suiteNetworkBoard = useMemo(() => {
+    const edges = new Map<string, { key: string; source: string; target: string; count: number; detail: string; at: string; tone: CommandFeedTone }>();
+    const appCounts = new Map<string, { label: string; count: number; lastAt: string }>();
+
+    const bumpApp = (label: string, at: string) => {
+      const nextLabel = String(label || "").trim();
+      if (!nextLabel) return;
+      const current = appCounts.get(nextLabel);
+      appCounts.set(nextLabel, {
+        label: nextLabel,
+        count: (current?.count || 0) + 1,
+        lastAt: current?.lastAt && current.lastAt > at ? current.lastAt : at,
+      });
+    };
+
+    for (const entry of commandFeed.slice(0, 18)) {
+      const source = String(entry.source || "Command Deck").trim() || "Command Deck";
+      bumpApp(source, entry.at);
+      if (!entry.appId) continue;
+      bumpApp(entry.appId, entry.at);
+      const key = `${source}=>${entry.appId}`;
+      const current = edges.get(key);
+      edges.set(key, {
+        key,
+        source,
+        target: entry.appId as SkyeAppId,
+        count: (current?.count || 0) + 1,
+        detail: String(entry.detail || `${source} handed off to ${entry.appId}`),
+        at: current?.at && current.at > entry.at ? current.at : entry.at,
+        tone: entry.tone,
+      });
+    }
+
+    for (const item of suiteEvents.slice(0, 18)) {
+      const source = String(item.source_app || "Suite").trim() || "Suite";
+      bumpApp(source, item.occurred_at);
+      if (item.target_app) bumpApp(item.target_app, item.occurred_at);
+      if (!item.target_app) continue;
+      const key = `${source}=>${item.target_app}`;
+      const current = edges.get(key);
+      edges.set(key, {
+        key,
+        source,
+        target: item.target_app,
+        count: (current?.count || 0) + 1,
+        detail: String(item.detail || item.summary || `${source} handed off to ${item.target_app}`),
+        at: current?.at && current.at > item.occurred_at ? current.at : item.occurred_at,
+        tone: item.intent.status === "failed" ? "fail" : item.intent.status === "completed" ? "ok" : "info",
+      });
+    }
+
+    for (const entry of timelineEntries.slice(0, 10)) {
+      bumpApp(String(entry.source_app || entry.entry_type || "Timeline"), entry.at);
+    }
+
+    for (const event of sovereignEvents.slice(0, 10)) {
+      bumpApp(String(event.source_app || event.event_family || "Sovereign"), event.occurred_at);
+    }
+
+    const edgeList = Array.from(edges.values()).sort((a, b) => {
+      if (b.count !== a.count) return b.count - a.count;
+      return b.at.localeCompare(a.at);
+    }).slice(0, 6);
+    const pulse = Array.from(appCounts.values()).sort((a, b) => {
+      if (b.count !== a.count) return b.count - a.count;
+      return b.lastAt.localeCompare(a.lastAt);
+    }).slice(0, 6);
+    const maxPulse = pulse[0]?.count || 1;
+    const liveRailCount = [
+      hasActiveAuthSession,
+      runnerStatus === "ok",
+      Boolean(mailRuntimeStatus?.configured),
+      Boolean(integrationRuntimeStatus?.github.connected),
+      Boolean(integrationRuntimeStatus?.netlify.connected),
+    ].filter(Boolean).length;
+
+    return {
+      metrics: [
+        { label: "Bridge Events", value: String(commandFeed.length + suiteEvents.length), detail: "Recent in-memory plus persisted handoffs" },
+        { label: "Active Apps", value: String(pulse.length), detail: "Apps currently emitting visible suite signals" },
+        { label: "Sovereign Signals", value: String(sovereignEvents.length), detail: "Governed events available to the shell" },
+        { label: "Healthy Rails", value: `${liveRailCount}/5`, detail: "Auth, worker, mail, GitHub, and Netlify lanes" },
+      ],
+      edges: edgeList,
+      pulse: pulse.map((item) => ({ ...item, width: Math.max(18, Math.round((item.count / maxPulse) * 100)) })),
+    };
+  }, [commandFeed, hasActiveAuthSession, integrationRuntimeStatus, mailRuntimeStatus, runnerStatus, sovereignEvents, suiteEvents, timelineEntries]);
   const platformStatusItems = useMemo(
     () => [
       {
@@ -2943,6 +4363,76 @@ export function App() {
       cancelled = true;
     };
   }, [hasActiveAuthSession]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function refreshSovereignEventFeed() {
+      if (!hasActiveAuthSession) {
+        if (!cancelled) setSovereignEvents([]);
+        return;
+      }
+      await loadSovereignEvents();
+    }
+
+    void refreshSovereignEventFeed();
+    const timer = window.setInterval(() => {
+      void refreshSovereignEventFeed();
+    }, 20000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [hasActiveAuthSession, workspaceId]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function refreshSuiteEventFeed() {
+      if (!hasActiveAuthSession) {
+        if (!cancelled) setSuiteEvents([]);
+        return;
+      }
+      await loadSuiteEvents();
+    }
+
+    void refreshSuiteEventFeed();
+    const timer = window.setInterval(() => {
+      void refreshSuiteEventFeed();
+    }, 20000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [hasActiveAuthSession, workspaceId]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function refreshExecutivePanels() {
+      if (!hasActiveAuthSession) {
+        if (!cancelled) {
+          setTimelineEntries([]);
+          setMissions([]);
+        }
+        return;
+      }
+      await Promise.all([loadTimelineEntries(), loadMissionRecords()]);
+    }
+
+    void refreshExecutivePanels();
+    const timer = window.setInterval(() => {
+      void refreshExecutivePanels();
+    }, 25000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [hasActiveAuthSession, workspaceId]);
+
   const commandPaletteActions = useMemo(
     () => [
       {
@@ -3053,6 +4543,7 @@ export function App() {
     a.click();
     URL.revokeObjectURL(href);
     setSuiteSyncResult(`Exported health snapshot for ${selectedSkyeApp}.`);
+    pushCommandFeed("Suite Sync", `Health snapshot exported for ${selectedSkyeApp}.`, "ok", selectedSkyeApp);
   }
 
   async function runSmokeTest() {
@@ -3462,6 +4953,22 @@ export function App() {
     const ai = await runGenerate(prompt);
     const workerState = smoke?.status || runnerStatus;
 
+    if (ai.ok) {
+      const envLines = parseEnvTemplateLines(ai.text);
+      if (envLines.length >= 2) {
+        stageSovereignVariablesSuggestion({
+          title: `${selectedSkyeApp} env template`,
+          source: "kAIxU Generate",
+          content: envLines.map((item) => `${item.key}=${item.value}`).join("\n"),
+          projectName: `${selectedSkyeApp} Generated Template`,
+          environmentName: "Draft Import",
+          detail: `AI generated an env template with ${envLines.length} variables. Click to review or import it.`,
+          tone: "ok",
+          badge: `${envLines.length} vars`,
+        });
+      }
+    }
+
     setMessages((old) => [
       ...old,
       {
@@ -3544,7 +5051,7 @@ export function App() {
       );
       if (token) setApiAccessToken(token);
       if (issued?.locked_email) setApiTokenEmail(String(issued.locked_email));
-      setTokenOpsResult("Token issued and loaded into IDE API key input.");
+      setTokenOpsResult("kAIxU key issued and loaded into the IDE key input.");
       await loadTokenInventory();
     } catch (error: any) {
       setTokenOpsResult(error?.message || "Issue failed.");
@@ -3560,12 +5067,12 @@ export function App() {
       const res = await fetch("/api/token-list", { method: "GET", credentials: "include" });
       const data = await res.json();
       if (!res.ok) {
-        setTokenOpsResult(data?.error || `Token list failed (${res.status})`);
+        setTokenOpsResult(data?.error || `Key list failed (${res.status})`);
         return;
       }
       setTokenInventory(Array.isArray(data?.tokens) ? data.tokens : []);
     } catch (error: any) {
-      setTokenOpsResult(error?.message || "Token list failed.");
+      setTokenOpsResult(error?.message || "Key list failed.");
     } finally {
       setIsLoadingTokenInventory(false);
     }
@@ -3587,7 +5094,7 @@ export function App() {
         setTokenOpsResult(data?.error || `Revoke failed (${res.status})`);
         return;
       }
-      setTokenOpsResult(`Revoked token ${data?.token?.label || id}`);
+      setTokenOpsResult(`Revoked key ${data?.token?.label || id}`);
       await loadTokenInventory();
     } catch (error: any) {
       setTokenOpsResult(error?.message || "Revoke failed.");
@@ -3716,6 +5223,51 @@ export function App() {
     }
   }
 
+  function applyWorkspaceBootstrap(payload: any) {
+    const nextWorkspaceId = String(payload?.workspace?.id || payload?.user?.workspace_id || "").trim();
+    if (!nextWorkspaceId) return;
+    setWorkspaceId(nextWorkspaceId);
+    if (payload?.workspace && typeof payload.workspace === "object") {
+      setPrimaryWorkspace(payload.workspace as OrgWorkspaceSummary);
+    }
+    setWorkspaceSurfaces((old) => {
+      const next = { ...old };
+      for (const app of SKYE_APPS) {
+        const current = String(next[app.id] || "").trim();
+        if (!current || current === DEFAULT_WS_ID || current === "primary-workspace") {
+          next[app.id] = nextWorkspaceId;
+        }
+      }
+      return next;
+    });
+    setPlayBody((old) => {
+      try {
+        const parsed = JSON.parse(old);
+        if (!parsed || typeof parsed !== "object") return old;
+        if (!parsed.ws_id || parsed.ws_id === DEFAULT_WS_ID || parsed.ws_id === "primary-workspace") {
+          parsed.ws_id = nextWorkspaceId;
+          return JSON.stringify(parsed, null, 2);
+        }
+        return old;
+      } catch {
+        return old.replace(/"ws_id":\s*"primary-workspace"/, `"ws_id": "${nextWorkspaceId}"`);
+      }
+    });
+  }
+
+  function applyOrgDashboardPayload(payload: any) {
+    if (payload?.org && typeof payload.org === "object") {
+      setOrgSeatSummary(payload.org as OrgSeatSummary);
+      if (payload.org.org_name) {
+        setAuthOrgName(String(payload.org.org_name));
+      }
+    }
+    if (payload?.workspace && typeof payload.workspace === "object") {
+      setPrimaryWorkspace(payload.workspace as OrgWorkspaceSummary);
+    }
+    applyWorkspaceBootstrap(payload);
+  }
+
   async function refreshAuthSession() {
     try {
       const res = await fetch("/api/auth-me", { method: "GET", credentials: "include" });
@@ -3731,6 +5283,7 @@ export function App() {
       if (data?.role && ["owner", "admin", "member", "viewer"].includes(String(data.role))) {
         setAuthRole(data.role as AuthRole);
       }
+      applyOrgDashboardPayload(data);
       setAssistantAuthStatus("ok");
       return data;
     } catch {
@@ -4121,6 +5674,7 @@ export function App() {
         setApiTokenEmail(String(data.kaixu_token.locked_email || normalizedAuthEmail));
         setPinUnlockedAt(new Date().toISOString());
       }
+      applyOrgDashboardPayload(data);
 
       setAuthPassword("");
       const sessionMeta = await refreshAuthSession();
@@ -4139,6 +5693,8 @@ export function App() {
         setPinUnlockedAt("");
       }
 
+      const bootstrappedWorkspaceId = String(data?.workspace?.id || data?.user?.workspace_id || workspaceId).trim();
+      const bootstrappedOrgName = String(data?.org?.org_name || authOrgName).trim();
       const profileSync = await persistOnboardingShowcase(normalizedAuthEmail, mode);
       const workspaceSyncNote = linkedWorkspaceMailbox
         ? ` SKYEMAIL primary login linked: ${linkedWorkspaceMailbox}.`
@@ -4146,6 +5702,26 @@ export function App() {
       const recoveryNote = normalizedRecoveryEmail
         ? ` Recovery goes to ${normalizedRecoveryEmail}.`
         : "";
+
+      stageSovereignVariablesSuggestion({
+        title: mode === "signup" ? "Auth bootstrap env pack" : "Session restore env pack",
+        source: mode === "signup" ? "Auth Center Signup" : "Auth Center Login",
+        content: buildEnvTemplateContent([
+          { key: "SKYE_PRIMARY_EMAIL", value: normalizedAuthEmail },
+          { key: "SKYE_RECOVERY_EMAIL", value: normalizedRecoveryEmail },
+          { key: "SKYE_ORG_NAME", value: bootstrappedOrgName },
+          { key: "SKYE_WORKSPACE_EMAIL", value: linkedWorkspaceMailbox || normalizedAuthEmail },
+          { key: "KX_LOCKED_EMAIL", value: String(data?.kaixu_token?.locked_email || "") || apiTokenEmail.trim().toLowerCase() || normalizedAuthEmail },
+          { key: "KX_WORKSPACE_ID", value: bootstrappedWorkspaceId || workspaceId.trim() },
+        ]),
+        projectName: bootstrappedOrgName || bootstrappedWorkspaceId || workspaceId.trim() || "Auth Center",
+        environmentName: mode === "signup" ? "Signup Bootstrap" : "Login Session",
+        detail:
+          mode === "signup"
+            ? "Account is live. SovereignVariables staged a bootstrap env pack for signup, recovery, and workspace wiring."
+            : "Session restored. SovereignVariables staged a session env pack for workspace, recovery, and token wiring.",
+        tone: "info",
+      });
 
       setAuthResult(
         mode === "signup"
@@ -4787,6 +6363,7 @@ export function App() {
 
   async function loadTeamMembers() {
     setIsLoadingTeam(true);
+    setTeamResult("");
     try {
       const res = await fetch("/api/team-members", { method: "GET" });
       const data = await res.json();
@@ -4801,10 +6378,69 @@ export function App() {
           role: (m.role || "member") as AuthRole,
         }))
       );
+      applyOrgDashboardPayload(data);
     } catch (error: any) {
       setTeamResult(error?.message || "team load failed");
     } finally {
       setIsLoadingTeam(false);
+    }
+  }
+
+  async function loadOrgKeyPolicy() {
+    setIsLoadingOrgKeyPolicy(true);
+    setOrgKeyActionResult("");
+    try {
+      const res = await fetch("/api/org-key-policy", { method: "GET", credentials: "include" });
+      const data = await res.json();
+      if (!res.ok) {
+        setOrgKeyActionResult(data?.error || `org key policy failed (${res.status})`);
+        return;
+      }
+      setOrgKeyPolicy((data?.policy && typeof data.policy === "object") ? data.policy as OrgKeyPolicySummary : null);
+    } catch (error: any) {
+      setOrgKeyActionResult(error?.message || "org key policy failed");
+    } finally {
+      setIsLoadingOrgKeyPolicy(false);
+    }
+  }
+
+  async function runOrgKeyPolicyAction(action: string, extra: Record<string, unknown> = {}) {
+    setIsRunningOrgKeyAction(true);
+    setOrgKeyActionResult("");
+    setOrgKeyIssuedToken("");
+    setOrgKeyIssuedMeta("");
+    try {
+      const res = await fetch("/api/org-key-policy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ action, ...extra }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setOrgKeyActionResult(data?.error || `${action} failed (${res.status})`);
+        return null;
+      }
+      if (data?.policy && typeof data.policy === "object") {
+        setOrgKeyPolicy(data.policy as OrgKeyPolicySummary);
+      }
+      if (data?.issued?.token) {
+        const lockedEmail = String(data?.issued?.locked_email || "").trim().toLowerCase();
+        const token = String(data.issued.token || "");
+        setOrgKeyIssuedToken(token);
+        setOrgKeyIssuedMeta(`label=${data?.issued?.label || "token"} · locked_email=${lockedEmail || "<none>"} · expires_at=${data?.issued?.expires_at || "n/a"}`);
+        if (!lockedEmail || lockedEmail === authUser.trim().toLowerCase()) {
+          setApiAccessToken(token);
+          setApiTokenEmail(lockedEmail);
+          setPinUnlockedAt(new Date().toISOString());
+        }
+      }
+      return data;
+    } catch (error: any) {
+      setOrgKeyActionResult(error?.message || `${action} failed`);
+      return null;
+    } finally {
+      setIsRunningOrgKeyAction(false);
     }
   }
 
@@ -4857,6 +6493,7 @@ export function App() {
       if (data?.kaixu_token?.token) {
         setApiAccessToken(String(data.kaixu_token.token));
         setApiTokenEmail(String(data.kaixu_token.locked_email || inviteAcceptEmail.trim().toLowerCase()));
+        setPinUnlockedAt(new Date().toISOString());
       } else {
         const ensured = await ensureOnboardingKey({ labelPrefix: "invite-auto" });
         if (!ensured.ok) {
@@ -4865,18 +6502,28 @@ export function App() {
         }
       }
 
+      applyOrgDashboardPayload(data);
+
       setInviteAcceptResult("Invite accepted. You are signed in and joined to the organization.");
       const next = new URL(window.location.href);
       next.searchParams.delete("invite_token");
       window.history.replaceState({}, "", next.toString());
       await refreshAuthSession();
       await loadTeamMembers();
+      await loadOrgKeyPolicy();
     } catch (error: any) {
       setInviteAcceptResult(error?.message || "accept failed");
     } finally {
       setIsAcceptingInvite(false);
     }
   }
+
+  useEffect(() => {
+    if (selectedSkyeApp !== "SkyeAdmin") return;
+    if (!hasActiveAuthSession) return;
+    void loadTeamMembers();
+    void loadOrgKeyPolicy();
+  }, [selectedSkyeApp, hasActiveAuthSession]);
 
   async function loadWorkspaceMembers() {
     setIsLoadingWorkspaceMembers(true);
@@ -5311,6 +6958,23 @@ export function App() {
       a.click();
       URL.revokeObjectURL(url);
       setSuiteSyncResult(`Exported ${selectedSkyeApp} as .skye`);
+      pushCommandFeed(
+        "Suite Sync",
+        sknoreBlockedFiles.length
+          ? `Secure .skye exported for ${selectedSkyeApp}. SKNore is still shielding ${sknoreBlockedFiles.length} workspace files from AI flows.`
+          : `Secure .skye exported for ${selectedSkyeApp}.`,
+        "ok",
+        selectedSkyeApp,
+        sknoreBlockedFiles.length
+          ? {
+              kind: "show-file-list",
+              title: `SKNore blocked ${sknoreBlockedFiles.length} files`,
+              description: "Protected files remain outside AI context even after export.",
+              paths: sknoreBlockedFiles,
+            }
+          : undefined,
+        sknoreBlockedFiles.length ? `${sknoreBlockedFiles.length} protected` : "exported"
+      );
     } catch (error: any) {
       setSuiteSyncResult(error?.message || "Skye export failed.");
     }
@@ -6003,6 +7667,52 @@ export function App() {
       );
     }
 
+    if (selectedSkyeApp === "AE-Flow") {
+      return (
+        <section className="app-module platform-shell" style={{ minHeight: "84vh" }}>
+          <header>
+            <h2>AE-Flow Platform</h2>
+            <p>Embedded CRM platform system inside SuperIDE with shared workspace context and command-deck positioning.</p>
+            <p className="muted-copy">This remains treated as a platform, not an isolated app, so operators can move directly into SkyeChat, SkyeMail, and Neural Space Pro from the same workspace lane.</p>
+          </header>
+          <div className="tool-actions left" style={{ marginBottom: 10 }}>
+            <a className="ghost" href={`/AE-Flow/index.html?ws_id=${encodeURIComponent(workspaceId)}`} target="_blank" rel="noreferrer">Open AE-Flow Standalone</a>
+            <button className="ghost" type="button" onClick={() => setSelectedSkyeApp("SkyeChat")}>Route To SkyeChat</button>
+            <button className="ghost" type="button" onClick={() => setAppMode("neural")}>Open Neural Space Pro</button>
+            <button className="ghost" type="button" onClick={() => setSelectedSkyeApp("SkyeDocs")}>Return To IDE Workspace</button>
+          </div>
+          <iframe
+            title="AE-Flow Platform"
+            src={`/AE-Flow/index.html?embed=1&ws_id=${encodeURIComponent(workspaceId)}`}
+            className="platform-frame"
+          />
+        </section>
+      );
+    }
+
+    if (selectedSkyeApp === "GoogleBusinessProfileRescuePlatform") {
+      return (
+        <section className="app-module platform-shell" style={{ minHeight: "84vh" }}>
+          <header>
+            <h2>Google Business Rescue Platform</h2>
+            <p>Embedded rescue operations platform positioned as a full system for diagnostics, evidence prep, and reinstatement execution inside the command deck.</p>
+            <p className="muted-copy">The deeper source workspace is staged in-repo; this live capsule keeps the platform visible and integrated inside SuperIDE right now.</p>
+          </header>
+          <div className="tool-actions left" style={{ marginBottom: 10 }}>
+            <a className="ghost" href={`/GoogleBusinessProfileRescuePlatform/index.html?ws_id=${encodeURIComponent(workspaceId)}`} target="_blank" rel="noreferrer">Open Rescue Platform Capsule</a>
+            <button className="ghost" type="button" onClick={() => setSelectedSkyeApp("SkyeChat")}>Route To SkyeChat</button>
+            <button className="ghost" type="button" onClick={() => setSelectedSkyeApp("SkyeMail")}>Route To SkyeMail</button>
+            <button className="ghost" type="button" onClick={() => setAppMode("neural")}>Open Neural Space Pro</button>
+          </div>
+          <iframe
+            title="Google Business Rescue Platform"
+            src={`/GoogleBusinessProfileRescuePlatform/index.html?embed=1&ws_id=${encodeURIComponent(workspaceId)}`}
+            className="platform-frame"
+          />
+        </section>
+      );
+    }
+
     if (selectedSkyeApp === "SkyeChat") {
       return (
         <section className="app-module platform-shell" style={{ minHeight: "84vh" }}>
@@ -6348,9 +8058,96 @@ export function App() {
     }
 
     if (selectedSkyeApp === "SkyeAdmin") {
+      const keyAssignments = orgKeyPolicy?.assignments || [];
+      const currentUserKeyAssignment = keyAssignments.find((entry) => entry.email.toLowerCase() === authUser.trim().toLowerCase()) || null;
+      const orgKpis = [
+        ["Plan", orgSeatSummary?.plan_tier || "unknown"],
+        ["Seats Reserved", String(orgSeatSummary?.seats_reserved ?? 0)],
+        ["Seats Available", orgSeatSummary?.seat_limit == null ? "unlimited" : String(orgSeatSummary?.seats_available ?? 0)],
+        ["Primary Workspace", primaryWorkspace?.name || primaryWorkspace?.id || "pending"],
+      ];
       return (
         <section className="app-module">
           <header><h2>SkyeAdmin</h2><p>Org user and role controls.</p></header>
+
+          <div className="kpi-grid">
+            {orgKpis.map(([label, value]) => (
+              <article key={label} className="kpi-card">
+                <div>{label}</div>
+                <strong>{value}</strong>
+              </article>
+            ))}
+          </div>
+
+          <div className="list-stack">
+            <div className="list-item">
+              <strong>{orgSeatSummary?.org_name || authOrgName || "Organization"}</strong>
+              <div className="muted-copy">workspace_id={primaryWorkspace?.id || workspaceId || "pending"}</div>
+              <div className="muted-copy">
+                members={orgSeatSummary?.active_members ?? adminUsers.length} · pending_invites={orgSeatSummary?.pending_invites ?? 0} · personal_overrides={orgSeatSummary?.allow_personal_key_override ? "enabled" : "disabled"}
+              </div>
+            </div>
+          </div>
+
+          <section className="neural-room-bridge">
+            <h3>Workspace Tour + Platform Wiring</h3>
+            <p className="muted-copy">Use the guided onboarding flow, workspace presets, and platform jumps to turn the command deck into the user's default operating system during setup.</p>
+            <div className="tool-actions left">
+              <button className="ghost" type="button" onClick={() => openAuthCenterWindow({ focus: true, guide: true })}>Launch Guided Onboarding</button>
+              <button className="ghost" type="button" onClick={() => setShowTutorialPanel(true)}>Open Guided Checklist</button>
+              <button className="ghost" type="button" onClick={() => setSelectedSkyeApp("AE-Flow")}>Open AE-Flow Platform</button>
+              <button className="ghost" type="button" onClick={() => setSelectedSkyeApp("GoogleBusinessProfileRescuePlatform")}>Open GBP Rescue Platform</button>
+            </div>
+            <div className="starter-lane-list">
+              {WORKBENCH_STARTER_PRESETS.map((preset) => (
+                <button key={`skyeadmin-preset-${preset.id}`} type="button" className="starter-lane-button" onClick={() => applyWorkbenchStarter(preset.id)}>
+                  <strong>{preset.label}</strong>
+                  <span>{preset.description}</span>
+                  <small>{preset.focusApp} focus</small>
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <section className="neural-room-bridge">
+            <h3>Protected Admin Board</h3>
+            <p className="muted-copy">Infrastructure controls, smokehouse, pricing, and company onboarding stay behind ADMIN_KEY even inside SkyeAdmin.</p>
+            {!adminBoardUnlocked ? (
+              <>
+                <label htmlFor="skyeadmin-admin-key">Admin Board Key</label>
+                <input
+                  id="skyeadmin-admin-key"
+                  type="password"
+                  value={adminBoardKey}
+                  onChange={(event) => setAdminBoardKey(event.target.value)}
+                  placeholder="Enter ADMIN_KEY"
+                />
+                <div className="tool-actions left">
+                  <button className="ghost" type="button" onClick={() => void verifyAdminBoardKey()} disabled={isAdminBoardVerifying}>
+                    {isAdminBoardVerifying ? "Unlocking..." : "Unlock Admin Board"}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="tool-actions left">
+                  <button className="ghost" type="button" onClick={() => { setToolTab("smokehouse"); void runSmokehouseSuite("manual"); }}>Run Smokehouse</button>
+                  <button className="ghost" type="button" onClick={() => setToolTab("playground")}>Open API Playground</button>
+                  <button className="ghost" type="button" onClick={() => setSelectedSkyeApp("AE-Flow")}>AE-Flow</button>
+                  <button className="ghost" type="button" onClick={() => setSelectedSkyeApp("GoogleBusinessProfileRescuePlatform")}>GBP Rescue</button>
+                  <button className="ghost" type="button" onClick={() => openAuthCenterWindow({ focus: true, guide: true })}>Open Onboarding</button>
+                  <a className="ghost" href="/pricing.html" target="_blank" rel="noreferrer">Pricing</a>
+                  <button className="ghost" type="button" onClick={lockAdminBoard}>Lock Admin Board</button>
+                </div>
+                <label>Neural Space Pro Embed Snippet</label>
+                <textarea className="report-box" rows={4} readOnly value={neuralEmbedSnippet} />
+                <div className="tool-actions left">
+                  <button className="ghost" type="button" onClick={() => void copyAdminBoardText(neuralEmbedSnippet, "Neural Space Pro embed snippet copied.")}>Copy Embed Snippet</button>
+                </div>
+              </>
+            )}
+            {adminBoardResult ? <p className="muted-copy">{adminBoardResult}</p> : null}
+          </section>
 
           <label>kAIxU Access Key (Bearer)</label>
           <textarea
@@ -6360,7 +8157,7 @@ export function App() {
             onChange={(event) => setApiAccessToken(event.target.value)}
             placeholder="kx_at_..."
           />
-          <label>Token Locked Email (X-Token-Email)</label>
+          <label>Key Lock Email (X-Token-Email)</label>
           <input
             value={apiTokenEmail}
             onChange={(event) => setApiTokenEmail(event.target.value)}
@@ -6400,8 +8197,143 @@ export function App() {
             <button className="ghost" type="button" onClick={() => void loadTokenInventory()} disabled={isLoadingTokenInventory}>
               {isLoadingTokenInventory ? "Refreshing..." : "Refresh kAIxU Key Inventory"}
             </button>
+            <button className="ghost" type="button" onClick={() => void loadOrgKeyPolicy()} disabled={isLoadingOrgKeyPolicy}>
+              {isLoadingOrgKeyPolicy ? "Syncing Policy..." : "Refresh Org Key Policy"}
+            </button>
           </div>
           {tokenOpsResult && <p className="muted-copy">{tokenOpsResult}</p>}
+
+          <label>Org Default Key Label Prefix</label>
+          <input value={orgDefaultKeyLabelPrefix} onChange={(event) => setOrgDefaultKeyLabelPrefix(event.target.value)} placeholder="org-default" />
+          <div className="tool-row split">
+            <div>
+              <label>Org Default TTL</label>
+              <select value={orgDefaultKeyTtlPreset} onChange={(event) => setOrgDefaultKeyTtlPreset(event.target.value)}>
+                <option value="1h">1h</option>
+                <option value="day">day</option>
+                <option value="week">week</option>
+                <option value="month">month</option>
+                <option value="quarter">quarter</option>
+                <option value="year">year</option>
+              </select>
+            </div>
+            <div>
+              <label>Personal Override Policy</label>
+              <input value={orgKeyPolicy?.allow_personal_key_override ? "enabled" : "disabled"} readOnly />
+            </div>
+          </div>
+          <div className="tool-actions left">
+            <button
+              className="ghost"
+              type="button"
+              onClick={() => void runOrgKeyPolicyAction("issue_org_default_key", { label_prefix: orgDefaultKeyLabelPrefix, ttl_preset: orgDefaultKeyTtlPreset })}
+              disabled={isRunningOrgKeyAction}
+            >
+              {isRunningOrgKeyAction ? "Working..." : "Issue Org Default Key"}
+            </button>
+            <button
+              className="ghost"
+              type="button"
+              onClick={() => void runOrgKeyPolicyAction("clear_org_default_key")}
+              disabled={isRunningOrgKeyAction || !orgKeyPolicy?.default_token}
+            >
+              Clear Org Default Key
+            </button>
+            <button
+              className="ghost"
+              type="button"
+              onClick={() => void runOrgKeyPolicyAction("set_personal_override_policy", { allow_personal_key_override: !orgKeyPolicy?.allow_personal_key_override })}
+              disabled={isRunningOrgKeyAction}
+            >
+              {orgKeyPolicy?.allow_personal_key_override ? "Disable Personal Overrides" : "Enable Personal Overrides"}
+            </button>
+            <button
+              className="ghost"
+              type="button"
+              onClick={() => void runOrgKeyPolicyAction("issue_personal_override", { label_prefix: "personal-override", ttl_preset: "quarter" })}
+              disabled={isRunningOrgKeyAction || !orgKeyPolicy?.allow_personal_key_override}
+            >
+              Issue My Personal Override
+            </button>
+            <button
+              className="ghost"
+              type="button"
+              onClick={() => void runOrgKeyPolicyAction("clear_personal_override")}
+              disabled={isRunningOrgKeyAction || !currentUserKeyAssignment?.personal_token}
+            >
+              Clear My Personal Override
+            </button>
+          </div>
+          {orgKeyPolicy?.default_token && (
+            <div className="list-stack">
+              <div className="list-item">
+                <strong>Org Default Key</strong>
+                <div className="muted-copy">label={orgKeyPolicy.default_token.label} · prefix={orgKeyPolicy.default_token.prefix}</div>
+                <div className="muted-copy">locked_email={orgKeyPolicy.default_token.locked_email || "<none>"} · expires={orgKeyPolicy.default_token.expires_at || "n/a"}</div>
+              </div>
+            </div>
+          )}
+
+          <label>Assign Member-Specific Key</label>
+          <input value={assignedKeyEmail} onChange={(event) => setAssignedKeyEmail(event.target.value)} placeholder="teammate@company.com" />
+          <div className="tool-row split">
+            <div>
+              <label>Assigned Key Label Prefix</label>
+              <input value={assignedKeyLabelPrefix} onChange={(event) => setAssignedKeyLabelPrefix(event.target.value)} placeholder="member-assigned" />
+            </div>
+            <div>
+              <label>Assigned Key TTL</label>
+              <select value={assignedKeyTtlPreset} onChange={(event) => setAssignedKeyTtlPreset(event.target.value)}>
+                <option value="1h">1h</option>
+                <option value="day">day</option>
+                <option value="week">week</option>
+                <option value="month">month</option>
+                <option value="quarter">quarter</option>
+                <option value="year">year</option>
+              </select>
+            </div>
+          </div>
+          <div className="tool-actions left">
+            <button
+              className="ghost"
+              type="button"
+              onClick={() => void runOrgKeyPolicyAction("issue_user_assignment", { target: assignedKeyEmail, label_prefix: assignedKeyLabelPrefix, ttl_preset: assignedKeyTtlPreset })}
+              disabled={isRunningOrgKeyAction || !assignedKeyEmail.trim()}
+            >
+              Issue Assigned User Key
+            </button>
+            <button
+              className="ghost"
+              type="button"
+              onClick={() => void runOrgKeyPolicyAction("clear_user_assignment", { target: assignedKeyEmail })}
+              disabled={isRunningOrgKeyAction || !assignedKeyEmail.trim()}
+            >
+              Clear Assigned User Key
+            </button>
+          </div>
+
+          {orgKeyActionResult && <p className="muted-copy">{orgKeyActionResult}</p>}
+          {orgKeyIssuedMeta && <p className="muted-copy">{orgKeyIssuedMeta}</p>}
+          {orgKeyIssuedToken && (
+            <>
+              <label>Issued Org Key (shown once, save it now)</label>
+              <textarea className="report-box" readOnly value={orgKeyIssuedToken} rows={4} />
+            </>
+          )}
+
+          <div className="list-stack">
+            {keyAssignments.map((assignment) => (
+              <div key={`org-key-${assignment.user_id}`} className="list-item">
+                <div className="admin-row">
+                  <strong>{assignment.email}</strong>
+                  <span>{assignment.effective_source}</span>
+                </div>
+                <div className="muted-copy">effective={assignment.effective_token?.label || "<none>"} · locked={assignment.effective_token?.locked_email || "<none>"}</div>
+                <div className="muted-copy">assigned={assignment.assigned_token?.label || "<none>"} · personal={assignment.personal_token?.label || "<none>"}</div>
+              </div>
+            ))}
+            {!keyAssignments.length && <div className="command-feed-empty">No org key assignments loaded yet.</div>}
+          </div>
           <div className="list-stack">
             {tokenInventory.map((token) => (
               <div key={token.id} className="list-item">
@@ -6488,11 +8420,11 @@ export function App() {
           </div>
           <div className="tool-actions left">
             <button className="ghost" type="button" onClick={() => void issueTesterToken()} disabled={isIssuingTesterToken}>
-              {isIssuingTesterToken ? "Issuing..." : "Issue 2-Min Tester Token"}
+              {isIssuingTesterToken ? "Issuing..." : "Issue 2-Min Tester Key"}
             </button>
           </div>
           {testerTokenMeta && <p className="muted-copy">{testerTokenMeta}</p>}
-          <label>Tester token (shown once, save it now)</label>
+          <label>Tester key (shown once, save it now)</label>
           <textarea className="report-box" readOnly value={testerToken} rows={4} />
         </section>
       );
@@ -6571,6 +8503,8 @@ export function App() {
   const rightMiddleDockEmbedUrl = `${rightMiddleDockUrl}${rightMiddleDockUrl.includes("?") ? "&" : "?"}embed=1`;
   const rightBottomDockUrl = buildAppSurfaceUrl(rightBottomDockApp, workspaceId) || "/";
   const rightBottomDockEmbedUrl = `${rightBottomDockUrl}${rightBottomDockUrl.includes("?") ? "&" : "?"}embed=1`;
+  const publicSiteBase = (siteBaseUrl.trim() || window.location.origin).replace(/\/+$/, "");
+  const neuralEmbedSnippet = `<iframe src="${publicSiteBase}/Neural-Space-Pro/index.html?embed=1&ws_id=${encodeURIComponent(workspaceId || DEFAULT_WS_ID)}" title="Neural Space Pro" width="100%" height="720" style="border:0;border-radius:24px;overflow:hidden" loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe>`;
 
   if (isAuthCenterMode) {
     return (
@@ -6660,25 +8594,91 @@ export function App() {
               key={entry.id}
               type="button"
               className={`command-feed-item ${entry.tone}`}
-              onClick={() => {
-                if (entry.appId === "SkyeMail" || entry.appId === "SkyeChat" || entry.appId === "SkyeDrive") {
-                  routeCrossAppFocus(entry.appId);
-                } else if (entry.appId) {
-                  setAppMode("skyeide");
-                  setSelectedSkyeApp(entry.appId);
-                }
-              }}
+              onClick={() => handleCommandFeedEntryClick(entry)}
             >
               <span className={`status-dot ${entry.tone}`}>{entry.source}</span>
               <span className="command-feed-copy">
-                <strong>{entry.detail}</strong>
-                <small>{new Date(entry.at).toLocaleTimeString()}</small>
+                <span className="command-feed-line">
+                  <strong>{entry.detail}</strong>
+                  {entry.badge ? <span className="telemetry-chip command-feed-badge">{entry.badge}</span> : null}
+                </span>
+                <small>
+                  {new Date(entry.at).toLocaleTimeString()}
+                  {entry.action?.kind === "show-file-list" ? " · click for protected file list" : ""}
+                  {entry.action?.kind === "focus-contractor" ? " · click for contractor review focus" : ""}
+                  {entry.action?.kind === "open-sovereign-variables" ? " · click for SovereignVariables handoff" : ""}
+                </small>
               </span>
             </button>
           ))}
           {!commandFeed.length && (
             <div className="command-feed-empty">
               Waiting for app actions, drops, shares, and auth events.
+            </div>
+          )}
+        </div>
+        {commandFeedInspector && (
+          <div className="command-feed-empty" style={{ marginTop: 10, textAlign: "left" }}>
+            <strong>{commandFeedInspector.title}</strong>
+            {commandFeedInspector.description ? <div style={{ marginTop: 6 }}>{commandFeedInspector.description}</div> : null}
+            <div className="file-list" style={{ marginTop: 10, maxHeight: 180 }}>
+              {commandFeedInspector.paths.map((path) => (
+                <button
+                  key={path}
+                  type="button"
+                  className={`file-item ${path === activePath ? "active" : ""}`}
+                  onClick={() => {
+                    if (path.includes("=")) return;
+                    setActivePath(path);
+                    setSelectedSkyeApp("SkyDex4.6");
+                  }}
+                >
+                  {path}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        <div className="sovereign-event-head">
+          <strong>Sovereign Events</strong>
+          <div className="sovereign-event-actions">
+            <span className="telemetry-chip">Typed event feed for workspace, chat, and mail actions</span>
+            <span className="telemetry-chip">Contractor signals: {contractorEventCount}</span>
+            {contractorAdminToken.trim() && !contractorStatusFilter.trim() && !contractorSearch.trim() ? (
+              <span className="telemetry-chip">Queue: {contractorNewCount} new / {contractorPendingCount} pending</span>
+            ) : null}
+            <button className="ghost" type="button" onClick={() => void loadSovereignEvents()} disabled={isSovereignEventsLoading || !hasActiveAuthSession}>
+              {isSovereignEventsLoading ? "Syncing..." : "Refresh"}
+            </button>
+          </div>
+        </div>
+        <div className="sovereign-event-list">
+          {sovereignEvents.slice(0, 4).map((entry) => {
+            const appId = getSovereignEventAppId(entry);
+            return (
+              <button
+                key={entry.id}
+                type="button"
+                className={`command-feed-item ${getSovereignEventTone(entry)}`}
+                onClick={() => {
+                  if (!appId) return;
+                  setAppMode("skyeide");
+                  setSelectedSkyeApp(appId);
+                }}
+              >
+                <span className={`status-dot ${getSovereignEventTone(entry)}`}>{entry.source_app || entry.event_family || "event"}</span>
+                <span className="command-feed-copy">
+                  <strong>{entry.summary || entry.event_type}</strong>
+                  <small className="sovereign-event-meta">
+                    {entry.event_type} · {new Date(entry.occurred_at).toLocaleTimeString()}
+                  </small>
+                </span>
+              </button>
+            );
+          })}
+          {!sovereignEvents.length && (
+            <div className="command-feed-empty">
+              {hasActiveAuthSession ? "Waiting for first-class sovereign events." : "Sign in to load the sovereign event feed."}
             </div>
           )}
         </div>
@@ -6710,44 +8710,584 @@ export function App() {
         </div>
       </section>
 
+      <section className="suite-network" aria-label="suite command network">
+        <div className="suite-network-copy">
+          <p className="platform-intro-kicker">Suite Command Network</p>
+          <h2>Make the suite talk in public, not just in the plumbing.</h2>
+          <p>
+            The command deck now surfaces the handoff lanes that are actually active, highlights which apps are speaking the loudest,
+            and gives the operator one-click routes for the next cross-app move from the current surface.
+          </p>
+        </div>
+        <div className="suite-network-grid">
+          <article className="suite-network-card">
+            <header className="suite-network-card-head">
+              <div>
+                <h3>Live suite metrics</h3>
+                <p>Cross-app activity, governed signals, and runtime lane health in one place.</p>
+              </div>
+            </header>
+            <div className="suite-network-metrics">
+              {suiteNetworkBoard.metrics.map((metric) => (
+                <div key={metric.label} className="suite-network-metric">
+                  <small>{metric.label}</small>
+                  <strong>{metric.value}</strong>
+                  <span>{metric.detail}</span>
+                </div>
+              ))}
+            </div>
+          </article>
+
+          <article className="suite-network-card">
+            <header className="suite-network-card-head">
+              <div>
+                <h3>Command lanes</h3>
+                <p>The most active handoffs currently visible to the command deck.</p>
+              </div>
+            </header>
+            <div className="suite-network-lanes">
+              {suiteNetworkBoard.edges.map((edge) => (
+                <button
+                  key={edge.key}
+                  type="button"
+                  className={`suite-network-lane ${edge.tone}`}
+                  onClick={() => {
+                    if (edge.target === "Neural-Space-Pro") {
+                      setAppMode("neural");
+                      if (edge.detail) pushIdeDiagnostic("info", edge.detail);
+                      return;
+                    }
+                    if (SKYE_APP_ID_SET.has(edge.target)) {
+                      routeCrossAppFocus(edge.target as SkyeAppId, { note: edge.detail });
+                    }
+                  }}
+                >
+                  <div className="suite-network-lane-line">
+                    <strong>{edge.source}</strong>
+                    <span>to</span>
+                    <strong>{edge.target}</strong>
+                    <span className="telemetry-chip">{edge.count}x</span>
+                  </div>
+                  <small>{edge.detail}</small>
+                </button>
+              ))}
+              {!suiteNetworkBoard.edges.length ? <div className="suite-network-empty">Waiting for visible cross-app handoffs.</div> : null}
+            </div>
+          </article>
+
+          <article className="suite-network-card">
+            <header className="suite-network-card-head">
+              <div>
+                <h3>{selectedSkyeApp} next routes</h3>
+                <p>Direct suite jumps that turn the current surface into a connected operating lane.</p>
+              </div>
+            </header>
+            <div className="suite-network-actions">
+              {suiteRouteSuggestions.map((item) => (
+                <button
+                  key={`${selectedSkyeApp}-${item.appId}-${item.title}`}
+                  type="button"
+                  className="suite-network-action"
+                  onClick={() => triggerSuiteRoute(item.appId, { note: item.detail, channel: item.channel })}
+                >
+                  <strong>{item.title}</strong>
+                  <span>{item.detail}</span>
+                  <small>Open {item.appId}</small>
+                </button>
+              ))}
+            </div>
+          </article>
+
+          <article className="suite-network-card">
+            <header className="suite-network-card-head">
+              <div>
+                <h3>{selectedSkyeApp} integration</h3>
+                <p>Upstream inputs, downstream outputs, and the last successful persisted handoff for the current surface.</p>
+              </div>
+            </header>
+            <div className="suite-pulse-list">
+              <div className="suite-pulse-row" style={{ cursor: "default" }}>
+                <div className="suite-pulse-copy">
+                  <strong>Upstream inputs</strong>
+                  <span>{selectedSuiteIntegrationCard.upstream.length ? `${selectedSuiteIntegrationCard.upstream.length} routes` : "none yet"}</span>
+                </div>
+                <small>
+                  {selectedSuiteIntegrationCard.upstream.length
+                    ? selectedSuiteIntegrationCard.upstream.map((item) => `${item.appId} -> ${item.intentName} (${item.count}x)`).join(" | ")
+                    : "No upstream suite handoffs recorded for this app yet."}
+                </small>
+              </div>
+              <div className="suite-pulse-row" style={{ cursor: "default" }}>
+                <div className="suite-pulse-copy">
+                  <strong>Downstream outputs</strong>
+                  <span>{selectedSuiteIntegrationCard.downstream.length ? `${selectedSuiteIntegrationCard.downstream.length} routes` : "none yet"}</span>
+                </div>
+                <small>
+                  {selectedSuiteIntegrationCard.downstream.length
+                    ? selectedSuiteIntegrationCard.downstream.map((item) => `${item.intentName} -> ${item.appId} (${item.count}x)`).join(" | ")
+                    : "No downstream suite handoffs recorded for this app yet."}
+                </small>
+              </div>
+              <div className="suite-pulse-row" style={{ cursor: "default" }}>
+                <div className="suite-pulse-copy">
+                  <strong>Last successful handoff</strong>
+                  <span>{isSuiteEventsLoading ? "refreshing" : selectedSuiteIntegrationCard.lastSuccessful ? new Date(selectedSuiteIntegrationCard.lastSuccessful.occurred_at).toLocaleTimeString() : "none"}</span>
+                </div>
+                <small>
+                  {selectedSuiteIntegrationCard.lastSuccessful
+                    ? `${selectedSuiteIntegrationCard.lastSuccessful.source_app}${selectedSuiteIntegrationCard.lastSuccessful.target_app ? ` -> ${selectedSuiteIntegrationCard.lastSuccessful.target_app}` : ""} · ${selectedSuiteIntegrationCard.lastSuccessful.intent.name}`
+                    : "Waiting for the first completed persisted suite handoff."}
+                </small>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section className="executive-grid" aria-label="executive operator panels">
+        <article className="executive-card">
+          <header className="executive-card-head">
+            <div>
+              <p className="platform-intro-kicker">Executive Timeline</p>
+              <h3>Recent governed activity</h3>
+            </div>
+            <div className="tool-actions left executive-card-actions">
+              <button className="ghost" type="button" onClick={() => void loadTimelineEntries()} disabled={isTimelineLoading || !hasActiveAuthSession}>
+                {isTimelineLoading ? "Syncing..." : "Refresh"}
+              </button>
+              <button className="ghost" type="button" onClick={() => setSelectedSkyeApp("SkyeAnalytics")}>
+                Open SkyeAnalytics
+              </button>
+            </div>
+          </header>
+          <div className="executive-card-list">
+            {timelineEntries.slice(0, 5).map((entry) => (
+              <div key={entry.id} className="executive-list-row">
+                <span className="telemetry-chip">{entry.source_app || entry.entry_type}</span>
+                <span className="executive-list-copy">
+                  <strong>{entry.title}</strong>
+                  <span>{entry.summary || entry.entry_type}</span>
+                </span>
+                <small>{new Date(entry.at).toLocaleTimeString()}</small>
+              </div>
+            ))}
+            {!timelineEntries.length && (
+              <div className="command-feed-empty">
+                {hasActiveAuthSession ? "No timeline entries yet for this scope." : "Sign in to load the executive timeline."}
+              </div>
+            )}
+          </div>
+        </article>
+
+        <article className="executive-card">
+          <header className="executive-card-head">
+            <div>
+              <p className="platform-intro-kicker">Mission Control</p>
+              <h3>Scoped operational containers</h3>
+            </div>
+            <div className="tool-actions left executive-card-actions">
+              <button className="ghost" type="button" onClick={() => void loadMissionRecords()} disabled={isMissionsLoading || !hasActiveAuthSession}>
+                {isMissionsLoading ? "Syncing..." : "Refresh"}
+              </button>
+              <button className="ghost" type="button" onClick={() => setSelectedSkyeApp("SkyeTasks")}>
+                Open SkyeTasks
+              </button>
+            </div>
+          </header>
+          <div className="tool-row split executive-form-grid">
+            <div>
+              <label htmlFor="mission-title">Mission Title</label>
+              <input
+                id="mission-title"
+                value={missionDraftTitle}
+                onChange={(event) => setMissionDraftTitle(event.target.value)}
+                placeholder="Product launch · Investor packet · Client onboarding"
+              />
+            </div>
+            <div>
+              <label htmlFor="mission-priority">Priority</label>
+              <select id="mission-priority" value={missionDraftPriority} onChange={(event) => setMissionDraftPriority(event.target.value as MissionRecord["priority"])}>
+                <option value="low">low</option>
+                <option value="medium">medium</option>
+                <option value="high">high</option>
+                <option value="critical">critical</option>
+              </select>
+            </div>
+          </div>
+          <div className="tool-row">
+            <label htmlFor="mission-goal">First Goal</label>
+            <textarea
+              id="mission-goal"
+              value={missionDraftGoal}
+              onChange={(event) => setMissionDraftGoal(event.target.value)}
+              placeholder="Get the DocxPro draft through BookX, Blog, Chat, Mail, and release review."
+            />
+          </div>
+          <div className="tool-actions left executive-card-actions">
+            <button className="ghost" type="button" onClick={() => void createMissionRecord()} disabled={isCreatingMission || !hasActiveAuthSession}>
+              {isCreatingMission ? "Creating..." : "Create Mission"}
+            </button>
+            <span className="telemetry-chip">Workspace: {workspaceId || "org-scope"}</span>
+          </div>
+          {selectedMission && (
+            <>
+              <div className="tool-row split executive-form-grid">
+                <div>
+                  <label htmlFor="mission-edit-title">Selected Mission</label>
+                  <input
+                    id="mission-edit-title"
+                    value={missionEditTitle}
+                    onChange={(event) => setMissionEditTitle(event.target.value)}
+                    placeholder="Mission title"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="mission-edit-status">Status</label>
+                  <select id="mission-edit-status" value={missionEditStatus} onChange={(event) => setMissionEditStatus(event.target.value as MissionRecord["status"])}>
+                    <option value="draft">draft</option>
+                    <option value="active">active</option>
+                    <option value="blocked">blocked</option>
+                    <option value="completed">completed</option>
+                    <option value="archived">archived</option>
+                  </select>
+                </div>
+              </div>
+              <div className="tool-row split executive-form-grid">
+                <div>
+                  <label htmlFor="mission-edit-goal">Lead Goal</label>
+                  <textarea
+                    id="mission-edit-goal"
+                    value={missionEditGoal}
+                    onChange={(event) => setMissionEditGoal(event.target.value)}
+                    placeholder="Refine the lead mission goal"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="mission-edit-priority">Update Priority</label>
+                  <select id="mission-edit-priority" value={missionEditPriority} onChange={(event) => setMissionEditPriority(event.target.value as MissionRecord["priority"])}>
+                    <option value="low">low</option>
+                    <option value="medium">medium</option>
+                    <option value="high">high</option>
+                    <option value="critical">critical</option>
+                  </select>
+                </div>
+              </div>
+              <div className="tool-actions left executive-card-actions">
+                <button className="ghost" type="button" onClick={() => void updateMissionRecord()} disabled={isUpdatingMission || !hasActiveAuthSession}>
+                  {isUpdatingMission ? "Saving..." : "Update Mission"}
+                </button>
+                <span className="telemetry-chip">Selected: {selectedMission.id.slice(0, 8)}</span>
+              </div>
+              <div className="tool-row split executive-form-grid">
+                <div>
+                  <label htmlFor="mission-collaborator-email">Attach Collaborator</label>
+                  <input
+                    id="mission-collaborator-email"
+                    value={missionCollaboratorEmail}
+                    onChange={(event) => setMissionCollaboratorEmail(event.target.value)}
+                    placeholder="teammate@company.com"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="mission-collaborator-role">Collaborator Role</label>
+                  <select id="mission-collaborator-role" value={missionCollaboratorRole} onChange={(event) => setMissionCollaboratorRole(event.target.value as MissionCollaboratorRole)}>
+                    <option value="collaborator">collaborator</option>
+                    <option value="viewer">viewer</option>
+                    <option value="owner">owner</option>
+                  </select>
+                </div>
+              </div>
+              <div className="tool-actions left executive-card-actions">
+                <button className="ghost" type="button" onClick={() => void attachMissionCollaborator()} disabled={isAttachingMissionCollaborator || !hasActiveAuthSession}>
+                  {isAttachingMissionCollaborator ? "Attaching..." : "Attach Collaborator"}
+                </button>
+              </div>
+              <div className="tool-row split executive-form-grid">
+                <div>
+                  <label htmlFor="mission-asset-source">Asset Source App</label>
+                  <input
+                    id="mission-asset-source"
+                    value={missionAssetSourceApp}
+                    onChange={(event) => setMissionAssetSourceApp(event.target.value)}
+                    placeholder="SkyeDrive"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="mission-asset-kind">Asset Kind</label>
+                  <input
+                    id="mission-asset-kind"
+                    value={missionAssetKind}
+                    onChange={(event) => setMissionAssetKind(event.target.value)}
+                    placeholder="workspace_file"
+                  />
+                </div>
+              </div>
+              <div className="tool-row split executive-form-grid">
+                <div>
+                  <label htmlFor="mission-asset-id">Asset Id</label>
+                  <input
+                    id="mission-asset-id"
+                    value={missionAssetId}
+                    onChange={(event) => setMissionAssetId(event.target.value)}
+                    placeholder="docs/launch-plan.md"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="mission-asset-title">Asset Title</label>
+                  <input
+                    id="mission-asset-title"
+                    value={missionAssetTitle}
+                    onChange={(event) => setMissionAssetTitle(event.target.value)}
+                    placeholder="Launch plan"
+                  />
+                </div>
+              </div>
+              <div className="tool-actions left executive-card-actions">
+                <button className="ghost" type="button" onClick={() => void attachMissionAsset()} disabled={isAttachingMissionAsset || !hasActiveAuthSession}>
+                  {isAttachingMissionAsset ? "Attaching..." : "Attach Asset"}
+                </button>
+              </div>
+            </>
+          )}
+          {missionResult && <div className="auth-session-feedback executive-feedback">{missionResult}</div>}
+          <div className="executive-card-list">
+            {missions.slice(0, 5).map((mission) => (
+              <button
+                key={mission.id}
+                type="button"
+                className="executive-list-row mission-row"
+                onClick={() => setSelectedMissionId(mission.id)}
+                style={{
+                  width: "100%",
+                  textAlign: "left",
+                  background: selectedMissionId === mission.id ? "rgba(255, 211, 106, 0.08)" : "transparent",
+                  border: selectedMissionId === mission.id ? "1px solid rgba(255, 211, 106, 0.24)" : "1px solid transparent",
+                  cursor: "pointer",
+                }}
+              >
+                <span className={`status-dot ${mission.status === "blocked" ? "boundary" : "ok"}`}>{mission.priority}</span>
+                <span className="executive-list-copy">
+                  <strong>{mission.title}</strong>
+                  <span>{mission.status} · {(mission.goals_json || []).slice(0, 1).join(" ") || "No goals attached yet."}</span>
+                </span>
+                <small>{mission.collaborator_count || 0} collab · {mission.asset_count || 0} assets</small>
+              </button>
+            ))}
+            {!missions.length && (
+              <div className="command-feed-empty">
+                {hasActiveAuthSession ? "No missions created yet for this scope." : "Sign in to load mission control."}
+              </div>
+            )}
+          </div>
+        </article>
+
+        <article className="executive-card">
+          <header className="executive-card-head">
+            <div>
+              <p className="platform-intro-kicker">ContractorNetwork</p>
+              <h3>Submission intake and admin review</h3>
+            </div>
+            <div className="tool-actions left executive-card-actions">
+              <button className="ghost" type="button" onClick={() => void loadContractorSubmissions()} disabled={isContractorLoading || !contractorAdminToken.trim()}>
+                {isContractorLoading ? "Syncing..." : "Refresh"}
+              </button>
+              <button className="ghost" type="button" onClick={() => window.open(`/ContractorNetwork/index.html?ws_id=${encodeURIComponent(workspaceId)}`, "_blank", "noopener,noreferrer")}>
+                Open Surface
+              </button>
+            </div>
+          </header>
+          <div className="tool-row split executive-form-grid">
+            <div>
+              <label htmlFor="contractor-admin-password">Admin Password</label>
+              <input
+                id="contractor-admin-password"
+                type="password"
+                value={contractorAdminPassword}
+                onChange={(event) => setContractorAdminPassword(event.target.value)}
+                placeholder="ContractorNetwork admin password"
+              />
+            </div>
+            <div>
+              <label htmlFor="contractor-status-filter">Filter Status</label>
+              <select id="contractor-status-filter" value={contractorStatusFilter} onChange={(event) => setContractorStatusFilter(event.target.value)}>
+                <option value="">all</option>
+                <option value="new">new</option>
+                <option value="reviewing">reviewing</option>
+                <option value="approved">approved</option>
+                <option value="on_hold">on_hold</option>
+                <option value="rejected">rejected</option>
+              </select>
+            </div>
+          </div>
+          <div className="tool-row">
+            <label htmlFor="contractor-search">Search</label>
+            <input
+              id="contractor-search"
+              value={contractorSearch}
+              onChange={(event) => setContractorSearch(event.target.value)}
+              placeholder="name, email, coverage, lane"
+            />
+          </div>
+          <div className="tool-actions left executive-card-actions">
+            <button className="ghost" type="button" onClick={() => void loginContractorAdmin()} disabled={isContractorLoggingIn}>
+              {isContractorLoggingIn ? "Logging In..." : contractorAdminToken.trim() ? "Reissue Admin Token" : "Admin Login"}
+            </button>
+            <button className="ghost" type="button" onClick={() => logoutContractorAdmin()} disabled={!contractorAdminToken.trim()}>
+              Logout
+            </button>
+            <button className="ghost" type="button" onClick={() => void exportContractorSubmissions()} disabled={isContractorExporting || !contractorAdminToken.trim()}>
+              {isContractorExporting ? "Exporting..." : "Export CSV"}
+            </button>
+            <span className="telemetry-chip">{contractorAdminToken.trim() ? "Admin session loaded" : "Admin login required"}</span>
+            {contractorAdminToken.trim() ? <span className="telemetry-chip">{contractorNewCount} new / {contractorPendingCount} pending</span> : null}
+          </div>
+          {selectedContractorSubmission && (
+            <>
+              <div className="tool-row split executive-form-grid">
+                <div>
+                  <label htmlFor="contractor-admin-status">Update Status</label>
+                  <select id="contractor-admin-status" value={contractorAdminStatus} onChange={(event) => setContractorAdminStatus(event.target.value as ContractorSubmissionRecord["status"])}>
+                    <option value="new">new</option>
+                    <option value="reviewing">reviewing</option>
+                    <option value="approved">approved</option>
+                    <option value="on_hold">on_hold</option>
+                    <option value="rejected">rejected</option>
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="contractor-admin-tags">Tags</label>
+                  <input
+                    id="contractor-admin-tags"
+                    value={contractorAdminTags}
+                    onChange={(event) => setContractorAdminTags(event.target.value)}
+                    placeholder="seo, phoenix, urgent"
+                  />
+                </div>
+              </div>
+              <div className="tool-row">
+                <label htmlFor="contractor-admin-notes">Admin Notes</label>
+                <textarea
+                  id="contractor-admin-notes"
+                  value={contractorAdminNotes}
+                  onChange={(event) => setContractorAdminNotes(event.target.value)}
+                  placeholder="Dispatch notes, fit assessment, verification steps"
+                />
+              </div>
+              <div className="tool-actions left executive-card-actions">
+                <button className="ghost" type="button" onClick={() => void saveContractorSubmission()} disabled={isContractorSaving || !contractorAdminToken.trim()}>
+                  {isContractorSaving ? "Saving..." : "Save Submission"}
+                </button>
+                <span className="telemetry-chip">Selected: {selectedContractorSubmission.full_name}</span>
+              </div>
+            </>
+          )}
+          {contractorAdminResult && <div className="auth-session-feedback executive-feedback">{contractorAdminResult}</div>}
+          <div className="executive-card-list">
+            {contractorSubmissions.slice(0, 6).map((submission) => (
+              <button
+                key={submission.id}
+                type="button"
+                className="executive-list-row mission-row"
+                onClick={() => setSelectedContractorSubmissionId(submission.id)}
+                style={{
+                  width: "100%",
+                  textAlign: "left",
+                  background: selectedContractorSubmissionId === submission.id ? "rgba(39, 242, 255, 0.08)" : "transparent",
+                  border: selectedContractorSubmissionId === submission.id ? "1px solid rgba(39, 242, 255, 0.24)" : "1px solid transparent",
+                  cursor: "pointer",
+                }}
+              >
+                <span className={`status-dot ${submission.status === "rejected" ? "fail" : submission.status === "on_hold" ? "boundary" : "ok"}`}>{submission.status}</span>
+                <span className="executive-list-copy">
+                  <strong>{submission.full_name}</strong>
+                  <span>
+                    {submission.email}
+                    {submission.coverage ? ` · ${submission.coverage}` : ""}
+                    {submission.lanes?.length ? ` · ${submission.lanes.slice(0, 2).join(", ")}` : ""}
+                  </span>
+                </span>
+                <small>{(submission.files || []).length} files · {(submission.tags || []).length} tags</small>
+              </button>
+            ))}
+            {!contractorSubmissions.length && (
+              <div className="command-feed-empty">
+                {contractorAdminToken.trim() ? "No ContractorNetwork submissions loaded for this filter." : "Admin login required to load ContractorNetwork submissions."}
+              </div>
+            )}
+          </div>
+        </article>
+      </section>
+
       <section className="workspace-surface-bar">
-        <div className="workspace-surface-meta">Active Surface · {selectedSkyeApp}</div>
-        <label htmlFor="workspace-id-global">Workspace ID</label>
-        <input
-          id="workspace-id-global"
-          value={workspaceId}
-          onChange={(event) => setWorkspaceId(event.target.value)}
-          placeholder="Workspace UUID"
-        />
-        <label htmlFor="site-base-global">Site Base</label>
-        <input
-          id="site-base-global"
-          value={siteBaseUrl}
-          onChange={(event) => setSiteBaseUrl(event.target.value)}
-          placeholder="https://your-site.netlify.app"
-        />
-        <label htmlFor="worker-url-global">Worker URL</label>
-        <input
-          id="worker-url-global"
-          value={workerUrl}
-          onChange={(event) => setWorkerUrl(event.target.value)}
-          placeholder="https://your-worker.workers.dev"
-        />
-        <button className="ghost" type="button" onClick={() => void saveWorkspaceNow()} disabled={isSavingWorkspace}>
-          {isSavingWorkspace ? "Saving..." : "Save"}
-        </button>
-        <button className="ghost" type="button" onClick={() => void loadWorkspaceNow()} disabled={isLoadingWorkspace}>
-          {isLoadingWorkspace ? "Loading..." : "Load"}
-        </button>
-        <button className="ghost" type="button" onClick={() => void checkAssistantAuth()}>
-          Validate Auth
-        </button>
-        <button className="ghost" type="button" onClick={() => openAuthCenterWindow({ focus: true, guide: true })}>
-          Open Onboarding
-        </button>
-        <button className="ghost" type="button" onClick={() => setShowTutorialPanel((old) => !old)}>
-          {showTutorialPanel ? "Hide Tutorials" : "Show Tutorials"}
-        </button>
+        <div className="workspace-surface-meta">Internal Control Lane</div>
+        {!adminBoardUnlocked ? (
+          <>
+            <label htmlFor="admin-board-key">Admin Board Key</label>
+            <input
+              id="admin-board-key"
+              type="password"
+              value={adminBoardKey}
+              onChange={(event) => setAdminBoardKey(event.target.value)}
+              placeholder="Enter ADMIN_KEY"
+            />
+            <button className="ghost" type="button" onClick={() => void verifyAdminBoardKey()} disabled={isAdminBoardVerifying}>
+              {isAdminBoardVerifying ? "Unlocking..." : "Unlock Admin Board"}
+            </button>
+            <div className="workspace-surface-meta">Public users do not see workspace/site/worker controls, smokehouse, or internal pricing rails.</div>
+            {adminBoardResult ? <div className="muted-copy">{adminBoardResult}</div> : null}
+          </>
+        ) : (
+          <>
+            <div className="workspace-surface-meta">Active Surface · {selectedSkyeApp}</div>
+            <label htmlFor="workspace-id-global">Workspace ID</label>
+            <input
+              id="workspace-id-global"
+              value={workspaceId}
+              onChange={(event) => setWorkspaceId(event.target.value)}
+              placeholder="Workspace UUID"
+            />
+            <label htmlFor="site-base-global">Site Base</label>
+            <input
+              id="site-base-global"
+              value={siteBaseUrl}
+              onChange={(event) => setSiteBaseUrl(event.target.value)}
+              placeholder="https://your-site.netlify.app"
+            />
+            <label htmlFor="worker-url-global">Worker URL</label>
+            <input
+              id="worker-url-global"
+              value={workerUrl}
+              onChange={(event) => setWorkerUrl(event.target.value)}
+              placeholder="https://your-worker.workers.dev"
+            />
+            <button className="ghost" type="button" onClick={() => void saveWorkspaceNow()} disabled={isSavingWorkspace}>
+              {isSavingWorkspace ? "Saving..." : "Save"}
+            </button>
+            <button className="ghost" type="button" onClick={() => void loadWorkspaceNow()} disabled={isLoadingWorkspace}>
+              {isLoadingWorkspace ? "Loading..." : "Load"}
+            </button>
+            <button className="ghost" type="button" onClick={() => void checkAssistantAuth()}>
+              Validate Auth
+            </button>
+            <button className="ghost" type="button" onClick={() => openAuthCenterWindow({ focus: true, guide: true })}>
+              Open Onboarding
+            </button>
+            <button className="ghost" type="button" onClick={() => setShowTutorialPanel((old) => !old)}>
+              {showTutorialPanel ? "Hide Tutorials" : "Show Tutorials"}
+            </button>
+            <button className="ghost" type="button" onClick={() => { setToolTab("smokehouse"); void runSmokehouseSuite("manual"); }}>
+              Smokehouse
+            </button>
+            <button className="ghost" type="button" onClick={() => setToolTab("playground")}>
+              API Playground
+            </button>
+            <a className="ghost" href="/pricing.html" target="_blank" rel="noreferrer">Pricing</a>
+            <button className="ghost" type="button" onClick={lockAdminBoard}>
+              Lock Admin Board
+            </button>
+            {adminBoardResult ? <div className="muted-copy">{adminBoardResult}</div> : null}
+          </>
+        )}
       </section>
 
       {showFailSafeBanner && (
@@ -6760,9 +9300,9 @@ export function App() {
 
       {tokenMisuseState !== "none" && (
         <section className="smoke-warning" style={{ margin: "10px 12px 0 12px" }}>
-          <strong>Token Misuse Detected</strong>
+          <strong>Key Lock Mismatch Detected</strong>
           <div>State: {tokenMisuseState}</div>
-          <div>Set a valid token-locked email that matches the active auth user to avoid authorization failures.</div>
+          <div>Set a valid key-lock email that matches the active auth user to avoid authorization failures.</div>
         </section>
       )}
 
@@ -6825,6 +9365,38 @@ export function App() {
               );
             })}
           </div>
+          {contractorMiniRailItems.length ? (
+            <div className="contractor-mini-rail" aria-label="contractor intake rail">
+              {contractorMiniRailItems.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={`contractor-mini-card ${item.tone}`}
+                  onClick={() =>
+                    handleCommandFeedEntryClick({
+                      id: item.id,
+                      source: "ContractorNetwork",
+                      detail: `Contractor focus: ${item.name}`,
+                      tone: item.tone,
+                      at: new Date().toISOString(),
+                      action: {
+                        kind: "focus-contractor",
+                        submissionId: item.submissionId,
+                        filter: item.status === "new" ? "new" : item.status === "reviewing" || item.status === "on_hold" ? "reviewing" : undefined,
+                      },
+                      badge: item.status,
+                    })
+                  }
+                >
+                  <span className={`status-dot ${item.tone}`}>{item.status}</span>
+                  <span className="contractor-mini-copy">
+                    <strong>{item.name}</strong>
+                    <small>{item.detail}</small>
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : null}
           <div className="app-drawer-grid" aria-label="grouped app drawer">
             {filteredAppGroups.map((group) => (
               <section key={group.id} className="app-drawer-group">

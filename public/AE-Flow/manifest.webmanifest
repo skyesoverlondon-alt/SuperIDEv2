@@ -1,0 +1,28 @@
+{
+  "name": "AE FLOW by Skyes Over London",
+  "short_name": "AE FLOW",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#07040d",
+  "theme_color": "#2b0b4d",
+  "description": "Offline field console for Skyes Over London account executives: scripts, intake, accounts, deals, handoff packs, daily bundles.",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

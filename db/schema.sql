@@ -13,6 +13,10 @@ create table if not exists orgs (
   created_at timestamptz not null default now()
 );
 
+alter table if exists orgs add column if not exists plan_tier text not null default 'base';
+alter table if exists orgs add column if not exists seat_limit integer;
+alter table if exists orgs add column if not exists allow_personal_key_override boolean not null default false;
+
 create table if not exists users (
   id uuid primary key default gen_random_uuid(),
   email text not null unique,
@@ -216,6 +220,26 @@ create index if not exists idx_api_tokens_status on api_tokens(status, expires_a
 create index if not exists idx_api_tokens_locked_email on api_tokens(locked_email);
 create index if not exists idx_api_tokens_scopes on api_tokens using gin (scopes_json);
 
+create table if not exists org_key_policies (
+  org_id uuid primary key references orgs(id) on delete cascade,
+  default_token_id uuid references api_tokens(id) on delete set null,
+  updated_by uuid references users(id),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists org_user_key_assignments (
+  org_id uuid not null references orgs(id) on delete cascade,
+  user_id uuid not null references users(id) on delete cascade,
+  assigned_token_id uuid references api_tokens(id) on delete set null,
+  personal_token_id uuid references api_tokens(id) on delete set null,
+  assigned_by uuid references users(id),
+  updated_at timestamptz not null default now(),
+  primary key (org_id, user_id)
+);
+
+create index if not exists idx_org_user_key_assignments_assigned on org_user_key_assignments(assigned_token_id);
+create index if not exists idx_org_user_key_assignments_personal on org_user_key_assignments(personal_token_id);
+
 -- SkyeMail account configuration scoped to each user within an org.
 create table if not exists skymail_accounts (
   id uuid primary key default gen_random_uuid(),
@@ -250,3 +274,220 @@ create table if not exists skymail_sync_state (
 );
 
 create index if not exists idx_skymail_sync_org_mailbox on skymail_sync_state(org_id, lower(mailbox_email), provider);
+
+-- Sovereign command bus foundations
+create table if not exists sovereign_events (
+  id uuid primary key default gen_random_uuid(),
+  occurred_at timestamptz not null default now(),
+  org_id uuid not null references orgs(id) on delete cascade,
+  ws_id uuid references workspaces(id) on delete set null,
+  mission_id uuid,
+  event_type text not null,
+  event_family text not null,
+  source_app text,
+  source_route text,
+  actor text not null,
+  actor_user_id uuid references users(id) on delete set null,
+  subject_kind text,
+  subject_id text,
+  parent_event_id uuid references sovereign_events(id) on delete set null,
+  severity text not null default 'info' check (severity in ('info','warning','error','critical')),
+  routing_status text not null default 'accepted' check (routing_status in ('accepted','delivered','dead-lettered')),
+  correlation_id text,
+  idempotency_key text,
+  internal_signature text,
+  summary text,
+  payload jsonb not null default '{}'::jsonb
+);
+
+create index if not exists idx_sovereign_events_org_at on sovereign_events(org_id, occurred_at desc);
+create index if not exists idx_sovereign_events_ws_at on sovereign_events(ws_id, occurred_at desc);
+create index if not exists idx_sovereign_events_type_at on sovereign_events(event_type, occurred_at desc);
+create index if not exists idx_sovereign_events_source_app_at on sovereign_events(org_id, source_app, occurred_at desc);
+create index if not exists idx_sovereign_events_subject on sovereign_events(org_id, subject_kind, subject_id, occurred_at desc);
+create index if not exists idx_sovereign_events_payload_gin on sovereign_events using gin (payload);
+
+create table if not exists sovereign_event_subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  org_id uuid not null references orgs(id) on delete cascade,
+  ws_id uuid references workspaces(id) on delete cascade,
+  subscriber_app text not null,
+  event_family text,
+  event_type text,
+  scope_kind text not null default 'org' check (scope_kind in ('org','workspace','mission')),
+  scope_id text,
+  enabled boolean not null default true,
+  filter_json jsonb not null default '{}'::jsonb,
+  created_by uuid references users(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists idx_sovereign_event_subscriptions_scope on sovereign_event_subscriptions(org_id, scope_kind, enabled, created_at desc);
+
+create table if not exists sovereign_event_dead_letters (
+  id uuid primary key default gen_random_uuid(),
+  event_id uuid not null references sovereign_events(id) on delete cascade,
+  org_id uuid not null references orgs(id) on delete cascade,
+  ws_id uuid references workspaces(id) on delete set null,
+  subscriber_app text,
+  failed_at timestamptz not null default now(),
+  attempts integer not null default 1,
+  error text,
+  last_payload jsonb not null default '{}'::jsonb
+);
+
+create index if not exists idx_sovereign_event_dead_letters_org_failed on sovereign_event_dead_letters(org_id, failed_at desc);
+
+create table if not exists timeline_entries (
+  id uuid primary key default gen_random_uuid(),
+  at timestamptz not null default now(),
+  org_id uuid not null references orgs(id) on delete cascade,
+  ws_id uuid references workspaces(id) on delete set null,
+  mission_id uuid,
+  event_id uuid references sovereign_events(id) on delete set null,
+  audit_event_id uuid references audit_events(id) on delete set null,
+  entry_type text not null,
+  source_app text,
+  actor text not null,
+  actor_user_id uuid references users(id) on delete set null,
+  subject_kind text,
+  subject_id text,
+  title text not null,
+  summary text,
+  visibility text not null default 'standard' check (visibility in ('standard','privileged','redacted')),
+  detail jsonb not null default '{}'::jsonb
+);
+
+create index if not exists idx_timeline_entries_org_at on timeline_entries(org_id, at desc);
+create index if not exists idx_timeline_entries_ws_at on timeline_entries(ws_id, at desc);
+create index if not exists idx_timeline_entries_subject on timeline_entries(org_id, subject_kind, subject_id, at desc);
+
+create table if not exists missions (
+  id uuid primary key default gen_random_uuid(),
+  org_id uuid not null references orgs(id) on delete cascade,
+  ws_id uuid references workspaces(id) on delete set null,
+  title text not null,
+  status text not null default 'draft' check (status in ('draft','active','blocked','completed','archived')),
+  priority text not null default 'medium' check (priority in ('low','medium','high','critical')),
+  owner_user_id uuid references users(id) on delete set null,
+  goals_json jsonb not null default '[]'::jsonb,
+  linked_apps_json jsonb not null default '[]'::jsonb,
+  variables_json jsonb not null default '{}'::jsonb,
+  entitlement_snapshot jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists idx_missions_org_status on missions(org_id, status, updated_at desc);
+
+create table if not exists mission_collaborators (
+  id uuid primary key default gen_random_uuid(),
+  mission_id uuid not null references missions(id) on delete cascade,
+  user_id uuid references users(id) on delete cascade,
+  email text,
+  role text not null default 'collaborator' check (role in ('owner','collaborator','viewer')),
+  added_by uuid references users(id) on delete set null,
+  created_at timestamptz not null default now(),
+  unique (mission_id, user_id, email)
+);
+
+create index if not exists idx_mission_collaborators_mission on mission_collaborators(mission_id, role, created_at desc);
+
+create table if not exists mission_assets (
+  id uuid primary key default gen_random_uuid(),
+  mission_id uuid not null references missions(id) on delete cascade,
+  source_app text,
+  asset_kind text,
+  asset_id text not null,
+  title text,
+  detail jsonb not null default '{}'::jsonb,
+  attached_by uuid references users(id) on delete set null,
+  created_at timestamptz not null default now(),
+  unique (mission_id, asset_id)
+);
+
+create index if not exists idx_mission_assets_mission on mission_assets(mission_id, created_at desc);
+
+create table if not exists contractor_submissions (
+  id uuid primary key default gen_random_uuid(),
+  org_id uuid references orgs(id) on delete cascade,
+  ws_id uuid references workspaces(id) on delete set null,
+  mission_id uuid references missions(id) on delete set null,
+  event_id uuid references sovereign_events(id) on delete set null,
+  source_app text not null default 'ContractorNetwork',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  full_name text not null,
+  business_name text,
+  email text not null,
+  phone text,
+  coverage text,
+  availability text not null default 'unknown',
+  lanes jsonb not null default '[]'::jsonb,
+  service_summary text not null,
+  proof_link text,
+  entity_type text not null default 'independent_contractor',
+  licenses text,
+  status text not null default 'new',
+  admin_notes text not null default '',
+  tags text[] not null default ARRAY[]::text[],
+  verified boolean not null default false,
+  dispatched boolean not null default false,
+  last_contacted_at timestamptz
+);
+
+alter table if exists contractor_submissions add column if not exists org_id uuid references orgs(id) on delete cascade;
+alter table if exists contractor_submissions add column if not exists ws_id uuid references workspaces(id) on delete set null;
+alter table if exists contractor_submissions add column if not exists mission_id uuid references missions(id) on delete set null;
+alter table if exists contractor_submissions add column if not exists event_id uuid references sovereign_events(id) on delete set null;
+alter table if exists contractor_submissions add column if not exists source_app text not null default 'ContractorNetwork';
+
+create index if not exists idx_contractor_submissions_org_created_at on contractor_submissions (org_id, created_at desc);
+create index if not exists idx_contractor_submissions_ws_created_at on contractor_submissions (ws_id, created_at desc);
+create index if not exists idx_contractor_submissions_mission_created_at on contractor_submissions (mission_id, created_at desc);
+create index if not exists idx_contractor_submissions_status on contractor_submissions (status);
+create index if not exists idx_contractor_submissions_email on contractor_submissions (email);
+create index if not exists idx_contractor_submissions_lanes_gin on contractor_submissions using gin (lanes);
+create index if not exists idx_contractor_submissions_tags_gin on contractor_submissions using gin (tags);
+
+create table if not exists submission_files (
+  id uuid primary key default gen_random_uuid(),
+  submission_id uuid not null references contractor_submissions(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  blob_key text not null,
+  filename text not null,
+  content_type text not null default 'application/octet-stream',
+  bytes integer not null default 0
+);
+
+create index if not exists idx_submission_files_submission_id on submission_files (submission_id);
+
+create or replace function set_updated_at()
+returns trigger as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$ language plpgsql;
+
+drop trigger if exists trg_contractor_submissions_updated_at on contractor_submissions;
+create trigger trg_contractor_submissions_updated_at
+before update on contractor_submissions
+for each row
+execute function set_updated_at();
+
+create table if not exists gate_capability_snapshots (
+  id uuid primary key default gen_random_uuid(),
+  org_id uuid not null references orgs(id) on delete cascade,
+  ws_id uuid references workspaces(id) on delete set null,
+  mission_id uuid,
+  subject_kind text not null check (subject_kind in ('user','workspace','mission','token')),
+  subject_id text not null,
+  issued_by uuid references users(id) on delete set null,
+  snapshot_json jsonb not null default '{}'::jsonb,
+  access_reason text,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_gate_capability_snapshots_subject on gate_capability_snapshots(org_id, subject_kind, subject_id, created_at desc);

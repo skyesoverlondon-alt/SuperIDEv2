@@ -171,6 +171,18 @@
             <!-- Project Sidebar -->
             <aside class="glass rounded-3xl p-6 flex flex-col min-h-0">
                 <h3 class="mono text-[10px] uppercase tracking-widest text-slate-500 mb-6">Vessels</h3>
+                <div class="mb-4 rounded-2xl border border-violet-500/20 bg-white/5 p-4">
+                    <div class="flex items-center justify-between gap-3">
+                        <strong class="mono text-[10px] uppercase tracking-widest text-violet-300">Queued Intake</strong>
+                        <span id="queue-count" class="rounded-full border border-violet-400/30 px-2 py-1 mono text-[10px] text-violet-200">0</span>
+                    </div>
+                    <p id="queue-status" class="mt-3 text-xs leading-relaxed text-slate-400">Inbox clear. Shell handoffs auto-import here when the surface is open.</p>
+                    <div id="queue-list" class="mt-3 space-y-2"></div>
+                    <div class="mt-4 flex gap-2">
+                        <button onclick="importQueuedNow()" class="px-4 py-2 btn-primary rounded-xl text-[10px] font-bold uppercase tracking-widest">Import Queued</button>
+                        <button onclick="clearQueuedImports()" class="px-4 py-2 glass rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-white/5">Clear</button>
+                    </div>
+                </div>
                 <div id="project-list" class="flex-1 scroll-panel space-y-2">
                     <!-- Projects -->
                 </div>
@@ -232,12 +244,14 @@
         </div>
     </section>
 
-    <input id="import-file" type="file" accept=".json,.skye" style="display:none" onchange="handleImportFile(event)" />
+    <input id="import-file" type="file" accept=".json,.skye,.env,.txt" style="display:none" onchange="handleImportFile(event)" />
 
     <script>
         // State Management
         const APP_ID = 'SovereignVariables';
         const STORAGE_KEY = 'sovereign.variables.v1';
+        const INBOX_KEY = 'sovereign.variables.inbox.v1';
+        const QUEUE_POLL_MS = 1500;
         const qs = new URLSearchParams(window.location.search);
         const wsId = qs.get('ws_id') || 'primary-workspace';
 
@@ -263,6 +277,7 @@
             activeProjectId: 'p1',
             activeEnvId: 'e1'
         };
+        let lastInboxFingerprint = '';
 
         function loadState() {
             try {
@@ -283,6 +298,180 @@
 
         function saveState() {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+        }
+
+        function readQueuedImports() {
+            try {
+                const raw = localStorage.getItem(INBOX_KEY);
+                if (!raw) return [];
+                const parsed = JSON.parse(raw);
+                return Array.isArray(parsed) ? parsed : [];
+            } catch (err) {
+                console.warn('Failed to read queued imports', err);
+                return [];
+            }
+        }
+
+        function writeQueuedImports(entries) {
+            if (!Array.isArray(entries) || !entries.length) {
+                localStorage.removeItem(INBOX_KEY);
+                return;
+            }
+            localStorage.setItem(INBOX_KEY, JSON.stringify(entries));
+        }
+
+        function queuedImportsFingerprint(entries) {
+            return JSON.stringify((entries || []).map((entry) => `${entry?.id || ''}:${entry?.created_at || ''}:${entry?.title || ''}:${entry?.content || ''}`));
+        }
+
+        function queuedImportLabel(entry) {
+            return String(entry?.project_name || entry?.title || entry?.source || 'Queued Template').trim() || 'Queued Template';
+        }
+
+        function renderQueuedInbox(entries = readQueuedImports()) {
+            const queueCount = document.getElementById('queue-count');
+            const queueStatus = document.getElementById('queue-status');
+            const queueList = document.getElementById('queue-list');
+            if (!queueCount || !queueStatus || !queueList) return;
+
+            queueCount.innerText = String(entries.length);
+            if (!entries.length) {
+                queueStatus.innerText = 'Inbox clear. Shell handoffs auto-import here when the surface is open.';
+                queueList.innerHTML = '';
+                return;
+            }
+
+            queueStatus.innerText = `${entries.length} queued template${entries.length === 1 ? '' : 's'} ready for direct SovereignVariables ingest.`;
+            queueList.innerHTML = entries.slice(0, 4).map((entry) => {
+                const variableCount = parseEnvText(entry?.content || '').length;
+                return `
+                    <div class="rounded-xl border border-white/10 bg-black/20 px-3 py-2">
+                        <div class="flex items-center justify-between gap-2">
+                            <strong class="mono text-[10px] text-violet-200">${safeText(queuedImportLabel(entry))}</strong>
+                            <span class="mono text-[10px] text-emerald-300">${variableCount} vars</span>
+                        </div>
+                        <div class="mt-1 text-[10px] text-slate-400">${safeText(entry?.environment_name || entry?.source || 'Queued import')}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function stripWrappingQuotes(value) {
+            const trimmed = String(value || '').trim();
+            if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
+                return trimmed.slice(1, -1);
+            }
+            return trimmed;
+        }
+
+        function parseEnvText(text) {
+            return String(text || '')
+                .split(/\r?\n/)
+                .map((line) => line.trim())
+                .filter((line) => line && !line.startsWith('#') && !line.startsWith('//'))
+                .map((line) => line.startsWith('export ') ? line.slice(7).trim() : line)
+                .map((line) => {
+                    const match = line.match(/^([A-Za-z_][A-Za-z0-9_.-]*)\s*=\s*(.+)$/);
+                    if (!match) return null;
+                    return { k: match[1].trim(), v: stripWrappingQuotes(match[2]) };
+                })
+                .filter(Boolean);
+        }
+
+        function importVariableSnapshot(options) {
+            const projectName = String(options?.projectName || 'Imported Config').trim() || 'Imported Config';
+            const envName = String(options?.envName || 'Imported').trim() || 'Imported';
+            const notes = String(options?.notes || '').trim();
+            const variables = Array.isArray(options?.variables) ? options.variables.filter((item) => item?.k) : [];
+            if (!variables.length) throw new Error('No variable entries found to import.');
+
+            const envId = uid('env');
+            const project = {
+                id: uid('proj'),
+                name: projectName,
+                environments: [
+                    {
+                        id: envId,
+                        name: envName,
+                        notes,
+                        variables,
+                    }
+                ]
+            };
+            appState.projects.unshift(project);
+            appState.activeProjectId = project.id;
+            appState.activeEnvId = envId;
+            saveState();
+            renderAll();
+            return project;
+        }
+
+        function consumeQueuedImports(options = {}) {
+            try {
+                const queued = readQueuedImports();
+                if (!queued.length) {
+                    renderQueuedInbox([]);
+                    return 0;
+                }
+
+                const targetIds = Array.isArray(options?.ids) && options.ids.length ? new Set(options.ids) : null;
+                const remaining = [];
+                let imported = 0;
+
+                for (const entry of queued) {
+                    if (targetIds && !targetIds.has(entry?.id)) {
+                        remaining.push(entry);
+                        continue;
+                    }
+                    const variables = parseEnvText(entry?.content || '');
+                    if (!variables.length) {
+                        remaining.push(entry);
+                        continue;
+                    }
+                    importVariableSnapshot({
+                        projectName: entry?.project_name || entry?.title || 'Queued Template',
+                        envName: entry?.environment_name || 'Draft Import',
+                        notes: `Queued from ${entry?.source || 'shell'} at ${entry?.created_at || new Date().toISOString()}`,
+                        variables,
+                    });
+                    imported += 1;
+                }
+
+                writeQueuedImports(remaining);
+                renderQueuedInbox(remaining);
+                if (imported) {
+                    showToast(`${options?.auto ? 'Auto-imported' : 'Imported'} ${imported} queued template${imported === 1 ? '' : 's'}.`);
+                }
+                return imported;
+            } catch (err) {
+                console.warn('Failed to consume queued imports', err);
+                return 0;
+            }
+        }
+
+        function importQueuedNow() {
+            const imported = consumeQueuedImports({ auto: false });
+            if (!imported) showToast('No queued templates ready to import.');
+        }
+
+        function clearQueuedImports() {
+            writeQueuedImports([]);
+            renderQueuedInbox([]);
+            showToast('Cleared queued intake.');
+        }
+
+        function syncQueuedImports(options = {}) {
+            const queued = readQueuedImports();
+            const fingerprint = queuedImportsFingerprint(queued);
+            if (!options.force && fingerprint === lastInboxFingerprint) return;
+            lastInboxFingerprint = fingerprint;
+            renderQueuedInbox(queued);
+            if (queued.length && options.auto) {
+                consumeQueuedImports({ auto: true });
+                const after = readQueuedImports();
+                lastInboxFingerprint = queuedImportsFingerprint(after);
+                renderQueuedInbox(after);
+            }
         }
 
         function activeProject() {
@@ -391,6 +580,25 @@
             const data = await res.json().catch(() => ({}));
             if (!res.ok) throw new Error(data?.error || `${path} failed (${res.status})`);
             return data;
+        }
+
+        async function recordSuiteIntent(intentName, status, options = {}) {
+            if (!window.SkyeStandaloneSession?.recordSuiteIntent) return null;
+            const project = activeProject();
+            const env = activeEnv();
+            return window.SkyeStandaloneSession.recordSuiteIntent({
+                sourceApp: APP_ID,
+                targetApp: options.targetApp || APP_ID,
+                intent: { name: intentName, status, summary: options.summary || '' },
+                context: {
+                    workspace_id: wsId,
+                    file_ids: options.fileIds || [project?.id, env?.id].filter(Boolean),
+                    asset_ids: options.assetIds || [],
+                },
+                detail: options.detail || '',
+                badge: options.badge || '',
+                payload: options.payload || {},
+            });
         }
 
         // Navigation
@@ -586,6 +794,18 @@
             event.target.value = '';
             if (!file) return;
             try {
+                const lowerName = file.name.toLowerCase();
+                if (lowerName.endsWith('.env') || lowerName.endsWith('.txt')) {
+                    const variables = parseEnvText(await file.text());
+                    importVariableSnapshot({
+                        projectName: file.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' '),
+                        envName: 'Imported Sheet',
+                        notes: `Imported from ${file.name}`,
+                        variables,
+                    });
+                    showToast('Imported env sheet.');
+                    return;
+                }
                 if (file.name.toLowerCase().endsWith('.json')) {
                     const payload = JSON.parse(await file.text());
                     if (!Array.isArray(payload?.state?.projects)) throw new Error('Invalid JSON export.');
@@ -595,7 +815,7 @@
                     showToast('Imported JSON package.');
                     return;
                 }
-                if (!file.name.toLowerCase().endsWith('.skye')) throw new Error('Use .json or .skye imports only.');
+                if (!file.name.toLowerCase().endsWith('.skye')) throw new Error('Use .env, .txt, .json, or .skye imports only.');
 
                 const bytes = new Uint8Array(await file.arrayBuffer());
                 const marker = new TextEncoder().encode('SKYESEC1');
@@ -631,6 +851,18 @@
                 source: 'SovereignVariables',
                 message: `[SovereignVariables] ${project.name}/${env.name}\n\n${body || '(no variables)'}`,
             });
+            await recordSuiteIntent('open-thread', 'completed', {
+                targetApp: 'SkyeChat',
+                summary: 'Route the active environment package into SkyeChat.',
+                detail: `SovereignVariables pushed ${project.name}/${env.name} into #${channel.trim()}.`,
+                fileIds: [project.id, env.id],
+                payload: {
+                    channel: channel.trim(),
+                    message: `[SovereignVariables] ${project.name}/${env.name}\n\n${body || '(no variables)'}`,
+                    project_name: project.name,
+                    environment_name: env.name,
+                },
+            });
             showToast('Pushed to SkyeChat.');
         }
 
@@ -647,6 +879,19 @@
                 to: to.trim().toLowerCase(),
                 subject,
                 text,
+            });
+            await recordSuiteIntent('compose-mail', 'completed', {
+                targetApp: 'SkyeMail',
+                summary: 'Route the active environment package into SkyeMail.',
+                detail: `SovereignVariables delivered ${project.name}/${env.name} via SkyeMail to ${to.trim().toLowerCase()}.`,
+                fileIds: [project.id, env.id],
+                payload: {
+                    to: to.trim().toLowerCase(),
+                    subject,
+                    text,
+                    project_name: project.name,
+                    environment_name: env.name,
+                },
             });
             showToast('Pushed to SkyeMail.');
         }
@@ -686,6 +931,7 @@
 
         window.onload = () => {
             loadState();
+            syncQueuedImports({ auto: true, force: true });
             initBackground();
             const out = document.getElementById('raw-output');
             if (out) {
@@ -701,6 +947,15 @@
                     }
                 });
             }
+
+            window.addEventListener('storage', (event) => {
+                if (event.key === INBOX_KEY) syncQueuedImports({ auto: true, force: true });
+            });
+            window.addEventListener('focus', () => syncQueuedImports({ auto: true, force: true }));
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden) syncQueuedImports({ auto: true, force: true });
+            });
+            window.setInterval(() => syncQueuedImports({ auto: true }), QUEUE_POLL_MS);
         };
     </script>
 
