@@ -769,16 +769,18 @@ const APP_TUTORIALS: Record<SkyeAppId, string[]> = {
     "Send campaign-ready summary to SkyeMail recipients.",
   ],
   "AE-Flow": [
-    "Open AE-Flow as a full CRM platform inside SuperIDE.",
-    "Verify workspace context and the shared kAIxU key are already available without another paste step.",
-    "Use the platform for operator workflow handoff, then route follow-up into SkyeChat or SkyeMail.",
-    "Confirm the embedded platform still feels like the original system and keeps its visual language intact.",
+    "Open AE-Flow inside SuperIDE and confirm the active workspace ID is already populated before touching any CRM lane.",
+    "Verify the shared kAIxU key is already present so the operator does not need to paste credentials again.",
+    "Create or open a real CRM workflow, then route a follow-up into SkyeChat or SkyeMail from the same workspace context.",
+    "Move the next action into Neural Space Pro for reasoning, then return to AE-Flow and confirm the handoff stayed visible.",
+    "Finish by validating the embedded platform still preserves AE-Flow branding and feels like the original product, not a stripped iframe.",
   ],
   GoogleBusinessProfileRescuePlatform: [
-    "Open the GBP Rescue platform capsule from the SuperIDE app drawer.",
-    "Review the rescue workflow summary, key status, and command network links inside the embedded launchpad.",
-    "Jump from the platform capsule into SkyeChat, SkyeMail, Neural Space Pro, or SkyeAdmin for follow-up work.",
-    "Treat the rescue surface as a platform lane, not as an isolated app tile.",
+    "Open the GBP Rescue platform capsule and confirm it loads as a real working lane, not just a static launch card.",
+    "Review the active rescue workflow, workspace context, and kAIxU readiness before starting any reinstatement action.",
+    "Use the platform to push a real next step into SkyeChat, SkyeMail, or Neural Space Pro so the rescue path is visibly connected.",
+    "Open AE-Flow or ContractorNetwork when the rescue case needs sales, ops, or field follow-up and confirm the context carries over.",
+    "Treat the rescue platform as part of the operating system: capture outcome, share follow-up, and return to the suite with no dead end.",
   ],
   SovereignVariables: [
     "Create a project and at least one environment.",
@@ -1427,6 +1429,10 @@ export function App() {
     if (SKYE_APPS.some((app) => app.id === raw)) return raw as SkyeAppId;
     return "SkyeBookx";
   });
+  const [showHomePanels, setShowHomePanels] = useState(() => localStorage.getItem("kx.layout.home.visible") === "1");
+  const [showWorkspaceStack, setShowWorkspaceStack] = useState(() => localStorage.getItem("kx.workspace.stack.visible") === "1");
+  const [showExecutionSettings, setShowExecutionSettings] = useState(() => localStorage.getItem("kx.layout.pipeline.visible") === "1");
+  const layoutStateVersion = "2026-03-09-home-collapse";
 
   const resizeStateRef = useRef<{
     kind: ResizeKind;
@@ -1438,6 +1444,18 @@ export function App() {
     ideSplitRatio: number;
   } | null>(null);
   const ideSplitRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const currentVersion = localStorage.getItem("kx.layout.version");
+    if (currentVersion === layoutStateVersion) return;
+    localStorage.setItem("kx.layout.version", layoutStateVersion);
+    localStorage.setItem("kx.layout.home.visible", "0");
+    localStorage.setItem("kx.workspace.stack.visible", "0");
+    localStorage.setItem("kx.layout.pipeline.visible", "0");
+    setShowHomePanels(false);
+    setShowWorkspaceStack(false);
+    setShowExecutionSettings(false);
+  }, [layoutStateVersion]);
 
   const [files, setFiles] = useState<WorkspaceFile[]>(() => {
     const raw = localStorage.getItem("kx.workspace.files");
@@ -2091,6 +2109,18 @@ export function App() {
   useEffect(() => {
     localStorage.setItem("kx.workspace.stack.bottom", bottomWorkspaceApp);
   }, [bottomWorkspaceApp]);
+
+  useEffect(() => {
+    localStorage.setItem("kx.layout.home.visible", showHomePanels ? "1" : "0");
+  }, [showHomePanels]);
+
+  useEffect(() => {
+    localStorage.setItem("kx.workspace.stack.visible", showWorkspaceStack ? "1" : "0");
+  }, [showWorkspaceStack]);
+
+  useEffect(() => {
+    localStorage.setItem("kx.layout.pipeline.visible", showExecutionSettings ? "1" : "0");
+  }, [showExecutionSettings]);
 
   useEffect(() => {
     localStorage.setItem("kx.workspace.id", workspaceId);
@@ -5770,6 +5800,119 @@ export function App() {
     if (mode === "self-serve") openAuthCenterWindow({ focus: true, guide: false });
   }
 
+  function openStandaloneWorkspaceWindow(url: string | null, note?: string) {
+    if (!url) return;
+    window.open(url, "_blank", "noopener,noreferrer");
+    if (note) pushIdeDiagnostic("info", note);
+  }
+
+  function openContractorNetworkSurface(note?: string) {
+    window.open(`/ContractorNetwork/index.html?ws_id=${encodeURIComponent(workspaceId)}`, "_blank", "noopener,noreferrer");
+    if (note) pushIdeDiagnostic("info", note);
+  }
+
+  function openGuidedBusinessSurface(
+    target: "AE-Flow" | "GoogleBusinessProfileRescuePlatform" | "ContractorNetwork" | "Neural-Space-Pro",
+    note?: string
+  ) {
+    if (target === "ContractorNetwork") {
+      openContractorNetworkSurface(note);
+      return;
+    }
+    if (target === "Neural-Space-Pro") {
+      setAppMode("neural");
+      if (note) pushIdeDiagnostic("info", note);
+      return;
+    }
+    routeCrossAppFocus(target, { note });
+  }
+
+  function buildTutorialGuideCards(appId: SkyeAppId, steps: string[], nextUnchecked: string | undefined, standaloneUrl: string | null) {
+    const primaryStep = nextUnchecked || steps[0] || `Open ${appId} and confirm the workspace is ready.`;
+    const readyText = hasApiKeyLoaded
+      ? "The kAIxU key is already live for this browser origin, so the route can stay inside the suite instead of bouncing out for auth."
+      : "The kAIxU key is still missing for this browser origin, so start with Guided Onboarding before expecting a real cross-app handoff.";
+
+    if (appId === "AE-Flow") {
+      return [
+        {
+          title: "Prime the CRM lane",
+          detail: steps[0] || primaryStep,
+          label: "Open AE-Flow",
+          run: () => openGuidedBusinessSurface("AE-Flow", "Guided launch opened AE-Flow with the current workspace context."),
+        },
+        {
+          title: "Work the reasoning handoff",
+          detail: nextUnchecked || steps[3] || "Move the active CRM case into Neural Space Pro, then return to AE-Flow and confirm the handoff stayed visible.",
+          label: "Open Neural Space Pro",
+          run: () => openGuidedBusinessSurface("Neural-Space-Pro", "Guided launch moved the AE-Flow case into Neural Space Pro."),
+        },
+        {
+          title: "Close the field follow-up",
+          detail: steps[4] || "Finish the route by pushing the case into ContractorNetwork or another live follow-up lane so AE-Flow does not end as an isolated iframe.",
+          label: "Open ContractorNetwork",
+          run: () => openGuidedBusinessSurface("ContractorNetwork", "Guided launch opened ContractorNetwork as the next AE-Flow follow-up lane."),
+        },
+      ];
+    }
+
+    if (appId === "GoogleBusinessProfileRescuePlatform") {
+      return [
+        {
+          title: "Open the live rescue capsule",
+          detail: steps[0] || primaryStep,
+          label: "Open GBP Rescue",
+          run: () => openGuidedBusinessSurface("GoogleBusinessProfileRescuePlatform", "Guided launch opened the GBP Rescue platform capsule."),
+        },
+        {
+          title: "Prepare the evidence handoff",
+          detail: nextUnchecked || steps[2] || "Push the active rescue state into Neural Space Pro or outbound comms so the operator can work the case, not just view it.",
+          label: "Open Neural Space Pro",
+          run: () => openGuidedBusinessSurface("Neural-Space-Pro", "Guided launch moved the rescue case into Neural Space Pro for evidence synthesis."),
+        },
+        {
+          title: "Route the next operator",
+          detail: steps[3] || "Hand the case into AE-Flow or ContractorNetwork when the rescue path needs sales, ops, or field execution.",
+          label: "Open AE-Flow",
+          run: () => openGuidedBusinessSurface("AE-Flow", "Guided launch opened AE-Flow as the next GBP Rescue handoff."),
+        },
+      ];
+    }
+
+    return [
+      {
+        title: "Prepare access",
+        detail: readyText,
+        label: "Launch Guided Onboarding",
+        run: () => openAuthCenterWindow({ focus: true, guide: true }),
+      },
+      {
+        title: "Run the live surface",
+        detail: primaryStep,
+        label: standaloneUrl ? "Open Standalone" : `Open ${appId}`,
+        run: () => {
+          if (standaloneUrl) {
+            openStandaloneWorkspaceWindow(standaloneUrl, `Guided launch opened ${appId} as a standalone surface.`);
+            return;
+          }
+          routeCrossAppFocus(appId, { note: `Guided launch opened ${appId}.` });
+        },
+      },
+      {
+        title: "Finish the suite handoff",
+        detail: "Do one real follow-through after the app interaction so the workflow ends in a connected platform route, not a dead-end demo.",
+        label: appId === "SkyeDocxPro" || appId === "SkyeBlog" ? "Open AE-Flow" : "Open Neural Space Pro",
+        run: () => {
+          if (appId === "SkyeDocxPro" || appId === "SkyeBlog") {
+            openGuidedBusinessSurface("AE-Flow", `Guided launch opened AE-Flow after ${appId}.`);
+            return;
+          }
+          openGuidedBusinessSurface("Neural-Space-Pro", `Guided launch opened Neural Space Pro after ${appId}.`);
+        },
+      },
+    ];
+  }
+
   async function copyLoadedKey() {
     const token = apiAccessToken.trim();
     if (!token) {
@@ -6032,6 +6175,33 @@ export function App() {
   }
 
   function renderGuidedOnboardingPanel() {
+    const launchSequence = [
+      {
+        title: "Launch AE-Flow",
+        detail: "Move directly from onboarding into the CRM platform with the same workspace and key already loaded.",
+        label: "Open AE-Flow",
+        run: () => openGuidedBusinessSurface("AE-Flow", "Guided onboarding opened AE-Flow with the active workspace context."),
+      },
+      {
+        title: "Open GBP Rescue",
+        detail: "Route the operator into the business rescue platform without forcing another setup pass or context re-entry.",
+        label: "Open GBP Rescue",
+        run: () => openGuidedBusinessSurface("GoogleBusinessProfileRescuePlatform", "Guided onboarding opened the GBP Rescue platform."),
+      },
+      {
+        title: "Open ContractorNetwork",
+        detail: "Use the contractor lane for field follow-up once the account, identity, and key are locked to the workspace.",
+        label: "Open ContractorNetwork",
+        run: () => openGuidedBusinessSurface("ContractorNetwork", "Guided onboarding opened ContractorNetwork for field follow-up."),
+      },
+      {
+        title: "Shift into Neural",
+        detail: "When the operator needs reasoning or synthesis, move into Neural Space Pro without losing the suite access path.",
+        label: "Open Neural Space Pro",
+        run: () => openGuidedBusinessSurface("Neural-Space-Pro", "Guided onboarding opened Neural Space Pro as the next lane."),
+      },
+    ];
+
     return (
       <section className="app-module onboarding-guide-panel">
         <header>
@@ -6139,7 +6309,7 @@ export function App() {
           <article className="onboarding-step-card">
             <div className="onboarding-step-index">5</div>
             <h3>Finish key and recovery</h3>
-            <p>Your kAIxU key should lock to the SKYEMAIL primary login. Password resets and backup recovery go to the third-party recovery email.</p>
+            <p>Your kAIxU key should lock to the SKYEMAIL primary login. Password resets and backup recovery go to the third-party recovery email, and every standalone app should reuse the same access path.</p>
             <div className="onboarding-summary-grid">
               <div>
                 <strong>Key lock email</strong>
@@ -6163,6 +6333,7 @@ export function App() {
                 {isResetSubmitting ? "Requesting..." : "Send Reset Link"}
               </button>
               <button className="ghost" type="button" onClick={() => void refreshAuthSession()} disabled={isAuthSubmitting}>Session Sync</button>
+              <a className="ghost" href="https://skyesol.netlify.app/kaixu/requestkaixuapikey" target="_blank" rel="noreferrer">Request kAIxU Key</a>
             </div>
           </article>
         </div>
@@ -6171,8 +6342,24 @@ export function App() {
           <strong>How this flow works</strong>
           <div>Your generated SKYEMAIL address becomes the primary login and the mailbox inside the workspace.</div>
           <div>Your third-party recovery email is only for backup login help and password reset delivery.</div>
+          <div>After auth is live, move directly into AE-Flow, GBP Rescue Platform, ContractorNetwork, or Neural Space Pro without asking the user to re-enter context.</div>
           <div>You can close this and come back any time with the Guided Onboarding button.</div>
+          <div className="onboarding-guide-grid" style={{ marginTop: 14 }}>
+            {launchSequence.map((card, index) => (
+              <article key={card.title} className="onboarding-step-card">
+                <div className="onboarding-step-index">{index + 1}</div>
+                <h3>{card.title}</h3>
+                <p>{card.detail}</p>
+                <div className="tool-actions left">
+                  <button className="ghost" type="button" onClick={card.run}>{card.label}</button>
+                </div>
+              </article>
+            ))}
+          </div>
           <div className="tool-actions left" style={{ marginTop: 8 }}>
+            <button className="ghost" type="button" onClick={() => openGuidedBusinessSurface("AE-Flow", "Guided onboarding opened AE-Flow from the summary rail.")}>Open AE-Flow</button>
+            <button className="ghost" type="button" onClick={() => openGuidedBusinessSurface("GoogleBusinessProfileRescuePlatform", "Guided onboarding opened GBP Rescue from the summary rail.")}>Open GBP Rescue</button>
+            <button className="ghost" type="button" onClick={() => openGuidedBusinessSurface("ContractorNetwork", "Guided onboarding opened ContractorNetwork from the summary rail.")}>Open ContractorNetwork</button>
             <button className="ghost" type="button" onClick={() => chooseOnboardingAssistMode("later")}>Maybe Later</button>
             <button className="ghost" type="button" onClick={() => chooseOnboardingAssistMode("self-serve")}>Use Self-Serve Instead</button>
           </div>
@@ -7357,16 +7544,53 @@ export function App() {
   function renderTutorialPanel(appId: SkyeAppId) {
     const steps = APP_TUTORIALS[appId] || [];
     const completed = steps.filter((step) => tutorialChecks[makeTutorialKey(appId, step)]).length;
+    const standaloneUrl = buildStandaloneAppUrl(appId, workspaceId);
+    const nextUnchecked = steps.find((step) => !tutorialChecks[makeTutorialKey(appId, step)]);
+    const appSummary = SKYE_APPS.find((app) => app.id === appId)?.summary || `${appId} launch guide`;
+    const guideCards = buildTutorialGuideCards(appId, steps, nextUnchecked, standaloneUrl);
     return (
       <div className="tutorial-overlay" onClick={() => setShowTutorialPanel(false)}>
         <section className="tutorial-dialog" onClick={(event) => event.stopPropagation()}>
           <header>
-            <h2>{appId} Guided Checklist</h2>
-            <p>{completed}/{steps.length} checklist steps complete</p>
+            <h2>{appId} Guided Launch</h2>
+            <p>{appSummary}</p>
           </header>
           <div className="tool-actions left">
             <button className="ghost" type="button" onClick={() => setShowTutorialPanel(false)}>Close Tutorial</button>
+            <button className="ghost" type="button" onClick={() => openAuthCenterWindow({ focus: true, guide: true })}>Launch Guided Onboarding</button>
+            {standaloneUrl ? <a className="ghost" href={standaloneUrl} target="_blank" rel="noreferrer">Open Standalone</a> : null}
+            <a className="ghost" href="https://skyesol.netlify.app/kaixu/requestkaixuapikey" target="_blank" rel="noreferrer">Request kAIxU Key</a>
             <button className="ghost" type="button" onClick={exportAppHealthSnapshot}>Export Health Snapshot</button>
+          </div>
+          <section className="auth-session-feedback" style={{ marginBottom: 14 }}>
+            <strong>Operator Route</strong>
+            <div>Progress: {completed}/{steps.length || 1} complete</div>
+            <div>Next step: {nextUnchecked || "Checklist complete. Validate one live handoff before closing this guide."}</div>
+            <div>Access path: {hasApiKeyLoaded ? "kAIxU key loaded for this browser origin." : "Key missing. Use Guided Onboarding or the request link before cross-app work."}</div>
+            <div className="tool-actions left" style={{ marginTop: 8 }}>
+              <button className="ghost" type="button" onClick={() => routeCrossAppFocus("AE-Flow", { note: `${appId} handoff into AE-Flow.` })}>Open AE-Flow</button>
+              <button className="ghost" type="button" onClick={() => routeCrossAppFocus("GoogleBusinessProfileRescuePlatform", { note: `${appId} handoff into GBP Rescue.` })}>Open GBP Rescue</button>
+              <button className="ghost" type="button" onClick={() => window.open(`/ContractorNetwork/index.html?ws_id=${encodeURIComponent(workspaceId)}`, "_blank", "noopener,noreferrer")}>Open ContractorNetwork</button>
+              <button className="ghost" type="button" onClick={() => setAppMode("neural")}>Open Neural Space Pro</button>
+            </div>
+          </section>
+          <section className="onboarding-guide-grid" style={{ marginBottom: 14 }}>
+            {guideCards.map((card, index) => (
+              <article key={`${appId}-guide-${card.title}`} className="onboarding-step-card tutorial-route-card">
+                <div className="onboarding-step-index">{index + 1}</div>
+                <h3>{card.title}</h3>
+                <p>{card.detail}</p>
+                <div className="tool-actions left">
+                  <button className="ghost" type="button" onClick={card.run}>{card.label}</button>
+                </div>
+              </article>
+            ))}
+          </section>
+          <section className="auth-session-feedback" style={{ marginBottom: 14 }}>
+            <strong>Live checklist</strong>
+            <div>Use the route cards above to drive the flow, then mark off the checklist below as each live interaction is actually verified.</div>
+          </section>
+          <div className="tool-actions left" style={{ marginBottom: 10 }}>
             <button className="ghost" type="button" onClick={resetSelectedAppDemoState}>Reset App Demo State</button>
           </div>
           <div className="list-stack">
@@ -8583,6 +8807,28 @@ export function App() {
         </div>
       </header>
 
+      <section className="workspace-surface-bar">
+        <div className="workspace-surface-meta">Home Control Stack</div>
+        <div className="workspace-surface-meta">{showHomePanels ? "Expanded" : "Collapsed by default so the primary workspace stays first."}</div>
+        <span className="telemetry-chip">Command feed: {commandFeed.length}</span>
+        <span className="telemetry-chip">Events: {sovereignEvents.length}</span>
+        <span className="telemetry-chip">Active app: {selectedSkyeApp}</span>
+        <button className="ghost" type="button" onClick={() => setShowHomePanels((old) => !old)}>
+          {showHomePanels ? "Hide Home Panels" : "Show Home Panels"}
+        </button>
+        <button className="ghost" type="button" onClick={() => openAuthCenterWindow({ focus: true, guide: true })}>
+          Guided Onboarding
+        </button>
+        <button className="ghost" type="button" onClick={() => setShowTutorialPanel(true)}>
+          Tutorials
+        </button>
+        <button className="ghost" type="button" onClick={() => routeCrossAppFocus("GoogleBusinessProfileRescuePlatform", { note: "Launch GBP Rescue from the home control stack." })}>
+          Open GBP Rescue
+        </button>
+      </section>
+
+      {showHomePanels ? (
+        <>
       <section className="command-feed-rail" aria-label="command feed">
         <div className="command-feed-head">
           <strong>Command Feed</strong>
@@ -9289,6 +9535,8 @@ export function App() {
           </>
         )}
       </section>
+        </>
+      ) : null}
 
       {showFailSafeBanner && (
         <section className="smoke-warning" style={{ margin: "10px 12px 0 12px" }}>
@@ -9502,96 +9750,137 @@ export function App() {
                 </section>
 
                 <section className="side-settings-block">
-                  <h3>Execution Pipeline</h3>
-                  <div className="tool-row split">
+                  <div className="tool-actions left" style={{ marginBottom: 12 }}>
+                    <h3 style={{ margin: 0, flex: 1 }}>Execution Pipeline</h3>
+                    <button className="ghost" type="button" onClick={() => setShowExecutionSettings((old) => !old)}>
+                      {showExecutionSettings ? "Hide Setup" : "Show Setup"}
+                    </button>
+                  </div>
+                  <div className="onboarding-summary-grid" style={{ marginBottom: 12 }}>
                     <div>
-                      <label>Top Workspace</label>
-                      <select value={topWorkspaceApp} onChange={(event) => setTopWorkspaceApp(event.target.value as WorkspaceStageApp)}>
-                        <option value="Neural-Space-Pro">Neural-Space-Pro</option>
-                        {SKYE_APPS.map((app) => (
-                          <option key={`left-top-${app.id}`} value={app.id}>{app.id}</option>
-                        ))}
-                      </select>
+                      <strong>Bench lane</strong>
+                      <span>{`${workspaceStageLabel(topWorkspaceApp)} -> ${workspaceStageLabel(middleWorkspaceApp)} -> ${workspaceStageLabel(bottomWorkspaceApp)}`}</span>
                     </div>
                     <div>
-                      <label>Middle Workspace</label>
-                      <select value={middleWorkspaceApp} onChange={(event) => setMiddleWorkspaceApp(event.target.value as WorkspaceStageApp)}>
-                        <option value="Neural-Space-Pro">Neural-Space-Pro</option>
-                        {SKYE_APPS.map((app) => (
-                          <option key={`left-mid-${app.id}`} value={app.id}>{app.id}</option>
-                        ))}
-                      </select>
+                      <strong>Side rails</strong>
+                      <span>{`${leftMiddleDockApp} / ${leftBottomDockApp} / ${rightTopDockApp} / ${rightMiddleDockApp} / ${rightBottomDockApp}`}</span>
+                    </div>
+                    <div>
+                      <strong>Access</strong>
+                      <span>{hasApiKeyLoaded ? "kAIxU key loaded" : "kAIxU key missing"}</span>
+                    </div>
+                    <div>
+                      <strong>Workspace stack</strong>
+                      <span>{showWorkspaceStack ? "expanded" : "collapsed"}</span>
                     </div>
                   </div>
-                  <div className="tool-row split">
-                    <div>
-                      <label>Bottom Workspace</label>
-                      <select value={bottomWorkspaceApp} onChange={(event) => setBottomWorkspaceApp(event.target.value as WorkspaceStageApp)}>
-                        <option value="Neural-Space-Pro">Neural-Space-Pro</option>
-                        {SKYE_APPS.map((app) => (
-                          <option key={`left-bottom-${app.id}`} value={app.id}>{app.id}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                        <label>Sidebar Width</label>
-                        <input readOnly value={`${Math.round(workspaceSidebarWidth)}px`} />
-                    </div>
+                  <div className="tool-actions left" style={{ marginBottom: 12 }}>
+                    <button className="ghost" type="button" onClick={() => openAuthCenterWindow({ focus: true, guide: true })}>Guided Onboarding</button>
+                    <a className="ghost" href="https://skyesol.netlify.app/kaixu/requestkaixuapikey" target="_blank" rel="noreferrer">Request kAIxU Key</a>
+                    <button className="ghost" type="button" onClick={() => routeCrossAppFocus("AE-Flow", { note: "Launch AE-Flow from the execution rail." })}>Open AE-Flow</button>
+                    <button className="ghost" type="button" onClick={() => routeCrossAppFocus("GoogleBusinessProfileRescuePlatform", { note: "Launch GBP Rescue from the execution rail." })}>Open GBP Rescue</button>
+                    <button className="ghost" type="button" onClick={() => window.open(`/ContractorNetwork/index.html?ws_id=${encodeURIComponent(workspaceId)}`, "_blank", "noopener,noreferrer")}>Open ContractorNetwork</button>
                   </div>
-                  <div className="tool-row split">
-                    <div>
-                      <label>Left Middle Dock</label>
-                      <select value={leftMiddleDockApp} onChange={(event) => setLeftMiddleDockApp(event.target.value as DockApp)}>
-                        {dockApps.map((app) => (
-                          <option key={`left-middle-dock-${app}`} value={app}>{app}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label>Left Bottom Dock</label>
-                      <select value={leftBottomDockApp} onChange={(event) => setLeftBottomDockApp(event.target.value as DockApp)}>
-                        {dockApps.map((app) => (
-                          <option key={`left-dock-${app}`} value={app}>{app}</option>
-                        ))}
-                      </select>
-                    </div>
+                  <div className="tool-actions left" style={{ marginBottom: showExecutionSettings ? 12 : 0 }}>
+                    <button className="ghost" type="button" onClick={() => setShowWorkspaceStack((old) => !old)}>
+                      {showWorkspaceStack ? "Hide Workspace Stack" : "Show Workspace Stack"}
+                    </button>
+                    <button className="ghost" type="button" onClick={() => setShowTutorialPanel(true)}>Show Tutorials</button>
+                    <a className="ghost inline-action-link" href={standaloneIdeUrl} target="_blank" rel="noreferrer">Open SkyDex 4.6</a>
                   </div>
-                  <div className="tool-row split">
-                    <div>
-                      <label>Right Panel Width</label>
-                      <input readOnly value={`${Math.round(workspaceRightPanelWidth)}px`} />
-                    </div>
-                    <div>
-                      <label>Standalone IDE</label>
-                      <a className="ghost inline-action-link" href={standaloneIdeUrl} target="_blank" rel="noreferrer">Open SkyDex 4.6</a>
-                    </div>
-                  </div>
-                  <div className="tool-row split tool-row-triple">
-                    <div>
-                      <label>Right Panel Top App</label>
-                      <select value={rightTopDockApp} onChange={(event) => setRightTopDockApp(event.target.value as DockApp)}>
-                        {dockApps.map((app) => (
-                          <option key={`right-top-${app}`} value={app}>{app}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label>Right Panel Middle App</label>
-                      <select value={rightMiddleDockApp} onChange={(event) => setRightMiddleDockApp(event.target.value as DockApp)}>
-                        {dockApps.map((app) => (
-                          <option key={`right-middle-${app}`} value={app}>{app}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label>Right Panel Bottom App</label>
-                      <select value={rightBottomDockApp} onChange={(event) => setRightBottomDockApp(event.target.value as DockApp)}>
-                        {dockApps.map((app) => (
-                          <option key={`right-bottom-${app}`} value={app}>{app}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
+                  {showExecutionSettings ? (
+                    <>
+                      <div className="tool-row split">
+                        <div>
+                          <label>Top Workspace</label>
+                          <select value={topWorkspaceApp} onChange={(event) => setTopWorkspaceApp(event.target.value as WorkspaceStageApp)}>
+                            <option value="Neural-Space-Pro">Neural-Space-Pro</option>
+                            {SKYE_APPS.map((app) => (
+                              <option key={`left-top-${app.id}`} value={app.id}>{app.id}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label>Middle Workspace</label>
+                          <select value={middleWorkspaceApp} onChange={(event) => setMiddleWorkspaceApp(event.target.value as WorkspaceStageApp)}>
+                            <option value="Neural-Space-Pro">Neural-Space-Pro</option>
+                            {SKYE_APPS.map((app) => (
+                              <option key={`left-mid-${app.id}`} value={app.id}>{app.id}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                      <div className="tool-row split">
+                        <div>
+                          <label>Bottom Workspace</label>
+                          <select value={bottomWorkspaceApp} onChange={(event) => setBottomWorkspaceApp(event.target.value as WorkspaceStageApp)}>
+                            <option value="Neural-Space-Pro">Neural-Space-Pro</option>
+                            {SKYE_APPS.map((app) => (
+                              <option key={`left-bottom-${app.id}`} value={app.id}>{app.id}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label>Sidebar Width</label>
+                          <input readOnly value={`${Math.round(workspaceSidebarWidth)}px`} />
+                        </div>
+                      </div>
+                      <div className="tool-row split">
+                        <div>
+                          <label>Left Middle Dock</label>
+                          <select value={leftMiddleDockApp} onChange={(event) => setLeftMiddleDockApp(event.target.value as DockApp)}>
+                            {dockApps.map((app) => (
+                              <option key={`left-middle-dock-${app}`} value={app}>{app}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label>Left Bottom Dock</label>
+                          <select value={leftBottomDockApp} onChange={(event) => setLeftBottomDockApp(event.target.value as DockApp)}>
+                            {dockApps.map((app) => (
+                              <option key={`left-dock-${app}`} value={app}>{app}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                      <div className="tool-row split">
+                        <div>
+                          <label>Right Panel Width</label>
+                          <input readOnly value={`${Math.round(workspaceRightPanelWidth)}px`} />
+                        </div>
+                        <div>
+                          <label>Standalone IDE</label>
+                          <a className="ghost inline-action-link" href={standaloneIdeUrl} target="_blank" rel="noreferrer">Open SkyDex 4.6</a>
+                        </div>
+                      </div>
+                      <div className="tool-row split tool-row-triple">
+                        <div>
+                          <label>Right Panel Top App</label>
+                          <select value={rightTopDockApp} onChange={(event) => setRightTopDockApp(event.target.value as DockApp)}>
+                            {dockApps.map((app) => (
+                              <option key={`right-top-${app}`} value={app}>{app}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label>Right Panel Middle App</label>
+                          <select value={rightMiddleDockApp} onChange={(event) => setRightMiddleDockApp(event.target.value as DockApp)}>
+                            {dockApps.map((app) => (
+                              <option key={`right-middle-${app}`} value={app}>{app}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label>Right Panel Bottom App</label>
+                          <select value={rightBottomDockApp} onChange={(event) => setRightBottomDockApp(event.target.value as DockApp)}>
+                            {dockApps.map((app) => (
+                              <option key={`right-bottom-${app}`} value={app}>{app}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    </>
+                  ) : null}
                 </section>
 
                 <div className="suite-progress">
@@ -9694,226 +9983,212 @@ export function App() {
                 <section className="app-module workspace-stage-settings">
                   <header>
                     <h2>Primary Workspace Stack</h2>
-                    <p>Five vertical full-workspace embeds: 3 user-configurable workspaces plus fixed Smokehouse and API Playground validation rails.</p>
+                    <p>The extra workspace stack is now optional. Keep it collapsed unless you actively need staging or validation rails ahead of the IDE.</p>
                   </header>
-                  <div className="tool-row split">
-                    <div>
-                      <label>Top App</label>
-                      <select value={topWorkspaceApp} onChange={(event) => setTopWorkspaceApp(event.target.value as WorkspaceStageApp)}>
-                        <option value="Neural-Space-Pro">Neural-Space-Pro</option>
-                        {SKYE_APPS.map((app) => (
-                          <option key={`top-${app.id}`} value={app.id}>{app.id}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label>Middle App</label>
-                      <select value={middleWorkspaceApp} onChange={(event) => setMiddleWorkspaceApp(event.target.value as WorkspaceStageApp)}>
-                        <option value="Neural-Space-Pro">Neural-Space-Pro</option>
-                        {SKYE_APPS.map((app) => (
-                          <option key={`mid-${app.id}`} value={app.id}>{app.id}</option>
-                        ))}
-                      </select>
-                    </div>
+                  <div className="tool-actions left">
+                    <button className="ghost" type="button" onClick={() => setShowWorkspaceStack((old) => !old)}>
+                      {showWorkspaceStack ? "Collapse Stack" : "Expand Stack"}
+                    </button>
+                    <button className="ghost" type="button" onClick={() => setShowExecutionSettings(true)}>
+                      Configure Pipeline
+                    </button>
+                    <span className="telemetry-chip">Configured: {`${workspaceStageLabel(topWorkspaceApp)} -> ${workspaceStageLabel(middleWorkspaceApp)} -> ${workspaceStageLabel(bottomWorkspaceApp)}`}</span>
                   </div>
-                  <div className="tool-row split">
+                  <div className="onboarding-summary-grid">
                     <div>
-                      <label>Bottom App</label>
-                      <select value={bottomWorkspaceApp} onChange={(event) => setBottomWorkspaceApp(event.target.value as WorkspaceStageApp)}>
-                        <option value="Neural-Space-Pro">Neural-Space-Pro</option>
-                        {SKYE_APPS.map((app) => (
-                          <option key={`bot-${app.id}`} value={app.id}>{app.id}</option>
-                        ))}
-                      </select>
+                      <strong>Primary stack</strong>
+                      <span>{`${workspaceStageLabel(topWorkspaceApp)} -> ${workspaceStageLabel(middleWorkspaceApp)} -> ${workspaceStageLabel(bottomWorkspaceApp)}`}</span>
                     </div>
                     <div>
-                      <label>Configured User Stack</label>
-                      <input readOnly value={`${workspaceStageLabel(topWorkspaceApp)} -> ${workspaceStageLabel(middleWorkspaceApp)} -> ${workspaceStageLabel(bottomWorkspaceApp)}`} />
-                    </div>
-                  </div>
-                  <div className="tool-row split">
-                    <div>
-                      <label>Fixed Validation Rail 1</label>
-                      <input readOnly value="Smokehouse-Standalone (periodic smoke)" />
-                    </div>
-                    <div>
-                      <label>Fixed Validation Rail 2</label>
-                      <input readOnly value="API-Playground" />
+                      <strong>Validation rails</strong>
+                      <span>Smokehouse-Standalone to API-Playground</span>
                     </div>
                   </div>
                 </section>
 
-                {([topWorkspaceApp, middleWorkspaceApp, bottomWorkspaceApp, "Smokehouse-Standalone", "API-Playground"] as WorkspaceStageApp[]).map((app, index) => {
-                  const slot =
-                    index === 0
-                      ? "Top Workspace"
-                      : index === 1
-                        ? "Middle Workspace"
-                        : index === 2
-                          ? "Bottom Workspace"
-                          : index === 3
-                            ? "Validation Workspace: Smokehouse"
-                            : "Validation Workspace: API Playground";
-                  const src = workspaceStageUrl(app);
-                  return (
-                    <section key={`stack-${slot}-${app}`} className="app-module workspace-stage-block">
-                      <header>
-                        <h2>{slot}: {workspaceStageLabel(app)}</h2>
-                        <p>{index >= 3 ? "Fixed 1:1 validation guard rail." : "1:1 embedded surface in the primary container workspace."}</p>
-                      </header>
-                      <div className="tool-actions left">
-                        <a className="ghost" href={src} target="_blank" rel="noreferrer">Open Standalone</a>
-                      </div>
-                      <iframe className="workspace-stage-frame" title={`${slot}-${workspaceStageLabel(app)}`} src={src} />
-                    </section>
-                  );
-                })}
+                {showWorkspaceStack ? (
+                  ([topWorkspaceApp, middleWorkspaceApp, bottomWorkspaceApp, "Smokehouse-Standalone", "API-Playground"] as WorkspaceStageApp[]).map((app, index) => {
+                    const slot =
+                      index === 0
+                        ? "Top Workspace"
+                        : index === 1
+                          ? "Middle Workspace"
+                          : index === 2
+                            ? "Bottom Workspace"
+                            : index === 3
+                              ? "Validation Workspace: Smokehouse"
+                              : "Validation Workspace: API Playground";
+                    const src = workspaceStageUrl(app);
+                    return (
+                      <section key={`stack-${slot}-${app}`} className="app-module workspace-stage-block">
+                        <header>
+                          <h2>{slot}: {workspaceStageLabel(app)}</h2>
+                          <p>{index >= 3 ? "Fixed 1:1 validation guard rail." : "1:1 embedded surface in the primary container workspace."}</p>
+                        </header>
+                        <div className="tool-actions left">
+                          <a className="ghost" href={src} target="_blank" rel="noreferrer">Open Standalone</a>
+                        </div>
+                        <iframe className="workspace-stage-frame" title={`${slot}-${workspaceStageLabel(app)}`} src={src} />
+                      </section>
+                    );
+                  })
+                ) : (
+                  <section className="app-module workspace-stage-block">
+                    <header>
+                      <h2>Workspace Stack Collapsed</h2>
+                      <p>The IDE workspace below is now the primary working surface. Expand the stack only when you need sidecar staging or validation rails.</p>
+                    </header>
+                    <div className="tool-actions left">
+                      <button className="ghost" type="button" onClick={() => setShowWorkspaceStack(true)}>Open Stack</button>
+                    </div>
+                  </section>
+                )}
 
-              <section className="app-module ide-module-focus">
-                <header><h2>IDE Workspace</h2><p>Real app-focused workspace with side-by-side code and live preview that can be detached.</p></header>
-                <div className="tool-row split">
-                  <input value={newFilePath} onChange={(event) => setNewFilePath(event.target.value)} placeholder="src/new-file.ts" />
-                  <div className="tool-actions left">
-                    <button className="ghost" type="button" onClick={addWorkspaceFile}>Add File</button>
-                    <button className="ghost" type="button" onClick={deleteActiveWorkspaceFile}>Delete Active</button>
+                <section className="app-module ide-module-focus">
+                  <header><h2>IDE Workspace</h2><p>Real app-focused workspace with side-by-side code and live preview that can be detached.</p></header>
+                  <div className="tool-row split">
+                    <input value={newFilePath} onChange={(event) => setNewFilePath(event.target.value)} placeholder="src/new-file.ts" />
+                    <div className="tool-actions left">
+                      <button className="ghost" type="button" onClick={addWorkspaceFile}>Add File</button>
+                      <button className="ghost" type="button" onClick={deleteActiveWorkspaceFile}>Delete Active</button>
+                    </div>
                   </div>
-                </div>
-                <div className="tool-row split">
-                  <input value={ideCommitMessage} onChange={(event) => setIdeCommitMessage(event.target.value)} placeholder="Commit message for GitHub push" />
-                </div>
-                <div className="tool-actions left">
-                  <button className="ghost" type="button" onClick={() => void saveWorkspaceNow()} disabled={isSavingWorkspace}>
-                    {isSavingWorkspace ? "Saving..." : "Save Workspace"}
-                  </button>
-                  <button className="ghost" type="button" onClick={() => void loadWorkspaceNow()} disabled={isLoadingWorkspace}>
-                    {isLoadingWorkspace ? "Loading..." : "Load Workspace"}
-                  </button>
-                  <button className="ghost" type="button" onClick={() => void pushWorkspaceToGitHub()} disabled={isGitPushing}>
-                    {isGitPushing ? "Pushing..." : "Push to GitHub"}
-                  </button>
-                  <button className="ghost" type="button" onClick={() => void deployWorkspaceNow()} disabled={isDeployingWorkspace}>
-                    {isDeployingWorkspace ? "Deploying..." : "Deploy to Netlify"}
-                  </button>
-                  <button className="ghost" type="button" onClick={() => void exportSelectedAppAsSkye()}>
-                    Export .skye
-                  </button>
-                  <button className="ghost" type="button" onClick={() => document.getElementById("skye-import-input")?.click()} disabled={isImportingSkye}>
-                    {isImportingSkye ? "Importing..." : "Import .skye"}
-                  </button>
-                </div>
-                <input id="skye-import-input" type="file" accept=".skye" style={{ display: "none" }} onChange={onImportSkyeFile} />
-                {ideOpsResult && <p className="muted-copy">{ideOpsResult}</p>}
-                <div className="ide-super-shell">
-                  <aside className="ide-super-rail" aria-label="Workbench rail">
-                    <button className={`ghost ${ideRailTab === "explorer" ? "active" : ""}`} type="button" onClick={() => setIdeRailTab("explorer")}>Files</button>
-                    <button className={`ghost ${ideRailTab === "search" ? "active" : ""}`} type="button" onClick={() => setIdeRailTab("search")}>Search</button>
-                    <button className={`ghost ${ideRailTab === "git" ? "active" : ""}`} type="button" onClick={() => setIdeRailTab("git")}>Git</button>
-                    <button className={`ghost ${ideRailTab === "run" ? "active" : ""}`} type="button" onClick={() => setIdeRailTab("run")}>Run</button>
-                    <button className={`ghost ${ideRailTab === "extensions" ? "active" : ""}`} type="button" onClick={() => setIdeRailTab("extensions")}>Ext</button>
-                  </aside>
+                  <div className="tool-row split">
+                    <input value={ideCommitMessage} onChange={(event) => setIdeCommitMessage(event.target.value)} placeholder="Commit message for GitHub push" />
+                  </div>
+                  <div className="tool-actions left">
+                    <button className="ghost" type="button" onClick={() => void saveWorkspaceNow()} disabled={isSavingWorkspace}>
+                      {isSavingWorkspace ? "Saving..." : "Save Workspace"}
+                    </button>
+                    <button className="ghost" type="button" onClick={() => void loadWorkspaceNow()} disabled={isLoadingWorkspace}>
+                      {isLoadingWorkspace ? "Loading..." : "Load Workspace"}
+                    </button>
+                    <button className="ghost" type="button" onClick={() => void pushWorkspaceToGitHub()} disabled={isGitPushing}>
+                      {isGitPushing ? "Pushing..." : "Push to GitHub"}
+                    </button>
+                    <button className="ghost" type="button" onClick={() => void deployWorkspaceNow()} disabled={isDeployingWorkspace}>
+                      {isDeployingWorkspace ? "Deploying..." : "Deploy to Netlify"}
+                    </button>
+                    <button className="ghost" type="button" onClick={() => void exportSelectedAppAsSkye()}>
+                      Export .skye
+                    </button>
+                    <button className="ghost" type="button" onClick={() => document.getElementById("skye-import-input")?.click()} disabled={isImportingSkye}>
+                      {isImportingSkye ? "Importing..." : "Import .skye"}
+                    </button>
+                  </div>
+                  <input id="skye-import-input" type="file" accept=".skye" style={{ display: "none" }} onChange={onImportSkyeFile} />
+                  {ideOpsResult && <p className="muted-copy">{ideOpsResult}</p>}
+                  <div className="ide-super-shell">
+                    <aside className="ide-super-rail" aria-label="Workbench rail">
+                      <button className={`ghost ${ideRailTab === "explorer" ? "active" : ""}`} type="button" onClick={() => setIdeRailTab("explorer")}>Files</button>
+                      <button className={`ghost ${ideRailTab === "search" ? "active" : ""}`} type="button" onClick={() => setIdeRailTab("search")}>Search</button>
+                      <button className={`ghost ${ideRailTab === "git" ? "active" : ""}`} type="button" onClick={() => setIdeRailTab("git")}>Git</button>
+                      <button className={`ghost ${ideRailTab === "run" ? "active" : ""}`} type="button" onClick={() => setIdeRailTab("run")}>Run</button>
+                      <button className={`ghost ${ideRailTab === "extensions" ? "active" : ""}`} type="button" onClick={() => setIdeRailTab("extensions")}>Ext</button>
+                    </aside>
 
-                  <aside className="ide-super-sidebar" aria-label="Workbench sidebar">
-                    {ideRailTab === "explorer" && (
-                      <>
-                        <h3>Workspace Files</h3>
-                        <div className="ide-sidebar-list">
-                          {files.map((file) => (
-                            <button
-                              key={`explorer-${file.path}`}
-                              type="button"
-                              className={`ghost ide-sidebar-item ${activePath === file.path ? "active" : ""}`}
-                              onClick={() => setActivePath(file.path)}
-                            >
-                              {file.path}
-                            </button>
-                          ))}
-                        </div>
-                      </>
-                    )}
-
-                    {ideRailTab === "search" && (
-                      <>
-                        <h3>Find File</h3>
-                        <input
-                          value={ideFileSearch}
-                          onChange={(event) => setIdeFileSearch(event.target.value)}
-                          placeholder="Search by path..."
-                        />
-                        <div className="ide-sidebar-list">
-                          {ideVisibleFiles.map((file) => (
-                            <button
-                              key={`search-${file.path}`}
-                              type="button"
-                              className={`ghost ide-sidebar-item ${activePath === file.path ? "active" : ""}`}
-                              onClick={() => setActivePath(file.path)}
-                            >
-                              {file.path}
-                            </button>
-                          ))}
-                          {!ideVisibleFiles.length && <p className="muted-copy">No files match that path filter.</p>}
-                        </div>
-                      </>
-                    )}
-
-                    {ideRailTab === "git" && (
-                      <>
-                        <h3>Git Actions</h3>
-                        <p className="muted-copy">Commit and push from the same workspace shell.</p>
-                        {workspaceConflict && (
-                          <div className="smoke-warning">
-                            <strong>Save Conflict</strong>
-                            <div>{workspaceConflict.message}</div>
-                            <div className="tool-actions left">
-                              <button className="ghost" type="button" onClick={() => void loadWorkspaceNow()} disabled={isLoadingWorkspace}>
-                                Reload Server Copy
+                    <aside className="ide-super-sidebar" aria-label="Workbench sidebar">
+                      {ideRailTab === "explorer" && (
+                        <>
+                          <h3>Workspace Files</h3>
+                          <div className="ide-sidebar-list">
+                            {files.map((file) => (
+                              <button
+                                key={`explorer-${file.path}`}
+                                type="button"
+                                className={`ghost ide-sidebar-item ${activePath === file.path ? "active" : ""}`}
+                                onClick={() => setActivePath(file.path)}
+                              >
+                                {file.path}
                               </button>
-                              <button className="ghost" type="button" onClick={() => void saveWorkspaceNow(true)} disabled={isSavingWorkspace}>
-                                Force Save
-                              </button>
-                            </div>
+                            ))}
                           </div>
-                        )}
-                        <div className="tool-actions left">
-                          <button className="ghost" type="button" onClick={() => void saveWorkspaceNow()} disabled={isSavingWorkspace}>
-                            {isSavingWorkspace ? "Saving..." : "Save"}
-                          </button>
-                          <button className="ghost" type="button" onClick={() => void pushWorkspaceToGitHub()} disabled={isGitPushing}>
-                            {isGitPushing ? "Pushing..." : "Push"}
-                          </button>
-                        </div>
-                      </>
-                    )}
+                        </>
+                      )}
 
-                    {ideRailTab === "run" && (
-                      <>
-                        <h3>Run + Deploy</h3>
-                        <p className="muted-copy">Preview is available inline. Deploy remains one-click here.</p>
-                        <div className="tool-actions left">
-                          <button className="ghost" type="button" onClick={() => setAutoSaveEnabled((old) => !old)}>
-                            Autosave: {autoSaveEnabled ? "ON" : "OFF"}
-                          </button>
-                          <button className="ghost" type="button" onClick={() => void saveWorkspaceNow()} disabled={isSavingWorkspace}>
-                            {isSavingWorkspace ? "Saving..." : "Save Now"}
-                          </button>
-                        </div>
-                        <div className="tool-actions left">
-                          <button className="ghost" type="button" onClick={retryPreview}>Retry Preview</button>
-                          <button className="ghost" type="button" onClick={openDetachedPreview}>Open Preview</button>
-                          <button className="ghost" type="button" onClick={() => void deployWorkspaceNow()} disabled={isDeployingWorkspace}>
-                            {isDeployingWorkspace ? "Deploying..." : "Deploy"}
-                          </button>
-                        </div>
-                      </>
-                    )}
+                      {ideRailTab === "search" && (
+                        <>
+                          <h3>Find File</h3>
+                          <input
+                            value={ideFileSearch}
+                            onChange={(event) => setIdeFileSearch(event.target.value)}
+                            placeholder="Search by path..."
+                          />
+                          <div className="ide-sidebar-list">
+                            {ideVisibleFiles.map((file) => (
+                              <button
+                                key={`search-${file.path}`}
+                                type="button"
+                                className={`ghost ide-sidebar-item ${activePath === file.path ? "active" : ""}`}
+                                onClick={() => setActivePath(file.path)}
+                              >
+                                {file.path}
+                              </button>
+                            ))}
+                            {!ideVisibleFiles.length && <p className="muted-copy">No files match that path filter.</p>}
+                          </div>
+                        </>
+                      )}
 
-                    {ideRailTab === "extensions" && (
-                      <>
-                        <h3>Workbench Status</h3>
-                        <p className="muted-copy">Drop-in shell is wired into SuperIDE. This stays in the same app runtime and identity context.</p>
-                        <p className="muted-copy">Current file: {activeFile?.path || "none"}</p>
-                      </>
-                    )}
-                  </aside>
+                      {ideRailTab === "git" && (
+                        <>
+                          <h3>Git Actions</h3>
+                          <p className="muted-copy">Commit and push from the same workspace shell.</p>
+                          {workspaceConflict && (
+                            <div className="smoke-warning">
+                              <strong>Save Conflict</strong>
+                              <div>{workspaceConflict.message}</div>
+                              <div className="tool-actions left">
+                                <button className="ghost" type="button" onClick={() => void loadWorkspaceNow()} disabled={isLoadingWorkspace}>
+                                  Reload Server Copy
+                                </button>
+                                <button className="ghost" type="button" onClick={() => void saveWorkspaceNow(true)} disabled={isSavingWorkspace}>
+                                  Force Save
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                          <div className="tool-actions left">
+                            <button className="ghost" type="button" onClick={() => void saveWorkspaceNow()} disabled={isSavingWorkspace}>
+                              {isSavingWorkspace ? "Saving..." : "Save"}
+                            </button>
+                            <button className="ghost" type="button" onClick={() => void pushWorkspaceToGitHub()} disabled={isGitPushing}>
+                              {isGitPushing ? "Pushing..." : "Push"}
+                            </button>
+                          </div>
+                        </>
+                      )}
+
+                      {ideRailTab === "run" && (
+                        <>
+                          <h3>Run + Deploy</h3>
+                          <p className="muted-copy">Preview is available inline. Deploy remains one-click here.</p>
+                          <div className="tool-actions left">
+                            <button className="ghost" type="button" onClick={() => setAutoSaveEnabled((old) => !old)}>
+                              Autosave: {autoSaveEnabled ? "ON" : "OFF"}
+                            </button>
+                            <button className="ghost" type="button" onClick={() => void saveWorkspaceNow()} disabled={isSavingWorkspace}>
+                              {isSavingWorkspace ? "Saving..." : "Save Now"}
+                            </button>
+                          </div>
+                          <div className="tool-actions left">
+                            <button className="ghost" type="button" onClick={retryPreview}>Retry Preview</button>
+                            <button className="ghost" type="button" onClick={openDetachedPreview}>Open Preview</button>
+                            <button className="ghost" type="button" onClick={() => void deployWorkspaceNow()} disabled={isDeployingWorkspace}>
+                              {isDeployingWorkspace ? "Deploying..." : "Deploy"}
+                            </button>
+                          </div>
+                        </>
+                      )}
+
+                      {ideRailTab === "extensions" && (
+                        <>
+                          <h3>Workbench Status</h3>
+                          <p className="muted-copy">Drop-in shell is wired into SuperIDE. This stays in the same app runtime and identity context.</p>
+                          <p className="muted-copy">Current file: {activeFile?.path || "none"}</p>
+                        </>
+                      )}
+                    </aside>
 
                   <div className="ide-super-main">
                     <div className="preview-head">

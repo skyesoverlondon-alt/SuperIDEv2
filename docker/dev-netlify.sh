@@ -9,7 +9,6 @@ fi
 
 exec netlify dev \
   --context development \
-  --host 0.0.0.0 \
   --port "${NETLIFY_DEV_PORT:-8888}" \
-  --targetPort "${VITE_DEV_PORT:-5173}" \
+  --target-port "${VITE_DEV_PORT:-5173}" \
   --command "npm run dev -- --host 0.0.0.0 --port ${VITE_DEV_PORT:-5173}"

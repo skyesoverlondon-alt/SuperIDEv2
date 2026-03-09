@@ -125,13 +125,20 @@ Files added for this flow:
 3. Start the local stack:
 
 ```bash
-docker compose up --build db db-http netlify worker
+docker compose up --build db db-http adminer netlify worker
+```
+
+Or run the one-command smoke bootstrap:
+
+```bash
+./scripts/docker-smoke.sh
 ```
 
 Local endpoints:
 
 * Postgres: `localhost:5432`
 * SQL HTTP proxy used by the app runtime: `http://localhost:5540/sql`
+* Adminer: `http://localhost:8081`
 * Netlify dev gateway + Functions: `http://localhost:8888`
 * Vite dev server inside the Netlify container: `http://localhost:5173`
 * Cloudflare Worker local runtime: `http://localhost:8787`
@@ -139,6 +146,7 @@ Local endpoints:
 Notes:
 
 * `NEON_DATABASE_URL` in `.env.docker` points at the local SQL HTTP proxy so the existing Neon-style fetch code works against Docker Postgres.
+* Adminer is prewired to the `db` service for quick schema and row inspection.
 * `WORKER_RUNNER_URL` in `.env.docker` should stay on the internal Docker network URL `http://worker:8787` so Netlify Functions can reach the Worker container.
 * `VITE_WORKER_RUNNER_URL` should point at `http://localhost:8787` so the browser can reach the Worker from your host machine.
 * Docker volumes keep Postgres data, `node_modules`, Netlify local state, and Wrangler local state out of the bind-mounted workspace.

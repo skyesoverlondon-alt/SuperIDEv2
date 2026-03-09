@@ -8,7 +8,7 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 FROM app-base AS app-dev
-RUN npm install --global netlify-cli@22.3.1
+RUN npm install --global netlify-cli
 COPY docker/dev-netlify.sh /usr/local/bin/dev-netlify.sh
 RUN chmod +x /usr/local/bin/dev-netlify.sh
 CMD ["/usr/local/bin/dev-netlify.sh"]
