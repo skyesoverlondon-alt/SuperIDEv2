@@ -1,4 +1,4 @@
-const CACHE_NAME = "kaixu-superide-shell-v1";
+const CACHE_NAME = "kaixu-superide-shell-v2";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -30,6 +30,8 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
+  if (url.pathname.startsWith("/api/")) return;
+  if (url.pathname.startsWith("/.netlify/functions/")) return;
 
   if (request.mode === "navigate") {
     event.respondWith(
