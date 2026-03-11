@@ -4965,6 +4965,7 @@ export function App() {
       const res = await fetch("/api/token-issue", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           count: 1,
           ttl_preset: "test_2m",
@@ -4978,7 +4979,10 @@ export function App() {
       }
       const issued = data?.issued?.[0];
       setTesterToken(issued?.token || "");
-      if (issued?.token) setApiAccessToken(String(issued.token));
+      if (issued?.token) {
+        setApiAccessToken(String(issued.token));
+        setAssistantAuthStatus("token");
+      }
       if (issued?.locked_email) setApiTokenEmail(String(issued.locked_email));
       setTesterTokenMeta(
         `locked_email=${issued?.locked_email || "<none>"} · starts_at=${issued?.starts_at || "n/a"} · expires_at=${issued?.expires_at || "n/a"}`
@@ -5005,7 +5009,6 @@ export function App() {
           ttl_preset: tokenTtlPreset,
           label_prefix: tokenLabelPrefix || "ide-key",
           scopes: ["generate"],
-          locked_email: apiTokenEmail.trim().toLowerCase() || undefined,
         }),
       });
       const data = await readApiJsonResponse(res, "/api/token-issue");
@@ -5019,7 +5022,10 @@ export function App() {
       setTesterTokenMeta(
         `locked_email=${issued?.locked_email || "<none>"} · starts_at=${issued?.starts_at || "n/a"} · expires_at=${issued?.expires_at || "n/a"}`
       );
-      if (token) setApiAccessToken(token);
+      if (token) {
+        setApiAccessToken(token);
+        setAssistantAuthStatus("token");
+      }
       if (issued?.locked_email) setApiTokenEmail(String(issued.locked_email));
       setTokenOpsResult("kAIxU key issued and loaded into the IDE key input.");
       await loadTokenInventory();
@@ -5294,7 +5300,6 @@ export function App() {
 
     setIsEnsuringOnboardingKey(true);
     try {
-      const lockedEmail = authUser.trim().toLowerCase();
       const res = await fetch("/api/token-issue", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -5304,7 +5309,6 @@ export function App() {
           ttl_preset: "quarter",
           label_prefix: options.labelPrefix || "onboarding-auto",
           scopes: ["generate"],
-          locked_email: lockedEmail || undefined,
         }),
       });
       const data = await readApiJsonResponse(res, "/api/token-issue");
@@ -5317,15 +5321,17 @@ export function App() {
 
       const issued = data?.issued?.[0];
       const token = String(issued?.token || "");
-      const tokenEmail = String(issued?.locked_email || lockedEmail || "");
+      const tokenEmail = String(issued?.locked_email || authUser.trim().toLowerCase() || "");
 
       if (!token) {
         return { ok: false, error: "Key issue succeeded but no token was returned." };
       }
 
       setApiAccessToken(token);
+      setAssistantAuthStatus("token");
       if (tokenEmail) setApiTokenEmail(tokenEmail);
       setPinUnlockedAt(new Date().toISOString());
+      await loadTokenInventory();
       return { ok: true, reused: false, token, locked_email: tokenEmail || null };
     } catch (error: any) {
       return { ok: false, error: error?.message || "Key issue failed." };
@@ -6283,7 +6289,7 @@ export function App() {
               <button
                 className="ghost"
                 type="button"
-                onClick={() => void ensureOnboardingKey({ force: true, labelPrefix: "manual-onboarding" })}
+                onClick={() => void manualMintOnboardingKey()}
                 disabled={isAuthSubmitting || isEnsuringOnboardingKey}
               >
                 {isEnsuringOnboardingKey ? "Minting Key..." : "Mint Key"}
