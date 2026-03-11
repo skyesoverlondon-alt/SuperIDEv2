@@ -58,10 +58,7 @@ export const handler = async (event: any) => {
        where prt.token_hash=$1
          and prt.used_at is null
          and prt.expires_at > $2
-         and (
-           lower(u.email)=lower($3)
-           or lower(coalesce(u.recovery_email, ''))=lower($3)
-         )
+         and lower(coalesce(u.recovery_email, ''))=lower($3)
        limit 1`,
       [tokenHash, nowIso, normalizedEmail]
     );

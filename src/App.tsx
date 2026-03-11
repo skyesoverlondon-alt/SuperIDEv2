@@ -5548,9 +5548,9 @@ export function App() {
   }
 
   async function requestPasswordReset() {
-    const email = recoveryEmail.trim().toLowerCase() || authUser.trim().toLowerCase();
+    const email = recoveryEmail.trim().toLowerCase();
     if (!email) {
-      setAuthResult("Enter your SKYEMAIL login or your backup recovery email first, then request a reset link.");
+      setAuthResult("Enter your backup recovery email first, then request a reset link.");
       return;
     }
     setIsResetSubmitting(true);
@@ -5574,11 +5574,11 @@ export function App() {
   }
 
   async function confirmPasswordReset() {
-    const email = authUser.trim().toLowerCase();
+    const email = recoveryEmail.trim().toLowerCase();
     const token = resetToken.trim();
     const newPassword = resetNewPassword;
     if (!email || !token || !newPassword) {
-      setAuthResult("Email, reset token, and new password are required.");
+      setAuthResult("Backup recovery email, reset token, and new password are required.");
       return;
     }
     if (newPassword.length < 8) {
@@ -6047,7 +6047,7 @@ export function App() {
               <button className="ghost" type="button" onClick={() => void requestPasswordReset()} disabled={isResetSubmitting}>
                 {isResetSubmitting ? "Requesting..." : "Send Reset Link"}
               </button>
-              <a className="ghost" href={`/recover-account/?reset_email=${encodeURIComponent(authUser.trim().toLowerCase())}`} target="_blank" rel="noreferrer">
+              <a className="ghost" href={`/recover-account/?reset_email=${encodeURIComponent(recoveryEmail.trim().toLowerCase())}`} target="_blank" rel="noreferrer">
                 Open Recover Page
               </a>
             </div>

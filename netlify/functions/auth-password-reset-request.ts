@@ -64,8 +64,7 @@ export const handler = async (event: any) => {
     const userRes = await q(
       `select id, email, recovery_email, org_id
        from users
-       where lower(email)=lower($1)
-          or lower(coalesce(recovery_email, ''))=lower($1)
+       where lower(coalesce(recovery_email, ''))=lower($1)
        limit 1`,
       [normalizedEmail]
     );
@@ -83,7 +82,14 @@ export const handler = async (event: any) => {
 
     const user = userRes.rows[0];
     const recoveryEmail = String(user.recovery_email || "").trim().toLowerCase();
-    const deliveryEmail = recoveryEmail || String(user.email || "").trim().toLowerCase();
+    if (!recoveryEmail) {
+      await audit(normalizedEmail, user.org_id || null, null, "auth.password_reset.request.missing_recovery_email", {
+        requested_identifier: normalizedEmail,
+      });
+      return json(200, generic);
+    }
+
+    const deliveryEmail = recoveryEmail;
     const token = base64url(crypto.randomBytes(32));
     const tokenHash = hashToken(token);
     const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
@@ -100,7 +106,7 @@ export const handler = async (event: any) => {
       ]
     );
 
-    const resetLink = `${buildBaseUrl(event)}/?reset_email=${encodeURIComponent(String(user.email || "").trim().toLowerCase())}&reset_token=${encodeURIComponent(token)}`;
+    const resetLink = `${buildBaseUrl(event)}/?reset_email=${encodeURIComponent(recoveryEmail)}&reset_token=${encodeURIComponent(token)}`;
 
     let deliveryMeta: { provider: string; id: string | null };
     try {

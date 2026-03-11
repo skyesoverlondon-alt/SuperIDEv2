@@ -159,14 +159,14 @@
   <section class="card" aria-label="Account recovery">
     <header class="head">
       <h1>Recover Account</h1>
-      <p>Focused recovery flow outside the IDE shell. Token and email are auto-read from reset links.</p>
+      <p>Focused recovery flow outside the IDE shell. Use the backup recovery email here. Token and email are auto-read from reset links.</p>
     </header>
 
     <div class="body">
       <div class="grid">
         <div>
-          <label for="email">Account Email</label>
-          <input id="email" type="email" placeholder="owner@company.com" autocomplete="email" />
+          <label for="email">Backup Recovery Email</label>
+          <input id="email" type="email" placeholder="you@gmail.com" autocomplete="email" />
         </div>
         <div>
           <label for="token">Reset Token</label>
@@ -186,7 +186,7 @@
       </div>
 
       <div class="result" id="result" role="status" aria-live="polite">Ready.</div>
-      <div class="muted">Tip: links sent by email can open this page with `reset_email` and `reset_token` pre-filled automatically.</div>
+      <div class="muted">Tip: links sent by email can open this page with the backup recovery email and reset token pre-filled automatically.</div>
     </div>
   </section>
 
@@ -216,7 +216,7 @@
     async function sendResetLink() {
       const email = String(emailEl.value || '').trim().toLowerCase();
       if (!email) {
-        setResult('Enter your account email first.');
+        setResult('Enter your backup recovery email first.');
         return;
       }
       sendLinkBtn.disabled = true;
@@ -244,7 +244,7 @@
       const token = String(tokenEl.value || '').trim();
       const newPassword = String(newPasswordEl.value || '');
       if (!email || !token || !newPassword) {
-        setResult('Email, reset token, and new password are required.');
+        setResult('Backup recovery email, reset token, and new password are required.');
         return;
       }
       if (newPassword.length < 8) {
