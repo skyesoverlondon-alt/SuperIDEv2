@@ -1,0 +1,197 @@
+{
+  "version": 1,
+  "updatedAt": "2026-03-09T16:10:00.000Z",
+  "activeStage": "SKYE-10",
+  "stages": [
+    {
+      "id": "SKYE-01",
+      "title": "Baseline audit",
+      "status": "done",
+      "dependsOn": [],
+      "targetFiles": [
+        "src/App.tsx",
+        "SkyeDocxPro/index.html",
+        "SkyeBlog/index.html",
+        "SovereignVariables/index.html",
+        "public/SkyeMail/index.html",
+        "public/SkyeChat/index.html",
+        "package.json"
+      ],
+      "validation": [
+        "Confirm source-root vs public sync ownership from package.json",
+        "Document all live .skye implementations and drift"
+      ],
+      "blockedBy": [],
+      "owner": "ai-successor",
+      "notes": "Completed. Six live logic owners were audited and assigned to migration stages; source-root sync ownership was confirmed from package.json."
+    },
+    {
+      "id": "SKYE-02",
+      "title": "Canonical contract spec",
+      "status": "done",
+      "dependsOn": ["SKYE-01"],
+      "targetFiles": [
+        "DEVV ONLY NO GIT/Implementation Directive For .SKYE Files",
+        "docs/skye-schema-fixture.json",
+        "docs/export-import-fixtures.json"
+      ],
+      "validation": [
+        "One secure write contract defined",
+        "Legacy-read and app compatibility matrix written"
+      ],
+      "blockedBy": [],
+      "owner": "ai-successor",
+      "notes": "Completed. Canonical write contract fixed to skye-secure-v1 with 120000 PBKDF2 iterations and explicit legacy-read scope."
+    },
+    {
+      "id": "SKYE-03",
+      "title": "Shared runtime extraction plan",
+      "status": "done",
+      "dependsOn": ["SKYE-02"],
+      "targetFiles": [
+        "src/lib/skye/skyeSecure.ts",
+        "src/lib/skye/index.ts",
+        "public/_shared/skye/skyeSecure.js",
+        "scripts/sync-skye-runtime.js",
+        "src/App.tsx",
+        "SkyeDocxPro/index.html"
+      ],
+      "validation": [
+        "One shared browser-safe runtime path defined",
+        "Standalone surface loading strategy documented"
+      ],
+      "blockedBy": [],
+      "owner": "ai-successor",
+      "notes": "Completed. Shared TypeScript runtime, browser artifact, and sync script are in place and wired into sync:surfaces."
+    },
+    {
+      "id": "SKYE-04",
+      "title": "SuperIDE shell migration",
+      "status": "done",
+      "dependsOn": ["SKYE-03"],
+      "targetFiles": [
+        "src/App.tsx",
+        "src/lib/providers/workspaceFileProvider.ts"
+      ],
+      "validation": [
+        "Shell uses shared .skye runtime",
+        "Canonical payload shape preserved"
+      ],
+      "blockedBy": [],
+      "owner": "ai-successor",
+      "notes": "Completed. The shell now exports canonical plaintext payloads and reads canonical or migration-only legacy formats through the shared runtime."
+    },
+    {
+      "id": "SKYE-05",
+      "title": "Source-root surface migrations",
+      "status": "done",
+      "dependsOn": ["SKYE-03"],
+      "targetFiles": [
+        "SkyeDocxPro/index.html",
+        "SkyeBlog/index.html",
+        "SovereignVariables/index.html",
+        "package.json",
+        "docs/protected-apps-manifest.json",
+        "scripts/check-protected-apps.js"
+      ],
+      "validation": [
+        "Source roots migrated or formally blocked",
+        "sync:surfaces verification recorded"
+      ],
+      "blockedBy": [],
+      "owner": "ai-successor",
+      "notes": "Completed. SkyeBlog, SovereignVariables, and SkyeDocxPro now consume the shared browser runtime from their source roots; the protected DocxPro manifest pin was intentionally repointed to the audited migrated artifact after confirming the previous pin had gone stale across later commits."
+    },
+    {
+      "id": "SKYE-06",
+      "title": "Direct-public platform migrations",
+      "status": "done",
+      "dependsOn": ["SKYE-03"],
+      "targetFiles": [
+        "public/SkyeMail/index.html",
+        "public/SkyeChat/index.html"
+      ],
+      "validation": [
+        "Platform-class apps documented",
+        "Direct-public migration rules written"
+      ],
+      "blockedBy": [],
+      "owner": "ai-successor",
+      "notes": "Completed. SkyeMail and SkyeChat now consume the shared browser .skye runtime, retain platform identity, and enforce canonical payload validation with app-local legacy compatibility."
+    },
+    {
+      "id": "SKYE-07",
+      "title": "Backend and audit alignment",
+      "status": "done",
+      "dependsOn": ["SKYE-02"],
+      "targetFiles": [
+        "netlify/functions/app-record-save.ts",
+        "netlify/functions/app-record-list.ts",
+        "db/schema.sql"
+      ],
+      "validation": [
+        "Backend storage path defined",
+        "Audit expectations documented"
+      ],
+      "blockedBy": [],
+      "owner": "ai-successor",
+      "notes": "Completed. Existing app-record routes remain the persistence path, rollout apps were added to a shared allowlist, and schema notes now make client-only envelope handling explicit."
+    },
+    {
+      "id": "SKYE-08",
+      "title": "Golden files and validation tests",
+      "status": "done",
+      "dependsOn": ["SKYE-02", "SKYE-03"],
+      "targetFiles": [
+        "scripts/check-skye-schema.js",
+        "scripts/test-export-import-schema.js",
+        "docs/skye-schema-fixture.json",
+        "docs/export-import-fixtures.json"
+      ],
+      "validation": [
+        "Envelope-level contract tests defined",
+        "Golden files directory planned"
+      ],
+      "blockedBy": [],
+      "owner": "ai-successor",
+      "notes": "Completed. Secure-envelope fixture coverage now validates canonical contract constants, real roundtrip behavior, tamper rejection, wrong-app rejection, and legacy adapter scope through runtime-backed scripts."
+    },
+    {
+      "id": "SKYE-09",
+      "title": "Release gates and smoke integration",
+      "status": "done",
+      "dependsOn": ["SKYE-08"],
+      "targetFiles": [
+        "scripts/run-release-checklist.js",
+        "scripts/smokehouse.sh",
+        "docs/SMOKE_CONTRACT_MATRIX.md",
+        "artifacts/release-gates.json"
+      ],
+      "validation": [
+        "Release gate criteria written",
+        "Smoke coverage references .skye checks"
+      ],
+      "blockedBy": [],
+      "owner": "ai-successor",
+      "notes": "Completed. Release checklist output now exposes `.skye` contracts explicitly, smokehouse references the release-visible checks, and the smoke matrix names the exact `.skye` gates."
+    },
+    {
+      "id": "SKYE-10",
+      "title": "Handoff protocol",
+      "status": "done",
+      "dependsOn": ["SKYE-01", "SKYE-02", "SKYE-03"],
+      "targetFiles": [
+        "docs/skye/WORKLOG.md",
+        "docs/skye/NEXT_ACTION.md",
+        "docs/skye/manifest.json"
+      ],
+      "validation": [
+        "Resume rules documented",
+        "Next-pass flow does not require chat history"
+      ],
+      "blockedBy": [],
+      "owner": "ai-successor",
+      "notes": "Completed for this pass. Control files were updated after each dependency-safe stage, protected-app validation now passes for the migrated DocxPro artifact, and the latest release-checklist failures are explicitly recorded as non-.skye issues in external endpoint and secure-default policy checks."
+    }
+  ]
+}

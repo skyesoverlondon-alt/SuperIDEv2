@@ -149,6 +149,8 @@ create index if not exists idx_workspace_memberships_ws on workspace_memberships
 create index if not exists idx_workspace_memberships_user on workspace_memberships(user_id, ws_id);
 
 -- Generic app records to back SkyeDocs/Sheets/Slides/Mail/etc.
+-- `.skye` imports persist only decrypted canonical app state here.
+-- Encrypted envelopes, passphrases, and external provider secrets stay client-side or in the Worker vault.
 create table if not exists app_records (
   id uuid primary key default gen_random_uuid(),
   org_id uuid not null references orgs(id) on delete cascade,
@@ -276,6 +278,7 @@ create table if not exists skymail_sync_state (
 create index if not exists idx_skymail_sync_org_mailbox on skymail_sync_state(org_id, lower(mailbox_email), provider);
 
 -- Sovereign command bus foundations
+-- Import/export persistence is audited through sovereign_events and audit_events after app-record writes.
 create table if not exists sovereign_events (
   id uuid primary key default gen_random_uuid(),
   occurred_at timestamptz not null default now(),

@@ -2,32 +2,7 @@ import { json } from "./_shared/response";
 import { requireUser, forbid } from "./_shared/auth";
 import { q } from "./_shared/neon";
 import { canReadWorkspace } from "./_shared/rbac";
-
-const ALLOWED_APPS = new Set([
-  "SkyeCalendar",
-  "SkyeDrive",
-  "SkyeVault",
-  "SkyeForms",
-  "SkyeNotes",
-  "SkyeBlog",
-  "SkyeDocxPro",
-  "SkyeBookx",
-  "SkyePlatinum",
-  "kAIxu-Cinematic",
-  "kAIxu-Persona",
-  "kAIxu-Mythos",
-  "kAIxu-Atlas",
-  "kAIxu-Atmos",
-  "kAIxu-Bestiary",
-  "kAIxu-Forge",
-  "kAIxu-Quest",
-  "kAIxU-Codex",
-  "kAIxU-Faction",
-  "kAIxU-Matrix",
-  "kAIxU-PrimeCommand",
-  "kAIxU-Vision",
-  "kAixU-Chronos",
-]);
+import { ALLOWED_APP_RECORD_APPS } from "./_shared/app-records";
 
 function parseLimit(raw: string | undefined): number {
   const n = Number(raw || 20);
@@ -46,7 +21,7 @@ export const handler = async (event: any) => {
   const limit = parseLimit(params.limit);
 
   if (!wsId) return json(400, { error: "Missing ws_id." });
-  if (!ALLOWED_APPS.has(app)) return json(400, { error: "Unsupported app." });
+  if (!ALLOWED_APP_RECORD_APPS.has(app)) return json(400, { error: "Unsupported app." });
 
   const allowed = await canReadWorkspace(u.org_id, u.user_id, wsId);
   if (!allowed) return json(403, { error: "Workspace read denied." });

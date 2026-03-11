@@ -2,16 +2,27 @@
 .github
 .netlify
 .wrangler
+.env
+.env.*
+!.env.docker.example
+!.env.netlify.example
 node_modules
 worker/node_modules
 dist
 coverage
 artifacts/*.zip
+*.zip
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 *.log
 *.tmp
+DEVV ONLY NO GIT
+SKNore
 SKNore.env
 worker/.dev.vars
+worker/.dev.vars.*
+!worker/.dev.vars.example
+!worker/.dev.vars.docker.example
 .env.docker
+zzzz

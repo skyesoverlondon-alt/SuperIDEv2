@@ -1,0 +1,33 @@
+services:
+  site:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: site-production
+      args:
+        NODE_VERSION: ${NODE_VERSION:-22.14.0}
+        VITE_WORKER_RUNNER_URL: ${VITE_WORKER_RUNNER_URL:-}
+        VITE_DEFAULT_WS_ID: ${VITE_DEFAULT_WS_ID:-primary-workspace}
+        VITE_SITE_BASE_URL: ${VITE_SITE_BASE_URL:-}
+        VITE_APP_VERSION: ${VITE_APP_VERSION:-docker-production}
+        VITE_GIT_SHA: ${VITE_GIT_SHA:-unknown}
+        VITE_BUILD_TIME: ${VITE_BUILD_TIME:-}
+        VITE_GITHUB_APP_INSTALL_URL: ${VITE_GITHUB_APP_INSTALL_URL:-}
+    ports:
+      - "${SITE_PORT:-8080}:8080"
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/cache/nginx
+      - /var/run
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/healthz >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s

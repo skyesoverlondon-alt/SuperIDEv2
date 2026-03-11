@@ -107,11 +107,27 @@ const SLA_TEMPLATES = {
   sev0: 'Executive-critical route: notify leadership, freeze non-critical backlog, initiate hourly review cadence.'
 };
 
+function getAccessAuthHeaders(){
+  if (window.SkyeStandaloneSession?.authHeaders) return window.SkyeStandaloneSession.authHeaders('skyetasks');
+  const token = (window.SkyeAuthUnlock?.readToken?.() || '').trim();
+  const email = (window.SkyeAuthUnlock?.readTokenEmail?.() || '').trim().toLowerCase();
+  const corr = window.SkyeCorrelation?.nextId?.('skyetasks') || window.SkyeCorrelation?.next?.('skyetasks') || '';
+  const headers = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+  if (email) headers['X-Token-Email'] = email;
+  if (corr) headers['X-Correlation-Id'] = corr;
+  return headers;
+}
+
+function mergeAuthHeaders(headers = {}){
+  return { ...getAccessAuthHeaders(), ...headers };
+}
+
 async function call(path, options={}){
   if (window.SkyeStandaloneSession?.request) {
     return window.SkyeStandaloneSession.request(path, options, { appId:'skyetasks', prompt:false });
   }
-  const r = await fetch(path, { credentials:'include', ...options });
+  const r = await fetch(path, { credentials:'include', ...options, headers: mergeAuthHeaders(options.headers || {}) });
   const t = await r.text();
   let d={}; try{ d=t?JSON.parse(t):{}; }catch{ d={raw:t}; }
   if(!r.ok) throw new Error(d.error || path + ' failed (' + r.status + ')');

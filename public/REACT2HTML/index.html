@@ -201,8 +201,14 @@
       }
 
       function getAccessAuthHeaders() {
-        if (window.SkyeStandaloneSession?.authHeaders) return window.SkyeStandaloneSession.authHeaders('react2html');
-        return {};
+        const authHeaders = window.SkyeStandaloneSession?.authHeaders ? { ...window.SkyeStandaloneSession.authHeaders('react2html') } : {};
+        const token = (window.SkyeAuthUnlock?.readToken?.() || '').trim();
+        const email = (window.SkyeAuthUnlock?.readTokenEmail?.() || '').trim().toLowerCase();
+        const corr = window.SkyeCorrelation?.nextId?.('react2html') || window.SkyeCorrelation?.next?.('react2html') || '';
+        if (!authHeaders.Authorization && token) authHeaders.Authorization = `Bearer ${token}`;
+        if (!authHeaders['X-Token-Email'] && email) authHeaders['X-Token-Email'] = email;
+        if (!authHeaders['X-Correlation-Id'] && corr) authHeaders['X-Correlation-Id'] = corr;
+        return authHeaders;
       }
 
       function hydrateAuthInputs() {

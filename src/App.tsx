@@ -11,6 +11,18 @@ import {
   serializeWorkspaceFiles,
 } from "./lib/providers/workspaceFileProvider";
 import { saveDriveAssetFiles } from "./lib/driveAssetStore";
+import {
+  buildSkyeSecureEnvelope,
+  decryptSkyePayload,
+  encryptSkyePayload,
+  isSkyeEncryptedBlock,
+  normalizeLegacySkyeEnvelope,
+  readSkyeEnvelopeFromBlob,
+  serializeSkyeEnvelope,
+  validateSkyePlainPayload,
+  type SkyeEncryptedBlock,
+  type SkyePlainPayload,
+} from "./lib/skye";
 
 type Message = {
   id: string;
@@ -567,13 +579,7 @@ type LegacySkyeEnvelope = {
   salt?: string;
 };
 
-type SkyeEncryptedBlock = {
-  cipher: string;
-  iv: string;
-  salt: string;
-};
-
-type SkyeSecureEnvelope = {
+type LegacyShellSecureEnvelope = {
   format: "skye-secure-v1";
   encrypted: true;
   alg: "AES-256-GCM";
@@ -1224,73 +1230,7 @@ async function sha256Hex(input: string): Promise<string> {
   return arr.map((value) => value.toString(16).padStart(2, "0")).join("");
 }
 
-function bytesToBase64(bytes: Uint8Array): string {
-  let bin = "";
-  for (let i = 0; i < bytes.length; i += 1) bin += String.fromCharCode(bytes[i]);
-  return btoa(bin);
-}
-
-function base64ToBytes(value: string): Uint8Array {
-  const bin = atob(value);
-  const out = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i += 1) out[i] = bin.charCodeAt(i);
-  return out;
-}
-
-function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
-  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
-}
-
-async function deriveSkyeKey(passphrase: string, salt: Uint8Array): Promise<CryptoKey> {
-  const baseKey = await crypto.subtle.importKey("raw", new TextEncoder().encode(passphrase), "PBKDF2", false, ["deriveKey"]);
-  return crypto.subtle.deriveKey(
-    { name: "PBKDF2", salt: toArrayBuffer(salt), iterations: 150000, hash: "SHA-256" },
-    baseKey,
-    { name: "AES-GCM", length: 256 },
-    false,
-    ["encrypt", "decrypt"]
-  );
-}
-
-async function encryptSkyePayload(plainText: string, passphrase: string): Promise<{ cipher: string; iv: string; salt: string }> {
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const salt = crypto.getRandomValues(new Uint8Array(16));
-  const key = await deriveSkyeKey(passphrase, salt);
-  const cipher = await crypto.subtle.encrypt({ name: "AES-GCM", iv: toArrayBuffer(iv) }, key, toArrayBuffer(new TextEncoder().encode(plainText)));
-  return {
-    cipher: bytesToBase64(new Uint8Array(cipher)),
-    iv: bytesToBase64(iv),
-    salt: bytesToBase64(salt),
-  };
-}
-
-async function decryptSkyePayload(cipherB64: string, ivB64: string, saltB64: string, passphrase: string): Promise<string> {
-  const iv = base64ToBytes(ivB64);
-  const salt = base64ToBytes(saltB64);
-  const key = await deriveSkyeKey(passphrase, salt);
-  const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv: toArrayBuffer(iv) }, key, toArrayBuffer(base64ToBytes(cipherB64)));
-  return new TextDecoder().decode(plain);
-}
-
-function encodeSecureSkyeEnvelope(envelope: SkyeSecureEnvelope): Blob {
-  const marker = new TextEncoder().encode("SKYESEC1");
-  const payload = new TextEncoder().encode(JSON.stringify(envelope));
-  return new Blob([marker, new Uint8Array([0]), payload], { type: "application/octet-stream" });
-}
-
-function isValidEncryptedBlock(block: any): block is SkyeEncryptedBlock {
-  return Boolean(
-    block &&
-      typeof block.cipher === "string" &&
-      typeof block.iv === "string" &&
-      typeof block.salt === "string" &&
-      block.cipher.length > 0 &&
-      block.iv.length > 0 &&
-      block.salt.length > 0
-  );
-}
-
-function isSecureSkyeEnvelope(value: any): value is SkyeSecureEnvelope {
+function isLegacyShellSecureEnvelope(value: any): value is LegacyShellSecureEnvelope {
   if (!value || typeof value !== "object") return false;
   if (value.format !== "skye-secure-v1") return false;
   if (value.encrypted !== true) return false;
@@ -1298,11 +1238,11 @@ function isSecureSkyeEnvelope(value: any): value is SkyeSecureEnvelope {
   if (value.kdf !== "PBKDF2-SHA256") return false;
   if (Number(value.iterations) !== 150000) return false;
   if (!value.app) return false;
-  if (!value.payload || !isValidEncryptedBlock(value.payload.primary)) return false;
+  if (!value.payload || !isSkyeEncryptedBlock(value.payload.primary)) return false;
   return true;
 }
 
-async function tryReadSecureSkyeEnvelope(file: any): Promise<SkyeSecureEnvelope | null> {
+async function tryReadLegacyShellSecureEnvelope(file: Blob): Promise<LegacyShellSecureEnvelope | null> {
   try {
     const bytes = new Uint8Array(await file.arrayBuffer());
     const marker = new TextEncoder().encode("SKYESEC1");
@@ -1313,7 +1253,7 @@ async function tryReadSecureSkyeEnvelope(file: any): Promise<SkyeSecureEnvelope 
     if (!hasMarker) return null;
     const raw = new TextDecoder().decode(bytes.slice(marker.length + 1));
     const parsed = tryParseJson(raw);
-    if (!isSecureSkyeEnvelope(parsed)) return null;
+    if (!isLegacyShellSecureEnvelope(parsed)) return null;
     return parsed;
   } catch {
     return null;
@@ -5031,7 +4971,7 @@ export function App() {
           label_prefix: "tester",
         }),
       });
-      const data = await res.json();
+      const data = await readApiJsonResponse(res, "/api/token-issue");
       if (!res.ok) {
         setTesterTokenMeta(data?.error || `Issue failed (${res.status})`);
         return;
@@ -5068,7 +5008,7 @@ export function App() {
           locked_email: apiTokenEmail.trim().toLowerCase() || undefined,
         }),
       });
-      const data = await res.json();
+      const data = await readApiJsonResponse(res, "/api/token-issue");
       if (!res.ok) {
         setTokenOpsResult(data?.error || `Issue failed (${res.status})`);
         return;
@@ -5298,6 +5238,25 @@ export function App() {
     applyWorkspaceBootstrap(payload);
   }
 
+  async function readApiJsonResponse(response: Response, endpoint: string) {
+    const text = await response.text();
+    if (!text) {
+      return {};
+    }
+
+    try {
+      return JSON.parse(text);
+    } catch {
+      const contentType = response.headers.get("content-type") || "";
+      if (contentType.includes("text/html") || text.trim().startsWith("<")) {
+        throw new Error(
+          `${endpoint} returned HTML instead of JSON. This host is serving the frontend shell but is not routing /api to the Netlify backend yet.`
+        );
+      }
+      throw new Error(`${endpoint} returned invalid JSON.`);
+    }
+  }
+
   async function refreshAuthSession() {
     try {
       const res = await fetch("/api/auth-me", { method: "GET", credentials: "include" });
@@ -5348,7 +5307,7 @@ export function App() {
           locked_email: lockedEmail || undefined,
         }),
       });
-      const data = await res.json();
+      const data = await readApiJsonResponse(res, "/api/token-issue");
       if (!res.ok) {
         return {
           ok: false,
@@ -7117,27 +7076,22 @@ export function App() {
         return;
       }
 
-      const envelopeBase = {
-        format: "skye-secure-v1" as const,
-        encrypted: true as const,
-        alg: "AES-256-GCM" as const,
-        kdf: "PBKDF2-SHA256" as const,
-        iterations: 150000 as const,
-        app: selectedSkyeApp,
-        ws_id: workspaceId,
-        exported_at: new Date().toISOString(),
-      };
-      const payloadString = JSON.stringify(currentAppPayload());
-      const encrypted = await encryptSkyePayload(payloadString, skyePassphrase.trim());
-      const envelope: SkyeSecureEnvelope = {
-        ...envelopeBase,
-        hint: "",
-        payload: {
-          primary: encrypted,
+      const payload: SkyePlainPayload = {
+        meta: {
+          app_id: selectedSkyeApp,
+          app_version: "1.0.0",
+          workspace_id: workspaceId,
+          title: `${selectedSkyeApp} Workspace Snapshot`,
+          updated_at: new Date().toISOString(),
+          schema_version: 1,
         },
+        state: currentAppPayload(),
+        assets: [],
       };
+      const encrypted = await encryptSkyePayload(JSON.stringify(payload), skyePassphrase.trim());
+      const envelope = buildSkyeSecureEnvelope({ primary: encrypted, hint: "" });
 
-      const blob = encodeSecureSkyeEnvelope(envelope);
+      const blob = serializeSkyeEnvelope(envelope);
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -7174,52 +7128,77 @@ export function App() {
 
     setIsImportingSkye(true);
     try {
-      let payloadString = "";
-      const secureEnvelope = await tryReadSecureSkyeEnvelope(file);
-      if (secureEnvelope) {
-        if (!skyePassphrase.trim()) {
+      const securePassphrase = skyePassphrase.trim();
+
+      try {
+        const secureEnvelope = await readSkyeEnvelopeFromBlob(file);
+        if (!securePassphrase) {
           setSuiteSyncResult("This .skye package is encrypted. Enter passphrase and import again.");
           return;
         }
-        payloadString = await decryptSkyePayload(
-          String(secureEnvelope.payload.primary.cipher || ""),
-          String(secureEnvelope.payload.primary.iv || ""),
-          String(secureEnvelope.payload.primary.salt || ""),
-          skyePassphrase.trim()
-        );
-        const payload = tryParseJson(payloadString) as Record<string, any>;
-        applyImportedAppPayload(secureEnvelope.app, payload);
-        setSuiteSyncResult(`Imported .skye package for ${secureEnvelope.app}`);
-        setSelectedSkyeApp(secureEnvelope.app);
-      } else {
-        const text = await file.text();
-        const legacyEnvelope = tryParseJson(text) as LegacySkyeEnvelope;
-        if (!legacyEnvelope || legacyEnvelope.format !== "skye-v2" || !legacyEnvelope.app) {
-          setSuiteSyncResult("Invalid .skye package format.");
+        const payloadString = await decryptSkyePayload(secureEnvelope.payload.primary, securePassphrase);
+        const payload = tryParseJson(payloadString) as unknown;
+        if (!validateSkyePlainPayload(payload)) {
+          setSuiteSyncResult("Invalid canonical .skye payload.");
           return;
         }
-        if (!legacyEnvelope.encrypted) {
-          setSuiteSyncResult("Legacy unencrypted .skye packages are blocked. Export/import secure encrypted .skye only.");
+        const importedApp = String(payload.meta.app_id || "").trim();
+        if (!SKYE_APP_ID_SET.has(importedApp)) {
+          setSuiteSyncResult(`Unsupported .skye app target: ${importedApp || "unknown"}`);
           return;
         }
-        if (legacyEnvelope.encrypted) {
-          if (!skyePassphrase.trim()) {
-            setSuiteSyncResult("This legacy .skye package is encrypted. Enter passphrase and import again.");
-            return;
-          }
-          payloadString = await decryptSkyePayload(
-            String(legacyEnvelope.cipher || ""),
-            String(legacyEnvelope.iv || ""),
-            String(legacyEnvelope.salt || ""),
-            skyePassphrase.trim()
-          );
-        }
-
-        const payload = tryParseJson(payloadString) as Record<string, any>;
-        applyImportedAppPayload(legacyEnvelope.app, payload);
-        setSuiteSyncResult(`Imported legacy .skye package for ${legacyEnvelope.app}`);
-        setSelectedSkyeApp(legacyEnvelope.app);
+        applyImportedAppPayload(importedApp as SkyeAppId, payload.state as Record<string, any>);
+        setSuiteSyncResult(`Imported .skye package for ${importedApp}`);
+        setSelectedSkyeApp(importedApp as SkyeAppId);
+        return;
+      } catch {
+        // Continue through audited migration adapters below.
       }
+
+      const legacyShellEnvelope = await tryReadLegacyShellSecureEnvelope(file);
+      if (legacyShellEnvelope) {
+        if (!securePassphrase) {
+          setSuiteSyncResult("This legacy shell .skye package is encrypted. Enter passphrase and import again.");
+          return;
+        }
+        const payloadString = await decryptSkyePayload(legacyShellEnvelope.payload.primary, securePassphrase, { iterations: 150000 });
+        const payload = tryParseJson(payloadString) as Record<string, any>;
+        applyImportedAppPayload(legacyShellEnvelope.app, payload);
+        setSuiteSyncResult(`Imported legacy shell .skye package for ${legacyShellEnvelope.app}`);
+        setSelectedSkyeApp(legacyShellEnvelope.app);
+        return;
+      }
+
+      const text = await file.text();
+      const legacyParsed = tryParseJson(text) as unknown;
+      const legacyAdapter = normalizeLegacySkyeEnvelope(legacyParsed);
+      if (!legacyAdapter || legacyAdapter.kind !== "skye-v2-json") {
+        setSuiteSyncResult("Invalid .skye package format.");
+        return;
+      }
+
+      const legacyEnvelope = legacyAdapter.legacy as LegacySkyeEnvelope;
+      if (!legacyEnvelope.encrypted) {
+        setSuiteSyncResult("Legacy unencrypted .skye packages are blocked. Export/import secure encrypted .skye only.");
+        return;
+      }
+      if (!securePassphrase) {
+        setSuiteSyncResult("This legacy .skye package is encrypted. Enter passphrase and import again.");
+        return;
+      }
+      const payloadString = await decryptSkyePayload(
+        {
+          cipher: String(legacyEnvelope.cipher || ""),
+          iv: String(legacyEnvelope.iv || ""),
+          salt: String(legacyEnvelope.salt || ""),
+        },
+        securePassphrase,
+        { iterations: 150000 }
+      );
+      const payload = tryParseJson(payloadString) as Record<string, any>;
+      applyImportedAppPayload(legacyEnvelope.app, payload);
+      setSuiteSyncResult(`Imported legacy .skye package for ${legacyEnvelope.app}`);
+      setSelectedSkyeApp(legacyEnvelope.app);
     } catch (error: any) {
       setSuiteSyncResult(error?.message || "Skye import failed.");
     } finally {

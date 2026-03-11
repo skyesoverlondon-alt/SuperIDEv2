@@ -6,32 +6,7 @@ import { canWriteWorkspace } from "./_shared/rbac";
 import { readIdempotencyKey } from "./_shared/idempotency";
 import { readCorrelationId } from "./_shared/correlation";
 import { emitSovereignEvent } from "./_shared/sovereign-events";
-
-const ALLOWED_APPS = new Set([
-  "SkyeCalendar",
-  "SkyeDrive",
-  "SkyeVault",
-  "SkyeForms",
-  "SkyeNotes",
-  "SkyeBlog",
-  "SkyeDocxPro",
-  "SkyeBookx",
-  "SkyePlatinum",
-  "kAIxu-Cinematic",
-  "kAIxu-Persona",
-  "kAIxu-Mythos",
-  "kAIxu-Atlas",
-  "kAIxu-Atmos",
-  "kAIxu-Bestiary",
-  "kAIxu-Forge",
-  "kAIxu-Quest",
-  "kAIxU-Codex",
-  "kAIxU-Faction",
-  "kAIxU-Matrix",
-  "kAIxU-PrimeCommand",
-  "kAIxU-Vision",
-  "kAixU-Chronos",
-]);
+import { ALLOWED_APP_RECORD_APPS } from "./_shared/app-records";
 
 export const handler = async (event: any) => {
   const u = await requireUser(event);
@@ -53,7 +28,7 @@ export const handler = async (event: any) => {
   const correlationId = readCorrelationId(event);
 
   if (!wsId) return json(400, { error: "Missing ws_id." });
-  if (!ALLOWED_APPS.has(app)) return json(400, { error: "Unsupported app." });
+  if (!ALLOWED_APP_RECORD_APPS.has(app)) return json(400, { error: "Unsupported app." });
   if (!model || typeof model !== "object") return json(400, { error: "Missing model payload." });
 
   const allowed = await canWriteWorkspace(u.org_id, u.user_id, wsId);

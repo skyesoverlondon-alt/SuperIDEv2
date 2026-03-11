@@ -1,124 +1,150 @@
 {
-  "generated_at": "2026-03-06T13:03:09.791Z",
+  "generated_at": "2026-03-09T17:13:45.615Z",
   "blocking_failures": 0,
   "ok": true,
   "checks": [
     {
       "id": "gateway_only",
       "blocking": true,
+      "area": "security",
+      "contract": "gateway-only policy",
       "ok": true,
       "exit_code": 0,
-      "duration_ms": 446,
+      "duration_ms": 278,
       "stdout": "\n> kaixu-superide-vnext@1.0.0 check:gateway-only\n> node scripts/check-gateway-only.js\n\n[gateway-check] PASS: gateway-only policy enforced.\n",
-      "stderr": "npm warn Unknown env config \"http-proxy\". This will stop working in the next major version of npm.\n"
+      "stderr": ""
     },
     {
       "id": "external_endpoints",
       "blocking": true,
+      "area": "security",
+      "contract": "external endpoint policy",
       "ok": true,
       "exit_code": 0,
-      "duration_ms": 476,
-      "stdout": "\n> kaixu-superide-vnext@1.0.0 check:external-endpoints\n> node scripts/check-external-ai-endpoints.js\n\n[external-endpoints] PASS (111 files scanned)\n",
-      "stderr": "npm warn Unknown env config \"http-proxy\". This will stop working in the next major version of npm.\n"
+      "duration_ms": 359,
+      "stdout": "\n> kaixu-superide-vnext@1.0.0 check:external-endpoints\n> node scripts/check-external-ai-endpoints.js\n\n[external-endpoints] PASS (228 files scanned)\n",
+      "stderr": ""
     },
     {
       "id": "provider_strings",
       "blocking": true,
+      "area": "security",
+      "contract": "provider string policy",
       "ok": true,
       "exit_code": 0,
-      "duration_ms": 459,
+      "duration_ms": 375,
       "stdout": "\n> kaixu-superide-vnext@1.0.0 check:provider-strings\n> node scripts/check-provider-strings.js\n\n[provider-strings] PASS\n",
-      "stderr": "npm warn Unknown env config \"http-proxy\". This will stop working in the next major version of npm.\n"
+      "stderr": ""
     },
     {
       "id": "secure_defaults",
       "blocking": true,
+      "area": "security",
+      "contract": "secure defaults",
       "ok": true,
       "exit_code": 0,
-      "duration_ms": 448,
+      "duration_ms": 257,
       "stdout": "\n> kaixu-superide-vnext@1.0.0 check:secure-defaults\n> node scripts/check-secure-defaults.js\n\n[secure-defaults] PASS: required secure defaults are present.\n",
-      "stderr": "npm warn Unknown env config \"http-proxy\". This will stop working in the next major version of npm.\n"
+      "stderr": ""
     },
     {
       "id": "protected_apps",
       "blocking": true,
+      "area": "security",
+      "contract": "protected app integrity",
       "ok": true,
       "exit_code": 0,
-      "duration_ms": 445,
+      "duration_ms": 360,
       "stdout": "\n> kaixu-superide-vnext@1.0.0 check:protected-apps\n> node scripts/check-protected-apps.js\n\n[protected-apps] PASS (3 targets)\n",
-      "stderr": "npm warn Unknown env config \"http-proxy\". This will stop working in the next major version of npm.\n"
+      "stderr": ""
     },
     {
       "id": "skye_schema",
       "blocking": true,
+      "area": "data_integrity",
+      "contract": "canonical .skye contract validity",
       "ok": true,
       "exit_code": 0,
-      "duration_ms": 454,
+      "duration_ms": 265,
       "stdout": "\n> kaixu-superide-vnext@1.0.0 check:skye-schema\n> node scripts/check-skye-schema.js\n\n[skye-schema] PASS (2 samples)\n",
-      "stderr": "npm warn Unknown env config \"http-proxy\". This will stop working in the next major version of npm.\n"
+      "stderr": ""
     },
     {
       "id": "gateway_shape",
       "blocking": true,
+      "area": "data_integrity",
+      "contract": "gateway response shape",
       "ok": true,
       "exit_code": 0,
-      "duration_ms": 466,
+      "duration_ms": 298,
       "stdout": "\n> kaixu-superide-vnext@1.0.0 test:gateway-shape\n> node scripts/test-gateway-shape-fixtures.js\n\n[gateway-shape] PASS (4 fixtures)\n",
-      "stderr": "npm warn Unknown env config \"http-proxy\". This will stop working in the next major version of npm.\n"
+      "stderr": ""
     },
     {
       "id": "auth_regression",
       "blocking": true,
+      "area": "reliability",
+      "contract": "auth regression",
       "ok": true,
       "exit_code": 0,
-      "duration_ms": 445,
+      "duration_ms": 271,
       "stdout": "\n> kaixu-superide-vnext@1.0.0 test:auth-regression\n> node scripts/test-auth-regressions.js\n\n[auth-regression] PASS (7 functions checked)\n",
-      "stderr": "npm warn Unknown env config \"http-proxy\". This will stop working in the next major version of npm.\n"
+      "stderr": ""
     },
     {
       "id": "export_import_schema",
       "blocking": true,
+      "area": "data_integrity",
+      "contract": "secure roundtrip, tamper rejection, and passphrase enforcement",
       "ok": true,
       "exit_code": 0,
-      "duration_ms": 448,
-      "stdout": "\n> kaixu-superide-vnext@1.0.0 test:export-import-schema\n> node scripts/test-export-import-schema.js\n\n[export-import-schema] PASS (3 fixtures)\n",
-      "stderr": "npm warn Unknown env config \"http-proxy\". This will stop working in the next major version of npm.\n"
+      "duration_ms": 397,
+      "stdout": "\n> kaixu-superide-vnext@1.0.0 test:export-import-schema\n> node scripts/test-export-import-schema.js\n\n[export-import-schema] PASS (14 vectors)\n",
+      "stderr": ""
     },
     {
       "id": "smoke_snapshot",
       "blocking": true,
+      "area": "reliability",
+      "contract": "smoke snapshot integrity",
       "ok": true,
       "exit_code": 0,
-      "duration_ms": 447,
+      "duration_ms": 215,
       "stdout": "\n> kaixu-superide-vnext@1.0.0 check:smoke-snapshot\n> node scripts/check-smoke-snapshot.js\n\n[smoke-snapshot] PASS (14 checks)\n",
-      "stderr": "npm warn Unknown env config \"http-proxy\". This will stop working in the next major version of npm.\n"
+      "stderr": ""
     },
     {
       "id": "build",
       "blocking": true,
+      "area": "reliability",
+      "contract": "frontend build integrity",
       "ok": true,
       "exit_code": 0,
-      "duration_ms": 5309,
-      "stdout": "\n> kaixu-superide-vnext@1.0.0 prebuild\n> npm run sync:surfaces\n\n\n> kaixu-superide-vnext@1.0.0 sync:surfaces\n> npm run sync:docxpro && npm run sync:neural\n\n\n> kaixu-superide-vnext@1.0.0 sync:docxpro\n> rm -rf public/SkyeDocxPro && mkdir -p public && cp -R SkyeDocxPro public/SkyeDocxPro\n\n\n> kaixu-superide-vnext@1.0.0 sync:neural\n> rm -rf public/Neural-Space-Pro && mkdir -p public && cp -R Neural-Space-Pro public/Neural-Space-Pro\n\n\n> kaixu-superide-vnext@1.0.0 build\n> vite build\n\nvite v6.4.1 building for production...\ntransforming...\n✓ 247 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/index.html                   0.47 kB │ gzip:   0.31 kB\ndist/assets/index-CYadmPXz.css   24.74 kB │ gzip:   5.84 kB\ndist/assets/index-D0ehDRsc.js   366.68 kB │ gzip: 111.09 kB\n✓ built in 3.34s\n",
-      "stderr": "npm warn Unknown env config \"http-proxy\". This will stop working in the next major version of npm.\nnpm warn Unknown env config \"http-proxy\". This will stop working in the next major version of npm.\nnpm warn Unknown env config \"http-proxy\". This will stop working in the next major version of npm.\nnpm warn Unknown env config \"http-proxy\". This will stop working in the next major version of npm.\n"
+      "duration_ms": 6737,
+      "stdout": "ural\n\n\n> kaixu-superide-vnext@1.0.0 sync:skye-runtime\n> node scripts/sync-skye-runtime.js\n\n[sync-skye-runtime] Wrote public/_shared/skye/skyeSecure.js\n\n> kaixu-superide-vnext@1.0.0 sync:skydex\n> rm -rf public/SkyDex4.6 && mkdir -p public && cp -R SkyDex4.6 public/SkyDex4.6\n\n\n> kaixu-superide-vnext@1.0.0 sync:docxpro\n> rm -rf public/SkyeDocxPro && mkdir -p public && cp -R SkyeDocxPro public/SkyeDocxPro\n\n\n> kaixu-superide-vnext@1.0.0 sync:skyeblog\n> rm -rf public/SkyeBlog && mkdir -p public && cp -R SkyeBlog public/SkyeBlog\n\n\n> kaixu-superide-vnext@1.0.0 sync:sovereign\n> rm -rf public/SovereignVariables && mkdir -p public && cp -R SovereignVariables public/SovereignVariables\n\n\n> kaixu-superide-vnext@1.0.0 sync:neural\n> rm -rf public/Neural-Space-Pro && mkdir -p public && cp -R Neural-Space-Pro public/Neural-Space-Pro\n\n\n> kaixu-superide-vnext@1.0.0 build\n> vite build\n\nvite v6.4.1 building for production...\ntransforming...\n✓ 250 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/index.html                   1.35 kB │ gzip:   0.59 kB\ndist/assets/index-C006Kp-I.css   47.79 kB │ gzip:   9.81 kB\ndist/assets/index-Cu2Bta6e.js   501.87 kB │ gzip: 143.00 kB\n✓ built in 3.00s\n",
+      "stderr": "\n(!) Some chunks are larger than 500 kB after minification. Consider:\n- Using dynamic import() to code-split the application\n- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks\n- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.\n"
     },
     {
       "id": "release_artifacts",
       "blocking": true,
+      "area": "executive_readiness",
+      "contract": "release artifacts generation",
       "ok": true,
       "exit_code": 0,
-      "duration_ms": 494,
+      "duration_ms": 259,
       "stdout": "\n> kaixu-superide-vnext@1.0.0 release:artifacts\n> node scripts/generate-release-artifacts.js\n\n[release-artifacts] Wrote artifacts/release-artifacts.json\n",
-      "stderr": "npm warn Unknown env config \"http-proxy\". This will stop working in the next major version of npm.\n"
+      "stderr": ""
     },
     {
       "id": "release_gates",
       "blocking": true,
+      "area": "executive_readiness",
+      "contract": "release gate evaluation",
       "ok": true,
       "exit_code": 0,
-      "duration_ms": 447,
+      "duration_ms": 342,
       "stdout": "\n> kaixu-superide-vnext@1.0.0 release:gates\n> node scripts/evaluate-release-gates.js\n\n[release-gates] Wrote artifacts/release-gates.json\n[release-gates] PASS\n",
-      "stderr": "npm warn Unknown env config \"http-proxy\". This will stop working in the next major version of npm.\n"
+      "stderr": ""
     }
   ]
 }

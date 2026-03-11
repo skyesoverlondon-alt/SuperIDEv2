@@ -13,6 +13,7 @@ fi
 echo "SMOKEHOUSE :: $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 echo "Site:   $SITE_BASE"
 echo "Worker: ${WORKER_URL:-<not-set>}"
+echo "SKYE:   release-visible via npm run check:skye-schema && npm run test:export-import-schema"
 echo
 
 pass=0
@@ -68,6 +69,7 @@ check "Auth Me API" "GET" "$SITE_BASE/api/auth-me" "" "^(401|403)$"
 
 echo
 echo "Summary: PASS=$pass FAIL=$fail"
+echo "SKYE Contracts: canonical contract validity, secure roundtrip retention, tamper rejection, and passphrase enforcement are tracked by release gates outside HTTP smoke."
 if [[ $fail -gt 0 ]]; then
   exit 1
 fi

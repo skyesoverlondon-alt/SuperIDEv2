@@ -1080,7 +1080,7 @@
         window.runSignalInChat = async (index) => {
             const item = signalLaneItems[index];
             if (!item) return;
-            await handleSend(buildSignalPrompt(item));
+            await window.handleSend(buildSignalPrompt(item));
         };
         window.pushSignalToCanvas = (index) => {
             const item = signalLaneItems[index];
@@ -1289,7 +1289,7 @@
             const seedMessages = sessionMessages.slice(0, lastUserIndex).map(cloneSessionMessage);
             const nextId = await createSessionRecord(`${getSessionTitleFromMessages(sessionMessages)} / retry`, seedMessages, { branchFrom: currentChatId || null });
             await loadSession(nextId);
-            await handleSend(retryPrompt);
+            await window.handleSend(retryPrompt);
         };
         window.toggleArchivePin = async (chatId) => {
             if (!chatId) return;

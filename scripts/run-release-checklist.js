@@ -8,19 +8,19 @@ const outDir = path.join(root, "artifacts");
 const outFile = path.join(outDir, "release-checklist.json");
 
 const checks = [
-  { id: "gateway_only", cmd: ["npm", ["run", "check:gateway-only"]], blocking: true },
-  { id: "external_endpoints", cmd: ["npm", ["run", "check:external-endpoints"]], blocking: true },
-  { id: "provider_strings", cmd: ["npm", ["run", "check:provider-strings"]], blocking: true },
-  { id: "secure_defaults", cmd: ["npm", ["run", "check:secure-defaults"]], blocking: true },
-  { id: "protected_apps", cmd: ["npm", ["run", "check:protected-apps"]], blocking: true },
-  { id: "skye_schema", cmd: ["npm", ["run", "check:skye-schema"]], blocking: true },
-  { id: "gateway_shape", cmd: ["npm", ["run", "test:gateway-shape"]], blocking: true },
-  { id: "auth_regression", cmd: ["npm", ["run", "test:auth-regression"]], blocking: true },
-  { id: "export_import_schema", cmd: ["npm", ["run", "test:export-import-schema"]], blocking: true },
-  { id: "smoke_snapshot", cmd: ["npm", ["run", "check:smoke-snapshot"]], blocking: true },
-  { id: "build", cmd: ["npm", ["run", "build"]], blocking: true },
-  { id: "release_artifacts", cmd: ["npm", ["run", "release:artifacts"]], blocking: true },
-  { id: "release_gates", cmd: ["npm", ["run", "release:gates"]], blocking: true },
+  { id: "gateway_only", cmd: ["npm", ["run", "check:gateway-only"]], blocking: true, area: "security", contract: "gateway-only policy" },
+  { id: "external_endpoints", cmd: ["npm", ["run", "check:external-endpoints"]], blocking: true, area: "security", contract: "external endpoint policy" },
+  { id: "provider_strings", cmd: ["npm", ["run", "check:provider-strings"]], blocking: true, area: "security", contract: "provider string policy" },
+  { id: "secure_defaults", cmd: ["npm", ["run", "check:secure-defaults"]], blocking: true, area: "security", contract: "secure defaults" },
+  { id: "protected_apps", cmd: ["npm", ["run", "check:protected-apps"]], blocking: true, area: "security", contract: "protected app integrity" },
+  { id: "skye_schema", cmd: ["npm", ["run", "check:skye-schema"]], blocking: true, area: "data_integrity", contract: "canonical .skye contract validity" },
+  { id: "gateway_shape", cmd: ["npm", ["run", "test:gateway-shape"]], blocking: true, area: "data_integrity", contract: "gateway response shape" },
+  { id: "auth_regression", cmd: ["npm", ["run", "test:auth-regression"]], blocking: true, area: "reliability", contract: "auth regression" },
+  { id: "export_import_schema", cmd: ["npm", ["run", "test:export-import-schema"]], blocking: true, area: "data_integrity", contract: "secure roundtrip, tamper rejection, and passphrase enforcement" },
+  { id: "smoke_snapshot", cmd: ["npm", ["run", "check:smoke-snapshot"]], blocking: true, area: "reliability", contract: "smoke snapshot integrity" },
+  { id: "build", cmd: ["npm", ["run", "build"]], blocking: true, area: "reliability", contract: "frontend build integrity" },
+  { id: "release_artifacts", cmd: ["npm", ["run", "release:artifacts"]], blocking: true, area: "executive_readiness", contract: "release artifacts generation" },
+  { id: "release_gates", cmd: ["npm", ["run", "release:gates"]], blocking: true, area: "executive_readiness", contract: "release gate evaluation" },
 ];
 
 const results = [];
@@ -46,6 +46,8 @@ for (const check of checks) {
   results.push({
     id: check.id,
     blocking: check.blocking,
+    area: check.area,
+    contract: check.contract,
     ok: proc.status === 0,
     exit_code: proc.status,
     duration_ms: durationMs,

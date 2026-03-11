@@ -21,6 +21,10 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script type="module">
+        import * as SkyeSecure from '/_shared/skye/skyeSecure.js';
+        window.SkyeSecure = SkyeSecure;
+    </script>
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Inter:wght@400;500;600&family=Merriweather:wght@400;700&display=swap" rel="stylesheet">
 
     <style>
@@ -1396,6 +1400,11 @@
         const STORE_ASSETS = 'assets';
         const STORE_FOLDERS = 'folders';
 
+        const getSkyeSecure = () => {
+            if (!window.SkyeSecure) throw new Error('Shared .skye runtime is not loaded.');
+            return window.SkyeSecure;
+        };
+
         const refreshLucideIcons = () => {
             if (window.lucide && typeof window.lucide.createIcons === 'function') {
                 window.lucide.createIcons();
@@ -2740,158 +2749,112 @@
             },
 
             bytesToBase64(bytes) {
-                let binary = '';
-                bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
-                return btoa(binary);
+                return getSkyeSecure().bytesToBase64(bytes);
             },
 
             base64ToBytes(base64) {
-                const binary = atob(base64);
-                const bytes = new Uint8Array(binary.length);
-                for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
-                return bytes;
+                return getSkyeSecure().base64ToBytes(base64);
             },
 
             async deriveEncryptionKey(passphrase, salt) {
-                const material = await crypto.subtle.importKey(
-                    'raw',
-                    new TextEncoder().encode(passphrase),
-                    'PBKDF2',
-                    false,
-                    ['deriveKey']
-                );
-                return crypto.subtle.deriveKey(
-                    { name: 'PBKDF2', salt, iterations: 120000, hash: 'SHA-256' },
-                    material,
-                    { name: 'AES-GCM', length: 256 },
-                    false,
-                    ['encrypt', 'decrypt']
-                );
+                return getSkyeSecure().deriveSkyeKey(passphrase, salt);
             },
 
             async encryptString(plaintext, passphrase) {
-                const salt = crypto.getRandomValues(new Uint8Array(16));
-                const iv = crypto.getRandomValues(new Uint8Array(12));
-                const key = await this.deriveEncryptionKey(passphrase, salt);
-                const ciphertext = await crypto.subtle.encrypt(
-                    { name: 'AES-GCM', iv },
-                    key,
-                    new TextEncoder().encode(plaintext)
-                );
-                return {
-                    cipher: this.bytesToBase64(new Uint8Array(ciphertext)),
-                    iv: this.bytesToBase64(iv),
-                    salt: this.bytesToBase64(salt),
-                };
+                return getSkyeSecure().encryptSkyePayload(plaintext, passphrase);
             },
 
             async decryptString(encrypted, passphrase) {
-                const key = await this.deriveEncryptionKey(passphrase, this.base64ToBytes(encrypted.salt));
-                const plaintext = await crypto.subtle.decrypt(
-                    { name: 'AES-GCM', iv: this.base64ToBytes(encrypted.iv) },
-                    key,
-                    this.base64ToBytes(encrypted.cipher)
-                );
-                return new TextDecoder().decode(plaintext);
+                return getSkyeSecure().decryptSkyePayload(encrypted, passphrase);
             },
 
             buildSkyeSecureEnvelope(encryptedPayload, passphraseHint = '') {
-                return {
-                    format: 'skye-secure-v1',
-                    encrypted: true,
-                    alg: 'AES-256-GCM',
-                    kdf: 'PBKDF2-SHA256',
-                    iterations: 120000,
-                    exportedAt: new Date().toISOString(),
+                return getSkyeSecure().buildSkyeSecureEnvelope({
+                    primary: encryptedPayload.primary || encryptedPayload,
+                    failsafe: encryptedPayload.failsafe || null,
                     hint: passphraseHint || '',
-                    payload: encryptedPayload,
-                };
+                });
             },
 
             isValidEncryptedBlock(block) {
-                return Boolean(
-                    block &&
-                    typeof block === 'object' &&
-                    typeof block.cipher === 'string' && block.cipher.length > 0 &&
-                    typeof block.iv === 'string' && block.iv.length > 0 &&
-                    typeof block.salt === 'string' && block.salt.length > 0
-                );
+                return getSkyeSecure().isSkyeEncryptedBlock(block);
             },
 
             isSkyeSecureEnvelope(envelope) {
-                if (!envelope || typeof envelope !== 'object') return false;
-                if (envelope.format !== 'skye-secure-v1') return false;
-                if (envelope.encrypted !== true) return false;
-                if (envelope.alg !== 'AES-256-GCM') return false;
-                if (envelope.kdf !== 'PBKDF2-SHA256') return false;
-                if (Number(envelope.iterations) !== 120000) return false;
-                const payload = envelope.payload || {};
-                const primary = payload.primary || payload;
-                if (payload.failsafe && !this.isValidEncryptedBlock(payload.failsafe)) return false;
-                return this.isValidEncryptedBlock(primary);
+                return getSkyeSecure().validateSkyeEnvelope(envelope);
             },
 
             encodeSkyeSecureEnvelope(envelope) {
-                const marker = new TextEncoder().encode('SKYESEC1');
-                const payload = new TextEncoder().encode(JSON.stringify(envelope));
-                return new Blob([marker, new Uint8Array([0]), payload], { type: 'application/octet-stream' });
+                return getSkyeSecure().serializeSkyeEnvelope(envelope);
             },
 
             async tryReadSkyeSecureEnvelope(file) {
                 try {
-                    const bytes = new Uint8Array(await file.arrayBuffer());
-                    const marker = new TextEncoder().encode('SKYESEC1');
-
-                    let raw = '';
-                    const hasBinaryMarker =
-                        bytes.length > marker.length + 1 &&
-                        marker.every((value, index) => bytes[index] === value) &&
-                        bytes[marker.length] === 0;
-
-                    if (hasBinaryMarker) {
-                        raw = new TextDecoder().decode(bytes.slice(marker.length + 1));
-                    } else {
-                        const text = new TextDecoder().decode(bytes);
-                        const legacyMarker = 'SKYESEC1\n';
-                        raw = text.startsWith(legacyMarker) ? text.slice(legacyMarker.length) : text;
-                    }
-
-                    const parsed = JSON.parse(raw);
-                    if (!this.isSkyeSecureEnvelope(parsed)) return null;
-                    return parsed;
+                    return await getSkyeSecure().readSkyeEnvelopeFromBlob(file);
                 } catch {
-                    return null;
+                    try {
+                        const legacy = getSkyeSecure().normalizeLegacySkyeEnvelope(await file.text());
+                        if (legacy?.kind === 'text-prefixed-secure-envelope') {
+                            return legacy.envelope;
+                        }
+                        return null;
+                    } catch {
+                        return null;
+                    }
                 }
             },
 
             async importEncryptedPayloadToDb(payload, encryptedHint = '') {
-                if (!payload || !payload.meta || typeof payload.content !== 'string') {
+                const isCanonical = getSkyeSecure().validateSkyePlainPayload(payload) && payload.meta?.app_id === 'SkyeBlog';
+                const normalized = isCanonical
+                    ? {
+                        meta: {
+                            id: payload.meta.document_id || `blog_${Date.now()}`,
+                            title: payload.meta.title || 'Imported SkyeBlog Draft',
+                            folderId: payload.state?.folder_id || null,
+                            comments: Array.isArray(payload.state?.comments) ? payload.state.comments : [],
+                            suggestions: Array.isArray(payload.state?.suggestions) ? payload.state.suggestions : [],
+                            versions: Array.isArray(payload.state?.versions) ? payload.state.versions : [],
+                            metaFields: payload.state?.meta_fields || {},
+                            passphrase_hint: payload.meta?.tags?.join(', ') || encryptedHint || '',
+                        },
+                        content: typeof payload.state?.content === 'string' ? payload.state.content : '',
+                        assets: Array.isArray(payload.assets) ? payload.assets.map((asset) => ({
+                            id: asset.id,
+                            name: asset.name,
+                            type: asset.mime,
+                            data: asset.data_base64,
+                        })) : [],
+                    }
+                    : payload;
+
+                if (!normalized || !normalized.meta || typeof normalized.content !== 'string') {
                     throw new Error('Encrypted payload is invalid or missing document content.');
                 }
 
-                for (let asset of payload.assets || []) {
+                for (let asset of normalized.assets || []) {
                     const blob = this.base64ToBlob(asset.data, asset.type);
                     await DB.put(STORE_ASSETS, { id: asset.id, name: asset.name, type: asset.type, blob });
                 }
 
                 await DB.put(STORE_DOCS, {
-                    id: payload.meta.id,
-                    title: payload.meta.title,
-                    content: payload.content,
-                    folderId: payload.meta.folderId || null,
-                    comments: payload.meta.comments || [],
-                    suggestions: payload.meta.suggestions || [],
-                    versions: payload.meta.versions || [],
+                    id: normalized.meta.id,
+                    title: normalized.meta.title,
+                    content: normalized.content,
+                    folderId: normalized.meta.folderId || null,
+                    comments: normalized.meta.comments || [],
+                    suggestions: normalized.meta.suggestions || [],
+                    versions: normalized.meta.versions || [],
                     meta: {
-                        ...(payload.meta.metaFields || {}),
-                        passphrase_hint: payload.meta.passphrase_hint || encryptedHint || '',
+                        ...(normalized.meta.metaFields || {}),
+                        passphrase_hint: normalized.meta.passphrase_hint || encryptedHint || '',
                     },
                     updatedAt: Date.now()
                 });
 
                 await this.loadDocList();
-                await this.openDoc(payload.meta.id);
-                this.showToast(`Successfully opened encrypted ${payload.meta.title}`);
+                await this.openDoc(normalized.meta.id);
+                this.showToast(`Successfully opened encrypted ${normalized.meta.title}`);
             },
 
             async exportSkyeFormat(doc, filename, encryptionOptions = null) {
@@ -2926,20 +2889,32 @@
                 }
 
                 const recoveryCode = enableFailsafe ? this.buildRecoveryCode() : null;
+                const workspaceId = new URLSearchParams(window.location.search).get('ws_id') || 'primary-workspace';
                 const payload = {
                     meta: {
+                        app_id: 'SkyeBlog',
+                        app_version: '1.0.0',
+                        workspace_id: workspaceId,
+                        document_id: doc.id,
                         title: doc.title,
-                        id: doc.id,
-                        updatedAt: doc.updatedAt,
-                        folderId: doc.folderId,
-                        passphrase_hint: passphraseHint,
+                        owner: String(document.getElementById('meta-author')?.value || '').trim() || undefined,
+                        updated_at: new Date(doc.updatedAt || Date.now()).toISOString(),
+                        schema_version: 1,
+                    },
+                    state: {
+                        content: doc.content,
+                        folder_id: doc.folderId || null,
                         comments: doc.comments || [],
                         suggestions: doc.suggestions || [],
                         versions: doc.versions || [],
-                        metaFields: doc.meta || {},
+                        meta_fields: doc.meta || {},
                     },
-                    content: doc.content,
-                    assets: serializedAssets,
+                    assets: serializedAssets.map((asset) => ({
+                        id: asset.id,
+                        name: asset.name,
+                        mime: asset.type,
+                        data_base64: asset.data,
+                    })),
                 };
                 const primary = await this.encryptString(JSON.stringify(payload), passphrase);
                 let failsafe = null;

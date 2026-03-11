@@ -7,6 +7,10 @@
     <script src="/_shared/correlation.js"></script>
     <script src="/_shared/auth-unlock.js"></script>
     <script src="/_shared/standalone-session.js"></script>
+    <script type="module">
+      import * as SkyeSecure from '/_shared/skye/skyeSecure.js';
+      window.SkyeSecure = SkyeSecure;
+    </script>
   <style>
     @import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Space+Grotesk:wght@400;500;600&display=swap");
     :root {
@@ -191,6 +195,7 @@
   </div>
 
   <script>
+    const APP_ID = 'SkyeMail';
     const state = {
       me: null,
       cursor: null,
@@ -215,6 +220,11 @@
 
     if (query.get('embed') === '1') {
       document.querySelector('.top a').setAttribute('href', `/index.html?app=SkyeMail&ws_id=${encodeURIComponent(state.wsId)}`);
+    }
+
+    function getSkyeSecure() {
+      if (!window.SkyeSecure) throw new Error('Shared .skye runtime is not loaded.');
+      return window.SkyeSecure;
     }
 
     function persistDeliveryRecords() {
@@ -443,85 +453,44 @@
     }
 
     function bytesToBase64(bytes) {
-      let bin = '';
-      for (let i = 0; i < bytes.length; i += 1) bin += String.fromCharCode(bytes[i]);
-      return btoa(bin);
+      return getSkyeSecure().bytesToBase64(bytes);
     }
 
     function base64ToBytes(value) {
-      const bin = atob(value);
-      const out = new Uint8Array(bin.length);
-      for (let i = 0; i < bin.length; i += 1) out[i] = bin.charCodeAt(i);
-      return out;
+      return getSkyeSecure().base64ToBytes(value);
     }
 
     async function deriveKey(passphrase, saltBytes) {
-      const material = await crypto.subtle.importKey('raw', new TextEncoder().encode(passphrase), 'PBKDF2', false, ['deriveKey']);
-      return crypto.subtle.deriveKey(
-        { name: 'PBKDF2', salt: saltBytes, iterations: 120000, hash: 'SHA-256' },
-        material,
-        { name: 'AES-GCM', length: 256 },
-        false,
-        ['encrypt', 'decrypt']
-      );
+      return getSkyeSecure().deriveSkyeKey(passphrase, saltBytes);
     }
 
     async function encryptSkye(plainText, passphrase) {
-      const iv = crypto.getRandomValues(new Uint8Array(12));
-      const salt = crypto.getRandomValues(new Uint8Array(16));
-      const key = await deriveKey(passphrase, salt);
-      const cipherBuf = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(plainText));
-      return {
-        cipher: bytesToBase64(new Uint8Array(cipherBuf)),
-        iv: bytesToBase64(iv),
-        salt: bytesToBase64(salt),
-      };
+      return getSkyeSecure().encryptSkyePayload(plainText, passphrase);
     }
 
     async function decryptSkye(block, passphrase) {
-      const key = await deriveKey(passphrase, base64ToBytes(block.salt));
-      const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: base64ToBytes(block.iv) }, key, base64ToBytes(block.cipher));
-      return new TextDecoder().decode(plain);
+      return getSkyeSecure().decryptSkyePayload(block, passphrase);
     }
 
     function buildSecureEnvelope(primary, hint) {
-      return {
-        format: 'skye-secure-v1',
-        encrypted: true,
-        alg: 'AES-256-GCM',
-        kdf: 'PBKDF2-SHA256',
-        iterations: 120000,
-        exportedAt: new Date().toISOString(),
+      return getSkyeSecure().buildSkyeSecureEnvelope({
+        primary,
         hint: hint || '',
-        payload: { primary },
-      };
+      });
     }
 
     function encodeSecureEnvelope(envelope) {
-      const marker = new TextEncoder().encode('SKYESEC1');
-      const payload = new TextEncoder().encode(JSON.stringify(envelope));
-      return new Blob([marker, new Uint8Array([0]), payload], { type: 'application/octet-stream' });
+      return getSkyeSecure().serializeSkyeEnvelope(envelope);
     }
 
     async function readSecureEnvelope(file) {
-      const bytes = new Uint8Array(await file.arrayBuffer());
-      const marker = new TextEncoder().encode('SKYESEC1');
-      const hasMarker = bytes.length > marker.length + 1 && marker.every((v, i) => bytes[i] === v) && bytes[marker.length] === 0;
-      if (!hasMarker) throw new Error('Invalid .skye file marker.');
-      const raw = new TextDecoder().decode(bytes.slice(marker.length + 1));
-      const envelope = JSON.parse(raw);
-      if (!envelope || envelope.format !== 'skye-secure-v1' || envelope.encrypted !== true) throw new Error('Unsupported .skye envelope.');
-      if (envelope.alg !== 'AES-256-GCM' || envelope.kdf !== 'PBKDF2-SHA256' || Number(envelope.iterations) !== 120000) {
-        throw new Error('Invalid .skye encryption metadata.');
-      }
-      if (!envelope.payload || !envelope.payload.primary) throw new Error('Missing encrypted payload.');
-      return envelope;
+      return getSkyeSecure().readSkyeEnvelopeFromBlob(file);
     }
 
     function collectSkyeState() {
       return {
         meta: {
-          app_id: 'SkyeMail',
+          app_id: APP_ID,
           app_version: '1.0.0',
           workspace_id: state.wsId,
           title: 'SkyeMail Workspace Snapshot',
@@ -547,7 +516,7 @@
     }
 
     function applySkyeState(payload) {
-      if (!payload?.meta || payload.meta.app_id !== 'SkyeMail') throw new Error('This .skye file is not for SkyeMail.');
+      if (!payload?.meta || payload.meta.app_id !== APP_ID) throw new Error('This .skye file is not for SkyeMail.');
       const schemaVersion = Number(payload?.meta?.schema_version || 1);
       if (!Number.isFinite(schemaVersion) || schemaVersion > 1) throw new Error(`Unsupported .skye schema version for SkyeMail: ${schemaVersion}`);
       const s = payload.state || {};
@@ -587,6 +556,9 @@
       if (!passphrase.trim()) throw new Error('Passphrase is required.');
       const plain = await decryptSkye(envelope.payload.primary, passphrase.trim());
       const payload = JSON.parse(plain);
+      const isCanonical = getSkyeSecure().validateSkyePlainPayload(payload) && payload?.meta?.app_id === APP_ID;
+      const legacyCompatible = payload?.meta?.app_id === APP_ID && Array.isArray(payload?.state?.inbox_records);
+      if (!isCanonical && !legacyCompatible) throw new Error('Invalid .skye state payload.');
       const mode = (prompt('Import mode: type merge or replace', 'merge') || 'merge').trim().toLowerCase();
       applySkyeState(payload);
       if (mode === 'merge') {

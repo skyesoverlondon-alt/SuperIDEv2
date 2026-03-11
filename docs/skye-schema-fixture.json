@@ -1,26 +1,63 @@
-[
-  {
-    "meta": {
-      "app_id": "SkyeMail",
-      "schema_version": 1,
-      "exported_at": "2026-03-05T00:00:00Z"
-    },
-    "state": {
-      "profile": {
-        "display_name": "User"
-      }
-    }
+{
+  "contract": {
+    "marker": "SKYESEC1",
+    "delimiterHex": "00",
+    "format": "skye-secure-v1",
+    "alg": "AES-256-GCM",
+    "kdf": "PBKDF2-SHA256",
+    "iterations": 120000
   },
-  {
-    "meta": {
-      "app_id": "SkyeChat",
-      "schema_version": 1,
-      "exported_at": "2026-03-05T00:00:00Z"
+  "samples": [
+    {
+      "id": "skymail-canonical",
+      "meta": {
+        "app_id": "SkyeMail",
+        "schema_version": 1,
+        "workspace_id": "primary-workspace",
+        "title": "SkyeMail Workspace Snapshot",
+        "exported_at": "2026-03-09T00:00:00Z"
+      },
+      "state": {
+        "profile": {
+          "display_name": "User",
+          "mailbox_address": "user@skymail.local"
+        },
+        "compose": {
+          "to": "recipient@example.com",
+          "subject": "Status",
+          "text": "Weekly update",
+          "channel": "general"
+        },
+        "search": "status",
+        "inbox_records": []
+      },
+      "assets": []
     },
-    "state": {
-      "profile": {
-        "display_name": "User"
-      }
+    {
+      "id": "skyechat-canonical",
+      "meta": {
+        "app_id": "SkyeChat",
+        "schema_version": 1,
+        "workspace_id": "primary-workspace",
+        "title": "SkyeChat Workspace Snapshot",
+        "exported_at": "2026-03-09T00:00:00Z"
+      },
+      "state": {
+        "profile": {
+          "display_name": "User",
+          "handle": "@user"
+        },
+        "compose": {
+          "channel": "community",
+          "message": "Roadmap sync"
+        },
+        "filters": {
+          "filter_channel": "community",
+          "search": "roadmap"
+        },
+        "feed_records": []
+      },
+      "assets": []
     }
-  }
-]
+  ]
+}

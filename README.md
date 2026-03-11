@@ -172,6 +172,32 @@ Or use the optional compose profile:
 docker compose --profile site up --build site
 ```
 
+### Clean production container path
+
+For a hardened production container of the frontend artifact, use the dedicated production compose file:
+
+```bash
+cp .env.production.example .env.production
+docker compose --env-file .env.production -f docker-compose.production.yml build
+docker compose --env-file .env.production -f docker-compose.production.yml up -d
+```
+
+Production container notes:
+
+* The image runs the built Vite site behind an unprivileged nginx container on port `8080`.
+* The build now runs `npm run release:checklist` before `npm run build`, so broken release-policy state fails the image build early.
+* The production compose service is hardened with `read_only`, `tmpfs`, `cap_drop: [ALL]`, `no-new-privileges`, and an HTTP health check at `/healthz`.
+* Docker build context excludes ZIP artifacts, ignored files, local env files, and `SKNore` material via [.dockerignore](.dockerignore).
+* The Netlify Functions and Cloudflare Worker remain native managed runtimes by architecture; this production container path is for the built frontend surface, not a silent re-platforming of those serverless components.
+
+### Clean project ZIP export
+
+To generate a clean archive of the workspace without ZIP files, gitignored files, or `SKNore` material:
+
+```bash
+./scripts/zip-clean-project.sh
+```
+
 ### Container targets
 
 * `app-dev` – Node image with repo dependencies and Netlify CLI for local site/functions development.

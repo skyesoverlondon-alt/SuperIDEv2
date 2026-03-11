@@ -1,32 +1,95 @@
-[
-  {
-    "id": "skyenotes-export",
-    "meta": {
-      "app_id": "SkyeNotes",
-      "schema_version": 1
-    },
-    "state": {
-      "notes": []
+{
+  "runtimeFixture": {
+    "appId": "SkyeMail",
+    "passphrase": "correct horse battery staple",
+    "wrongPassphrase": "incorrect horse battery staple",
+    "hint": "board-safe",
+    "exportedAt": "2026-03-09T00:00:00.000Z",
+    "payload": {
+      "meta": {
+        "app_id": "SkyeMail",
+        "schema_version": 1,
+        "workspace_id": "primary-workspace",
+        "title": "SkyeMail Workspace Snapshot",
+        "owner": "founder@example.com"
+      },
+      "state": {
+        "profile": {
+          "mailbox_address": "founder@skymail.local",
+          "display_name": "Founder"
+        },
+        "compose": {
+          "to": "ops@example.com",
+          "subject": "Launch review",
+          "text": "Review the current rollout gates.",
+          "channel": "leadership"
+        },
+        "search": "launch",
+        "inbox_records": []
+      },
+      "assets": []
     }
   },
-  {
-    "id": "skyeforms-export",
+  "wrongAppFixture": {
     "meta": {
-      "app_id": "SkyeForms",
-      "schema_version": 1
+      "app_id": "SkyeChat",
+      "schema_version": 1,
+      "workspace_id": "primary-workspace",
+      "title": "SkyeChat Workspace Snapshot"
     },
     "state": {
-      "questions": []
-    }
+      "profile": {
+        "display_name": "Operator",
+        "handle": "@ops"
+      },
+      "compose": {
+        "channel": "community",
+        "message": "This belongs to chat."
+      },
+      "filters": {
+        "filter_channel": "community",
+        "search": "ops"
+      },
+      "feed_records": []
+    },
+    "assets": []
   },
-  {
-    "id": "skyesheets-export",
-    "meta": {
-      "app_id": "SkyeSheets",
-      "schema_version": 1
+  "vectors": [
+    { "id": "canonical-secure-envelope", "kind": "runtime-generated", "expect": "pass" },
+    { "id": "wrong-marker", "kind": "binary-mutation", "expect": "reject" },
+    { "id": "wrong-delimiter", "kind": "binary-mutation", "expect": "reject" },
+    { "id": "malformed-json", "kind": "binary-mutation", "expect": "reject" },
+    { "id": "wrong-format", "kind": "metadata-mutation", "expect": "reject" },
+    { "id": "wrong-alg", "kind": "metadata-mutation", "expect": "reject" },
+    { "id": "wrong-kdf", "kind": "metadata-mutation", "expect": "reject" },
+    { "id": "wrong-iterations", "kind": "metadata-mutation", "expect": "reject" },
+    { "id": "decrypt-success", "kind": "runtime-generated", "expect": "pass" },
+    { "id": "wrong-passphrase", "kind": "decrypt-mutation", "expect": "reject" },
+    { "id": "tamper-rejection", "kind": "cipher-mutation", "expect": "reject" },
+    { "id": "wrong-app", "kind": "compatibility-check", "expect": "reject" },
+    { "id": "legacy-text-prefixed-envelope", "kind": "legacy-adapter", "expect": "pass" },
+    { "id": "legacy-skye-v2", "kind": "legacy-adapter", "expect": "pass" }
+  ],
+  "goldenFiles": [
+    {
+      "id": "canonical-secure-envelope",
+      "path": "docs/skye/fixtures/canonical-secure-envelope.skye",
+      "status": "planned-runtime-generated"
     },
-    "state": {
-      "rows": []
+    {
+      "id": "tampered-secure-envelope",
+      "path": "docs/skye/fixtures/tampered-secure-envelope.skye",
+      "status": "planned-derived-from-canonical"
+    },
+    {
+      "id": "legacy-text-prefixed-envelope",
+      "path": "docs/skye/fixtures/legacy-text-prefixed-envelope.txt",
+      "status": "planned-legacy-adapter"
+    },
+    {
+      "id": "wrong-app-envelope",
+      "path": "docs/skye/fixtures/wrong-app-envelope.skye",
+      "status": "planned-app-compatibility"
     }
-  }
-]
+  ]
+}

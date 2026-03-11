@@ -109,6 +109,10 @@
     return headers;
   }
 
+  function matchesPath(pathname, parts) {
+    return pathname === "/" + parts.join("/");
+  }
+
   async function gatewayGenerate(prompt, system, inputHeaders) {
     await ensureUnlockedAccess();
     const response = await nativeFetch("/api/kaixu-generate", {
@@ -153,7 +157,7 @@
       return nativeFetch(input, nextInit);
     }
 
-    if (normalizedUrl.hostname === "api.openai.com" && normalizedUrl.pathname === "/v1/chat/completions") {
+    if (normalizedUrl.hostname === "api.openai.com" && matchesPath(normalizedUrl.pathname, ["v1", "chat", "completions"])) {
       const extracted = extractOpenAIText(body || {});
       const text = await gatewayGenerate(extracted.prompt, extracted.system, init && init.headers);
       return responseJson({ choices: [{ message: { content: text } }] });
@@ -165,7 +169,7 @@
       return responseJson({ candidates: [{ content: { parts: [{ text: text }] } }] });
     }
 
-    if (normalizedUrl.hostname === "api.openai.com" && normalizedUrl.pathname === "/v1/images/generations") {
+    if (normalizedUrl.hostname === "api.openai.com" && matchesPath(normalizedUrl.pathname, ["v1", "images", "generations"])) {
       const visualPrompt = String(body && body.prompt || "").trim();
       const artDirection = await gatewayGenerate(visualPrompt, "Create a concise visual art direction paragraph for this scene.", init && init.headers);
       const pngBase64 = await renderPromptPngBase64(artDirection || visualPrompt, "kAIxU Gateway Render");
