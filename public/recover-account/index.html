@@ -71,6 +71,23 @@
       gap: 14px;
     }
 
+    .section {
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.03);
+      padding: 16px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .section h2 {
+      margin: 0;
+      color: var(--gold);
+      font-size: 0.95rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
     .grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -159,44 +176,62 @@
   <section class="card" aria-label="Account recovery">
     <header class="head">
       <h1>Recover Account</h1>
-      <p>Focused recovery flow outside the IDE shell. Use the backup recovery email here. Token and email are auto-read from reset links.</p>
+      <p>Use the backup recovery email to request the reset, then use the second section to apply the token and set a new password. Reset links open this page and prefill the token automatically.</p>
     </header>
 
     <div class="body">
-      <div class="grid">
+      <section class="section" aria-label="Request reset link">
+        <h2>Request Reset Link</h2>
         <div>
-          <label for="email">Backup Recovery Email</label>
-          <input id="email" type="email" placeholder="you@gmail.com" autocomplete="email" />
+          <label for="requestEmail">Backup Recovery Email</label>
+          <input id="requestEmail" type="email" placeholder="you@gmail.com" autocomplete="email" />
+        </div>
+        <div class="actions">
+          <button id="sendLinkBtn" type="button">Send Reset Link</button>
+        </div>
+        <div class="muted">Only the backup recovery email is needed here. The reset link is delivered to that backup address.</div>
+      </section>
+
+      <section class="section" aria-label="Complete password reset">
+        <h2>Complete Reset</h2>
+        <div class="grid">
+          <div>
+            <label for="confirmEmail">Backup Recovery Email</label>
+            <input id="confirmEmail" type="email" placeholder="you@gmail.com" autocomplete="email" />
+          </div>
+          <div>
+            <label for="token">Reset Token</label>
+            <input id="token" type="text" placeholder="Paste token from email" autocomplete="one-time-code" />
+          </div>
         </div>
         <div>
-          <label for="token">Reset Token</label>
-          <input id="token" type="text" placeholder="Paste token from email" autocomplete="one-time-code" />
+          <label for="newPassword">New Password</label>
+          <input id="newPassword" type="password" placeholder="At least 8 characters" autocomplete="new-password" />
         </div>
-      </div>
-
-      <div>
-        <label for="newPassword">New Password</label>
-        <input id="newPassword" type="password" placeholder="At least 8 characters" autocomplete="new-password" />
-      </div>
-
-      <div class="actions">
-        <button id="sendLinkBtn" type="button">Send Reset Link</button>
-        <button id="resetBtn" class="primary" type="button">Reset Password</button>
-        <a class="btn" href="/" target="_self">Back To SkyeIDE</a>
-      </div>
+        <div class="actions">
+          <button id="resetBtn" class="primary" type="button">Reset Password</button>
+          <a class="btn" href="/" target="_self">Back To SkyeIDE</a>
+        </div>
+        <div class="muted">Links from reset emails open this page with the backup recovery email and token already filled in.</div>
+      </section>
 
       <div class="result" id="result" role="status" aria-live="polite">Ready.</div>
-      <div class="muted">Tip: links sent by email can open this page with the backup recovery email and reset token pre-filled automatically.</div>
     </div>
   </section>
 
   <script>
-    const emailEl = document.getElementById('email');
+    const requestEmailEl = document.getElementById('requestEmail');
+    const confirmEmailEl = document.getElementById('confirmEmail');
     const tokenEl = document.getElementById('token');
     const newPasswordEl = document.getElementById('newPassword');
     const resultEl = document.getElementById('result');
     const sendLinkBtn = document.getElementById('sendLinkBtn');
     const resetBtn = document.getElementById('resetBtn');
+
+    function setBothEmails(email) {
+      requestEmailEl.value = email;
+      confirmEmailEl.value = email;
+    }
 
     function setResult(msg) {
       resultEl.textContent = String(msg || '');
@@ -206,7 +241,7 @@
       const p = new URLSearchParams(window.location.search);
       const email = String(p.get('reset_email') || '').trim().toLowerCase();
       const token = String(p.get('reset_token') || '').trim();
-      if (email) emailEl.value = email;
+      if (email) setBothEmails(email);
       if (token) tokenEl.value = token;
       if (email || token) {
         setResult('Reset link detected. Enter your new password and submit.');
@@ -214,11 +249,12 @@
     }
 
     async function sendResetLink() {
-      const email = String(emailEl.value || '').trim().toLowerCase();
+      const email = String(requestEmailEl.value || '').trim().toLowerCase();
       if (!email) {
         setResult('Enter your backup recovery email first.');
         return;
       }
+      setBothEmails(email);
       sendLinkBtn.disabled = true;
       try {
         const res = await fetch('/api/auth-password-reset-request', {
@@ -240,7 +276,7 @@
     }
 
     async function resetPassword() {
-      const email = String(emailEl.value || '').trim().toLowerCase();
+      const email = String(confirmEmailEl.value || '').trim().toLowerCase();
       const token = String(tokenEl.value || '').trim();
       const newPassword = String(newPasswordEl.value || '');
       if (!email || !token || !newPassword) {

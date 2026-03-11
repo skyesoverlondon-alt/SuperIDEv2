@@ -106,7 +106,7 @@ export const handler = async (event: any) => {
       ]
     );
 
-    const resetLink = `${buildBaseUrl(event)}/?reset_email=${encodeURIComponent(recoveryEmail)}&reset_token=${encodeURIComponent(token)}`;
+    const resetLink = `${buildBaseUrl(event)}/recover-account/?reset_email=${encodeURIComponent(recoveryEmail)}&reset_token=${encodeURIComponent(token)}`;
 
     let deliveryMeta: { provider: string; id: string | null };
     try {
