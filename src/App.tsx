@@ -405,6 +405,43 @@ type IntegrationRuntimeStatus = {
   error?: string;
 };
 
+type SkyeMailAccount = {
+  id: string;
+  mailbox_email: string;
+  display_name: string;
+  provider: string;
+  outbound_enabled: boolean;
+  inbound_enabled: boolean;
+  metadata?: Record<string, unknown> | null;
+  updated_at?: string | null;
+};
+
+type SkyeChatChannel = {
+  id?: string;
+  slug: string;
+  name?: string;
+  kind?: string;
+  visibility?: string;
+  description?: string;
+};
+
+type SkyeChatTopicSummary = {
+  topic: string;
+  c: number;
+};
+
+type SkyeChatNotificationItem = {
+  id: string;
+  kind: string;
+  priority: string;
+  channel: string;
+  message: string;
+  read: boolean;
+  source_record_id?: string;
+  created_at?: string;
+  updated_at?: string;
+};
+
 const PRODUCTIVITY_PAGE_SPECS: Record<ProductivityAppId, ProductivityPageSpec[]> = {
   SkyeSheets: [
     {
@@ -1939,19 +1976,36 @@ export function App() {
   const [mailChannelHook, setMailChannelHook] = useState("general");
   const [mailSendResult, setMailSendResult] = useState("");
   const [isSendingMail, setIsSendingMail] = useState(false);
+  const [mailHistoryRecords, setMailHistoryRecords] = useState<AppRecord[]>([]);
   const [isLoadingMailHistory, setIsLoadingMailHistory] = useState(false);
   const [mailHistoryQuery, setMailHistoryQuery] = useState("");
   const [mailHistoryCursor, setMailHistoryCursor] = useState<string | null>(null);
   const [mailHasMore, setMailHasMore] = useState(false);
+  const [mailAccount, setMailAccount] = useState<SkyeMailAccount | null>(null);
+  const [selectedMailThreadId, setSelectedMailThreadId] = useState("");
+  const [mailThreadRecords, setMailThreadRecords] = useState<AppRecord[]>([]);
+  const [isLoadingMailCommandCenter, setIsLoadingMailCommandCenter] = useState(false);
+  const [mailCommandCenterError, setMailCommandCenterError] = useState("");
   const [chatChannelInput, setChatChannelInput] = useState("general");
   const [chatMessageInput, setChatMessageInput] = useState("SkyeChat notify test");
   const [chatNotifyResult, setChatNotifyResult] = useState("");
   const [isNotifyingChat, setIsNotifyingChat] = useState(false);
+  const [chatHistoryRecords, setChatHistoryRecords] = useState<AppRecord[]>([]);
   const [isLoadingChatHistory, setIsLoadingChatHistory] = useState(false);
   const [chatHistoryQuery, setChatHistoryQuery] = useState("");
   const [chatHistoryChannel, setChatHistoryChannel] = useState("");
   const [chatHistoryCursor, setChatHistoryCursor] = useState<string | null>(null);
   const [chatHasMore, setChatHasMore] = useState(false);
+  const [chatChannels, setChatChannels] = useState<SkyeChatChannel[]>([]);
+  const [chatRole, setChatRole] = useState("");
+  const [chatTopicFeed, setChatTopicFeed] = useState<AppRecord[]>([]);
+  const [chatTopicSummary, setChatTopicSummary] = useState<SkyeChatTopicSummary[]>([]);
+  const [chatNotificationItems, setChatNotificationItems] = useState<SkyeChatNotificationItem[]>([]);
+  const [chatUnreadCount, setChatUnreadCount] = useState(0);
+  const [chatTopicFilter, setChatTopicFilter] = useState("");
+  const [chatFeedWindow, setChatFeedWindow] = useState<"24h" | "7d" | "30d">("7d");
+  const [isLoadingChatCommandCenter, setIsLoadingChatCommandCenter] = useState(false);
+  const [chatCommandCenterError, setChatCommandCenterError] = useState("");
   const [neuralRoomChannel, setNeuralRoomChannel] = useState("neural-space");
   const [neuralRoomMessage, setNeuralRoomMessage] = useState("Neural Space Pro session online and synchronized with IDE workspace.");
   const [isPublishingNeuralRoom, setIsPublishingNeuralRoom] = useState(false);
@@ -3845,6 +3899,31 @@ export function App() {
   }, [workspaceId]);
 
   useEffect(() => {
+    if (selectedSkyeApp === "SkyeMail") {
+      void refreshSkyeMailCommandCenter();
+    }
+    if (selectedSkyeApp === "SkyeChat") {
+      void refreshSkyeChatCommandCenter();
+    }
+  }, [selectedSkyeApp, workspaceId]);
+
+  useEffect(() => {
+    if (selectedSkyeApp !== "SkyeMail") return;
+    if (selectedMailThreadId) return;
+    const firstThreadId = mailHistoryRecords
+      .map((record) => String(asObject(record.payload).thread_id || "").trim())
+      .find(Boolean);
+    if (firstThreadId) {
+      void loadSkyeMailThread(firstThreadId);
+    }
+  }, [selectedSkyeApp, selectedMailThreadId, mailHistoryRecords]);
+
+  useEffect(() => {
+    if (selectedSkyeApp !== "SkyeChat") return;
+    void refreshSkyeChatCommandCenter();
+  }, [selectedSkyeApp, chatTopicFilter, chatFeedWindow]);
+
+  useEffect(() => {
     if (selectedSkyeApp === "SkyeAdmin") {
       void loadTeamMembers();
       void loadWorkspaceMembers();
@@ -5518,6 +5597,7 @@ export function App() {
         return;
       }
       const records = Array.isArray(data?.records) ? data.records : [];
+      setMailHistoryRecords((old) => (append ? [...old, ...records] : records));
       const nextItems = records.map(formatSkyeMailRecord);
       setMailItems((old) => (append ? [...old, ...nextItems] : nextItems));
       setMailHistoryCursor(data?.page?.next_before || null);
@@ -5546,6 +5626,7 @@ export function App() {
         return;
       }
       const records = Array.isArray(data?.records) ? data.records : [];
+      setChatHistoryRecords((old) => (append ? [...old, ...records] : records));
       const nextItems = records.map(formatSkyeChatRecord);
       setChatMessages((old) => (append ? [...old, ...nextItems] : nextItems));
       setChatHistoryCursor(data?.page?.next_before || null);
@@ -5554,6 +5635,112 @@ export function App() {
       setChatNotifyResult(error?.message || "history failed");
     } finally {
       setIsLoadingChatHistory(false);
+    }
+  }
+
+  async function refreshSkyeMailCommandCenter() {
+    setIsLoadingMailCommandCenter(true);
+    setMailCommandCenterError("");
+    try {
+      const res = await fetch("/api/skymail-account-get", { method: "GET", credentials: "include" });
+      const data = await readApiJsonResponse(res, "/api/skymail-account-get");
+      if (!res.ok) {
+        setMailAccount(null);
+        setMailCommandCenterError(data?.error || `mail account failed (${res.status})`);
+      } else {
+        setMailAccount((data?.account || null) as SkyeMailAccount | null);
+      }
+      await loadSkyeMailHistory();
+    } catch (error: any) {
+      setMailAccount(null);
+      setMailCommandCenterError(error?.message || "mail command center failed");
+    } finally {
+      setIsLoadingMailCommandCenter(false);
+    }
+  }
+
+  async function loadSkyeMailThread(threadId: string) {
+    const nextThreadId = String(threadId || "").trim();
+    setSelectedMailThreadId(nextThreadId);
+    if (!nextThreadId) {
+      setMailThreadRecords([]);
+      return;
+    }
+    setIsLoadingMailCommandCenter(true);
+    setMailCommandCenterError("");
+    try {
+      const qs = new URLSearchParams({ thread_id: nextThreadId });
+      const res = await fetch(`/api/skymail-thread-list?${qs.toString()}`, { method: "GET", credentials: "include" });
+      const data = await readApiJsonResponse(res, "/api/skymail-thread-list");
+      if (!res.ok) {
+        setMailThreadRecords([]);
+        setMailCommandCenterError(data?.error || `mail thread failed (${res.status})`);
+        return;
+      }
+      setMailThreadRecords(Array.isArray(data?.records) ? data.records : []);
+    } catch (error: any) {
+      setMailThreadRecords([]);
+      setMailCommandCenterError(error?.message || "mail thread failed");
+    } finally {
+      setIsLoadingMailCommandCenter(false);
+    }
+  }
+
+  async function refreshSkyeChatCommandCenter() {
+    setIsLoadingChatCommandCenter(true);
+    setChatCommandCenterError("");
+    try {
+      const topicQs = new URLSearchParams({ period: chatFeedWindow, limit: "12" });
+      if (chatTopicFilter.trim()) topicQs.set("topic", chatTopicFilter.trim().toLowerCase());
+      const notificationQs = new URLSearchParams({ limit: "8", unread_only: "1" });
+      const [channelsRes, topicsRes, notificationsRes] = await Promise.all([
+        fetch("/api/skychat-channel-list", { method: "GET", credentials: "include" }),
+        fetch(`/api/skychat-topic-feed?${topicQs.toString()}`, { method: "GET", credentials: "include" }),
+        fetch(`/api/skychat-notification-list?${notificationQs.toString()}`, { method: "GET", credentials: "include" }),
+      ]);
+      const [channelsData, topicsData, notificationsData] = await Promise.all([
+        readApiJsonResponse(channelsRes, "/api/skychat-channel-list"),
+        readApiJsonResponse(topicsRes, "/api/skychat-topic-feed"),
+        readApiJsonResponse(notificationsRes, "/api/skychat-notification-list"),
+      ]);
+
+      if (!channelsRes.ok) {
+        setChatChannels([]);
+        setChatRole("");
+        setChatCommandCenterError(channelsData?.error || `channel list failed (${channelsRes.status})`);
+      } else {
+        setChatChannels(Array.isArray(channelsData?.channels) ? channelsData.channels : []);
+        setChatRole(String(channelsData?.role || ""));
+      }
+
+      if (!topicsRes.ok) {
+        setChatTopicFeed([]);
+        setChatTopicSummary([]);
+        setChatCommandCenterError((current) => current || topicsData?.error || `topic feed failed (${topicsRes.status})`);
+      } else {
+        setChatTopicFeed(Array.isArray(topicsData?.records) ? topicsData.records : []);
+        setChatTopicSummary(Array.isArray(topicsData?.topics) ? topicsData.topics : []);
+      }
+
+      if (!notificationsRes.ok) {
+        setChatNotificationItems([]);
+        setChatUnreadCount(0);
+        setChatCommandCenterError((current) => current || notificationsData?.error || `notifications failed (${notificationsRes.status})`);
+      } else {
+        setChatNotificationItems(Array.isArray(notificationsData?.notifications) ? notificationsData.notifications : []);
+        setChatUnreadCount(Number(notificationsData?.unread_count || 0));
+      }
+
+      await loadSkyeChatHistory();
+    } catch (error: any) {
+      setChatCommandCenterError(error?.message || "chat command center failed");
+      setChatChannels([]);
+      setChatTopicFeed([]);
+      setChatTopicSummary([]);
+      setChatNotificationItems([]);
+      setChatUnreadCount(0);
+    } finally {
+      setIsLoadingChatCommandCenter(false);
     }
   }
 
@@ -9028,18 +9215,179 @@ export function App() {
     }
 
     if (selectedSkyeApp === "SkyeMail") {
+      const unreadCount = mailHistoryRecords.filter((record) => Boolean(asObject(record.payload).unread)).length;
+      const starredCount = mailHistoryRecords.filter((record) => Boolean(asObject(record.payload).starred)).length;
+      const activeThreadMap = new Map<
+        string,
+        { id: string; subject: string; counterparty: string; count: number; unread: number; updatedAt: string }
+      >();
+      for (const record of mailHistoryRecords) {
+        const payload = asObject(record.payload);
+        const threadId = String(payload.thread_id || record.id || "").trim();
+        if (!threadId) continue;
+        const subject = String(payload.subject || record.title || "(no subject)");
+        const direction = String(payload.direction || (record.app === "SkyeMailInbound" ? "inbound" : "outbound")).toLowerCase();
+        const counterparty = String((direction === "inbound" ? payload.from : payload.to) || payload.mailbox || "unknown");
+        const updatedAt = String(record.updated_at || record.created_at || "");
+        const existing = activeThreadMap.get(threadId);
+        if (!existing) {
+          activeThreadMap.set(threadId, {
+            id: threadId,
+            subject,
+            counterparty,
+            count: 1,
+            unread: payload.unread ? 1 : 0,
+            updatedAt,
+          });
+        } else {
+          existing.count += 1;
+          existing.unread += payload.unread ? 1 : 0;
+          if (updatedAt && updatedAt > existing.updatedAt) existing.updatedAt = updatedAt;
+        }
+      }
+      const activeThreads = [...activeThreadMap.values()].sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
+      const focusedThreadTitle = mailThreadRecords.length
+        ? String(asObject(mailThreadRecords[0]?.payload).subject || mailThreadRecords[0]?.title || "Focused Thread")
+        : "Focused Thread";
       return (
         <section className="app-module platform-shell" style={{ minHeight: "84vh" }}>
           <header>
             <h2>SkyeMail Platform</h2>
-            <p>Dedicated standalone mail workspace integrated into IDE. Users can create accounts, set mailbox profile, send mail, and work from inbox surface.</p>
+            <p>Gmail-grade mail command center inside SuperIDE with mailbox posture, live compose controls, thread review, and cross-suite routing into SkyeChat.</p>
             <p className="muted-copy">Delivery path: outbound email now supports SMTP (Gmail-compatible) with fallback to Resend. Inbox stream unifies outbound + inbound records.</p>
             <p className="muted-copy">Inbound bridge endpoint: <code>/api/skymail-inbound-ingest</code> (secured via <code>MAIL_INGEST_SECRET</code>).</p>
           </header>
           <div className="tool-actions left" style={{ marginBottom: 10 }}>
+            <button className="ghost" type="button" onClick={() => void refreshSkyeMailCommandCenter()}>
+              {isLoadingMailCommandCenter ? "Refreshing..." : "Refresh Command Center"}
+            </button>
             <a className="ghost" href={`/SkyeMail/index.html?ws_id=${encodeURIComponent(workspaceId)}`} target="_blank" rel="noreferrer">Open SkyeMail Standalone</a>
             <button className="ghost" type="button" onClick={() => setSelectedSkyeApp("SkyeChat")}>Go To SkyeChat</button>
+            <button
+              className="ghost"
+              type="button"
+              onClick={() =>
+                void shareAppSnapshot(
+                  "SkyeMail",
+                  `SkyeMail mailbox=${mailAccount?.mailbox_email || "unconfigured"} unread=${unreadCount} threads=${activeThreads.length}`
+                )
+              }
+            >
+              Share Mail Snapshot
+            </button>
             <button className="ghost" type="button" onClick={() => setSelectedSkyeApp("SkyeDocs")}>Return To IDE Workspace</button>
+          </div>
+          <div className="ops-grid two-up">
+            <article className="list-item command-center-card">
+              <div className="replacement-panel-head">
+                <div>
+                  <strong>Mailbox Command Deck</strong>
+                  <p className="muted-copy">Routing, sender posture, and compose actions stay visible before operators drop into the full workspace.</p>
+                </div>
+                <span className={`shell-state-pill ${mailRuntimeStatus?.configured ? "ok" : "warn"}`}>
+                  {mailRuntimeStatus?.configured ? "delivery ready" : "delivery blocked"}
+                </span>
+              </div>
+              <div className="metric-strip">
+                <span>Mailbox: {mailAccount?.mailbox_email || "not configured"}</span>
+                <span>Provider: {mailRuntimeStatus?.active_provider || mailAccount?.provider || "unconfigured"}</span>
+                <span>Unread: {unreadCount}</span>
+                <span>Threads: {activeThreads.length}</span>
+                <span>Starred: {starredCount}</span>
+              </div>
+              <div className="focus-card-grid">
+                <div className="focus-cell">
+                  <small>Sender</small>
+                  <strong>{mailRuntimeStatus?.from || mailAccount?.display_name || "No sender configured"}</strong>
+                </div>
+                <div className="focus-cell">
+                  <small>Inbound</small>
+                  <strong>{mailAccount?.inbound_enabled ? "Mailbox ingest enabled" : "Inbound not enabled"}</strong>
+                </div>
+                <div className="focus-cell">
+                  <small>Latest Thread</small>
+                  <strong>{activeThreads[0]?.subject || "No active threads yet"}</strong>
+                </div>
+                <div className="focus-cell">
+                  <small>Bridge</small>
+                  <strong>{mailChannelHook.trim() ? `Post-send follow-up routes to #${mailChannelHook.trim()}` : "No chat hook set"}</strong>
+                </div>
+              </div>
+              <div className="tool-row split">
+                <input value={mailTo} onChange={(e) => setMailTo(e.target.value)} placeholder="client@company.com" />
+                <input value={mailSubject} onChange={(e) => setMailSubject(e.target.value)} placeholder="Executive brief" />
+              </div>
+              <textarea value={mailText} onChange={(e) => setMailText(e.target.value)} placeholder="Compose a delivery-safe message body." />
+              <div className="tool-row split">
+                <input value={mailChannelHook} onChange={(e) => setMailChannelHook(e.target.value)} placeholder="chat hook channel" />
+                <input value={mailHistoryQuery} onChange={(e) => setMailHistoryQuery(e.target.value)} placeholder="search inbox or sender" />
+              </div>
+              <div className="tool-actions left">
+                <button type="button" onClick={() => void sendSkyeMail()} disabled={isSendingMail}>
+                  {isSendingMail ? "Sending..." : "Send From Command Deck"}
+                </button>
+                <button type="button" className="ghost" onClick={() => void loadSkyeMailHistory()} disabled={isLoadingMailHistory}>
+                  {isLoadingMailHistory ? "Refreshing inbox..." : "Refresh Inbox"}
+                </button>
+                <button type="button" className="ghost" onClick={() => setSelectedSkyeApp("SkyeChat")}>Route To SkyeChat</button>
+              </div>
+              {(mailSendResult || mailCommandCenterError) && <p className="muted-copy">{mailCommandCenterError || mailSendResult}</p>}
+            </article>
+            <article className="list-item command-center-card">
+              <div className="replacement-panel-head">
+                <div>
+                  <strong>Thread Supervision</strong>
+                  <p className="muted-copy">Operators can jump from inbox pressure to thread detail without leaving the IDE rail.</p>
+                </div>
+                <span className={`shell-state-pill ${mailThreadRecords.length ? "ok" : "warn"}`}>
+                  {mailThreadRecords.length ? `${mailThreadRecords.length} records focused` : "select a thread"}
+                </span>
+              </div>
+              <div className="compact-section mail-thread-list">
+                {activeThreads.slice(0, 6).map((thread) => (
+                  <button
+                    key={thread.id}
+                    type="button"
+                    className={`list-item interactive-row thread-list-row ${selectedMailThreadId === thread.id ? "active" : ""}`}
+                    onClick={() => void loadSkyeMailThread(thread.id)}
+                  >
+                    <strong>{thread.subject}</strong>
+                    <small>{thread.counterparty}</small>
+                    <small>
+                      {thread.count} message{thread.count === 1 ? "" : "s"} · {thread.unread} unread
+                    </small>
+                  </button>
+                ))}
+                {!activeThreads.length && <p className="muted-copy">Load inbox history to build the active thread stack.</p>}
+              </div>
+              <div className="focus-card-grid">
+                <div className="focus-cell">
+                  <small>Focused Thread</small>
+                  <strong>{focusedThreadTitle}</strong>
+                </div>
+                <div className="focus-cell">
+                  <small>Last Activity</small>
+                  <strong>
+                    {mailThreadRecords[mailThreadRecords.length - 1]?.updated_at
+                      ? new Date(String(mailThreadRecords[mailThreadRecords.length - 1]?.updated_at)).toLocaleString()
+                      : "No thread selected"}
+                  </strong>
+                </div>
+              </div>
+              <div className="compact-section">
+                {mailThreadRecords.slice(-6).map((record) => {
+                  const payload = asObject(record.payload);
+                  const direction = String(payload.direction || (record.app === "SkyeMailInbound" ? "inbound" : "outbound")).toLowerCase();
+                  const party = String((direction === "inbound" ? payload.from : payload.to) || payload.mailbox || "unknown");
+                  return (
+                    <div key={record.id} className="list-item mini-event-card">
+                      <strong>{direction === "inbound" ? "Inbound" : "Outbound"} · {party}</strong>
+                      <small>{String(payload.text || record.title || "").slice(0, 180) || "No body preview."}</small>
+                    </div>
+                  );
+                })}
+              </div>
+            </article>
           </div>
           <iframe
             title="SkyeMail Workspace"
@@ -9097,17 +9445,152 @@ export function App() {
     }
 
     if (selectedSkyeApp === "SkyeChat") {
+      const chatActiveChannels = new Set(
+        [
+          ...chatChannels.map((channel) => channel.slug),
+          ...chatHistoryRecords.map((record) => String(asObject(record.payload).channel || "").trim()),
+        ].filter(Boolean)
+      );
+      const unresolvedQuestions = chatHistoryRecords.filter((record) => /\?$/.test(String(asObject(record.payload).message || "").trim())).length;
+      const actionDebt = chatHistoryRecords.filter((record) => /(todo|action|follow up|assign)/i.test(String(asObject(record.payload).message || ""))).length;
       return (
         <section className="app-module platform-shell" style={{ minHeight: "84vh" }}>
           <header>
             <h2>SkyeChat Platform</h2>
-            <p>Dedicated standalone chat workspace integrated into IDE with room feed, identity profile, and kAIxU threaded responses.</p>
+            <p>Reddit-plus-Slack command center for rooms, ops notifications, hot-topic review, and live kAIxU-assisted publishing inside the IDE.</p>
           </header>
           <div className="tool-actions left" style={{ marginBottom: 10 }}>
+            <button className="ghost" type="button" onClick={() => void refreshSkyeChatCommandCenter()}>
+              {isLoadingChatCommandCenter ? "Refreshing..." : "Refresh Ops Deck"}
+            </button>
             <button className="ghost" type="button" onClick={applyNeuralRoomDefaultsToChat}>Use Neural Room Defaults</button>
             <button className="ghost" type="button" onClick={() => setAppMode("neural")}>Open Neural Space Pro</button>
             <a className="ghost" href={`/SkyeChat/index.html?ws_id=${encodeURIComponent(workspaceId)}`} target="_blank" rel="noreferrer">Open SkyeChat Standalone</a>
+            <button
+              className="ghost"
+              type="button"
+              onClick={() =>
+                void shareAppSnapshot(
+                  "SkyeChat",
+                  `SkyeChat channel=${chatChannelInput || "general"} unread=${chatUnreadCount} active_channels=${chatActiveChannels.size}`
+                )
+              }
+            >
+              Share Chat Snapshot
+            </button>
             <button className="ghost" type="button" onClick={() => setSelectedSkyeApp("SkyeDocs")}>Return To IDE Workspace</button>
+          </div>
+          <div className="ops-grid two-up">
+            <article className="list-item command-center-card">
+              <div className="replacement-panel-head">
+                <div>
+                  <strong>Ops Broadcast Deck</strong>
+                  <p className="muted-copy">Publish room updates, ask kAIxU for threaded help, and keep the current channel synced with the wider suite.</p>
+                </div>
+                <span className={`shell-state-pill ${chatUnreadCount ? "warn" : "ok"}`}>
+                  {chatUnreadCount ? `${chatUnreadCount} unread alerts` : "alerts clear"}
+                </span>
+              </div>
+              <div className="metric-strip">
+                <span>Role: {chatRole || "member"}</span>
+                <span>Active channels: {chatActiveChannels.size}</span>
+                <span>Action debt: {actionDebt}</span>
+                <span>Questions: {unresolvedQuestions}</span>
+                <span>Topics: {chatTopicSummary.length}</span>
+              </div>
+              <div className="tool-row split">
+                <input value={chatChannelInput} onChange={(e) => setChatChannelInput(e.target.value)} placeholder="community" />
+                <input value={chatHistoryQuery} onChange={(e) => setChatHistoryQuery(e.target.value)} placeholder="search feed or source" />
+              </div>
+              <textarea value={chatMessageInput} onChange={(e) => setChatMessageInput(e.target.value)} placeholder="Publish an ops update, room handoff, or community prompt." />
+              <div className="tool-row split">
+                <input value={chatHistoryChannel} onChange={(e) => setChatHistoryChannel(e.target.value)} placeholder="filter history channel" />
+                <input value={chatTopicFilter} onChange={(e) => setChatTopicFilter(e.target.value)} placeholder="topic filter" />
+              </div>
+              <div className="workspace-mode-row">
+                {(["24h", "7d", "30d"] as const).map((windowKey) => (
+                  <button
+                    key={windowKey}
+                    type="button"
+                    className={chatFeedWindow === windowKey ? "ghost active-chip" : "ghost"}
+                    onClick={() => setChatFeedWindow(windowKey)}
+                  >
+                    {windowKey}
+                  </button>
+                ))}
+              </div>
+              <div className="tool-actions left">
+                <button type="button" onClick={() => void notifySkyeChat()} disabled={isNotifyingChat}>
+                  {isNotifyingChat ? "Publishing..." : "Publish Update"}
+                </button>
+                <button type="button" className="ghost" onClick={() => void notifySkyeChatWithKaixu()} disabled={isAskingKaixuInChat}>
+                  {isAskingKaixuInChat ? "Asking..." : "Publish + Ask kAIxU"}
+                </button>
+                <button type="button" className="ghost" onClick={() => void loadSkyeChatHistory()} disabled={isLoadingChatHistory}>
+                  {isLoadingChatHistory ? "Refreshing feed..." : "Refresh Feed"}
+                </button>
+              </div>
+              {(chatNotifyResult || chatCommandCenterError) && <p className="muted-copy">{chatCommandCenterError || chatNotifyResult}</p>}
+            </article>
+            <article className="list-item command-center-card">
+              <div className="replacement-panel-head">
+                <div>
+                  <strong>Network + Topic Radar</strong>
+                  <p className="muted-copy">Track room footprint, priority alerts, and the conversations that are rising to the top.</p>
+                </div>
+                <span className={`shell-state-pill ${chatChannels.length ? "ok" : "warn"}`}>
+                  {chatChannels.length ? `${chatChannels.length} channels indexed` : "directory loading"}
+                </span>
+              </div>
+              <div className="focus-card-grid">
+                <div className="focus-cell">
+                  <small>Priority Alert</small>
+                  <strong>{chatNotificationItems[0]?.message || "No unread alerts in the current window"}</strong>
+                </div>
+                <div className="focus-cell">
+                  <small>Hottest Topic</small>
+                  <strong>{chatTopicSummary[0] ? `${chatTopicSummary[0].topic} · ${chatTopicSummary[0].c} posts` : "Topic feed is still warming up"}</strong>
+                </div>
+              </div>
+              <div className="command-mini-grid">
+                <div className="compact-section">
+                  {chatChannels.slice(0, 6).map((channel) => (
+                    <button
+                      key={channel.slug}
+                      type="button"
+                      className={`list-item interactive-row ${chatChannelInput === channel.slug ? "active" : ""}`}
+                      onClick={() => {
+                        setChatChannelInput(channel.slug);
+                        setChatHistoryChannel(channel.slug);
+                      }}
+                    >
+                      <strong>#{channel.slug}</strong>
+                      <small>{channel.kind || "channel"} · {channel.visibility || "shared"}</small>
+                    </button>
+                  ))}
+                </div>
+                <div className="compact-section">
+                  {chatTopicFeed.slice(0, 6).map((record) => {
+                    const payload = asObject(record.payload);
+                    return (
+                      <div key={record.id} className="list-item mini-event-card">
+                        <strong>#{String(payload.channel || "general")} · {String(payload.topic || "signal")}</strong>
+                        <small>{String(payload.message || record.title || "").slice(0, 180) || "No message preview."}</small>
+                      </div>
+                    );
+                  })}
+                  {!chatTopicFeed.length && <p className="muted-copy">No ranked topic feed returned for the current filter window.</p>}
+                </div>
+              </div>
+              <div className="compact-section">
+                {chatNotificationItems.slice(0, 4).map((notification) => (
+                  <div key={notification.id} className="list-item mini-event-card">
+                    <strong>{notification.kind} · {notification.priority}</strong>
+                    <small>{notification.channel ? `#${notification.channel} · ` : ""}{notification.message}</small>
+                  </div>
+                ))}
+              </div>
+            </article>
           </div>
           <iframe
             title="SkyeChat Workspace"

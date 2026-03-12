@@ -52,6 +52,18 @@
     .diag-stat span { font-size: 12px; color: var(--text); word-break: break-word; }
     .warn { color: #ffb6b6; }
     .ok { color: #bff0c8; }
+    .summary-grid { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:8px; margin-bottom:10px; }
+    .summary-card { border:1px solid rgba(191,238,255,0.18); border-radius:10px; padding:10px; background:rgba(255,255,255,0.03); }
+    .summary-card strong { display:block; font-size:10px; text-transform:uppercase; letter-spacing:.08em; color:var(--gold); margin-bottom:6px; }
+    .summary-card span { font-size:13px; color:var(--text); display:block; }
+    .lane-grid { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px; margin-bottom:10px; }
+    @media (max-width: 960px) {
+      .main { grid-template-columns: 1fr; }
+      .summary-grid, .lane-grid, .diag-grid, .row { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 640px) {
+      .summary-grid, .lane-grid, .diag-grid, .row { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
@@ -166,6 +178,16 @@
 
       <section class="card">
         <h2>Inbox Workspace</h2>
+        <div class="summary-grid">
+          <div class="summary-card"><strong>Mailbox Readiness</strong><span id="mailSummaryReadiness">waiting</span></div>
+          <div class="summary-card"><strong>Unread Load</strong><span id="mailSummaryUnread">0 unread</span></div>
+          <div class="summary-card"><strong>Thread Depth</strong><span id="mailSummaryThreads">0 threads</span></div>
+          <div class="summary-card"><strong>Delivery Recovery</strong><span id="mailSummaryRecovery">0 pending</span></div>
+        </div>
+        <div class="lane-grid">
+          <div class="diag" id="mailOpsLane">Ops lane: waiting for mailbox diagnostics.</div>
+          <div class="diag" id="mailThreadLane">Thread lane: waiting for inbox records.</div>
+        </div>
         <label>Search</label>
         <input id="search" placeholder="subject, recipient, body" />
         <div class="row" style="margin-top:8px;">
@@ -203,6 +225,7 @@
       inboxRecords: [],
       deliveryRecords: JSON.parse(localStorage.getItem('skymail.delivery.records') || '[]'),
       outboundAudit: JSON.parse(localStorage.getItem('skymail.outbound.audit') || '[]'),
+      mailDiagnostics: null,
     };
     const MAIL_TEMPLATES = [
       { id: 'exec-update', name: 'Executive Update', subject: '[Exec] Weekly Status Update', body: 'Team,\n\nHere is this week\'s status summary:\n- Wins:\n- Risks:\n- Next actions:\n', approvalTag: 'approved:comms-lead' },
@@ -216,6 +239,8 @@
     const preflightPanel = document.getElementById('preflightPanel');
     const templateTagPanel = document.getElementById('templateTagPanel');
     const mailDiagnosticsSummary = document.getElementById('mailDiagnosticsSummary');
+    const mailOpsLane = document.getElementById('mailOpsLane');
+    const mailThreadLane = document.getElementById('mailThreadLane');
     const query = new URLSearchParams(window.location.search);
 
     if (query.get('embed') === '1') {
@@ -239,6 +264,7 @@
       const rows = state.deliveryRecords.slice(0, 8);
       if (!rows.length) {
         deliveryPanel.textContent = 'Delivery lifecycle: no records yet.';
+        renderMailboxCommandDeck();
         return;
       }
       const counts = rows.reduce((acc, row) => {
@@ -247,6 +273,24 @@
       }, {});
       const pendingRetry = state.deliveryRecords.filter((row) => row.status === 'failed' && Number(row.attempts || 1) < Number(document.getElementById('retryMaxAttempts')?.value || 4)).length;
       deliveryPanel.textContent = `Delivery lifecycle: queued=${counts.queued || 0}, sent=${counts.sent || 0}, failed=${counts.failed || 0}, retry_pending=${pendingRetry} | recent=${rows.map((r) => r.subject + ':' + r.status).join(' | ')}`;
+      renderMailboxCommandDeck();
+    }
+
+    function renderMailboxCommandDeck() {
+      const diagnostics = state.mailDiagnostics || {};
+      const inbox = Array.isArray(state.inboxRecords) ? state.inboxRecords : [];
+      const readiness = diagnostics.configured ? (diagnostics.outbound_ready ? 'ready' : 'blocked') : 'not configured';
+      const unread = inbox.filter((record) => Boolean(record?.payload?.unread)).length;
+      const threadCount = new Set(inbox.map((record) => String(record?.payload?.thread_id || record?.id || '')).filter(Boolean)).size;
+      const starred = inbox.filter((record) => Boolean(record?.payload?.starred)).length;
+      const pendingRecovery = state.deliveryRecords.filter((row) => row.status === 'failed' && row.next_retry_at).length;
+      const topThread = inbox[0]?.payload?.subject || inbox[0]?.title || 'No inbox subject yet';
+      document.getElementById('mailSummaryReadiness').textContent = `${readiness} · ${diagnostics.provider || 'provider n/a'}`;
+      document.getElementById('mailSummaryUnread').textContent = `${unread} unread · ${starred} starred`;
+      document.getElementById('mailSummaryThreads').textContent = `${threadCount} threads indexed`;
+      document.getElementById('mailSummaryRecovery').textContent = `${pendingRecovery} retry pending`;
+      mailOpsLane.textContent = `Ops lane: mailbox=${diagnostics.mailbox || 'not configured'} | sender=${diagnostics.sender || 'n/a'} | inbound=${diagnostics.inbound_ready ? 'ready' : 'blocked'} | outbound=${diagnostics.outbound_ready ? 'ready' : 'blocked'}.`;
+      mailThreadLane.textContent = `Thread lane: top_subject=${topThread} | unread=${unread} | indexed_threads=${threadCount} | recent_delivery=${state.deliveryRecords[0]?.subject || 'none'}.`;
     }
 
     const workflowTruth = {
@@ -651,6 +695,14 @@
         `account_inbound=${account ? (account.inbound_enabled ? 'enabled' : 'disabled') : 'n/a'}`,
         `account_outbound=${account ? (account.outbound_enabled ? 'enabled' : 'disabled') : 'n/a'}`,
       ];
+      state.mailDiagnostics = {
+        configured: Boolean(data?.configured),
+        outbound_ready: Boolean(data?.outbound_ready),
+        inbound_ready: Boolean(data?.inbound_ready),
+        provider,
+        sender,
+        mailbox,
+      };
 
       setMailDiagnosticValue('mailDiagProvider', provider);
       setMailDiagnosticValue('mailDiagSender', sender);
@@ -664,6 +716,7 @@
       mailDiagnosticsSummary.textContent = data?.configured
         ? `Mail diagnostics: provider=${provider}, sender=${sender}, mailbox=${mailbox}, outbound=${data?.outbound_ready ? 'ready' : 'blocked'}, inbound=${data?.inbound_ready ? 'ready' : 'blocked'}, ingest=${data?.inbound_endpoint_path || '/api/skymail-inbound-ingest'}.`
         : `Mail diagnostics: provider not configured. ${Array.isArray(data?.warnings) && data.warnings.length ? data.warnings.join(' | ') : ''}`.trim();
+      renderMailboxCommandDeck();
       setTruth('delivery', data?.configured && data?.outbound_ready ? 'ok' : (data?.configured ? 'warn' : 'fail'), data?.configured ? (data?.outbound_ready ? 'Delivery Ready' : 'Delivery Blocked') : 'Delivery Missing');
       setTruth('last', 'ok', 'Diagnostics Ready');
     }
@@ -909,6 +962,7 @@
 
       if (!append) inboxEl.innerHTML = items || '<div class="meta">No mail records found.</div>';
       else inboxEl.insertAdjacentHTML('beforeend', items);
+      renderMailboxCommandDeck();
       setTruth('delivery', 'ok', filtered.length ? 'Inbox Live' : 'Inbox Empty');
       setTruth('last', 'ok', 'Inbox Loaded');
     }
@@ -972,6 +1026,7 @@
       setTruth('last', 'warn', 'Logged Out');
       setStatus('Logged out.', 'info');
       inboxEl.innerHTML = '';
+      renderMailboxCommandDeck();
     }
 
     ensureWorkflowHud();
@@ -1042,6 +1097,7 @@
 
     initTemplates();
     renderDeliveryPanel();
+    renderMailboxCommandDeck();
     runSendPreflight();
     if (standaloneSession?.subscribeSuiteIntents) {
       standaloneSession.subscribeSuiteIntents('SkyeMail', applySuiteIntent);

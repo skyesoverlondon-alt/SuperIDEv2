@@ -51,6 +51,18 @@
     .status { font-size:12px; color:var(--gold); margin-top:8px; white-space:pre-wrap; }
     .row { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
     .diag { border:1px solid rgba(191,238,255,0.22); border-radius:10px; padding:8px; color:var(--muted); font-size:11px; margin-top:8px; }
+    .summary-grid { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:8px; margin-bottom:10px; }
+    .summary-card { border:1px solid rgba(191,238,255,0.18); border-radius:10px; padding:10px; background:rgba(255,255,255,.03); }
+    .summary-card strong { display:block; font-size:10px; text-transform:uppercase; letter-spacing:.08em; color:var(--gold); margin-bottom:6px; }
+    .summary-card span { display:block; font-size:13px; color:var(--text); }
+    .lane-grid { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px; margin-bottom:10px; }
+    @media (max-width: 960px) {
+      .main { grid-template-columns: 1fr; }
+      .summary-grid, .lane-grid, .row { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 640px) {
+      .summary-grid, .lane-grid, .row { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
@@ -155,6 +167,16 @@
 
       <section class="card">
         <h2>Room Feed</h2>
+        <div class="summary-grid">
+          <div class="summary-card"><strong>Ops Readiness</strong><span id="chatSummaryReadiness">waiting</span></div>
+          <div class="summary-card"><strong>Active Channels</strong><span id="chatSummaryChannels">0 channels</span></div>
+          <div class="summary-card"><strong>Alert Pressure</strong><span id="chatSummaryAlerts">0 unread</span></div>
+          <div class="summary-card"><strong>Action Debt</strong><span id="chatSummaryDebt">0 follow-ups</span></div>
+        </div>
+        <div class="lane-grid">
+          <div class="diag" id="chatOpsLane">Ops lane: waiting for channels and notifications.</div>
+          <div class="diag" id="chatCommunityLane">Community lane: waiting for feed and topic ranking.</div>
+        </div>
         <div class="diag" id="channelDirectoryPanel">Channels: loading...</div>
         <div class="diag" id="notificationsPanel">Notifications: loading...</div>
         <div class="row" style="margin-top:8px;">
@@ -211,6 +233,8 @@
     const notificationsPanel = document.getElementById('notificationsPanel');
     const replyTargetPanel = document.getElementById('replyTargetPanel');
     const notificationList = document.getElementById('notificationList');
+    const chatOpsLane = document.getElementById('chatOpsLane');
+    const chatCommunityLane = document.getElementById('chatCommunityLane');
     const chatState = {
       records: [],
       channels: [],
@@ -328,9 +352,11 @@
       const channels = Array.isArray(chatState.channels) ? chatState.channels : [];
       if (!channels.length) {
         channelDirectoryPanel.textContent = 'Channels: none available yet.';
+        renderOpsSummary();
         return;
       }
       channelDirectoryPanel.textContent = `Channels (${chatState.orgRole || 'member'}): ` + channels.map((c) => `#${c.slug}[${c.kind}/${c.visibility}]`).join(' | ');
+      renderOpsSummary();
     }
 
     function renderNotificationsPanel() {
@@ -339,6 +365,7 @@
       if (!recent.length) {
         notificationsPanel.textContent = `Notifications: unread=${Number(notifications.unread_count || 0)}.`;
         notificationList.innerHTML = '';
+        renderOpsSummary();
         return;
       }
       notificationsPanel.textContent = `Notifications: unread=${Number(notifications.unread_count || 0)} | ` + recent.slice(0, 4).map((n) => `${n.kind}:${n.message}`).join(' | ');
@@ -353,6 +380,28 @@
           <div class="vote-row"><button type="button" data-action="mark-read" data-notif-id="${n.id}">Mark Read</button></div>
         </div>`;
       }).join('');
+      renderOpsSummary();
+    }
+
+    function renderOpsSummary() {
+      const records = Array.isArray(chatState.records) ? chatState.records : [];
+      const channels = Array.isArray(chatState.channels) ? chatState.channels : [];
+      const topics = Array.isArray(chatState.topicSummary) ? chatState.topicSummary : [];
+      const notifications = chatState.notifications || { unread_count: 0, recent: [] };
+      const activeChannels = new Set([
+        ...channels.map((channel) => String(channel.slug || '').trim()),
+        ...records.map((record) => String(record?.payload?.channel || '').trim()),
+      ].filter(Boolean));
+      const unresolved = records.filter((record) => /\?$/.test(String(record?.payload?.message || '').trim())).length;
+      const actionDebt = records.filter((record) => /(todo|action|follow up|assign)/i.test(String(record?.payload?.message || '')) && !/(done|resolved|closed)/i.test(String(record?.payload?.message || ''))).length;
+      const topTopic = topics[0] ? `${topics[0].topic}(${topics[0].c})` : 'none';
+      const alertLead = Array.isArray(notifications.recent) && notifications.recent.length ? notifications.recent[0].message : 'none';
+      document.getElementById('chatSummaryReadiness').textContent = `${chatState.orgRole || 'member'} · ${records.length ? 'live' : 'warming'}`;
+      document.getElementById('chatSummaryChannels').textContent = `${activeChannels.size} active lanes`;
+      document.getElementById('chatSummaryAlerts').textContent = `${Number(notifications.unread_count || 0)} unread`;
+      document.getElementById('chatSummaryDebt').textContent = `${actionDebt} follow-ups · ${unresolved} open questions`;
+      chatOpsLane.textContent = `Ops lane: role=${chatState.orgRole || 'member'} | unread=${Number(notifications.unread_count || 0)} | lead_alert=${alertLead} | moderation_actions=${chatState.moderationTimeline.length}.`;
+      chatCommunityLane.textContent = `Community lane: active_channels=${activeChannels.size} | top_topic=${topTopic} | records=${records.length} | unresolved=${unresolved}.`;
     }
 
     function extractDecisionCandidates(records) {
@@ -410,6 +459,7 @@
       const avgLag = lagSamples.length ? Math.round(lagSamples.reduce((a, b) => a + b, 0) / lagSamples.length) : 0;
       const unresolvedActionDebt = rows.filter((record) => /(todo|action)/i.test(String(record?.payload?.message || '')) && !/(done|resolved|closed)/i.test(String(record?.payload?.message || ''))).length;
       qualitySignalsPanel.textContent = `Quality signals: avg_response_lag_min=${avgLag}, unresolved_count=${unresolved}, action_debt=${unresolvedActionDebt}`;
+      renderOpsSummary();
     }
 
     function exportDigest() {
@@ -957,6 +1007,7 @@
       renderHealthPanel(records);
       feedEl.innerHTML = records.map(renderFeedRecord).join('') || '<div class="meta">No topic feed records found.</div>';
       const topicText = chatState.topicSummary.slice(0, 6).map((row) => `${row.topic}(${row.c})`).join(' | ');
+      renderOpsSummary();
       setTruth('room', 'ok', 'Topic Feed Live');
       setTruth('last', 'ok', 'Topic Feed Loaded');
       setStatus(`Topic feed loaded (${records.length} posts). ${topicText ? 'Top topics: ' + topicText : ''}`, 'ok');
@@ -1138,6 +1189,7 @@
     ensureWorkflowHud();
     hydrateAuthInputs();
     refreshAccessTruth();
+    renderOpsSummary();
     if (standaloneSession?.subscribeSuiteIntents) {
       standaloneSession.subscribeSuiteIntents('SkyeChat', applySuiteIntent);
     }

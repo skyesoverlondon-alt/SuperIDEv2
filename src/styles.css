@@ -2563,6 +2563,53 @@ body.global-drop-active iframe {
   gap: 12px;
 }
 
+.command-center-card {
+  gap: 12px;
+}
+
+.shell-state-pill {
+  align-self: flex-start;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 214, 96, 0.24);
+  background: rgba(255, 255, 255, 0.04);
+  color: #fff3bf;
+  padding: 4px 10px;
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.shell-state-pill.ok {
+  border-color: rgba(52, 211, 153, 0.5);
+  color: #b8ffe7;
+}
+
+.shell-state-pill.warn {
+  border-color: rgba(250, 204, 21, 0.5);
+  color: #fff1ad;
+}
+
+.command-mini-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.thread-list-row,
+.mini-event-card {
+  width: 100%;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mail-thread-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .replacement-panel-head {
   display: flex;
   justify-content: space-between;
@@ -3522,6 +3569,7 @@ body.global-drop-active iframe {
   .kanban-grid,
   .kpi-grid,
   .ops-grid.two-up,
+  .command-mini-grid,
   .replacement-columns,
   .spec-grid,
   .focus-card-grid,
