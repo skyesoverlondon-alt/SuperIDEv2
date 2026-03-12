@@ -78,7 +78,9 @@ type ToolTab = "assistant" | "smokehouse" | "playground";
 
 type SkyeAppId =
   | "SkyeDocs"
+  | "ContractorNetwork"
   | "SkyDex4.6"
+  | "SkyeVault-Pro-v4.46"
   | "SkyeDocxPro"
   | "SkyeBlog"
   | "AE-Flow"
@@ -87,6 +89,7 @@ type SkyeAppId =
   | "SkyeBookx"
   | "SkyePlatinum"
   | "REACT2HTML"
+  | "recover-account"
   | "SKYEMAIL-GEN"
   | "Skye-ID"
   | "SkyeSheets"
@@ -120,6 +123,7 @@ type SkyeAppDefinition = {
   id: SkyeAppId;
   summary: string;
   mvp: string[];
+  searchTerms?: string[];
 };
 
 type AuthRole = "owner" | "admin" | "member" | "viewer";
@@ -296,6 +300,15 @@ type FormQuestion = {
   type: "short_text" | "long_text" | "select";
   required: boolean;
   owner: string;
+  help_text?: string;
+  options?: string[];
+};
+
+type FormResponseItem = {
+  id: string;
+  respondent: string;
+  submitted_at: string;
+  answers: Record<string, string>;
 };
 
 type NoteItem = {
@@ -305,6 +318,19 @@ type NoteItem = {
   tags: string;
   owner: string;
   updated_at: string;
+  notebook?: string;
+  pinned?: boolean;
+};
+
+type ProductivityAppId = "SkyeSheets" | "SkyeSlides" | "SkyeForms" | "SkyeNotes";
+
+type ProductivityPageSpec = {
+  id: string;
+  title: string;
+  label: string;
+  summary: string;
+  features: string[];
+  why: string[];
 };
 
 type MergePreviewState = {
@@ -345,6 +371,14 @@ type AppDrawerGroup = {
   apps: SkyeAppId[];
 };
 
+type ShellSkyehawkRoute = SkyeAppId | "Neural-Space-Pro" | "SuperIDE";
+
+type ShellSkyehawkLink = {
+  id: string;
+  label: string;
+  route: ShellSkyehawkRoute;
+};
+
 type MailRuntimeStatus = {
   configured: boolean;
   active_provider: string | null;
@@ -370,6 +404,221 @@ type IntegrationRuntimeStatus = {
   };
   error?: string;
 };
+
+const PRODUCTIVITY_PAGE_SPECS: Record<ProductivityAppId, ProductivityPageSpec[]> = {
+  SkyeSheets: [
+    {
+      id: "command-center",
+      title: "Command Center",
+      label: "Executive board",
+      summary: "Portfolio rollups, owner load, due-window tracking, and risk visibility across the workbook.",
+      features: [
+        "Portfolio KPIs for coverage, due-soon rows, at-risk rows, and owner distribution.",
+        "Multi-view controls to pivot the same workbook into risk, due-date, and ownership lanes.",
+        "Task conversion from live rows so work does not stall inside a spreadsheet cell.",
+      ],
+      why: [
+        "Replaces passive spreadsheet storage with an operating board that exposes execution pressure immediately.",
+        "Lets operators review, assign, and escalate work from one surface instead of exporting to separate tools.",
+      ],
+    },
+    {
+      id: "live-grid",
+      title: "Live Grid",
+      label: "Workbook editor",
+      summary: "Structured grid editing with templates, search, focus row review, and rapid workbook shaping.",
+      features: [
+        "Launch, pipeline, and research templates for common operational workbook shapes.",
+        "Searchable grid with focused row review and row duplication for scenario planning.",
+        "Editable workbook title, dynamic columns, and row-level ownership timestamps.",
+      ],
+      why: [
+        "Covers the day-to-day editing experience users expect from a modern spreadsheet surface.",
+        "Keeps authoring and review in one place instead of separating builder and dashboard experiences.",
+      ],
+    },
+    {
+      id: "automation-lane",
+      title: "Automation Lane",
+      label: "Workflow bridge",
+      summary: "Push workbook signal into tasks, vault, share snapshots, and downstream suite workflows.",
+      features: [
+        "One-click executive brief export into SkyeNotes.",
+        "Risk-row promotion into SkyeTasks for tracked follow-through.",
+        "Vault save and cross-suite snapshot share hooks for persistent handoff.",
+      ],
+      why: [
+        "Makes the sheet actionable across the suite instead of leaving decisions trapped in cells.",
+        "Closes the operational loop required from a real Google Sheets replacement inside this ecosystem.",
+      ],
+    },
+  ],
+  SkyeSlides: [
+    {
+      id: "narrative-board",
+      title: "Narrative Board",
+      label: "Deck planning",
+      summary: "Slide sequencing, storyline shaping, and deck health review across draft, review, and approved work.",
+      features: [
+        "Launch, investor, and training templates to start with complete narrative structures.",
+        "Deck metrics for approvals, speakers, and estimated talk time.",
+        "Active slide editor with speaker, status, and summary controls.",
+      ],
+      why: [
+        "Replaces bare slide editing with deck-level narrative management.",
+        "Gives teams a working planning surface similar to a true presentation suite, not just a text list of slides.",
+      ],
+    },
+    {
+      id: "presenter-view",
+      title: "Presenter View",
+      label: "Run of show",
+      summary: "Speaker timing, talk track summaries, and run-order review for live delivery readiness.",
+      features: [
+        "Estimated minutes per slide based on summary density.",
+        "Run-of-show panel for order, speaker ownership, and delivery pacing.",
+        "Presenter note export into SkyeNotes for rehearsal and handoff.",
+      ],
+      why: [
+        "Presentation systems live or die on delivery support, not just slide composition.",
+        "Turns the deck into an execution artifact for meetings, pitches, and reviews.",
+      ],
+    },
+    {
+      id: "approval-lane",
+      title: "Approval Lane",
+      label: "Review ops",
+      summary: "Approval tracking, review backlog surfacing, and task generation for blocked deck progress.",
+      features: [
+        "Approval-focused workspace mode to isolate unfinished review work.",
+        "Task generation from non-approved slides.",
+        "Outline export to notes and vault handoff for durable review trails.",
+      ],
+      why: [
+        "Lets teams manage presentation review like a real workflow instead of a side conversation.",
+        "Provides the governance layer users expect from a business-grade slide replacement.",
+      ],
+    },
+  ],
+  SkyeForms: [
+    {
+      id: "builder-studio",
+      title: "Builder Studio",
+      label: "Form design",
+      summary: "Question authoring, reusable templates, required fields, helper copy, and select-option management.",
+      features: [
+        "Intake, onboarding, and postmortem templates for common workflows.",
+        "Question-level required flags, helper guidance, and structured select choices.",
+        "Design metrics for question count, required coverage, and response volume.",
+      ],
+      why: [
+        "Covers the authoring capability users expect from a serious forms product.",
+        "Keeps design, validation, and rollout readiness inside the same system.",
+      ],
+    },
+    {
+      id: "response-ops",
+      title: "Response Ops",
+      label: "Submission review",
+      summary: "Capture, filter, and evaluate submissions with completion scoring and operator triage.",
+      features: [
+        "Live response capture lane with question-aware input controls.",
+        "Completion filters to separate partial responses from complete submissions.",
+        "Latest-response routing into SkyeNotes for follow-up and archival.",
+      ],
+      why: [
+        "A replacement form suite needs post-submit operations, not just form building.",
+        "Moves collected signal into the rest of the platform instead of leaving it in a dead inbox.",
+      ],
+    },
+    {
+      id: "routing-rules",
+      title: "Routing Rules",
+      label: "Workflow control",
+      summary: "Operational playbooks that turn required fields and response state into actionable follow-up.",
+      features: [
+        "Response runbook export for QA and operator review.",
+        "Vault save controls for durable snapshots of live forms.",
+        "Question and response analytics that show readiness gaps before launch.",
+      ],
+      why: [
+        "Proves the form can support production intake and workflow routing.",
+        "Provides the compliance and follow-through behavior expected from a Google Forms alternative.",
+      ],
+    },
+  ],
+  SkyeNotes: [
+    {
+      id: "knowledge-hub",
+      title: "Knowledge Hub",
+      label: "Notebook system",
+      summary: "Notebook organization, tag management, pinned records, and searchable operating memory.",
+      features: [
+        "Notebook-aware filtering with pinned, brief, and runbook views.",
+        "Search across title, body, and tags for fast retrieval.",
+        "Notebook, tag, and pin metrics that surface information density and importance.",
+      ],
+      why: [
+        "Makes notes a real knowledge system rather than a flat list of text blobs.",
+        "Supports the way users actually manage working knowledge across multiple projects and lanes.",
+      ],
+    },
+    {
+      id: "promotion-lane",
+      title: "Promotion Lane",
+      label: "Action routing",
+      summary: "Promote notes into tasks, slides, and executive digests without rewriting the same information.",
+      features: [
+        "One-click note promotion into SkyeTasks and SkyeSlides.",
+        "Pinned-note digest export into deck form for leadership updates.",
+        "Task extraction from pinned notes to drive execution from written decisions.",
+      ],
+      why: [
+        "A full notes replacement must convert thought into work without copy-paste friction.",
+        "Turns notes into a first-class operating layer inside the platform.",
+      ],
+    },
+    {
+      id: "operator-briefs",
+      title: "Operator Briefs",
+      label: "Structured templates",
+      summary: "Decision briefs, runbooks, and idea templates that preserve consistent thinking patterns.",
+      features: [
+        "Structured brief, runbook, and idea templates.",
+        "Notebook-specific views for strategic and operational writing.",
+        "Vault save controls for durable knowledge packaging.",
+      ],
+      why: [
+        "Gives teams a repeatable writing system instead of unstructured note sprawl.",
+        "Delivers the template discipline expected from a serious workspace replacement.",
+      ],
+    },
+  ],
+};
+
+function normalizeProductivityKey(value: string) {
+  return String(value || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
+function findSheetColumnIndex(columns: string[], labels: string[]) {
+  const wanted = labels.map((label) => normalizeProductivityKey(label));
+  return columns.findIndex((column) => wanted.includes(normalizeProductivityKey(column)));
+}
+
+function getSheetCellValue(row: SheetRow, columns: string[], labels: string[]) {
+  const index = findSheetColumnIndex(columns, labels);
+  return index >= 0 ? String(row.cells[index] || "") : "";
+}
+
+function estimateReadingMinutes(text: string) {
+  const words = String(text || "").trim().split(/\s+/).filter(Boolean).length;
+  if (!words) return 1;
+  return Math.max(1, Math.ceil(words / 130));
+}
+
+function getProductivitySpec(appId: ProductivityAppId, specId: string) {
+  return PRODUCTIVITY_PAGE_SPECS[appId].find((spec) => spec.id === specId) || PRODUCTIVITY_PAGE_SPECS[appId][0];
+}
 
 type SuiteIntentStatus = "requested" | "queued" | "completed" | "failed";
 
@@ -608,6 +857,8 @@ const AUTH_ORG_NAME_KEY = "kx.auth.orgName";
 const AUTH_CENTER_POPUP_NAME = "skye-auth-center";
 const AUTH_CENTER_AUTO_OPENED_SESSION_KEY = "kx.authCenter.autoOpened";
 const APP_BRIDGE_EVENT_KEY = "kx.app.bridge";
+const VAULT_PRO_PENDING_IMPORT_KEY = "kx.vaultpro.pending.import";
+const NEURAL_PENDING_IMPORT_KEY = "kx.neural.pending.import";
 const DRIVE_DROP_LATEST_KEY = "kx.drive.drop.latest";
 const COMMAND_FEED_KEY = "kx.command.feed";
 const SOVEREIGN_VARIABLES_INBOX_KEY = "sovereign.variables.inbox.v1";
@@ -615,8 +866,10 @@ const AUTH_HAS_PIN_KEY = "kx.auth.hasPin";
 const AUTH_PIN_UNLOCKED_AT_KEY = "kx.auth.pinUnlockedAt";
 
 const SKYE_APPS: SkyeAppDefinition[] = [
-  { id: "SkyeDocs", summary: "Collaborative document workspace.", mvp: ["Rich text", "Markdown mode", "Autosave"] },
+  { id: "SkyeDocs", summary: "Collaborative document workspace.", mvp: ["Rich text", "Markdown mode", "Autosave"], searchTerms: ["docs", "editor", "document", "writing", "workspace"] },
+  { id: "ContractorNetwork", summary: "Contractor intake, routing, and admin review platform.", mvp: ["Submission intake", "Admin review", "Field dispatch routing"], searchTerms: ["contractor", "intake", "vendor", "field ops", "submission"] },
   { id: "SkyDex4.6", summary: "Secure codex IDE surface wired to workspace, gateway, GitHub, and Netlify flows.", mvp: ["Workspace editing", "Gateway prompt lane", "Push + deploy controls"] },
+  { id: "SkyeVault-Pro-v4.46", summary: "Local-first vault workspace with deep import/export back into the SuperIDE suite.", mvp: ["Vault workspace", "Cross-app snapshot ingest", "Send back into suite apps"], searchTerms: ["vault", "storage", "backup", "import", "export", "drive", "sync"] },
   { id: "SkyeDocxPro", summary: "Full document production suite integrated into SuperIDE.", mvp: ["Advanced editor", "Offline-ready workflows", "Production-grade exports"] },
   { id: "SkyeBlog", summary: "AI-first blog studio with direct community publishing flows.", mvp: ["AI draft generation", "Editorial workspace", "Push to chat/mail"] },
   { id: "AE-Flow", summary: "Embedded CRM platform with operator workflows and cross-app command routing.", mvp: ["CRM shell", "Workspace context", "Command network handoff"] },
@@ -624,9 +877,10 @@ const SKYE_APPS: SkyeAppDefinition[] = [
   { id: "SovereignVariables", summary: "Secure environment variable vault with portable exports.", mvp: ["Project/env management", "Encrypted .skye export", "Push to chat/mail"] },
   { id: "SkyeBookx", summary: "AI-native authoring and publishing surface.", mvp: ["Chapter drafting", "AI rewrite", "Compile preview"] },
   { id: "SkyePlatinum", summary: "Executive command hub with kAIxU analysis.", mvp: ["Client registry", "Ledger ops", "AI directives"] },
-  { id: "REACT2HTML", summary: "Convert React snippets into standalone HTML outputs.", mvp: ["kAIxU conversion", "Live preview", "Copy output"] },
-  { id: "SKYEMAIL-GEN", summary: "Generate branded SKYEMAIL identities and exports.", mvp: ["Email generator", "Persistence", "PDF export"] },
-  { id: "Skye-ID", summary: "Generate and archive identity cards with export workflows.", mvp: ["ID generator", "IndexedDB archive", "CSV/PDF export"] },
+  { id: "REACT2HTML", summary: "Convert React snippets into standalone HTML outputs.", mvp: ["kAIxU conversion", "Live preview", "Copy output"], searchTerms: ["react", "html", "convert", "component"] },
+  { id: "recover-account", summary: "Standalone recovery and password reset lane for auth restoration.", mvp: ["Recovery email entry", "Token reset", "Account restore"], searchTerms: ["login", "signin", "sign in", "signup", "sign up", "password", "reset", "recover", "recovery", "auth"] },
+  { id: "SKYEMAIL-GEN", summary: "Generate branded SKYEMAIL identities and exports.", mvp: ["Email generator", "Persistence", "PDF export"], searchTerms: ["login", "signup", "sign up", "mailbox", "identity", "email", "auth"] },
+  { id: "Skye-ID", summary: "Generate and archive identity cards with export workflows.", mvp: ["ID generator", "IndexedDB archive", "CSV/PDF export"], searchTerms: ["identity", "id", "profile", "auth", "login"] },
   { id: "SkyeSheets", summary: "Grid and formula workbook app.", mvp: ["Editable grid", "Formula parser", "CSV import/export"] },
   { id: "SkyeSlides", summary: "Deck builder and presenter mode.", mvp: ["Slide list", "Template blocks", "Presenter view"] },
   { id: "SkyeMail", summary: "Inbox and compose workflows.", mvp: ["Inbox list", "Read thread", "Compose/send"] },
@@ -638,7 +892,7 @@ const SKYE_APPS: SkyeAppDefinition[] = [
   { id: "SkyeNotes", summary: "Notebooks and quick capture.", mvp: ["Notebook tree", "Tags", "Search"] },
   { id: "SkyeAnalytics", summary: "Usage and KPI dashboards.", mvp: ["KPI cards", "Trend charts", "Export CSV"] },
   { id: "SkyeTasks", summary: "Kanban and assignment tracking.", mvp: ["Board columns", "Assignees", "Due dates"] },
-  { id: "SkyeAdmin", summary: "Org roles and integration controls.", mvp: ["User roles", "SSO/integrations", "Audit console"] },
+  { id: "SkyeAdmin", summary: "Org roles and integration controls.", mvp: ["User roles", "SSO/integrations", "Audit console"], searchTerms: ["admin", "login", "signup", "sign in", "auth", "onboarding", "users", "roles", "keys", "access"] },
   { id: "kAIxU-Vision", summary: "Visual concept studio with gateway-only AI scene drafting.", mvp: ["Vision ideation", "Gateway generation", "Poster export"] },
   { id: "kAixu-Nexus", summary: "SOLE project minting command surface via kAIxU gateway.", mvp: ["Prompt minting", "Inspection logs", "Asset export"] },
   { id: "kAIxU-Codex", summary: "World-building codex editor using secured gateway inference.", mvp: ["Entry authoring", "Lore generation", "PDF export"] },
@@ -687,7 +941,9 @@ const PLATFORM_INTRO_PILLARS = [
 
 const APP_SURFACE_PATHS: Partial<Record<SkyeAppId, string>> = {
   SkyeDocs: "/SkyeDocs/index.html",
+  ContractorNetwork: "/ContractorNetwork/index.html",
   "SkyDex4.6": "/SkyDex4.6/index.html",
+  "SkyeVault-Pro-v4.46": "/SkyeVault-Pro-v4.46/drive/index.html",
   SkyeDocxPro: "/SkyeDocxPro/index.html",
   SkyeBlog: "/SkyeBlog/index.html",
   "AE-Flow": "/AE-Flow/index.html",
@@ -696,6 +952,7 @@ const APP_SURFACE_PATHS: Partial<Record<SkyeAppId, string>> = {
   SkyeBookx: "/SkyeBookx/index.html",
   SkyePlatinum: "/SkyePlatinum/index.html",
   "REACT2HTML": "/REACT2HTML/index.html",
+  "recover-account": "/recover-account/index.html",
   "SKYEMAIL-GEN": "/SKYEMAIL-GEN/index.html",
   "Skye-ID": "/Skye-ID/index.html",
   SkyeSheets: "/SkyeSheets/index.html",
@@ -752,10 +1009,20 @@ const APP_TUTORIALS: Record<SkyeAppId, string[]> = {
     "Use Assistant tab to generate/refactor with SKNore enforcement.",
     "Share progress to team via Project Share panel.",
   ],
+  ContractorNetwork: [
+    "Open ContractorNetwork with the current workspace ID already attached.",
+    "Review live submissions, admin review status, and file evidence without leaving the suite context.",
+    "Route the next step into AE-Flow, SkyeMail, or Neural Space Pro when the contractor case needs follow-up.",
+  ],
   "SkyDex4.6": [
     "Load the current workspace snapshot directly from the secure workspace API.",
     "Edit files in the embedded editor and save the full snapshot before release actions.",
     "Use the kAIxU prompt deck for gateway-routed generation, then connect GitHub or Netlify from the right rail as needed.",
+  ],
+  "SkyeVault-Pro-v4.46": [
+    "Open the vault workspace and confirm the bridge status shows SuperIDE connectivity.",
+    "Stage a snapshot from any shell app and pull it into the SuperIDE Imports lane inside the vault.",
+    "Send one vault file back into SkyeDocs, SkyeNotes, Sheets, Slides, or Forms to prove round-trip interoperability.",
   ],
   SkyeDocxPro: [
     "Launch DocxPro in embedded mode from SuperIDE.",
@@ -808,6 +1075,11 @@ const APP_TUTORIALS: Record<SkyeAppId, string[]> = {
     "Paste React component code into the input panel.",
     "Run conversion through kAIxU backend only.",
     "Validate preview and copy final HTML output.",
+  ],
+  "recover-account": [
+    "Open the recovery lane and verify the backup email or account identifier is already in scope.",
+    "Request or confirm a password reset without bouncing the operator into a dead-end auth page.",
+    "Return to the main shell or auth center once the restore path is complete.",
   ],
   "SKYEMAIL-GEN": [
     "Generate custom or random SKYEMAIL identities.",
@@ -951,14 +1223,38 @@ const APP_TUTORIALS: Record<SkyeAppId, string[]> = {
   ],
 };
 
-const FEATURED_APP_IDS: SkyeAppId[] = ["SkyDex4.6", "SkyeBookx", "REACT2HTML", "SKYEMAIL-GEN", "Skye-ID", "SkyePlatinum"];
+const FEATURED_APP_IDS: SkyeAppId[] = ["SkyDex4.6", "SkyeVault-Pro-v4.46", "SkyeBookx", "REACT2HTML", "SKYEMAIL-GEN", "Skye-ID", "SkyePlatinum"];
+
+const SHELL_SKYEHAWK_DISMISSED_KEY = "kx.shell.skyehawk.dismissed";
+
+const SHELL_SKYEHAWK_LINKS: ShellSkyehawkLink[] = [
+  { id: "superide", label: "SuperIDE", route: "SuperIDE" },
+  { id: "skydex", label: "SkyDex 4.6", route: "SkyDex4.6" },
+  { id: "vaultpro", label: "SkyeVault Pro", route: "SkyeVault-Pro-v4.46" },
+  { id: "contractornetwork", label: "ContractorNetwork", route: "ContractorNetwork" },
+  { id: "neural", label: "Neural Space Pro", route: "Neural-Space-Pro" },
+  { id: "skyedocs", label: "SkyeDocs", route: "SkyeDocs" },
+  { id: "skyedrive", label: "SkyeDrive", route: "SkyeDrive" },
+  { id: "docxpro", label: "SkyeDocxPro", route: "SkyeDocxPro" },
+  { id: "skyeblog", label: "SkyeBlog", route: "SkyeBlog" },
+  { id: "skyesheets", label: "SkyeSheets", route: "SkyeSheets" },
+  { id: "skyeslides", label: "SkyeSlides", route: "SkyeSlides" },
+  { id: "skyemailgen", label: "SKYEMAIL-GEN", route: "SKYEMAIL-GEN" },
+  { id: "skyeid", label: "Skye-ID", route: "Skye-ID" },
+  { id: "skyemail", label: "SkyeMail", route: "SkyeMail" },
+  { id: "skyechat", label: "SkyeChat", route: "SkyeChat" },
+  { id: "skyeadmin", label: "SkyeAdmin", route: "SkyeAdmin" },
+  { id: "nexus", label: "kAixu-Nexus", route: "kAixu-Nexus" },
+  { id: "recover", label: "Recover Account", route: "recover-account" },
+  { id: "gbp", label: "GBP Rescue", route: "GoogleBusinessProfileRescuePlatform" },
+];
 
 const APP_DRAWER_GROUPS: AppDrawerGroup[] = [
   {
     id: "build",
     label: "Build + IDE",
     description: "Editor, deploy, preview, testing, and secure environment control surfaces.",
-    apps: ["SkyDex4.6", "REACT2HTML", "API-Playground", "Smokehouse-Standalone", "SovereignVariables", "SkyeDrive", "SkyeVault"],
+    apps: ["SkyDex4.6", "SkyeVault-Pro-v4.46", "REACT2HTML", "API-Playground", "Smokehouse-Standalone", "SovereignVariables", "SkyeDrive", "SkyeVault"],
   },
   {
     id: "workspace",
@@ -970,13 +1266,13 @@ const APP_DRAWER_GROUPS: AppDrawerGroup[] = [
     id: "platforms",
     label: "Platform Systems",
     description: "Full platform systems embedded in the command deck and linked to the shared workspace command network.",
-    apps: ["AE-Flow", "GoogleBusinessProfileRescuePlatform"],
+    apps: ["AE-Flow", "GoogleBusinessProfileRescuePlatform", "ContractorNetwork"],
   },
   {
     id: "communications",
     label: "Communications + Identity",
     description: "Mail, chat, calendar, identity generation, and team administration.",
-    apps: ["SKYEMAIL-GEN", "Skye-ID", "SkyeMail", "SkyeChat", "SkyeCalendar", "SkyeAdmin"],
+    apps: ["recover-account", "SKYEMAIL-GEN", "Skye-ID", "SkyeMail", "SkyeChat", "SkyeCalendar", "SkyeAdmin"],
   },
   {
     id: "operations",
@@ -1104,6 +1400,17 @@ function tryParseJson(text: string): any {
   } catch {
     return text;
   }
+}
+
+async function readJsonOrThrow<T>(response: Response, label: string): Promise<T> {
+  const text = await response.text();
+  if (!text.trim()) return {} as T;
+  const parsed = tryParseJson(text);
+  if (parsed && typeof parsed === "object") return parsed as T;
+  if (/^\s*</.test(text)) {
+    throw new Error(`${label} returned HTML instead of JSON. Check the API route or active login session.`);
+  }
+  throw new Error(`${label} returned invalid JSON.`);
 }
 
 function asObject(value: unknown): Record<string, any> {
@@ -1370,9 +1677,10 @@ export function App() {
     return "SkyeBookx";
   });
   const [showHomePanels, setShowHomePanels] = useState(() => localStorage.getItem("kx.layout.home.visible") === "1");
-  const [showWorkspaceStack, setShowWorkspaceStack] = useState(() => localStorage.getItem("kx.workspace.stack.visible") === "1");
+  const [showWorkspaceStack, setShowWorkspaceStack] = useState(() => localStorage.getItem("kx.workspace.stack.visible") !== "0");
   const [showExecutionSettings, setShowExecutionSettings] = useState(() => localStorage.getItem("kx.layout.pipeline.visible") === "1");
-  const layoutStateVersion = "2026-03-09-home-collapse";
+  const [showAppStrip, setShowAppStrip] = useState(() => localStorage.getItem("kx.layout.apps.visible") === "1");
+  const layoutStateVersion = "2026-03-12-workspace-first";
 
   const resizeStateRef = useRef<{
     kind: ResizeKind;
@@ -1390,11 +1698,14 @@ export function App() {
     if (currentVersion === layoutStateVersion) return;
     localStorage.setItem("kx.layout.version", layoutStateVersion);
     localStorage.setItem("kx.layout.home.visible", "0");
-    localStorage.setItem("kx.workspace.stack.visible", "0");
+    localStorage.setItem("kx.workspace.stack.visible", "1");
     localStorage.setItem("kx.layout.pipeline.visible", "0");
+    localStorage.setItem("kx.layout.apps.visible", "0");
+    localStorage.setItem(SHELL_SKYEHAWK_DISMISSED_KEY, "1");
     setShowHomePanels(false);
-    setShowWorkspaceStack(false);
+    setShowWorkspaceStack(true);
     setShowExecutionSettings(false);
+    setShowAppStrip(false);
   }, [layoutStateVersion]);
 
   const [files, setFiles] = useState<WorkspaceFile[]>(() => {
@@ -1453,6 +1764,7 @@ export function App() {
   const [authRole, setAuthRole] = useState<AuthRole>(() => (localStorage.getItem("kx.auth.role") as AuthRole) || "owner");
   const [authPassword, setAuthPassword] = useState("");
   const [authOrgName, setAuthOrgName] = useState(() => localStorage.getItem(AUTH_ORG_NAME_KEY) || "Skye Workspace");
+  const [authFlowMode, setAuthFlowMode] = useState<"login" | "signup" | "reset">("login");
   const [isAuthSubmitting, setIsAuthSubmitting] = useState(false);
   const [authResult, setAuthResult] = useState("");
   const [isEnsuringOnboardingKey, setIsEnsuringOnboardingKey] = useState(false);
@@ -1499,6 +1811,8 @@ export function App() {
     };
   });
   const [sheetsSearch, setSheetsSearch] = useState("");
+  const [sheetsViewMode, setSheetsViewMode] = useState<"all" | "risk" | "due" | "owner">("all");
+  const [activeSheetRowId, setActiveSheetRowId] = useState("");
   const [sheetsRecordId, setSheetsRecordId] = useState("");
   const [sheetsRecordUpdatedAt, setSheetsRecordUpdatedAt] = useState("");
   const [sheetsHydrated, setSheetsHydrated] = useState(false);
@@ -1523,6 +1837,7 @@ export function App() {
     };
   });
   const [activeSlideId, setActiveSlideId] = useState<string>("slide-1");
+  const [slidesWorkspaceMode, setSlidesWorkspaceMode] = useState<"deck" | "run-of-show" | "approvals">("deck");
   const [slidesRecordId, setSlidesRecordId] = useState("");
   const [slidesRecordUpdatedAt, setSlidesRecordUpdatedAt] = useState("");
   const [slidesHydrated, setSlidesHydrated] = useState(false);
@@ -1701,20 +2016,34 @@ export function App() {
   const [vaultHydrated, setVaultHydrated] = useState(false);
 
   const [formQuestions, setFormQuestions] = useState<FormQuestion[]>([
-    { id: "form-1", prompt: "How satisfied are you with onboarding?", type: "select", required: true, owner: "ops@skye.local" },
-    { id: "form-2", prompt: "What should we improve next sprint?", type: "long_text", required: false, owner: "ops@skye.local" },
+    { id: "form-1", prompt: "How satisfied are you with onboarding?", type: "select", required: true, owner: "ops@skye.local", help_text: "Use this to score the first-run workspace experience.", options: ["Excellent", "Good", "Needs work"] },
+    { id: "form-2", prompt: "What should we improve next sprint?", type: "long_text", required: false, owner: "ops@skye.local", help_text: "Collect real operator friction, not vanity compliments." },
   ]);
   const [formDraftPrompt, setFormDraftPrompt] = useState("");
   const [formDraftType, setFormDraftType] = useState<FormQuestion["type"]>("short_text");
+  const [formDraftHelpText, setFormDraftHelpText] = useState("");
+  const [formDraftOptions, setFormDraftOptions] = useState("");
+  const [formResponseDraftName, setFormResponseDraftName] = useState("workspace-operator");
+  const [formResponseDrafts, setFormResponseDrafts] = useState<Record<string, string>>({});
+  const [formResponses, setFormResponses] = useState<FormResponseItem[]>([]);
+  const [formResponseFilter, setFormResponseFilter] = useState<"all" | "complete" | "partial">("all");
   const [formsHydrated, setFormsHydrated] = useState(false);
 
   const [notesModel, setNotesModel] = useState<NoteItem[]>([
-    { id: "note-1", title: "Investor prep notes", body: "Position product as secure launch-ready suite with failsafe workflows.", tags: "investor,hp,launch", owner: "founder@skye.local", updated_at: new Date().toISOString() },
-    { id: "note-2", title: "Incident checklist", body: "Smoke run, auth checks, policy gate verification, and release rollback proof.", tags: "ops,runbook", owner: "ops@skye.local", updated_at: new Date().toISOString() },
+    { id: "note-1", title: "Investor prep notes", body: "Position product as secure launch-ready suite with failsafe workflows.", tags: "investor,hp,launch", owner: "founder@skye.local", updated_at: new Date().toISOString(), notebook: "Strategy", pinned: true },
+    { id: "note-2", title: "Incident checklist", body: "Smoke run, auth checks, policy gate verification, and release rollback proof.", tags: "ops,runbook", owner: "ops@skye.local", updated_at: new Date().toISOString(), notebook: "Ops", pinned: false },
   ]);
   const [noteDraftTitle, setNoteDraftTitle] = useState("");
+  const [noteDraftNotebook, setNoteDraftNotebook] = useState("General");
   const [noteSearch, setNoteSearch] = useState("");
+  const [notesViewMode, setNotesViewMode] = useState<"all" | "pinned" | "briefs" | "runbooks">("all");
   const [notesHydrated, setNotesHydrated] = useState(false);
+  const [productivitySpecSelection, setProductivitySpecSelection] = useState<Record<ProductivityAppId, string>>({
+    SkyeSheets: PRODUCTIVITY_PAGE_SPECS.SkyeSheets[0].id,
+    SkyeSlides: PRODUCTIVITY_PAGE_SPECS.SkyeSlides[0].id,
+    SkyeForms: PRODUCTIVITY_PAGE_SPECS.SkyeForms[0].id,
+    SkyeNotes: PRODUCTIVITY_PAGE_SPECS.SkyeNotes[0].id,
+  });
 
   const [teamInviteEmail, setTeamInviteEmail] = useState("");
   const [teamInviteRole, setTeamInviteRole] = useState<AuthRole>("member");
@@ -1741,11 +2070,13 @@ export function App() {
   const [dismissedStaleSmokeWarning, setDismissedStaleSmokeWarning] = useState(() => localStorage.getItem("kx.smoke.warning.dismissed") === "1");
   const [isLoadingSuiteModels, setIsLoadingSuiteModels] = useState(false);
   const [suiteSyncResult, setSuiteSyncResult] = useState("");
+  const [suiteSyncFeedAppId, setSuiteSyncFeedAppId] = useState<CommandFeedItem["appId"]>(undefined);
   const [mergePreview, setMergePreview] = useState<MergePreviewState | null>(null);
   const [skyePassphrase, setSkyePassphrase] = useState("");
   const [skyeEncrypt, setSkyeEncrypt] = useState(true);
   const [isImportingSkye, setIsImportingSkye] = useState(false);
   const [showTutorialPanel, setShowTutorialPanel] = useState(false);
+  const [dismissedShellSkyehawkPopup, setDismissedShellSkyehawkPopup] = useState(() => localStorage.getItem(SHELL_SKYEHAWK_DISMISSED_KEY) !== "0");
   const [dismissedSpotlightByApp, setDismissedSpotlightByApp] = useState<Record<string, boolean>>(() => {
     const raw = localStorage.getItem("kx.skye.spotlight.dismissed");
     if (!raw) return {};
@@ -1765,6 +2096,7 @@ export function App() {
   const [workspaceRevision, setWorkspaceRevision] = useState("");
   const [workspaceUnloadedPaths, setWorkspaceUnloadedPaths] = useState<string[]>([]);
   const [workspaceConflict, setWorkspaceConflict] = useState<{ detectedAt: string; serverHash: string; message: string } | null>(null);
+  const shellSkyehawkRailRef = useRef<HTMLElement | null>(null);
   const [ideDiagnostics, setIdeDiagnostics] = useState<IdeDiagnostic[]>([]);
   const [isSavingWorkspace, setIsSavingWorkspace] = useState(false);
   const [isLoadingWorkspace, setIsLoadingWorkspace] = useState(false);
@@ -1778,6 +2110,7 @@ export function App() {
   const [isPlatformStatusLoading, setIsPlatformStatusLoading] = useState(false);
   const [sovereignEvents, setSovereignEvents] = useState<SovereignEvent[]>([]);
   const [isSovereignEventsLoading, setIsSovereignEventsLoading] = useState(false);
+  const [sovereignEventsError, setSovereignEventsError] = useState("");
   const [suiteEvents, setSuiteEvents] = useState<SuiteEventRecord[]>([]);
   const [isSuiteEventsLoading, setIsSuiteEventsLoading] = useState(false);
   const [timelineEntries, setTimelineEntries] = useState<TimelineEntry[]>([]);
@@ -2063,6 +2396,10 @@ export function App() {
   }, [showExecutionSettings]);
 
   useEffect(() => {
+    localStorage.setItem("kx.layout.apps.visible", showAppStrip ? "1" : "0");
+  }, [showAppStrip]);
+
+  useEffect(() => {
     localStorage.setItem("kx.workspace.id", workspaceId);
   }, [workspaceId]);
 
@@ -2344,22 +2681,25 @@ export function App() {
   async function loadSovereignEvents() {
     if (!hasActiveAuthSession) {
       setSovereignEvents([]);
+      setSovereignEventsError("");
       return;
     }
 
     setIsSovereignEventsLoading(true);
+    setSovereignEventsError("");
     try {
       const qs = new URLSearchParams();
       qs.set("limit", "6");
       if (workspaceId.trim()) qs.set("ws_id", workspaceId.trim());
       const res = await fetch(`/api/sovereign-events?${qs.toString()}`, { credentials: "include" });
-      const data = await res.json();
+      const data = await readJsonOrThrow<{ items?: SovereignEvent[]; error?: string }>(res, "Sovereign event feed");
       if (!res.ok) throw new Error(data?.error || `Event feed failed (${res.status}).`);
       const items = Array.isArray(data?.items) ? (data.items as SovereignEvent[]) : [];
       setSovereignEvents(items);
       syncSovereignEventAlerts(items);
-    } catch {
+    } catch (error: any) {
       setSovereignEvents([]);
+      setSovereignEventsError(error?.message || "Sovereign event feed failed.");
     } finally {
       setIsSovereignEventsLoading(false);
     }
@@ -2377,7 +2717,7 @@ export function App() {
       qs.set("limit", "24");
       if (workspaceId.trim()) qs.set("ws_id", workspaceId.trim());
       const res = await fetch(`/api/suite-events?${qs.toString()}`, { credentials: "include" });
-      const data = await res.json();
+      const data = await readJsonOrThrow<{ items?: SuiteEventRecord[]; error?: string }>(res, "Suite event feed");
       if (!res.ok) throw new Error(data?.error || `Suite event feed failed (${res.status}).`);
       setSuiteEvents(Array.isArray(data?.items) ? (data.items as SuiteEventRecord[]) : []);
     } catch {
@@ -2399,7 +2739,7 @@ export function App() {
       qs.set("limit", "6");
       if (workspaceId.trim()) qs.set("ws_id", workspaceId.trim());
       const res = await fetch(`/api/timeline-feed?${qs.toString()}`, { credentials: "include" });
-      const data = await res.json();
+      const data = await readJsonOrThrow<{ items?: TimelineEntry[]; error?: string }>(res, "Timeline feed");
       if (!res.ok) throw new Error(data?.error || `Timeline feed failed (${res.status}).`);
       setTimelineEntries(Array.isArray(data?.items) ? (data.items as TimelineEntry[]) : []);
     } catch {
@@ -2421,7 +2761,7 @@ export function App() {
       qs.set("limit", "6");
       if (workspaceId.trim()) qs.set("ws_id", workspaceId.trim());
       const res = await fetch(`/api/missions?${qs.toString()}`, { credentials: "include" });
-      const data = await res.json();
+      const data = await readJsonOrThrow<{ items?: MissionRecord[]; error?: string }>(res, "Mission feed");
       if (!res.ok) throw new Error(data?.error || `Mission query failed (${res.status}).`);
       setMissions(Array.isArray(data?.items) ? (data.items as MissionRecord[]) : []);
     } catch {
@@ -2710,7 +3050,7 @@ export function App() {
   async function verifyAdminBoardKey() {
     const key = adminBoardKey.trim();
     if (!key) {
-      setAdminBoardResult("ADMIN_KEY is required.");
+      setAdminBoardResult("ADMIN_KEY or ADMIN_PASSWORD is required.");
       return;
     }
     setIsAdminBoardVerifying(true);
@@ -3118,6 +3458,85 @@ export function App() {
       return;
     }
 
+    if (payload.kind === "neural-import") {
+      const envelope = payload.envelope && typeof payload.envelope === "object"
+        ? payload.envelope
+        : buildNeuralImportEnvelope(
+            String(payload.source || "Suite"),
+            payload.payload && typeof payload.payload === "object" ? payload.payload as Record<string, unknown> : {},
+            String(payload.detail || "")
+          );
+      localStorage.setItem(NEURAL_PENDING_IMPORT_KEY, JSON.stringify(envelope));
+      setAppMode("neural");
+      if (payload.detail) {
+        pushCommandFeed(String(payload.source || "Neural"), String(payload.detail), payload.tone || inferCommandTone(String(payload.detail)), undefined, undefined, "neural");
+      }
+      return;
+    }
+
+    if (payload.kind === "neural-handoff") {
+      const appId = typeof payload.targetApp === "string" && SKYE_APP_ID_SET.has(payload.targetApp)
+        ? (payload.targetApp as SkyeAppId)
+        : typeof payload.appId === "string" && SKYE_APP_ID_SET.has(payload.appId)
+          ? (payload.appId as SkyeAppId)
+          : null;
+      const importedPayload = payload.payload && typeof payload.payload === "object"
+        ? (payload.payload as Record<string, any>)
+        : null;
+      if (!appId || !importedPayload) return;
+      if (appId === "SkyeVault-Pro-v4.46") {
+        const vaultEnvelope = {
+          id: `vault-sync-${Date.now()}`,
+          format: "superide-vault-bridge-v1",
+          sourceApp: String(payload.source || "Neural-Space-Pro"),
+          workspace_id: workspaceId,
+          exported_at: new Date().toISOString(),
+          title: `${String(payload.source || "Neural-Space-Pro")} Workspace Snapshot`,
+          payload: importedPayload,
+        };
+        localStorage.setItem(VAULT_PRO_PENDING_IMPORT_KEY, JSON.stringify(vaultEnvelope));
+        setAppMode("skyeide");
+        setSelectedSkyeApp("SkyeVault-Pro-v4.46");
+        pushCommandFeed("Neural Space Pro", String(payload.detail || "Neural Space Pro staged a snapshot for SkyeVault Pro."), "ok", "SkyeVault-Pro-v4.46", undefined, "vault");
+        publishSuiteSyncResult("Imported Neural Space Pro handoff into SkyeVault Pro.", "SkyeVault-Pro-v4.46");
+        return;
+      }
+      applyImportedAppPayload(appId, importedPayload);
+      setAppMode("skyeide");
+      setSelectedSkyeApp(appId);
+      publishSuiteSyncResult(`Imported Neural Space Pro handoff into ${appId}.`, appId);
+      pushCommandFeed("Neural Space Pro", String(payload.detail || `Neural Space Pro pushed a snapshot into ${appId}.`), "ok", appId, undefined, "neural");
+      return;
+    }
+
+    if (payload.kind === "vault-pro-import") {
+      const appId = typeof payload.targetApp === "string" && SKYE_APP_ID_SET.has(payload.targetApp)
+        ? (payload.targetApp as SkyeAppId)
+        : typeof payload.appId === "string" && SKYE_APP_ID_SET.has(payload.appId)
+          ? (payload.appId as SkyeAppId)
+          : null;
+      const importedPayload = payload.payload && typeof payload.payload === "object"
+        ? (payload.payload as Record<string, any>)
+        : payload.state && typeof payload.state === "object"
+          ? (payload.state as Record<string, any>)
+          : null;
+      if (!appId || !importedPayload) return;
+      applyImportedAppPayload(appId, importedPayload);
+      setAppMode("skyeide");
+      setSelectedSkyeApp(appId);
+      publishSuiteSyncResult(`Imported vault payload into ${appId}.`, appId);
+      pushCommandFeed("SkyeVault Pro", String(payload.detail || `SkyeVault Pro pushed a snapshot into ${appId}.`), "ok", appId, undefined, "vault");
+      return;
+    }
+
+    if (payload.kind === "vault-pro-status" && payload.detail) {
+      const appId = typeof payload.appId === "string" && SKYE_APP_ID_SET.has(payload.appId)
+        ? (payload.appId as SkyeAppId)
+        : undefined;
+      pushCommandFeed("SkyeVault Pro", String(payload.detail), payload.tone || inferCommandTone(String(payload.detail)), appId, undefined, "vault");
+      return;
+    }
+
     if (payload.kind === "action" && payload.detail) {
       pushCommandFeed(String(payload.source || "Action"), String(payload.detail), payload.tone || inferCommandTone(payload.detail), payload.appId);
     }
@@ -3457,7 +3876,7 @@ export function App() {
       { key: "team", source: "Team Admin", value: teamResult, appId: "SkyeAdmin" as const },
       { key: "members", source: "Workspace Access", value: workspaceMemberResult, appId: "SkyeAdmin" as const },
       { key: "invite", source: "Invite Flow", value: inviteAcceptResult, appId: "SkyeAdmin" as const },
-      { key: "suite", source: "Suite Sync", value: suiteSyncResult, appId: selectedSkyeApp },
+      { key: "suite", source: "Suite Sync", value: suiteSyncResult, appId: suiteSyncFeedAppId },
       { key: "tokens", source: "Key Control", value: tokenOpsResult, appId: "SkyeAdmin" as const },
     ];
 
@@ -3470,7 +3889,7 @@ export function App() {
       actionFeedSeenRef.current[item.key] = next;
       pushCommandFeed(item.source, next, inferCommandTone(next), item.appId);
     }
-  }, [authResult, ideOpsResult, mailSendResult, chatNotifyResult, shareResult, teamResult, workspaceMemberResult, inviteAcceptResult, suiteSyncResult, tokenOpsResult, selectedSkyeApp]);
+  }, [authResult, ideOpsResult, mailSendResult, chatNotifyResult, shareResult, teamResult, workspaceMemberResult, inviteAcceptResult, suiteSyncResult, tokenOpsResult, suiteSyncFeedAppId, selectedSkyeApp]);
 
   useEffect(() => {
     document.body.classList.toggle("global-drop-active", isGlobalDropActive);
@@ -3645,10 +4064,10 @@ export function App() {
   useEffect(() => {
     if (!formsHydrated) return;
     const timer = setTimeout(() => {
-      void saveOpsWorkspaceModel("SkyeForms", { questions: formQuestions }, "SkyeForms Questions");
+      void saveOpsWorkspaceModel("SkyeForms", { questions: formQuestions, responses: formResponses }, "SkyeForms Questions");
     }, 700);
     return () => clearTimeout(timer);
-  }, [formQuestions, workspaceId, formsHydrated]);
+  }, [formQuestions, formResponses, workspaceId, formsHydrated]);
 
   useEffect(() => {
     if (!notesHydrated) return;
@@ -3924,6 +4343,7 @@ export function App() {
     const filtered = SKYE_APPS.filter((app) => {
       if (app.id.toLowerCase().includes(q)) return true;
       if (app.summary.toLowerCase().includes(q)) return true;
+      if (Array.isArray(app.searchTerms) && app.searchTerms.some((term) => term.toLowerCase().includes(q))) return true;
       return app.mvp.some((item) => item.toLowerCase().includes(q));
     });
     return prioritizeFeatured(filtered);
@@ -4465,10 +4885,13 @@ export function App() {
     if (selectedSkyeApp === "SkyeCalendar") setCalendarEvents([]);
     if (selectedSkyeApp === "SkyeDrive") setDriveAssets([]);
     if (selectedSkyeApp === "SkyeVault") setVaultSecrets([]);
-    if (selectedSkyeApp === "SkyeForms") setFormQuestions([]);
+    if (selectedSkyeApp === "SkyeForms") {
+      setFormQuestions([]);
+      setFormResponses([]);
+    }
     if (selectedSkyeApp === "SkyeNotes") setNotesModel([]);
     if (selectedSkyeApp === "SkyeAnalytics") setSmokeResults([]);
-    setSuiteSyncResult(`Reset demo state for ${selectedSkyeApp}.`);
+    publishSuiteSyncResult(`Reset demo state for ${selectedSkyeApp}.`, selectedSkyeApp);
   }
 
   function exportAppHealthSnapshot() {
@@ -4512,7 +4935,7 @@ export function App() {
     a.download = `${selectedSkyeApp}-health-snapshot-${Date.now()}.json`;
     a.click();
     URL.revokeObjectURL(href);
-    setSuiteSyncResult(`Exported health snapshot for ${selectedSkyeApp}.`);
+    publishSuiteSyncResult(`Exported health snapshot for ${selectedSkyeApp}.`, selectedSkyeApp);
     pushCommandFeed("Suite Sync", `Health snapshot exported for ${selectedSkyeApp}.`, "ok", selectedSkyeApp);
   }
 
@@ -5611,12 +6034,12 @@ export function App() {
     const normalizedAuthEmail = authUser.trim().toLowerCase();
     const normalizedRecoveryEmail = recoveryEmail.trim().toLowerCase();
     if (!normalizedAuthEmail || !authPassword.trim()) {
-      setAuthResult("Email and password are required.");
+      setAuthResult(`${mode === "signup" ? "Primary SKYEMAIL" : "Login email"} and password are required.`);
       return;
     }
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedAuthEmail)) {
-      setAuthResult("Use a valid SKYEMAIL login address for signup or sign in.");
+      setAuthResult(mode === "signup" ? "Use a valid SKYEMAIL login address for signup." : "Use a valid SKYEMAIL or backup recovery email to sign in.");
       return;
     }
 
@@ -5664,15 +6087,18 @@ export function App() {
         return;
       }
 
-      if (mode === "signup" && data?.kaixu_token?.token) {
+      const accountEmail = String(data?.user?.email || normalizedAuthEmail).trim().toLowerCase();
+      if (data?.kaixu_token?.token) {
         setApiAccessToken(String(data.kaixu_token.token));
-        setApiTokenEmail(String(data.kaixu_token.locked_email || normalizedAuthEmail));
+        setApiTokenEmail(String(data.kaixu_token.locked_email || accountEmail));
         setPinUnlockedAt(new Date().toISOString());
       }
       applyOrgDashboardPayload(data);
 
       setAuthPassword("");
       const sessionMeta = await refreshAuthSession();
+      const sessionAccountEmail = String((typeof sessionMeta === "object" && (sessionMeta as any)?.email) || accountEmail).trim().toLowerCase();
+      const sessionRecoveryEmail = String((typeof sessionMeta === "object" && (sessionMeta as any)?.recovery_email) || data?.user?.recovery_email || normalizedRecoveryEmail).trim().toLowerCase();
 
       const hasTokenFromAuth = Boolean(data?.kaixu_token?.token);
       const pinConfigured = Boolean(data?.user?.has_pin || (typeof sessionMeta === "object" && (sessionMeta as any)?.has_pin));
@@ -5690,23 +6116,23 @@ export function App() {
 
       const bootstrappedWorkspaceId = String(data?.workspace?.id || data?.user?.workspace_id || workspaceId).trim();
       const bootstrappedOrgName = String(data?.org?.org_name || authOrgName).trim();
-      const profileSync = await persistOnboardingShowcase(normalizedAuthEmail, mode);
+      const profileSync = await persistOnboardingShowcase(sessionAccountEmail, mode);
       const workspaceSyncNote = linkedWorkspaceMailbox
         ? ` SKYEMAIL primary login linked: ${linkedWorkspaceMailbox}.`
         : " Generate and link your SKYEMAIL primary login next.";
-      const recoveryNote = normalizedRecoveryEmail
-        ? ` Recovery goes to ${normalizedRecoveryEmail}.`
+      const recoveryNote = sessionRecoveryEmail
+        ? ` Recovery goes to ${sessionRecoveryEmail}.`
         : "";
 
       stageSovereignVariablesSuggestion({
         title: mode === "signup" ? "Auth bootstrap env pack" : "Session restore env pack",
         source: mode === "signup" ? "Auth Center Signup" : "Auth Center Login",
         content: buildEnvTemplateContent([
-          { key: "SKYE_PRIMARY_EMAIL", value: normalizedAuthEmail },
-          { key: "SKYE_RECOVERY_EMAIL", value: normalizedRecoveryEmail },
+          { key: "SKYE_PRIMARY_EMAIL", value: sessionAccountEmail },
+          { key: "SKYE_RECOVERY_EMAIL", value: sessionRecoveryEmail },
           { key: "SKYE_ORG_NAME", value: bootstrappedOrgName },
-          { key: "SKYE_WORKSPACE_EMAIL", value: linkedWorkspaceMailbox || normalizedAuthEmail },
-          { key: "KX_LOCKED_EMAIL", value: String(data?.kaixu_token?.locked_email || "") || apiTokenEmail.trim().toLowerCase() || normalizedAuthEmail },
+          { key: "SKYE_WORKSPACE_EMAIL", value: linkedWorkspaceMailbox || sessionAccountEmail },
+          { key: "KX_LOCKED_EMAIL", value: String(data?.kaixu_token?.locked_email || "") || apiTokenEmail.trim().toLowerCase() || sessionAccountEmail },
           { key: "KX_WORKSPACE_ID", value: bootstrappedWorkspaceId || workspaceId.trim() },
         ]),
         projectName: bootstrappedOrgName || bootstrappedWorkspaceId || workspaceId.trim() || "Auth Center",
@@ -5722,7 +6148,7 @@ export function App() {
         mode === "signup"
           ? `Signup complete. Session active, key minted, and onboarding is ready.${workspaceSyncNote}${recoveryNote}${profileSync ? ` ${profileSync}.` : ""}`
           : pinConfigured
-            ? `Login complete. Session restored. Use your PIN once to unlock kAIxU access across the bench and standalone apps.${workspaceSyncNote}${recoveryNote}${profileSync ? ` ${profileSync}.` : ""}`
+            ? `Login complete. Session restored and key is active. Session PIN remains available as an optional extra lock.${workspaceSyncNote}${recoveryNote}${profileSync ? ` ${profileSync}.` : ""}`
             : `Login complete. Session restored and key is active.${workspaceSyncNote}${recoveryNote}${profileSync ? ` ${profileSync}.` : ""}`
       );
     } catch (error: any) {
@@ -5763,6 +6189,51 @@ export function App() {
     }
     setShowOnboardingGuide(false);
     if (mode === "self-serve") openAuthCenterWindow({ focus: true, guide: false });
+  }
+
+  function dismissShellSkyehawkPopup() {
+    setDismissedShellSkyehawkPopup(true);
+    localStorage.setItem(SHELL_SKYEHAWK_DISMISSED_KEY, "1");
+  }
+
+  function revealShellSkyehawkRail() {
+    dismissShellSkyehawkPopup();
+    window.setTimeout(() => {
+      shellSkyehawkRailRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
+      const active = shellSkyehawkRailRef.current?.querySelector(".shell-skyehawk-link.active") as HTMLElement | null;
+      (active || shellSkyehawkRailRef.current?.querySelector(".shell-skyehawk-link") as HTMLElement | null)?.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+        inline: "center",
+      });
+    }, 0);
+  }
+
+  function focusShellSkyehawkRoute(route: ShellSkyehawkRoute) {
+    dismissShellSkyehawkPopup();
+    if (route === "SuperIDE") {
+      setAppMode("skyeide");
+      setSelectedSkyeApp("SkyeDocs");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+    if (route === "Neural-Space-Pro") {
+      setAppMode("neural");
+      return;
+    }
+    setAppMode("skyeide");
+    setSelectedSkyeApp(route);
+  }
+
+  function isShellSkyehawkRouteActive(route: ShellSkyehawkRoute) {
+    if (route === "SuperIDE") return appMode === "skyeide" && selectedSkyeApp === "SkyeDocs";
+    if (route === "Neural-Space-Pro") return appMode === "neural";
+    return appMode === "skyeide" && selectedSkyeApp === route;
+  }
+
+  function publishSuiteSyncResult(message: string, appId?: CommandFeedItem["appId"]) {
+    setSuiteSyncResult(message);
+    setSuiteSyncFeedAppId(appId);
   }
 
   function openStandaloneWorkspaceWindow(url: string | null, note?: string) {
@@ -5893,6 +6364,17 @@ export function App() {
   }
 
   function renderAuthCenterContents() {
+    const sessionSummary = hasActiveAuthSession
+      ? apiAccessToken.trim()
+        ? "Signed in. Session and workspace key are loaded for this origin."
+        : "Signed in. Session is active and the workspace can mint a key if needed."
+      : "Signed out. Use one email and password to restore the full workspace session.";
+    const authModeTitle = authFlowMode === "signup" ? "Create account" : authFlowMode === "reset" ? "Reset password" : "Sign in";
+    const authModeDetail = authFlowMode === "signup"
+      ? "Create the account once with a primary SKYEMAIL login, backup recovery email, and org name."
+      : authFlowMode === "reset"
+        ? "Send the reset link to the backup recovery email, then paste the token to finish the password change."
+        : "Use either the primary SKYEMAIL address or the backup recovery email with the same password.";
     return (
       <div className="auth-center-shell">
         <section className="app-module auth-center-card">
@@ -5912,168 +6394,196 @@ export function App() {
             </div>
           </header>
 
-          <section className="auth-session-feedback auth-key-card">
-            <strong>Loaded kAIxU Key</strong>
-            <div>This access lane is shared across the main bench and standalone apps. If a session PIN exists, unlock once and the origin reuses the access path until logout.</div>
-            <div className="tool-row" style={{ marginTop: 8 }}>
-              <label>kAIxU Access Key</label>
-              <input value={apiAccessToken.trim() ? `${apiAccessToken.slice(0, 12)}...${apiAccessToken.slice(-6)}` : ""} readOnly placeholder="Key will appear here after mint or unlock" />
-            </div>
-            <div className="tool-row split" style={{ marginTop: 8 }}>
-              <div>
-                <label>Locked Email</label>
-                <input value={apiTokenEmail} readOnly placeholder="user@company.com" />
+          <section className="auth-session-feedback auth-key-card auth-overview-card">
+            <strong>Workspace Access</strong>
+            <div>{sessionSummary}</div>
+            <div className="auth-status-grid" style={{ marginTop: 10 }}>
+              <div className="auth-status-item">
+                <span>Browser session</span>
+                <strong>{hasActiveAuthSession ? "Active" : "Not signed in"}</strong>
               </div>
-              <div>
-                <label>Assistant Auth</label>
-                <input value={assistantAuthStatus} readOnly />
+              <div className="auth-status-item">
+                <span>Workspace key</span>
+                <strong>{apiAccessToken.trim() ? "Loaded" : "Not loaded"}</strong>
               </div>
-            </div>
-            <div className="tool-row split" style={{ marginTop: 8 }}>
-              <div>
-                <label>Session PIN</label>
-                <input value={hasSessionPin ? "configured" : "not configured"} readOnly />
+              <div className="auth-status-item">
+                <span>Primary login</span>
+                <strong>{authUser.trim().toLowerCase() || "Not set"}</strong>
               </div>
-              <div>
-                <label>Last Unlock</label>
-                <input value={pinUnlockedAt || "not unlocked yet"} readOnly />
+              <div className="auth-status-item">
+                <span>Recovery email</span>
+                <strong>{recoveryEmail.trim().toLowerCase() || "Not set"}</strong>
               </div>
             </div>
-            <div className="tool-actions left" style={{ marginTop: 8 }}>
-              <button className="ghost" type="button" onClick={() => void copyLoadedKey()}>Copy Key</button>
-              <button className="ghost" type="button" onClick={() => void checkAssistantAuth()}>Validate Auth Path</button>
-              <button className="ghost" type="button" onClick={() => { setApiAccessToken(""); setApiTokenEmail(""); setAssistantAuthStatus("unknown"); }}>Clear Key</button>
-            </div>
-            <div className="tool-row split" style={{ marginTop: 12 }}>
-              <div>
-                <label>Set Session PIN</label>
-                <input type="password" value={authPinDraft} onChange={(event) => setAuthPinDraft(event.target.value)} placeholder="4-12 letters or numbers" />
-              </div>
-              <div>
-                <label>Confirm PIN</label>
-                <input type="password" value={authPinConfirmDraft} onChange={(event) => setAuthPinConfirmDraft(event.target.value)} placeholder="Confirm PIN" />
-              </div>
-            </div>
-            <div className="tool-row split" style={{ marginTop: 8 }}>
-              <div>
-                <label>Unlock With PIN</label>
-                <input type="password" value={authPinUnlockDraft} onChange={(event) => setAuthPinUnlockDraft(event.target.value)} placeholder="Enter PIN once per session" />
-              </div>
-              <div>
-                <label>Cross-App Propagation</label>
-                <input value="same-origin localStorage + session cookie" readOnly />
-              </div>
-            </div>
-            <div className="tool-actions left" style={{ marginTop: 8 }}>
-              <button className="ghost" type="button" onClick={() => void saveSessionPin()} disabled={isSavingAuthPin || isAuthSubmitting}>
-                {isSavingAuthPin ? "Saving PIN..." : "Save Session PIN"}
+            <div className="tool-actions left" style={{ marginTop: 10 }}>
+              <button className="ghost" type="button" onClick={() => void refreshAuthSession()} disabled={isAuthSubmitting}>Session Sync</button>
+              <button className="ghost" type="button" onClick={() => void copyLoadedKey()} disabled={!apiAccessToken.trim()}>Copy Key</button>
+              <button className="ghost" type="button" onClick={() => void manualMintOnboardingKey()} disabled={isAuthSubmitting || isEnsuringOnboardingKey}>
+                {isEnsuringOnboardingKey ? "Minting Key..." : "Mint Key"}
               </button>
-              <button className="ghost" type="button" onClick={() => void unlockSessionAccess()} disabled={isUnlockingAuthPin || isAuthSubmitting}>
-                {isUnlockingAuthPin ? "Unlocking..." : "Unlock Session Access"}
-              </button>
+              <button className="ghost" type="button" onClick={() => void logoutAuthSession()} disabled={isAuthSubmitting || !hasActiveAuthSession}>Sign Out</button>
             </div>
-            {pinOpsResult && <p className="muted-copy" style={{ marginTop: 8 }}>{pinOpsResult}</p>}
+            <details className="auth-advanced-panel" style={{ marginTop: 12 }}>
+              <summary>Advanced security: session PIN</summary>
+              <p className="muted-copy">Optional. Use this only if you want an extra unlock step for same-origin app access. Password login already restores the workspace session.</p>
+              <div className="tool-row split" style={{ marginTop: 8 }}>
+                <div>
+                  <label>PIN status</label>
+                  <input value={hasSessionPin ? "configured" : "not configured"} readOnly />
+                </div>
+                <div>
+                  <label>Last unlock</label>
+                  <input value={pinUnlockedAt || "not unlocked yet"} readOnly />
+                </div>
+              </div>
+              <div className="tool-row split" style={{ marginTop: 8 }}>
+                <div>
+                  <label>Set session PIN</label>
+                  <input type="password" value={authPinDraft} onChange={(event) => setAuthPinDraft(event.target.value)} placeholder="4-12 letters or numbers" />
+                </div>
+                <div>
+                  <label>Confirm PIN</label>
+                  <input type="password" value={authPinConfirmDraft} onChange={(event) => setAuthPinConfirmDraft(event.target.value)} placeholder="Confirm PIN" />
+                </div>
+              </div>
+              <div className="tool-row split" style={{ marginTop: 8 }}>
+                <div>
+                  <label>Unlock with PIN</label>
+                  <input type="password" value={authPinUnlockDraft} onChange={(event) => setAuthPinUnlockDraft(event.target.value)} placeholder="Enter PIN once per session" />
+                </div>
+                <div>
+                  <label>Cross-app propagation</label>
+                  <input value="same-origin localStorage + session cookie" readOnly />
+                </div>
+              </div>
+              <div className="tool-actions left" style={{ marginTop: 8 }}>
+                <button className="ghost" type="button" onClick={() => void saveSessionPin()} disabled={isSavingAuthPin || isAuthSubmitting}>
+                  {isSavingAuthPin ? "Saving PIN..." : "Save Session PIN"}
+                </button>
+                <button className="ghost" type="button" onClick={() => void unlockSessionAccess()} disabled={isUnlockingAuthPin || isAuthSubmitting}>
+                  {isUnlockingAuthPin ? "Unlocking..." : "Unlock Session Access"}
+                </button>
+              </div>
+              {pinOpsResult && <p className="muted-copy" style={{ marginTop: 8 }}>{pinOpsResult}</p>}
+            </details>
           </section>
 
-          <section className="auth-session-bar auth-session-bar-standalone">
-            <div className="auth-field-shell">
-              <label htmlFor="auth-email">SKYEMAIL Login</label>
-              <input
-                id="auth-email"
-                value={authUser}
-                onChange={(event) => setAuthUser(event.target.value)}
-                placeholder="founder@skyemail.com"
-              />
+          <section className="auth-session-feedback auth-primary-card">
+            <div className="auth-mode-row">
+              <button className={`ghost auth-mode-pill ${authFlowMode === "login" ? "active" : ""}`} type="button" onClick={() => setAuthFlowMode("login")}>Sign In</button>
+              <button className={`ghost auth-mode-pill ${authFlowMode === "signup" ? "active" : ""}`} type="button" onClick={() => setAuthFlowMode("signup")}>Create Account</button>
+              <button className={`ghost auth-mode-pill ${authFlowMode === "reset" ? "active" : ""}`} type="button" onClick={() => setAuthFlowMode("reset")}>Reset Password</button>
             </div>
-            <div className="auth-field-shell">
-              <label htmlFor="auth-password">Password</label>
-              <input
-                id="auth-password"
-                type="password"
-                value={authPassword}
-                onChange={(event) => setAuthPassword(event.target.value)}
-                placeholder="********"
-              />
-            </div>
-            <div className="auth-field-shell">
-              <label htmlFor="auth-recovery-email">Recovery Email</label>
-              <input
-                id="auth-recovery-email"
-                value={recoveryEmail}
-                onChange={(event) => setRecoveryEmail(event.target.value)}
-                placeholder="you@gmail.com"
-              />
-            </div>
-            <div className="auth-field-shell">
-              <label htmlFor="auth-org">Org (signup)</label>
-              <input
-                id="auth-org"
-                value={authOrgName}
-                onChange={(event) => setAuthOrgName(event.target.value)}
-                placeholder="Skye Workspace"
-              />
-            </div>
-            <div className="auth-session-actions">
-            <button className="ghost" type="button" onClick={() => void submitAuthFlow("login")} disabled={isAuthSubmitting}>
-              {isAuthSubmitting ? "Working..." : "Sign In"}
-            </button>
-            <button className="ghost" type="button" onClick={() => void submitAuthFlow("signup")} disabled={isAuthSubmitting}>
-              {isAuthSubmitting ? "Working..." : "Sign Up"}
-            </button>
-            <button
-              className="ghost"
-              type="button"
-              onClick={() => void manualMintOnboardingKey()}
-              disabled={isAuthSubmitting || isEnsuringOnboardingKey}
-            >
-              {isEnsuringOnboardingKey ? "Minting Key..." : "Mint Key"}
-            </button>
-            <div className={`auth-inline-status ${authInlineState.tone}`}>
-              <strong>{authInlineState.label}</strong>
-              <span>{authInlineState.detail}</span>
-            </div>
-            </div>
-            <button className="ghost" type="button" onClick={() => void logoutAuthSession()} disabled={isAuthSubmitting}>
-              Sign Out
-            </button>
-            <span className="telemetry-chip">Revision: {workspaceRevision || "n/a"}</span>
-            <span className="telemetry-chip">Workspace: {workspaceId}</span>
-          </section>
-
-          <section className="auth-session-feedback">
-            <strong>Password Recovery</strong>
-            <div>Reset links go to the third-party recovery email. The SKYEMAIL address remains the primary login.</div>
-            <div className="tool-actions left" style={{ marginTop: 8 }}>
-              <button className="ghost" type="button" onClick={() => void requestPasswordReset()} disabled={isResetSubmitting}>
-                {isResetSubmitting ? "Requesting..." : "Send Reset Link"}
-              </button>
-              <a className="ghost" href={`/recover-account/?reset_email=${encodeURIComponent(recoveryEmail.trim().toLowerCase())}`} target="_blank" rel="noreferrer">
-                Open Recover Page
-              </a>
-            </div>
-            <div className="tool-row split" style={{ marginTop: 8 }}>
-              <div>
-                <label>Reset Token</label>
-                <input
-                  value={resetToken}
-                  onChange={(event) => setResetToken(event.target.value)}
-                  placeholder="Paste token from email"
-                />
+            <strong>{authModeTitle}</strong>
+            <div>{authModeDetail}</div>
+            {(authFlowMode === "login" || authFlowMode === "signup") && (
+              <div className="auth-session-bar auth-session-bar-standalone auth-primary-grid" style={{ marginTop: 10 }}>
+                <div className="auth-field-shell">
+                  <label htmlFor="auth-email">{authFlowMode === "signup" ? "Primary SKYEMAIL" : "Login Email"}</label>
+                  <input
+                    id="auth-email"
+                    value={authUser}
+                    onChange={(event) => setAuthUser(event.target.value)}
+                    placeholder={authFlowMode === "signup" ? "founder@skyemail.com" : "founder@skyemail.com or you@gmail.com"}
+                  />
+                </div>
+                <div className="auth-field-shell">
+                  <label htmlFor="auth-password">Password</label>
+                  <input
+                    id="auth-password"
+                    type="password"
+                    value={authPassword}
+                    onChange={(event) => setAuthPassword(event.target.value)}
+                    placeholder="********"
+                  />
+                </div>
+                {authFlowMode === "signup" && (
+                  <>
+                    <div className="auth-field-shell">
+                      <label htmlFor="auth-recovery-email">Backup Recovery Email</label>
+                      <input
+                        id="auth-recovery-email"
+                        value={recoveryEmail}
+                        onChange={(event) => setRecoveryEmail(event.target.value)}
+                        placeholder="you@gmail.com"
+                      />
+                    </div>
+                    <div className="auth-field-shell">
+                      <label htmlFor="auth-org">Organization</label>
+                      <input
+                        id="auth-org"
+                        value={authOrgName}
+                        onChange={(event) => setAuthOrgName(event.target.value)}
+                        placeholder="Skye Workspace"
+                      />
+                    </div>
+                  </>
+                )}
               </div>
-              <div>
-                <label>New Password</label>
-                <input
-                  type="password"
-                  value={resetNewPassword}
-                  onChange={(event) => setResetNewPassword(event.target.value)}
-                  placeholder="At least 8 characters"
-                />
+            )}
+            {authFlowMode === "reset" && (
+              <div className="auth-session-bar auth-session-bar-standalone auth-primary-grid" style={{ marginTop: 10 }}>
+                <div className="auth-field-shell">
+                  <label htmlFor="auth-recovery-email">Backup Recovery Email</label>
+                  <input
+                    id="auth-recovery-email"
+                    value={recoveryEmail}
+                    onChange={(event) => setRecoveryEmail(event.target.value)}
+                    placeholder="you@gmail.com"
+                  />
+                </div>
+                <div className="auth-field-shell">
+                  <label htmlFor="auth-reset-token">Reset Token</label>
+                  <input
+                    id="auth-reset-token"
+                    value={resetToken}
+                    onChange={(event) => setResetToken(event.target.value)}
+                    placeholder="Paste token from email"
+                  />
+                </div>
+                <div className="auth-field-shell">
+                  <label htmlFor="auth-reset-password">New Password</label>
+                  <input
+                    id="auth-reset-password"
+                    type="password"
+                    value={resetNewPassword}
+                    onChange={(event) => setResetNewPassword(event.target.value)}
+                    placeholder="At least 8 characters"
+                  />
+                </div>
+              </div>
+            )}
+            <div className="auth-primary-actions" style={{ marginTop: 10 }}>
+              {authFlowMode === "login" && (
+                <button className="ghost" type="button" onClick={() => void submitAuthFlow("login")} disabled={isAuthSubmitting}>
+                  {isAuthSubmitting ? "Signing In..." : "Sign In"}
+                </button>
+              )}
+              {authFlowMode === "signup" && (
+                <button className="ghost" type="button" onClick={() => void submitAuthFlow("signup")} disabled={isAuthSubmitting}>
+                  {isAuthSubmitting ? "Creating Account..." : "Create Account"}
+                </button>
+              )}
+              {authFlowMode === "reset" && (
+                <>
+                  <button className="ghost" type="button" onClick={() => void requestPasswordReset()} disabled={isResetSubmitting}>
+                    {isResetSubmitting ? "Sending Link..." : "Send Reset Link"}
+                  </button>
+                  <button className="ghost" type="button" onClick={() => void confirmPasswordReset()} disabled={isResetSubmitting}>
+                    {isResetSubmitting ? "Resetting..." : "Apply New Password"}
+                  </button>
+                  <a className="ghost" href={`/recover-account/?reset_email=${encodeURIComponent(recoveryEmail.trim().toLowerCase())}`} target="_blank" rel="noreferrer">
+                    Open Recover Page
+                  </a>
+                </>
+              )}
+              <div className={`auth-inline-status ${authInlineState.tone}`}>
+                <strong>{authInlineState.label}</strong>
+                <span>{authInlineState.detail}</span>
               </div>
             </div>
-            <div className="tool-actions left" style={{ marginTop: 8 }}>
-              <button className="ghost" type="button" onClick={() => void confirmPasswordReset()} disabled={isResetSubmitting}>
-                {isResetSubmitting ? "Resetting..." : "Reset Password"}
-              </button>
+            <div className="auth-mode-footnote">
+              Revision: {workspaceRevision || "n/a"} · Workspace: {workspaceId}
             </div>
           </section>
 
@@ -6682,8 +7192,8 @@ export function App() {
     try {
       const qs = new URLSearchParams();
       qs.set("id", workspaceId);
-      const res = await fetch(`/api/ws-member-list?${qs.toString()}`, { method: "GET" });
-      const data = await res.json();
+      const res = await fetch(`/api/ws-member-list?${qs.toString()}`, { method: "GET", credentials: "include" });
+      const data = await readJsonOrThrow<{ members?: WorkspaceMember[]; error?: string }>(res, "Workspace member list");
       if (!res.ok) {
         setWorkspaceMemberResult(data?.error || `workspace members failed (${res.status})`);
         return;
@@ -6772,7 +7282,7 @@ export function App() {
   async function loadSkyeSuiteModels() {
     if (!workspaceId.trim()) return;
     setIsLoadingSuiteModels(true);
-    setSuiteSyncResult("");
+    publishSuiteSyncResult("");
     setSheetsRecordId("");
     setSlidesRecordId("");
     setTasksRecordId("");
@@ -6785,12 +7295,16 @@ export function App() {
       qs.set("limit", "1");
 
       const [sheetsRes, slidesRes, tasksRes] = await Promise.all([
-        fetch(`/api/skyesheets-list?${qs.toString()}`, { method: "GET" }),
-        fetch(`/api/skyeslides-list?${qs.toString()}`, { method: "GET" }),
-        fetch(`/api/skyetasks-list?${qs.toString()}`, { method: "GET" }),
+        fetch(`/api/skyesheets-list?${qs.toString()}`, { method: "GET", credentials: "include" }),
+        fetch(`/api/skyeslides-list?${qs.toString()}`, { method: "GET", credentials: "include" }),
+        fetch(`/api/skyetasks-list?${qs.toString()}`, { method: "GET", credentials: "include" }),
       ]);
 
-      const [sheetsData, slidesData, tasksData] = await Promise.all([sheetsRes.json(), slidesRes.json(), tasksRes.json()]);
+      const [sheetsData, slidesData, tasksData] = await Promise.all([
+        readJsonOrThrow<{ records?: AppRecord[]; error?: string }>(sheetsRes, "SkyeSheets list"),
+        readJsonOrThrow<{ records?: AppRecord[]; error?: string }>(slidesRes, "SkyeSlides list"),
+        readJsonOrThrow<{ records?: AppRecord[]; error?: string }>(tasksRes, "SkyeTasks list"),
+      ]);
 
       if (sheetsRes.ok && Array.isArray(sheetsData?.records) && sheetsData.records.length) {
         const rec = sheetsData.records[0] as AppRecord;
@@ -6823,9 +7337,9 @@ export function App() {
         }
       }
 
-      setSuiteSyncResult("Loaded SkyeSheets/Slides/Tasks from workspace records.");
+      publishSuiteSyncResult("Loaded SkyeSheets/Slides/Tasks from workspace records.");
     } catch (error: any) {
-      setSuiteSyncResult(error?.message || "Suite model load failed");
+      publishSuiteSyncResult(error?.message || "Suite model load failed");
     } finally {
       setSheetsHydrated(true);
       setSlidesHydrated(true);
@@ -6997,7 +7511,7 @@ export function App() {
         setTasksRecordUpdatedAt(mergePreview.serverUpdatedAt);
       }
     }
-    setSuiteSyncResult(`${mergePreview.appId} refreshed with server version after conflict.`);
+    publishSuiteSyncResult(`${mergePreview.appId} refreshed with server version after conflict.`, mergePreview.appId);
     setMergePreview(null);
   }
 
@@ -7023,9 +7537,10 @@ export function App() {
     if (selectedSkyeApp === "SkyeCalendar") return { events: calendarEvents };
     if (selectedSkyeApp === "SkyeDrive") return { assets: driveAssets };
     if (selectedSkyeApp === "SkyeVault") return { secrets: vaultSecrets };
-    if (selectedSkyeApp === "SkyeForms") return { questions: formQuestions };
+    if (selectedSkyeApp === "SkyeForms") return { questions: formQuestions, responses: formResponses };
     if (selectedSkyeApp === "SkyeNotes") return { notes: notesModel };
     if (selectedSkyeApp === "SkyeAnalytics") return { smoke_runs: smokeLedger.length, mvp_complete: completeMvpItems };
+    if (selectedSkyeApp === "SkyeVault-Pro-v4.46") return { workspace_id: workspaceId, note: "SkyeVault Pro state is managed in embedded app." };
     return { workspace_id: workspaceId, note: "SkyeDocxPro state is managed in embedded app." };
   }
 
@@ -7071,14 +7586,77 @@ export function App() {
     if (appId === "SkyeCalendar" && Array.isArray(payload.events)) setCalendarEvents(payload.events as CalendarEvent[]);
     if (appId === "SkyeDrive" && Array.isArray(payload.assets)) setDriveAssets(payload.assets as DriveAsset[]);
     if (appId === "SkyeVault" && Array.isArray(payload.secrets)) setVaultSecrets(payload.secrets as VaultSecret[]);
-    if (appId === "SkyeForms" && Array.isArray(payload.questions)) setFormQuestions(payload.questions as FormQuestion[]);
+    if (appId === "SkyeForms") {
+      if (Array.isArray(payload.questions)) setFormQuestions(payload.questions as FormQuestion[]);
+      if (Array.isArray(payload.responses)) setFormResponses(payload.responses as FormResponseItem[]);
+    }
     if (appId === "SkyeNotes" && Array.isArray(payload.notes)) setNotesModel(payload.notes as NoteItem[]);
+  }
+
+  function buildVaultProImportEnvelope(appId: SkyeAppId) {
+    return {
+      id: `vault-sync-${Date.now()}`,
+      format: "superide-vault-bridge-v1",
+      sourceApp: appId,
+      workspace_id: workspaceId,
+      exported_at: new Date().toISOString(),
+      title: `${appId} Workspace Snapshot`,
+      payload: currentAppPayload(),
+    };
+  }
+
+  function buildNeuralImportEnvelope(sourceApp: string, payload: Record<string, unknown> = currentAppPayload(), detail = "") {
+    return {
+      id: `neural-sync-${Date.now()}`,
+      format: "neural-suite-handoff-v1",
+      sourceApp,
+      workspace_id: workspaceId,
+      exported_at: new Date().toISOString(),
+      title: `${sourceApp} Neural Handoff`,
+      detail,
+      payload,
+    };
+  }
+
+  function saveCurrentAppToVaultPro(appId: SkyeAppId = selectedSkyeApp) {
+    localStorage.setItem(VAULT_PRO_PENDING_IMPORT_KEY, JSON.stringify(buildVaultProImportEnvelope(appId)));
+    emitAppBridge({
+      kind: "open-app",
+      source: appId,
+      appId: "SkyeVault-Pro-v4.46",
+      note: `${appId} staged a vault import snapshot.`,
+    });
+    pushCommandFeed(appId, `${appId} staged a snapshot for SkyeVault Pro.`, "ok", "SkyeVault-Pro-v4.46", undefined, "vault");
+    publishSuiteSyncResult(`Staged ${appId} for SkyeVault Pro import.`, appId);
+  }
+
+  function routeCurrentAppToNeural(appId: SkyeAppId = selectedSkyeApp, detail = "") {
+    const nextDetail = detail || `${appId} staged a Neural Space Pro handoff.`;
+    const envelope = buildNeuralImportEnvelope(appId, currentAppPayload(), nextDetail);
+    localStorage.setItem(NEURAL_PENDING_IMPORT_KEY, JSON.stringify(envelope));
+    emitAppBridge({
+      kind: "neural-import",
+      source: appId,
+      targetApp: "Neural-Space-Pro",
+      payload: envelope.payload,
+      envelope,
+      detail: nextDetail,
+      tone: "ok",
+    });
+    emitAppBridge({
+      kind: "open-app",
+      source: appId,
+      appId: "Neural-Space-Pro",
+      note: nextDetail,
+    });
+    pushCommandFeed(appId, nextDetail, "ok", undefined, undefined, "neural");
+    publishSuiteSyncResult(`Staged ${appId} for Neural Space Pro.`, appId);
   }
 
   async function exportSelectedAppAsSkye() {
     try {
       if (!skyePassphrase.trim() || skyePassphrase.trim().length < 6) {
-        setSuiteSyncResult("Secure .skye export requires a passphrase with at least 6 characters.");
+        publishSuiteSyncResult("Secure .skye export requires a passphrase with at least 6 characters.", selectedSkyeApp);
         return;
       }
 
@@ -7104,7 +7682,7 @@ export function App() {
       a.download = `${selectedSkyeApp}-${Date.now()}.skye`;
       a.click();
       URL.revokeObjectURL(url);
-      setSuiteSyncResult(`Exported ${selectedSkyeApp} as .skye`);
+      publishSuiteSyncResult(`Exported ${selectedSkyeApp} as .skye`, selectedSkyeApp);
       pushCommandFeed(
         "Suite Sync",
         sknoreBlockedFiles.length
@@ -7123,7 +7701,7 @@ export function App() {
         sknoreBlockedFiles.length ? `${sknoreBlockedFiles.length} protected` : "exported"
       );
     } catch (error: any) {
-      setSuiteSyncResult(error?.message || "Skye export failed.");
+      publishSuiteSyncResult(error?.message || "Skye export failed.", selectedSkyeApp);
     }
   }
 
@@ -7139,22 +7717,22 @@ export function App() {
       try {
         const secureEnvelope = await readSkyeEnvelopeFromBlob(file);
         if (!securePassphrase) {
-          setSuiteSyncResult("This .skye package is encrypted. Enter passphrase and import again.");
+          publishSuiteSyncResult("This .skye package is encrypted. Enter passphrase and import again.");
           return;
         }
         const payloadString = await decryptSkyePayload(secureEnvelope.payload.primary, securePassphrase);
         const payload = tryParseJson(payloadString) as unknown;
         if (!validateSkyePlainPayload(payload)) {
-          setSuiteSyncResult("Invalid canonical .skye payload.");
+          publishSuiteSyncResult("Invalid canonical .skye payload.");
           return;
         }
         const importedApp = String(payload.meta.app_id || "").trim();
         if (!SKYE_APP_ID_SET.has(importedApp)) {
-          setSuiteSyncResult(`Unsupported .skye app target: ${importedApp || "unknown"}`);
+          publishSuiteSyncResult(`Unsupported .skye app target: ${importedApp || "unknown"}`);
           return;
         }
         applyImportedAppPayload(importedApp as SkyeAppId, payload.state as Record<string, any>);
-        setSuiteSyncResult(`Imported .skye package for ${importedApp}`);
+        publishSuiteSyncResult(`Imported .skye package for ${importedApp}`, importedApp as CommandFeedItem["appId"]);
         setSelectedSkyeApp(importedApp as SkyeAppId);
         return;
       } catch {
@@ -7164,13 +7742,13 @@ export function App() {
       const legacyShellEnvelope = await tryReadLegacyShellSecureEnvelope(file);
       if (legacyShellEnvelope) {
         if (!securePassphrase) {
-          setSuiteSyncResult("This legacy shell .skye package is encrypted. Enter passphrase and import again.");
+          publishSuiteSyncResult("This legacy shell .skye package is encrypted. Enter passphrase and import again.");
           return;
         }
         const payloadString = await decryptSkyePayload(legacyShellEnvelope.payload.primary, securePassphrase, { iterations: 150000 });
         const payload = tryParseJson(payloadString) as Record<string, any>;
         applyImportedAppPayload(legacyShellEnvelope.app, payload);
-        setSuiteSyncResult(`Imported legacy shell .skye package for ${legacyShellEnvelope.app}`);
+        publishSuiteSyncResult(`Imported legacy shell .skye package for ${legacyShellEnvelope.app}`, legacyShellEnvelope.app as CommandFeedItem["appId"]);
         setSelectedSkyeApp(legacyShellEnvelope.app);
         return;
       }
@@ -7179,17 +7757,17 @@ export function App() {
       const legacyParsed = tryParseJson(text) as unknown;
       const legacyAdapter = normalizeLegacySkyeEnvelope(legacyParsed);
       if (!legacyAdapter || legacyAdapter.kind !== "skye-v2-json") {
-        setSuiteSyncResult("Invalid .skye package format.");
+        publishSuiteSyncResult("Invalid .skye package format.");
         return;
       }
 
       const legacyEnvelope = legacyAdapter.legacy as LegacySkyeEnvelope;
       if (!legacyEnvelope.encrypted) {
-        setSuiteSyncResult("Legacy unencrypted .skye packages are blocked. Export/import secure encrypted .skye only.");
+        publishSuiteSyncResult("Legacy unencrypted .skye packages are blocked. Export/import secure encrypted .skye only.");
         return;
       }
       if (!securePassphrase) {
-        setSuiteSyncResult("This legacy .skye package is encrypted. Enter passphrase and import again.");
+        publishSuiteSyncResult("This legacy .skye package is encrypted. Enter passphrase and import again.");
         return;
       }
       const payloadString = await decryptSkyePayload(
@@ -7203,10 +7781,10 @@ export function App() {
       );
       const payload = tryParseJson(payloadString) as Record<string, any>;
       applyImportedAppPayload(legacyEnvelope.app, payload);
-      setSuiteSyncResult(`Imported legacy .skye package for ${legacyEnvelope.app}`);
+      publishSuiteSyncResult(`Imported legacy .skye package for ${legacyEnvelope.app}`, legacyEnvelope.app as CommandFeedItem["appId"]);
       setSelectedSkyeApp(legacyEnvelope.app);
     } catch (error: any) {
-      setSuiteSyncResult(error?.message || "Skye import failed.");
+      publishSuiteSyncResult(error?.message || "Skye import failed.");
     } finally {
       setIsImportingSkye(false);
     }
@@ -7282,6 +7860,7 @@ export function App() {
       if (responses[3].ok && Array.isArray(formsData?.records) && formsData.records.length) {
         const payload = asObject(formsData.records[0].payload);
         if (Array.isArray(payload.questions)) setFormQuestions(payload.questions as FormQuestion[]);
+        if (Array.isArray(payload.responses)) setFormResponses(payload.responses as FormResponseItem[]);
       }
       if (responses[4].ok && Array.isArray(notesData?.records) && notesData.records.length) {
         const payload = asObject(notesData.records[0].payload);
@@ -7350,6 +7929,191 @@ export function App() {
     }));
   }
 
+  function duplicateSheetRow(rowId: string) {
+    const sourceRow = sheetsModel.rows.find((row) => row.id === rowId);
+    if (!sourceRow) return;
+    const duplicate: SheetRow = {
+      ...sourceRow,
+      id: `row-${Date.now()}`,
+      updated_at: new Date().toISOString(),
+      owner: authUser,
+    };
+    setSheetsModel((old) => ({ ...old, rows: [...old.rows, duplicate] }));
+    setActiveSheetRowId(duplicate.id);
+  }
+
+  function promoteSheetRowToTask(row: SheetRow) {
+    const workstream = getSheetCellValue(row, sheetsModel.columns, ["workstream", "question", "account", "item", "name"]);
+    const status = getSheetCellValue(row, sheetsModel.columns, ["status", "stage", "decision"]);
+    const due = getSheetCellValue(row, sheetsModel.columns, ["due", "date", "deadline"]);
+    const risk = getSheetCellValue(row, sheetsModel.columns, ["risk", "priority"]);
+    const description = row.cells.filter(Boolean).join(" | ").slice(0, 320);
+    const task: TaskCard = {
+      id: `task-${Date.now()}`,
+      title: workstream || `${sheetsModel.title} row follow-up`,
+      description: description || `Sheet row routed from ${sheetsModel.title}.`,
+      status: "backlog",
+      priority: normalizeProductivityKey(risk).includes("high") || normalizeProductivityKey(risk).includes("critical") ? "high" : "medium",
+      assignee: getSheetCellValue(row, sheetsModel.columns, ["owner", "assignee"]) || authUser,
+      due_at: due,
+      updated_at: new Date().toISOString(),
+    };
+    setTasksModel((old) => [task, ...old]);
+    pushCommandFeed("SkyeSheets", `${task.title} promoted into SkyeTasks from workbook status ${status || "unspecified"}.`, "ok", "SkyeTasks");
+  }
+
+  function exportSheetsExecutiveBrief() {
+    const riskRows = sheetsModel.rows.filter((row) => /high|blocked|critical/i.test(getSheetCellValue(row, sheetsModel.columns, ["risk", "status"])));
+    const dueRows = sheetsModel.rows.filter((row) => {
+      const due = getSheetCellValue(row, sheetsModel.columns, ["due", "date", "deadline"]);
+      if (!due) return false;
+      const dueDate = new Date(due);
+      if (Number.isNaN(dueDate.getTime())) return false;
+      const diff = dueDate.getTime() - Date.now();
+      return diff >= 0 && diff <= 1000 * 60 * 60 * 24 * 7;
+    });
+    const note: NoteItem = {
+      id: `note-${Date.now()}`,
+      title: `${sheetsModel.title} Executive Brief`,
+      body: [
+        `Workbook: ${sheetsModel.title}`,
+        `Rows: ${sheetsModel.rows.length}`,
+        `At risk: ${riskRows.length}`,
+        `Due in 7 days: ${dueRows.length}`,
+        "",
+        "Top rows:",
+        ...sheetsModel.rows.slice(0, 5).map((row, index) => `${index + 1}. ${row.cells.filter(Boolean).join(" | ") || "Empty row"}`),
+      ].join("\n"),
+      tags: "sheets,brief,ops",
+      owner: authUser,
+      updated_at: new Date().toISOString(),
+      notebook: "Executive Briefs",
+      pinned: true,
+    };
+    setNotesModel((old) => [note, ...old]);
+    pushCommandFeed("SkyeSheets", `Exported ${sheetsModel.title} executive brief into SkyeNotes.`, "ok", "SkyeNotes");
+  }
+
+  function pushDeckPresenterBrief() {
+    const talkTrack = slidesModel.slides.map((slide, index) => `${index + 1}. ${slide.title} · ${slide.speaker} · ${estimateReadingMinutes(slide.summary)} min\n${slide.summary || "No summary yet."}`).join("\n\n");
+    const note: NoteItem = {
+      id: `note-${Date.now()}`,
+      title: `${slidesModel.title} Presenter Brief`,
+      body: talkTrack,
+      tags: "slides,presenter,brief",
+      owner: authUser,
+      updated_at: new Date().toISOString(),
+      notebook: "Deck Outlines",
+      pinned: true,
+    };
+    setNotesModel((old) => [note, ...old]);
+    pushCommandFeed("SkyeSlides", `Presenter brief exported for ${slidesModel.title}.`, "ok", "SkyeNotes");
+  }
+
+  function createSlideApprovalTasks() {
+    const pendingSlides = slidesModel.slides.filter((slide) => slide.status !== "approved");
+    if (!pendingSlides.length) {
+      publishSuiteSyncResult(`All slides in ${slidesModel.title} are already approved.`, "SkyeSlides");
+      return;
+    }
+    const nextTasks = pendingSlides.map((slide) => ({
+      id: `task-${slide.id}-${Date.now()}`,
+      title: `Review slide: ${slide.title}`,
+      description: slide.summary.slice(0, 320) || `Review and approve slide ${slide.title}.`,
+      status: "backlog" as const,
+      priority: slide.status === "review" ? "high" as const : "medium" as const,
+      assignee: slide.speaker || authUser,
+      due_at: "",
+      updated_at: new Date().toISOString(),
+    }));
+    setTasksModel((old) => [...nextTasks, ...old]);
+    pushCommandFeed("SkyeSlides", `Created ${nextTasks.length} slide review tasks from ${slidesModel.title}.`, "ok", "SkyeTasks");
+  }
+
+  function exportLatestFormResponseToNotes() {
+    const latest = formResponses[0];
+    if (!latest) {
+      publishSuiteSyncResult("No form responses are available to route yet.", "SkyeForms");
+      return;
+    }
+    const lines = formQuestions.map((question) => `${question.prompt}\n${latest.answers[question.id] || "No answer"}`);
+    const note: NoteItem = {
+      id: `note-${Date.now()}`,
+      title: `Form response · ${latest.respondent}`,
+      body: lines.join("\n\n"),
+      tags: "forms,response,intake",
+      owner: authUser,
+      updated_at: new Date().toISOString(),
+      notebook: "Form Intake",
+      pinned: true,
+    };
+    setNotesModel((old) => [note, ...old]);
+    pushCommandFeed("SkyeForms", `Latest form response from ${latest.respondent} exported into SkyeNotes.`, "ok", "SkyeNotes");
+  }
+
+  function exportFormOpsRunbook() {
+    const note: NoteItem = {
+      id: `note-${Date.now()}`,
+      title: "Form Ops Runbook",
+      body: [
+        "Question inventory:",
+        ...formQuestions.map((question, index) => `${index + 1}. ${question.prompt} · ${question.required ? "required" : "optional"} · ${question.type}`),
+        "",
+        `Responses captured: ${formResponses.length}`,
+      ].join("\n"),
+      tags: "forms,runbook,ops",
+      owner: authUser,
+      updated_at: new Date().toISOString(),
+      notebook: "Ops",
+      pinned: true,
+    };
+    setNotesModel((old) => [note, ...old]);
+    pushCommandFeed("SkyeForms", "Generated form operations runbook in SkyeNotes.", "ok", "SkyeNotes");
+  }
+
+  function exportPinnedNotesDigestToSlides() {
+    const pinnedNotes = notesModel.filter((note) => note.pinned);
+    if (!pinnedNotes.length) {
+      publishSuiteSyncResult("Pin notes before building a leadership digest.", "SkyeNotes");
+      return;
+    }
+    const digestSlides = pinnedNotes.slice(0, 6).map((note, index) => ({
+      id: `slide-note-${Date.now()}-${index}`,
+      title: note.title,
+      summary: note.body.slice(0, 280),
+      speaker: note.owner || authUser,
+      status: index === 0 ? "review" as const : "draft" as const,
+      updated_at: new Date().toISOString(),
+    }));
+    setSlidesModel((old) => ({
+      ...old,
+      title: `${notesModel[0]?.notebook || "Notes"} Digest`,
+      slides: [...digestSlides, ...old.slides],
+    }));
+    setActiveSlideId(digestSlides[0].id);
+    pushCommandFeed("SkyeNotes", `Built a ${digestSlides.length}-slide digest from pinned notes.`, "ok", "SkyeSlides");
+  }
+
+  function promotePinnedNotesToTasks() {
+    const pinnedNotes = notesModel.filter((note) => note.pinned);
+    if (!pinnedNotes.length) {
+      publishSuiteSyncResult("No pinned notes are available for task extraction.", "SkyeNotes");
+      return;
+    }
+    const nextTasks = pinnedNotes.slice(0, 8).map((note) => ({
+      id: `task-${note.id}-${Date.now()}`,
+      title: note.title,
+      description: note.body.slice(0, 320),
+      status: "backlog" as const,
+      priority: "high" as const,
+      assignee: note.owner || authUser,
+      due_at: "",
+      updated_at: new Date().toISOString(),
+    }));
+    setTasksModel((old) => [...nextTasks, ...old]);
+    pushCommandFeed("SkyeNotes", `Extracted ${nextTasks.length} pinned notes into SkyeTasks.`, "ok", "SkyeTasks");
+  }
+
   function addSlide() {
     const slide: SlideItem = {
       id: `slide-${Date.now()}`,
@@ -7370,6 +8134,246 @@ export function App() {
         slide.id === activeSlideId ? { ...slide, ...patch, updated_at: new Date().toISOString() } : slide
       ),
     }));
+  }
+
+  function applySheetTemplate(template: "launch" | "pipeline" | "research") {
+    const stamp = Date.now();
+    const now = new Date().toISOString();
+    if (template === "launch") {
+      setSheetsModel({
+        title: "Launch Command Grid",
+        columns: ["Workstream", "Owner", "Status", "Due", "Risk", "Notes"],
+        rows: [
+          { id: `row-${stamp}-1`, owner: authUser, updated_at: now, cells: ["Auth Center", "Founder", "Shipping", "2026-03-15", "Low", "Named launcher card is live"] },
+          { id: `row-${stamp}-2`, owner: authUser, updated_at: now, cells: ["Vault Bridge", "Ops", "Review", "2026-03-16", "Medium", "Validate round-trip import/export"] },
+          { id: `row-${stamp}-3`, owner: authUser, updated_at: now, cells: ["Sovereign Feed", "Platform", "Blocked", "2026-03-16", "High", "Keep the error banner visible"] },
+        ],
+      });
+      return;
+    }
+    if (template === "pipeline") {
+      setSheetsModel({
+        title: "Revenue Pipeline Board",
+        columns: ["Account", "Stage", "Owner", "Value", "Next Move", "Risk"],
+        rows: [
+          { id: `row-${stamp}-1`, owner: authUser, updated_at: now, cells: ["HP", "Executive Review", "Founder", "$240k", "Ship proof lane", "Low"] },
+          { id: `row-${stamp}-2`, owner: authUser, updated_at: now, cells: ["Procurement Packet", "Evidence", "Ops", "$90k", "Finalize packet", "Medium"] },
+        ],
+      });
+      return;
+    }
+    setSheetsModel({
+      title: "Research Signal Grid",
+      columns: ["Question", "Source", "Evidence", "Decision", "Follow-up", "Owner"],
+      rows: [
+        { id: `row-${stamp}-1`, owner: authUser, updated_at: now, cells: ["What failed?", "Sovereign feed", "HTML fallback", "Guard JSON", "Show banner", authUser] },
+        { id: `row-${stamp}-2`, owner: authUser, updated_at: now, cells: ["What shipped?", "Vault audit", "Local API surface", "Integrate", "Prove round-trip", authUser] },
+      ],
+    });
+  }
+
+  function applySlideTemplate(template: "launch" | "investor" | "training") {
+    const stamp = Date.now();
+    const now = new Date().toISOString();
+    const slides = template === "launch"
+      ? [
+          { id: `slide-${stamp}-1`, title: "Mission", summary: "Ship the suite as a connected operator environment, not isolated demos.", speaker: authUser, status: "approved" as const, updated_at: now },
+          { id: `slide-${stamp}-2`, title: "Proof", summary: "Auth Center, vault bridge, sovereign feed visibility, and stronger app lanes.", speaker: authUser, status: "review" as const, updated_at: now },
+          { id: `slide-${stamp}-3`, title: "Risks", summary: "Cross-runtime consistency and regression proof remain the bar.", speaker: authUser, status: "draft" as const, updated_at: now },
+        ]
+      : template === "investor"
+        ? [
+            { id: `slide-${stamp}-1`, title: "Market", summary: "Fragmented tools create weak handoffs and fake platform narratives.", speaker: authUser, status: "approved" as const, updated_at: now },
+            { id: `slide-${stamp}-2`, title: "Product", summary: "SuperIDE unifies build, ops, content, comms, and secure AI lanes.", speaker: authUser, status: "review" as const, updated_at: now },
+            { id: `slide-${stamp}-3`, title: "Expansion", summary: "Vault, admin, contractor, and suite routes compound every lane.", speaker: authUser, status: "draft" as const, updated_at: now },
+          ]
+        : [
+            { id: `slide-${stamp}-1`, title: "Open the lane", summary: "Choose the product lane instead of relying on hidden search terms.", speaker: authUser, status: "approved" as const, updated_at: now },
+            { id: `slide-${stamp}-2`, title: "Do the task", summary: "Keep assets and follow-up inside the same suite context.", speaker: authUser, status: "review" as const, updated_at: now },
+            { id: `slide-${stamp}-3`, title: "Route the follow-up", summary: "Push the work into vault, mail, chat, or tasks to close the loop.", speaker: authUser, status: "draft" as const, updated_at: now },
+          ];
+    setSlidesModel({ title: template === "launch" ? "Launch Narrative" : template === "investor" ? "Investor Storyline" : "Training Deck", slides });
+    setActiveSlideId(slides[0].id);
+  }
+
+  function duplicateActiveSlide() {
+    const activeSlide = slidesModel.slides.find((slide) => slide.id === activeSlideId) || slidesModel.slides[0];
+    if (!activeSlide) return;
+    const duplicate: SlideItem = {
+      ...activeSlide,
+      id: `slide-${Date.now()}`,
+      title: `${activeSlide.title} Copy`,
+      status: "draft",
+      updated_at: new Date().toISOString(),
+    };
+    setSlidesModel((old) => ({ ...old, slides: [...old.slides, duplicate] }));
+    setActiveSlideId(duplicate.id);
+  }
+
+  function exportSlidesOutlineToNotes() {
+    const note: NoteItem = {
+      id: `note-${Date.now()}`,
+      title: `${slidesModel.title} Outline`,
+      body: slidesModel.slides.map((slide, index) => `${index + 1}. ${slide.title}\n${slide.summary}`).join("\n\n"),
+      tags: "slides,outline,vault-ready",
+      owner: authUser,
+      updated_at: new Date().toISOString(),
+      notebook: "Deck Outlines",
+      pinned: true,
+    };
+    setNotesModel((old) => [note, ...old]);
+    pushCommandFeed("SkyeSlides", "Deck outline exported into SkyeNotes.", "ok", "SkyeNotes");
+  }
+
+  function applyFormTemplate(template: "intake" | "onboarding" | "postmortem") {
+    const stamp = Date.now();
+    if (template === "intake") {
+      setFormQuestions([
+        { id: `form-${stamp}-1`, prompt: "What is the request?", type: "long_text", required: true, owner: authUser, help_text: "Capture the job in the operator's own words." },
+        { id: `form-${stamp}-2`, prompt: "Priority", type: "select", required: true, owner: authUser, help_text: "Triage the lane fast.", options: ["Low", "Medium", "High", "Critical"] },
+        { id: `form-${stamp}-3`, prompt: "Which product lane owns follow-up?", type: "select", required: true, owner: authUser, options: ["AE-Flow", "SkyeMail", "ContractorNetwork", "SkyeTasks"] },
+      ]);
+      return;
+    }
+    if (template === "onboarding") {
+      setFormQuestions([
+        { id: `form-${stamp}-1`, prompt: "Primary SKYEMAIL", type: "short_text", required: true, owner: authUser, help_text: "This becomes the main identity lane." },
+        { id: `form-${stamp}-2`, prompt: "Recovery email", type: "short_text", required: true, owner: authUser },
+        { id: `form-${stamp}-3`, prompt: "Support mode", type: "select", required: true, owner: authUser, options: ["Guided", "Self-Serve", "Later"] },
+      ]);
+      return;
+    }
+    setFormQuestions([
+      { id: `form-${stamp}-1`, prompt: "What failed?", type: "long_text", required: true, owner: authUser },
+      { id: `form-${stamp}-2`, prompt: "Impact", type: "select", required: true, owner: authUser, options: ["Low", "Moderate", "High"] },
+      { id: `form-${stamp}-3`, prompt: "Next corrective move", type: "long_text", required: true, owner: authUser },
+    ]);
+  }
+
+  function submitFormResponse() {
+    const answers: Record<string, string> = {};
+    for (const question of formQuestions) {
+      const answer = String(formResponseDrafts[question.id] || "").trim();
+      if (question.required && !answer) {
+        publishSuiteSyncResult(`Response is missing required field: ${question.prompt}`, "SkyeForms");
+        return;
+      }
+      answers[question.id] = answer;
+    }
+    const response: FormResponseItem = {
+      id: `form-response-${Date.now()}`,
+      respondent: formResponseDraftName.trim() || "workspace-operator",
+      submitted_at: new Date().toISOString(),
+      answers,
+    };
+    setFormResponses((old) => [response, ...old].slice(0, 20));
+    setFormResponseDrafts({});
+    pushCommandFeed("SkyeForms", `Captured form response from ${response.respondent}.`, "ok", "SkyeForms", undefined, "response");
+  }
+
+  function spawnNoteTemplate(template: "brief" | "runbook" | "idea") {
+    const note: NoteItem = {
+      id: `note-${Date.now()}`,
+      title: template === "brief" ? "Decision Brief" : template === "runbook" ? "Operator Runbook" : "Product Idea",
+      body: template === "brief"
+        ? "Decision\n\nContext\n\nTradeoffs\n\nNext move"
+        : template === "runbook"
+          ? "Trigger\n\nChecks\n\nEscalation\n\nRollback"
+          : "Problem\n\nAudience\n\nWorkflow\n\nWhy now",
+      tags: template,
+      owner: authUser,
+      updated_at: new Date().toISOString(),
+      notebook: template === "runbook" ? "Ops" : template === "brief" ? "Strategy" : "Ideas",
+      pinned: template !== "idea",
+    };
+    setNotesModel((old) => [note, ...old]);
+  }
+
+  function promoteNoteToTask(note: NoteItem) {
+    const task: TaskCard = {
+      id: `task-${Date.now()}`,
+      title: note.title,
+      description: note.body.slice(0, 320),
+      status: "backlog",
+      priority: note.pinned ? "high" : "medium",
+      assignee: authUser,
+      due_at: "",
+      updated_at: new Date().toISOString(),
+    };
+    setTasksModel((old) => [task, ...old]);
+    pushCommandFeed("SkyeNotes", `${note.title} promoted into SkyeTasks.`, "ok", "SkyeTasks");
+  }
+
+  function promoteNoteToSlide(note: NoteItem) {
+    const slide: SlideItem = {
+      id: `slide-${Date.now()}`,
+      title: note.title,
+      summary: note.body.slice(0, 280),
+      speaker: authUser,
+      status: "draft",
+      updated_at: new Date().toISOString(),
+    };
+    setSlidesModel((old) => ({ ...old, slides: [...old.slides, slide] }));
+    setActiveSlideId(slide.id);
+    pushCommandFeed("SkyeNotes", `${note.title} promoted into SkyeSlides.`, "ok", "SkyeSlides");
+  }
+
+  function updateProductivitySpec(appId: ProductivityAppId, specId: string) {
+    setProductivitySpecSelection((old) => ({ ...old, [appId]: specId }));
+  }
+
+  function renderProductivitySpecs(appId: ProductivityAppId) {
+    const activeSpec = getProductivitySpec(appId, productivitySpecSelection[appId]);
+    return (
+      <section className="replacement-panel">
+        <div className="replacement-panel-head">
+          <div>
+            <h3>Replacement Map</h3>
+            <p className="muted-copy">Every card below is clickable. Open one to see the exact feature set and why this lane is positioned as a full in-suite replacement.</p>
+          </div>
+          <span className="telemetry-chip">{appId}</span>
+        </div>
+        <div className="spec-grid">
+          {PRODUCTIVITY_PAGE_SPECS[appId].map((spec) => (
+            <button
+              key={`${appId}-${spec.id}`}
+              type="button"
+              className={`spec-card ${activeSpec.id === spec.id ? "active" : ""}`}
+              onClick={() => updateProductivitySpec(appId, spec.id)}
+            >
+              <strong>{spec.title}</strong>
+              <span>{spec.label}</span>
+              <small>{spec.summary}</small>
+            </button>
+          ))}
+        </div>
+        <div className="replacement-detail">
+          <div>
+            <div className="eyebrow-copy">{activeSpec.label}</div>
+            <h4>{activeSpec.title}</h4>
+            <p>{activeSpec.summary}</p>
+          </div>
+          <div className="replacement-columns">
+            <div>
+              <strong>Features</strong>
+              <ul>
+                {activeSpec.features.map((feature) => (
+                  <li key={`${activeSpec.id}-${feature}`}>{feature}</li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <strong>Why It Replaces Competitors</strong>
+              <ul>
+                {activeSpec.why.map((reason) => (
+                  <li key={`${activeSpec.id}-${reason}`}>{reason}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+    );
   }
 
   function addTaskCard() {
@@ -7663,25 +8667,70 @@ export function App() {
         const q = sheetsSearch.trim().toLowerCase();
         return row.cells.some((cell) => String(cell || "").toLowerCase().includes(q));
       });
+      const riskRows = filteredRows.filter((row) => /high|critical|blocked/.test(getSheetCellValue(row, sheetsModel.columns, ["risk", "status"]).toLowerCase()));
+      const dueSoonRows = filteredRows.filter((row) => {
+        const due = getSheetCellValue(row, sheetsModel.columns, ["due", "date", "deadline"]);
+        if (!due) return false;
+        const dueDate = new Date(due);
+        if (Number.isNaN(dueDate.getTime())) return false;
+        const diff = dueDate.getTime() - Date.now();
+        return diff >= 0 && diff <= 1000 * 60 * 60 * 24 * 7;
+      });
+      const ownerCounts = filteredRows.reduce<Record<string, number>>((acc, row) => {
+        const owner = getSheetCellValue(row, sheetsModel.columns, ["owner", "assignee"]) || row.owner || "unassigned";
+        acc[owner] = (acc[owner] || 0) + 1;
+        return acc;
+      }, {});
+      const focusedSheetRows = filteredRows.filter((row) => {
+        if (sheetsViewMode === "risk") return riskRows.includes(row);
+        if (sheetsViewMode === "due") return dueSoonRows.includes(row);
+        if (sheetsViewMode === "owner") return Boolean(getSheetCellValue(row, sheetsModel.columns, ["owner", "assignee"]));
+        return true;
+      });
       const filledCells = sheetsModel.rows.reduce(
         (sum, row) => sum + row.cells.filter((cell) => String(cell || "").trim().length > 0).length,
         0
       );
+      const completion = sheetsModel.rows.length && sheetsModel.columns.length
+        ? Math.round((filledCells / (sheetsModel.rows.length * sheetsModel.columns.length)) * 100)
+        : 0;
+      const activeRow = sheetsModel.rows.find((row) => row.id === activeSheetRowId) || focusedSheetRows[0] || filteredRows[0] || null;
       return (
         <section className="app-module">
-          <header><h2>SkyeSheets</h2><p>Workbook-grade table model with owner stamps and handoff controls.</p></header>
+          <header><h2>SkyeSheets</h2><p>Workbook-grade planning surface with command views, ownership rollups, due-window control, and suite routing instead of a dead grid.</p></header>
+          <div className="kpi-grid">
+            <article className="kpi-card"><div>Rows</div><strong>{sheetsModel.rows.length}</strong></article>
+            <article className="kpi-card"><div>Filled Cells</div><strong>{filledCells}</strong></article>
+            <article className="kpi-card"><div>Coverage</div><strong>{completion}%</strong></article>
+            <article className="kpi-card"><div>Columns</div><strong>{sheetsModel.columns.length}</strong></article>
+          </div>
+          <div className="workspace-mode-row">
+            {([
+              ["all", "All Rows"],
+              ["risk", "Risk Lane"],
+              ["due", "Due Soon"],
+              ["owner", "By Owner"],
+            ] as const).map(([mode, label]) => (
+              <button key={mode} className={`ghost ${sheetsViewMode === mode ? "active-chip" : ""}`} type="button" onClick={() => setSheetsViewMode(mode)}>{label}</button>
+            ))}
+          </div>
           <label>Workbook title</label>
           <input value={sheetsModel.title} onChange={(e) => setSheetsModel((old) => ({ ...old, title: e.target.value }))} />
           <div className="tool-row split">
             <input value={sheetsSearch} onChange={(e) => setSheetsSearch(e.target.value)} placeholder="Search workbook cells" />
-            <input readOnly value={`Rows: ${sheetsModel.rows.length} · Filled cells: ${filledCells}`} />
+            <input readOnly value={`Rows: ${sheetsModel.rows.length} · Risk: ${riskRows.length} · Due soon: ${dueSoonRows.length}`} />
           </div>
           <div className="tool-actions left">
             <button className="ghost" type="button" onClick={addSheetRow}>Add Row</button>
             <button className="ghost" type="button" onClick={addSheetColumn}>Add Column</button>
+            <button className="ghost" type="button" onClick={() => applySheetTemplate("launch")}>Launch Grid</button>
+            <button className="ghost" type="button" onClick={() => applySheetTemplate("pipeline")}>Pipeline Grid</button>
+            <button className="ghost" type="button" onClick={() => applySheetTemplate("research")}>Research Grid</button>
+            <button className="ghost" type="button" onClick={exportSheetsExecutiveBrief}>Export Executive Brief</button>
             <button className="ghost" type="button" onClick={() => void loadSkyeSuiteModels()} disabled={isLoadingSuiteModels}>
               {isLoadingSuiteModels ? "Syncing..." : "Sync Cloud Data"}
             </button>
+            <button className="ghost" type="button" onClick={() => saveCurrentAppToVaultPro("SkyeSheets")}>Save To SkyeVault Pro</button>
             <button
               className="ghost"
               type="button"
@@ -7691,14 +8740,59 @@ export function App() {
               {isSharingProject ? "Sharing..." : "Share Workbook Snapshot"}
             </button>
           </div>
+          <div className="ops-grid two-up">
+            <article className="list-item">
+              <strong>Execution Summary</strong>
+              <div className="metric-strip">
+                <span>{riskRows.length} at risk</span>
+                <span>{dueSoonRows.length} due in 7 days</span>
+                <span>{Object.keys(ownerCounts).length} owners active</span>
+              </div>
+              <div className="list-stack compact-section">
+                {Object.entries(ownerCounts).length ? Object.entries(ownerCounts).map(([owner, count]) => (
+                  <div key={owner} className="list-item compact-inline">
+                    <strong>{owner}</strong>
+                    <span>{count} rows</span>
+                  </div>
+                )) : <div className="muted-copy">Assign owners to rows and the distribution lane will populate.</div>}
+              </div>
+            </article>
+            <article className="list-item">
+              <strong>Focused Row Review</strong>
+              {activeRow ? (
+                <>
+                  <div className="muted-copy">Owner {getSheetCellValue(activeRow, sheetsModel.columns, ["owner", "assignee"]) || activeRow.owner || "unassigned"}</div>
+                  <div className="focus-card-grid">
+                    {sheetsModel.columns.map((column, index) => (
+                      <div key={`${activeRow.id}-${column}-${index}`} className="focus-cell">
+                        <small>{column}</small>
+                        <strong>{activeRow.cells[index] || "—"}</strong>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="tool-actions left">
+                    <button className="ghost" type="button" onClick={() => duplicateSheetRow(activeRow.id)}>Duplicate Row</button>
+                    <button className="ghost" type="button" onClick={() => promoteSheetRowToTask(activeRow)}>Promote To Task</button>
+                  </div>
+                </>
+              ) : <div className="muted-copy">Select or create a row to inspect its operational detail.</div>}
+            </article>
+          </div>
           <div className="sheet-grid">
             <div className="sheet-row">
-              {sheetsModel.columns.map((col) => (
-                <input key={`head-${col}`} value={col} readOnly />
+              {sheetsModel.columns.map((col, index) => (
+                <input
+                  key={`head-${col}-${index}`}
+                  value={col}
+                  onChange={(e) => setSheetsModel((old) => ({
+                    ...old,
+                    columns: old.columns.map((entry, entryIndex) => (entryIndex === index ? e.target.value : entry)),
+                  }))}
+                />
               ))}
             </div>
-            {filteredRows.map((row) => (
-              <div key={row.id} className="sheet-row">
+            {focusedSheetRows.map((row) => (
+              <div key={row.id} className={`sheet-row interactive-row ${activeRow?.id === row.id ? "active" : ""}`} onClick={() => setActiveSheetRowId(row.id)}>
                 {row.cells.map((cell, c) => (
                   <input
                     key={`c-${row.id}-${c}`}
@@ -7709,6 +8803,7 @@ export function App() {
               </div>
             ))}
           </div>
+          {renderProductivitySpecs("SkyeSheets")}
           {suiteSyncResult && <p className="muted-copy">{suiteSyncResult}</p>}
           {shareResult && <p className="muted-copy">{shareResult}</p>}
         </section>
@@ -7717,16 +8812,48 @@ export function App() {
 
     if (selectedSkyeApp === "SkyeSlides") {
       const activeSlide = slidesModel.slides.find((slide) => slide.id === activeSlideId) || slidesModel.slides[0];
+      const approvedCount = slidesModel.slides.filter((slide) => slide.status === "approved").length;
+      const reviewSlides = slidesModel.slides.filter((slide) => slide.status === "review");
+      const draftSlides = slidesModel.slides.filter((slide) => slide.status === "draft");
+      const talkMinutes = slidesModel.slides.reduce((sum, slide) => sum + estimateReadingMinutes(slide.summary), 0);
+      const focusedSlides = slidesWorkspaceMode === "approvals"
+        ? slidesModel.slides.filter((slide) => slide.status !== "approved")
+        : slidesWorkspaceMode === "run-of-show"
+          ? [...slidesModel.slides].sort((a, b) => estimateReadingMinutes(b.summary) - estimateReadingMinutes(a.summary))
+          : slidesModel.slides;
       return (
         <section className="app-module">
-          <header><h2>SkyeSlides</h2><p>Deck state model with ownership, status gates, and delivery controls.</p></header>
+          <header><h2>SkyeSlides</h2><p>Story deck surface with run-of-show control, approval routing, and presenter support instead of a thin slide list.</p></header>
+          <div className="kpi-grid">
+            <article className="kpi-card"><div>Slides</div><strong>{slidesModel.slides.length}</strong></article>
+            <article className="kpi-card"><div>Approved</div><strong>{approvedCount}</strong></article>
+            <article className="kpi-card"><div>In Review</div><strong>{reviewSlides.length}</strong></article>
+            <article className="kpi-card"><div>Talk Time</div><strong>{talkMinutes} min</strong></article>
+          </div>
+          <div className="workspace-mode-row">
+            {([
+              ["deck", "Deck Builder"],
+              ["run-of-show", "Run Of Show"],
+              ["approvals", "Approval Lane"],
+            ] as const).map(([mode, label]) => (
+              <button key={mode} className={`ghost ${slidesWorkspaceMode === mode ? "active-chip" : ""}`} type="button" onClick={() => setSlidesWorkspaceMode(mode)}>{label}</button>
+            ))}
+          </div>
           <label>Deck title</label>
           <input value={slidesModel.title} onChange={(e) => setSlidesModel((old) => ({ ...old, title: e.target.value }))} />
           <div className="tool-actions left">
             <button className="ghost" type="button" onClick={addSlide}>Add Slide</button>
+            <button className="ghost" type="button" onClick={duplicateActiveSlide}>Duplicate Active</button>
+            <button className="ghost" type="button" onClick={() => applySlideTemplate("launch")}>Launch Deck</button>
+            <button className="ghost" type="button" onClick={() => applySlideTemplate("investor")}>Investor Deck</button>
+            <button className="ghost" type="button" onClick={() => applySlideTemplate("training")}>Training Deck</button>
             <button className="ghost" type="button" onClick={() => void loadSkyeSuiteModels()} disabled={isLoadingSuiteModels}>
               {isLoadingSuiteModels ? "Syncing..." : "Sync Cloud Data"}
             </button>
+            <button className="ghost" type="button" onClick={exportSlidesOutlineToNotes}>Export Outline To Notes</button>
+            <button className="ghost" type="button" onClick={pushDeckPresenterBrief}>Presenter Brief</button>
+            <button className="ghost" type="button" onClick={createSlideApprovalTasks}>Create Review Tasks</button>
+            <button className="ghost" type="button" onClick={() => saveCurrentAppToVaultPro("SkyeSlides")}>Save To SkyeVault Pro</button>
             <button
               className="ghost"
               type="button"
@@ -7741,6 +8868,41 @@ export function App() {
               {isSharingProject ? "Sharing..." : "Share Deck Snapshot"}
             </button>
           </div>
+          <div className="ops-grid two-up">
+            <article className="list-item">
+              <strong>Deck Operations</strong>
+              <div className="metric-strip">
+                <span>{reviewSlides.length} waiting review</span>
+                <span>{draftSlides.length} still drafting</span>
+                <span>{talkMinutes} minutes estimated</span>
+              </div>
+              <div className="list-stack compact-section">
+                {focusedSlides.map((slide, index) => (
+                  <button key={`ops-slide-${slide.id}`} type="button" className={`app-item grouped ${slide.id === activeSlide?.id ? "active" : ""}`} onClick={() => setActiveSlideId(slide.id)}>
+                    <span className="app-item-copy">
+                      <strong>{index + 1}. {slide.title}</strong>
+                      <small>{slide.speaker || "No speaker"} · {estimateReadingMinutes(slide.summary)} min</small>
+                    </span>
+                    <span className="telemetry-chip">{slide.status}</span>
+                  </button>
+                ))}
+              </div>
+            </article>
+            <article className="list-item">
+              <strong>Presenter Snapshot</strong>
+              {activeSlide ? (
+                <>
+                  <div className="focus-card-grid">
+                    <div className="focus-cell"><small>Speaker</small><strong>{activeSlide.speaker || "unassigned"}</strong></div>
+                    <div className="focus-cell"><small>Status</small><strong>{activeSlide.status}</strong></div>
+                    <div className="focus-cell"><small>Talk Time</small><strong>{estimateReadingMinutes(activeSlide.summary)} min</strong></div>
+                    <div className="focus-cell"><small>Updated</small><strong>{new Date(activeSlide.updated_at).toLocaleDateString()}</strong></div>
+                  </div>
+                  <p className="muted-copy">{activeSlide.summary || "No summary yet."}</p>
+                </>
+              ) : <div className="muted-copy">Create a slide to start the deck lane.</div>}
+            </article>
+          </div>
           <label>Slides</label>
           <select value={activeSlide?.id || ""} onChange={(e) => setActiveSlideId(e.target.value)}>
             {slidesModel.slides.map((slide) => (
@@ -7751,6 +8913,17 @@ export function App() {
           </select>
           {activeSlide && (
             <>
+              <div className="list-stack compact-section">
+                {slidesModel.slides.map((slide) => (
+                  <button key={`slide-card-${slide.id}`} type="button" className={`app-item grouped ${slide.id === activeSlide.id ? "active" : ""}`} onClick={() => setActiveSlideId(slide.id)}>
+                    <span className="app-item-copy">
+                      <strong>{slide.title}</strong>
+                      <small>{slide.summary.slice(0, 90) || "No summary yet."}</small>
+                    </span>
+                    <span className="telemetry-chip">{slide.status}</span>
+                  </button>
+                ))}
+              </div>
               <label>Slide title</label>
               <input value={activeSlide.title} onChange={(e) => updateActiveSlide({ title: e.target.value })} />
               <label>Summary</label>
@@ -7772,6 +8945,7 @@ export function App() {
               <p className="muted-copy">Last update: {new Date(activeSlide.updated_at).toLocaleString()}</p>
             </>
           )}
+          {renderProductivitySpecs("SkyeSlides")}
           {suiteSyncResult && <p className="muted-copy">{suiteSyncResult}</p>}
           {shareResult && <p className="muted-copy">{shareResult}</p>}
         </section>
@@ -8162,9 +9336,35 @@ export function App() {
     }
 
     if (selectedSkyeApp === "SkyeForms") {
+      const requiredQuestions = formQuestions.filter((question) => question.required).length;
+      const completionByResponse = formResponses.map((response) => {
+        const answered = Object.values(response.answers).filter((entry) => String(entry || "").trim()).length;
+        const completionPercent = formQuestions.length ? Math.round((answered / formQuestions.length) * 100) : 0;
+        return { ...response, answered, completionPercent };
+      });
+      const filteredResponses = completionByResponse.filter((response) => {
+        if (formResponseFilter === "complete") return response.completionPercent === 100;
+        if (formResponseFilter === "partial") return response.completionPercent < 100;
+        return true;
+      });
       return (
         <section className="app-module">
-          <header><h2>SkyeForms</h2><p>Questionnaire builder with required flags and response-ready prompts.</p></header>
+          <header><h2>SkyeForms</h2><p>Form builder with response operations, workflow routing, and launch readiness instead of a static questionnaire.</p></header>
+          <div className="kpi-grid">
+            <article className="kpi-card"><div>Questions</div><strong>{formQuestions.length}</strong></article>
+            <article className="kpi-card"><div>Required</div><strong>{requiredQuestions}</strong></article>
+            <article className="kpi-card"><div>Responses</div><strong>{formResponses.length}</strong></article>
+            <article className="kpi-card"><div>Completion</div><strong>{formQuestions.length ? Math.round((requiredQuestions / formQuestions.length) * 100) : 0}%</strong></article>
+          </div>
+          <div className="workspace-mode-row">
+            {([
+              ["all", "All Responses"],
+              ["complete", "Complete"],
+              ["partial", "Partial"],
+            ] as const).map(([mode, label]) => (
+              <button key={mode} className={`ghost ${formResponseFilter === mode ? "active-chip" : ""}`} type="button" onClick={() => setFormResponseFilter(mode)}>{label}</button>
+            ))}
+          </div>
           <div className="tool-actions left">
             <a className="ghost" href={`/SkyeForms/index.html?ws_id=${encodeURIComponent(workspaceId)}`} target="_blank" rel="noreferrer">Open Standalone</a>
           </div>
@@ -8176,7 +9376,14 @@ export function App() {
               <option value="select">select</option>
             </select>
           </div>
+          <div className="tool-row split">
+            <input value={formDraftHelpText} onChange={(e) => setFormDraftHelpText(e.target.value)} placeholder="Helper copy / operator guidance" />
+            <input value={formDraftOptions} onChange={(e) => setFormDraftOptions(e.target.value)} placeholder="Select options, comma separated" />
+          </div>
           <div className="tool-actions left">
+            <button className="ghost" type="button" onClick={() => applyFormTemplate("intake")}>Intake Template</button>
+            <button className="ghost" type="button" onClick={() => applyFormTemplate("onboarding")}>Onboarding Template</button>
+            <button className="ghost" type="button" onClick={() => applyFormTemplate("postmortem")}>Postmortem Template</button>
             <button
               className="ghost"
               type="button"
@@ -8189,36 +9396,148 @@ export function App() {
                     type: formDraftType,
                     required: false,
                     owner: authUser,
+                    help_text: formDraftHelpText.trim(),
+                    options: formDraftType === "select" ? formDraftOptions.split(",").map((item) => item.trim()).filter(Boolean) : [],
                   },
                   ...old,
                 ]);
                 setFormDraftPrompt("");
+                setFormDraftHelpText("");
+                setFormDraftOptions("");
               }}
             >
               Add Question
             </button>
+            <button className="ghost" type="button" onClick={exportLatestFormResponseToNotes}>Route Latest Response</button>
+            <button className="ghost" type="button" onClick={exportFormOpsRunbook}>Export Ops Runbook</button>
+            <button className="ghost" type="button" onClick={() => saveCurrentAppToVaultPro("SkyeForms")}>Save To SkyeVault Pro</button>
+          </div>
+          <div className="ops-grid two-up">
+            <article className="list-item">
+              <strong>Builder Studio</strong>
+              <div className="metric-strip">
+                <span>{requiredQuestions} required</span>
+                <span>{formQuestions.filter((question) => question.type === "select").length} select controls</span>
+                <span>{formQuestions.length - requiredQuestions} optional</span>
+              </div>
+              <div className="list-stack compact-section">
+                {formQuestions.map((question) => (
+                  <div key={`builder-${question.id}`} className="list-item compact-inline">
+                    <strong>{question.prompt}</strong>
+                    <span>{question.type} · {question.required ? "required" : "optional"}</span>
+                  </div>
+                ))}
+              </div>
+            </article>
+            <article className="list-item">
+              <strong>Response Operations</strong>
+              <div className="metric-strip">
+                <span>{filteredResponses.length} shown</span>
+                <span>{completionByResponse.filter((item) => item.completionPercent === 100).length} complete</span>
+                <span>{completionByResponse.filter((item) => item.completionPercent < 100).length} partial</span>
+              </div>
+              <div className="list-stack compact-section">
+                {filteredResponses.length ? filteredResponses.map((response) => (
+                  <div key={`response-metric-${response.id}`} className="list-item compact-inline">
+                    <strong>{response.respondent}</strong>
+                    <span>{response.answered}/{formQuestions.length} answers · {response.completionPercent}%</span>
+                  </div>
+                )) : <div className="muted-copy">No responses match the current filter.</div>}
+              </div>
+            </article>
           </div>
           <div className="list-stack">
             {formQuestions.map((question) => (
               <div key={question.id} className="list-item">
-                <strong>{question.prompt}</strong>
-                <div>type={question.type} · owner={question.owner}</div>
-                <label style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 6 }}>
-                  <input type="checkbox" checked={question.required} onChange={(e) => setFormQuestions((old) => old.map((x) => (x.id === question.id ? { ...x, required: e.target.checked } : x)))} />
-                  Required
-                </label>
+                <div className="list-item-copy" style={{ width: "100%" }}>
+                  <strong>{question.prompt}</strong>
+                  <div>type={question.type} · owner={question.owner}</div>
+                  {question.help_text ? <div className="muted-copy">{question.help_text}</div> : null}
+                  {question.type === "select" && question.options?.length ? <div className="muted-copy">options={question.options.join(" · ")}</div> : null}
+                  <label style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 6 }}>
+                    <input type="checkbox" checked={question.required} onChange={(e) => setFormQuestions((old) => old.map((x) => (x.id === question.id ? { ...x, required: e.target.checked } : x)))} />
+                    Required
+                  </label>
+                </div>
               </div>
             ))}
           </div>
+          <div className="list-stack form-response-stack">
+            <div className="list-item">
+              <div className="list-item-copy" style={{ width: "100%" }}>
+                <strong>Response capture lane</strong>
+                <div className="tool-row split" style={{ marginTop: 8 }}>
+                  <input value={formResponseDraftName} onChange={(e) => setFormResponseDraftName(e.target.value)} placeholder="Respondent" />
+                  <button className="ghost" type="button" onClick={submitFormResponse}>Capture Response</button>
+                </div>
+                <div className="list-stack" style={{ marginTop: 10 }}>
+                  {formQuestions.map((question) => (
+                    <label key={`response-${question.id}`}>
+                      {question.prompt}
+                      {question.type === "long_text" ? (
+                        <textarea rows={3} value={formResponseDrafts[question.id] || ""} onChange={(e) => setFormResponseDrafts((old) => ({ ...old, [question.id]: e.target.value }))} />
+                      ) : question.type === "select" ? (
+                        <select value={formResponseDrafts[question.id] || ""} onChange={(e) => setFormResponseDrafts((old) => ({ ...old, [question.id]: e.target.value }))}>
+                          <option value="">Select...</option>
+                          {(question.options || []).map((option) => (
+                            <option key={`${question.id}-${option}`} value={option}>{option}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input value={formResponseDrafts[question.id] || ""} onChange={(e) => setFormResponseDrafts((old) => ({ ...old, [question.id]: e.target.value }))} />
+                      )}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+            {filteredResponses.map((response) => (
+              <div key={response.id} className="list-item">
+                <div className="list-item-copy">
+                  <strong>{response.respondent}</strong>
+                  <div className="muted-copy">{new Date(response.submitted_at).toLocaleString()}</div>
+                  <div className="muted-copy">Answered {response.answered} prompts · {response.completionPercent}% complete</div>
+                </div>
+              </div>
+            ))}
+          </div>
+          {renderProductivitySpecs("SkyeForms")}
         </section>
       );
     }
 
     if (selectedSkyeApp === "SkyeNotes") {
-      const filtered = notesModel.filter((note) => `${note.title} ${note.body} ${note.tags}`.toLowerCase().includes(noteSearch.trim().toLowerCase()));
+      const filtered = notesModel.filter((note) => `${note.title} ${note.body} ${note.tags}`.toLowerCase().includes(noteSearch.trim().toLowerCase())).filter((note) => {
+        if (notesViewMode === "pinned") return Boolean(note.pinned);
+        if (notesViewMode === "briefs") return /brief/i.test(note.tags) || /brief/i.test(note.title);
+        if (notesViewMode === "runbooks") return /runbook/i.test(note.tags) || /runbook/i.test(note.title) || /ops/i.test(note.notebook || "");
+        return true;
+      });
+      const notebookCount = new Set(notesModel.map((note) => note.notebook || "General")).size;
+      const notebookSummary = notesModel.reduce<Record<string, number>>((acc, note) => {
+        const notebook = note.notebook || "General";
+        acc[notebook] = (acc[notebook] || 0) + 1;
+        return acc;
+      }, {});
       return (
         <section className="app-module">
-          <header><h2>SkyeNotes</h2><p>Knowledge notes with tags, search, and ownership metadata.</p></header>
+          <header><h2>SkyeNotes</h2><p>Operator notebook with knowledge views, structured briefs, and direct promotion into suite execution lanes.</p></header>
+          <div className="kpi-grid">
+            <article className="kpi-card"><div>Notes</div><strong>{notesModel.length}</strong></article>
+            <article className="kpi-card"><div>Pinned</div><strong>{notesModel.filter((note) => note.pinned).length}</strong></article>
+            <article className="kpi-card"><div>Notebooks</div><strong>{notebookCount}</strong></article>
+            <article className="kpi-card"><div>Matches</div><strong>{filtered.length}</strong></article>
+          </div>
+          <div className="workspace-mode-row">
+            {([
+              ["all", "All Notes"],
+              ["pinned", "Pinned"],
+              ["briefs", "Briefs"],
+              ["runbooks", "Runbooks"],
+            ] as const).map(([mode, label]) => (
+              <button key={mode} className={`ghost ${notesViewMode === mode ? "active-chip" : ""}`} type="button" onClick={() => setNotesViewMode(mode)}>{label}</button>
+            ))}
+          </div>
           <div className="tool-actions left">
             <a className="ghost" href={`/SkyeNotes/index.html?ws_id=${encodeURIComponent(workspaceId)}`} target="_blank" rel="noreferrer">Open Standalone</a>
           </div>
@@ -8226,7 +9545,16 @@ export function App() {
             <input value={noteDraftTitle} onChange={(e) => setNoteDraftTitle(e.target.value)} placeholder="Note title" />
             <input value={noteSearch} onChange={(e) => setNoteSearch(e.target.value)} placeholder="Search notes" />
           </div>
+          <div className="tool-row split">
+            <input value={noteDraftNotebook} onChange={(e) => setNoteDraftNotebook(e.target.value)} placeholder="Notebook" />
+            <input readOnly value={`Pinned ${notesModel.filter((note) => note.pinned).length} · Notebooks ${notebookCount}`} />
+          </div>
           <div className="tool-actions left">
+            <button className="ghost" type="button" onClick={() => spawnNoteTemplate("brief")}>Decision Brief</button>
+            <button className="ghost" type="button" onClick={() => spawnNoteTemplate("runbook")}>Runbook</button>
+            <button className="ghost" type="button" onClick={() => spawnNoteTemplate("idea")}>Idea</button>
+            <button className="ghost" type="button" onClick={exportPinnedNotesDigestToSlides}>Build Leadership Digest</button>
+            <button className="ghost" type="button" onClick={promotePinnedNotesToTasks}>Extract Tasks</button>
             <button
               className="ghost"
               type="button"
@@ -8240,6 +9568,8 @@ export function App() {
                     tags: "",
                     owner: authUser,
                     updated_at: new Date().toISOString(),
+                    notebook: noteDraftNotebook.trim() || "General",
+                    pinned: false,
                   },
                   ...old,
                 ]);
@@ -8248,20 +9578,59 @@ export function App() {
             >
               Add Note
             </button>
+            <button className="ghost" type="button" onClick={() => saveCurrentAppToVaultPro("SkyeNotes")}>Save To SkyeVault Pro</button>
+          </div>
+          <div className="ops-grid two-up">
+            <article className="list-item">
+              <strong>Notebook Density</strong>
+              <div className="list-stack compact-section">
+                {Object.entries(notebookSummary).map(([notebook, count]) => (
+                  <div key={notebook} className="list-item compact-inline">
+                    <strong>{notebook}</strong>
+                    <span>{count} notes</span>
+                  </div>
+                ))}
+              </div>
+            </article>
+            <article className="list-item">
+              <strong>Promotion Readiness</strong>
+              <div className="metric-strip">
+                <span>{notesModel.filter((note) => note.pinned).length} pinned</span>
+                <span>{notesModel.filter((note) => /runbook/i.test(note.tags)).length} runbooks</span>
+                <span>{notesModel.filter((note) => /brief/i.test(note.tags)).length} briefs</span>
+              </div>
+              <p className="muted-copy">Pinned notes can be pushed into SkyeTasks and SkyeSlides without rewriting the same material.</p>
+            </article>
           </div>
           <div className="list-stack">
             {filtered.map((note) => (
               <div key={note.id} className="list-item">
-                <strong>{note.title}</strong>
-                <textarea
-                  rows={3}
-                  value={note.body}
-                  onChange={(e) => setNotesModel((old) => old.map((x) => (x.id === note.id ? { ...x, body: e.target.value, updated_at: new Date().toISOString() } : x)))}
-                />
-                <input value={note.tags} onChange={(e) => setNotesModel((old) => old.map((x) => (x.id === note.id ? { ...x, tags: e.target.value, updated_at: new Date().toISOString() } : x)))} placeholder="Tags" />
+                <div className="list-item-copy" style={{ width: "100%" }}>
+                  <div className="tool-row split">
+                    <strong>{note.title}</strong>
+                    <span className="telemetry-chip">{note.notebook || "General"}</span>
+                  </div>
+                  <textarea
+                    rows={4}
+                    value={note.body}
+                    onChange={(e) => setNotesModel((old) => old.map((x) => (x.id === note.id ? { ...x, body: e.target.value, updated_at: new Date().toISOString() } : x)))}
+                  />
+                  <div className="tool-row split">
+                    <input value={note.tags} onChange={(e) => setNotesModel((old) => old.map((x) => (x.id === note.id ? { ...x, tags: e.target.value, updated_at: new Date().toISOString() } : x)))} placeholder="Tags" />
+                    <input value={note.notebook || ""} onChange={(e) => setNotesModel((old) => old.map((x) => (x.id === note.id ? { ...x, notebook: e.target.value, updated_at: new Date().toISOString() } : x)))} placeholder="Notebook" />
+                  </div>
+                  <div className="tool-actions left">
+                    <button className="ghost" type="button" onClick={() => setNotesModel((old) => old.map((x) => (x.id === note.id ? { ...x, pinned: !x.pinned, updated_at: new Date().toISOString() } : x)))}>
+                      {note.pinned ? "Unpin" : "Pin"}
+                    </button>
+                    <button className="ghost" type="button" onClick={() => promoteNoteToTask(note)}>To Task</button>
+                    <button className="ghost" type="button" onClick={() => promoteNoteToSlide(note)}>To Slide</button>
+                  </div>
+                </div>
               </div>
             ))}
           </div>
+          {renderProductivitySpecs("SkyeNotes")}
         </section>
       );
     }
@@ -8320,7 +9689,7 @@ export function App() {
 
           <section className="neural-room-bridge">
             <h3>Protected Admin Board</h3>
-            <p className="muted-copy">Infrastructure controls, smokehouse, pricing, and company onboarding stay behind ADMIN_KEY even inside SkyeAdmin.</p>
+            <p className="muted-copy">Infrastructure controls, smokehouse, pricing, and company onboarding stay behind an internal admin credential. Either ADMIN_KEY or ADMIN_PASSWORD can unlock this board.</p>
             {!adminBoardUnlocked ? (
               <>
                 <label htmlFor="skyeadmin-admin-key">Admin Board Key</label>
@@ -8329,7 +9698,7 @@ export function App() {
                   type="password"
                   value={adminBoardKey}
                   onChange={(event) => setAdminBoardKey(event.target.value)}
-                  placeholder="Enter ADMIN_KEY"
+                  placeholder="Enter ADMIN_KEY or ADMIN_PASSWORD"
                 />
                 <div className="tool-actions left">
                   <button className="ghost" type="button" onClick={() => void verifyAdminBoardKey()} disabled={isAdminBoardVerifying}>
@@ -8793,13 +10162,22 @@ export function App() {
       </header>
 
       <section className="workspace-surface-bar">
-        <div className="workspace-surface-meta">Home Control Stack</div>
-        <div className="workspace-surface-meta">{showHomePanels ? "Expanded" : "Collapsed by default so the primary workspace stays first."}</div>
+        <div className="workspace-surface-meta">Bench Controls</div>
+        <div className="workspace-surface-meta">{showHomePanels ? "Home panels open" : "Workspace-first load"}</div>
         <span className="telemetry-chip">Command feed: {commandFeed.length}</span>
         <span className="telemetry-chip">Events: {sovereignEvents.length}</span>
         <span className="telemetry-chip">Active app: {selectedSkyeApp}</span>
         <button className="ghost" type="button" onClick={() => setShowHomePanels((old) => !old)}>
           {showHomePanels ? "Hide Home Panels" : "Show Home Panels"}
+        </button>
+        <button className="ghost" type="button" onClick={() => setShowAppStrip((old) => !old)}>
+          {showAppStrip ? "Hide Suite Browser" : "Show Suite Browser"}
+        </button>
+        <button className="ghost" type="button" onClick={() => routeCurrentAppToNeural(selectedSkyeApp, `${selectedSkyeApp} routed its current state into Neural Space Pro.`)}>
+          Send Current App To Neural
+        </button>
+        <button className="ghost" type="button" onClick={() => saveCurrentAppToVaultPro(selectedSkyeApp)}>
+          Stage Current App To Vault
         </button>
         <button className="ghost" type="button" onClick={() => openAuthCenterWindow({ focus: true, guide: true })}>
           Guided Onboarding
@@ -8884,6 +10262,12 @@ export function App() {
           </div>
         </div>
         <div className="sovereign-event-list">
+          {sovereignEventsError ? (
+            <div className="sovereign-feed-banner fail">
+              <strong>Sovereign feed unavailable</strong>
+              <span>{sovereignEventsError}</span>
+            </div>
+          ) : null}
           {sovereignEvents.slice(0, 4).map((entry) => {
             const appId = getSovereignEventAppId(entry);
             return (
@@ -9459,7 +10843,7 @@ export function App() {
               type="password"
               value={adminBoardKey}
               onChange={(event) => setAdminBoardKey(event.target.value)}
-              placeholder="Enter ADMIN_KEY"
+              placeholder="Enter ADMIN_KEY or ADMIN_PASSWORD"
             />
             <button className="ghost" type="button" onClick={() => void verifyAdminBoardKey()} disabled={isAdminBoardVerifying}>
               {isAdminBoardVerifying ? "Unlocking..." : "Unlock Admin Board"}
@@ -9565,8 +10949,42 @@ export function App() {
         </div>
       )}
 
+      <div className="shell-skyehawk-launcher" aria-label="Skyehawk shell launcher">
+        <button className="shell-skyehawk-trigger" type="button" aria-label="Open Skyehawk suite launcher" onClick={() => revealShellSkyehawkRail()}>
+          <img src="/SKYESOVERLONDONDIETYLOGO.png" alt="Skyehawk" />
+        </button>
+        <nav ref={shellSkyehawkRailRef} className="shell-skyehawk-rail" aria-label="Skyehawk suite launcher rail">
+          {SHELL_SKYEHAWK_LINKS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className={`shell-skyehawk-link ${isShellSkyehawkRouteActive(item.route) ? "active" : ""}`}
+              onClick={() => focusShellSkyehawkRoute(item.route)}
+            >
+              {item.label}
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      {!dismissedShellSkyehawkPopup ? (
+        <aside className="shell-skyehawk-popup" role="dialog" aria-label="Skyehawk menu guidance">
+          <div className="shell-skyehawk-popup-head">
+            <img src="/SKYESOVERLONDONDIETYLOGO.png" alt="Skyehawk" />
+            <div>
+              <h3>Skyehawk Menu</h3>
+              <p>Use the hawk button and top rail to move through the full suite from inside the shell, including ContractorNetwork and recovery lanes.</p>
+            </div>
+          </div>
+          <div className="shell-skyehawk-popup-actions">
+            <button className="shell-skyehawk-popup-open" type="button" onClick={() => revealShellSkyehawkRail()}>Open Menu</button>
+            <button className="shell-skyehawk-popup-dismiss" type="button" onClick={() => dismissShellSkyehawkPopup()}>Dismiss</button>
+          </div>
+        </aside>
+      ) : null}
+
       <div className={`workspace-stack ${isSkyeDocsStackMode ? "workspace-stack-docs" : ""}`}>
-      {appMode === "skyeide" && (
+      {appMode === "skyeide" && showAppStrip && (
         <section className="app-strip" aria-label="Skye app switcher">
           <div className="app-strip-head">
             <strong>Browse Apps By Function</strong>
@@ -9577,6 +10995,18 @@ export function App() {
               aria-label="search apps"
             />
             <a className="ghost" href={standaloneIdeUrl} target="_blank" rel="noreferrer">Open Standalone IDE</a>
+          </div>
+          <div className="app-drawer-spotlight" aria-label="suite spotlight cards">
+            <button className="app-spotlight-card auth-center-launcher" type="button" onClick={() => openAuthCenterWindow({ focus: true, guide: true })}>
+              <span className="app-spotlight-kicker">Auth Center</span>
+              <strong>Login, signup, recovery, admin, and key flow</strong>
+              <small>Open the named auth product lane instead of relying on searchable metadata alone.</small>
+            </button>
+            <button className={`app-spotlight-card ${selectedSkyeApp === "SkyeVault-Pro-v4.46" ? "active" : ""}`} type="button" onClick={() => { setSelectedSkyeApp("SkyeVault-Pro-v4.46"); setAppMode("skyeide"); }}>
+              <span className="app-spotlight-kicker">Vault Lane</span>
+              <strong>SkyeVault Pro</strong>
+              <small>Local-first vault workspace with direct import/export back into SuperIDE.</small>
+            </button>
           </div>
           <div className="app-strip-featured" role="tablist" aria-label="featured apps">
             {FEATURED_APP_IDS.map((appId) => {
@@ -9965,50 +11395,24 @@ export function App() {
           {appMode === "skyeide" ? (
             selectedSkyeApp === "SkyeDocs" ? (
               <>
-                <section className="app-module workspace-stage-settings">
-                  <header>
-                    <h2>Primary Workspace Stack</h2>
-                    <p>The extra workspace stack is now optional. Keep it collapsed unless you actively need staging or validation rails ahead of the IDE.</p>
-                  </header>
-                  <div className="tool-actions left">
-                    <button className="ghost" type="button" onClick={() => setShowWorkspaceStack((old) => !old)}>
-                      {showWorkspaceStack ? "Collapse Stack" : "Expand Stack"}
-                    </button>
-                    <button className="ghost" type="button" onClick={() => setShowExecutionSettings(true)}>
-                      Configure Pipeline
-                    </button>
-                    <span className="telemetry-chip">Configured: {`${workspaceStageLabel(topWorkspaceApp)} -> ${workspaceStageLabel(middleWorkspaceApp)} -> ${workspaceStageLabel(bottomWorkspaceApp)}`}</span>
-                  </div>
-                  <div className="onboarding-summary-grid">
-                    <div>
-                      <strong>Primary stack</strong>
-                      <span>{`${workspaceStageLabel(topWorkspaceApp)} -> ${workspaceStageLabel(middleWorkspaceApp)} -> ${workspaceStageLabel(bottomWorkspaceApp)}`}</span>
-                    </div>
-                    <div>
-                      <strong>Validation rails</strong>
-                      <span>Smokehouse-Standalone to API-Playground</span>
-                    </div>
-                  </div>
-                </section>
-
                 {showWorkspaceStack ? (
                   ([topWorkspaceApp, middleWorkspaceApp, bottomWorkspaceApp, "Smokehouse-Standalone", "API-Playground"] as WorkspaceStageApp[]).map((app, index) => {
                     const slot =
                       index === 0
-                        ? "Top Workspace"
+                        ? "Workspace 1"
                         : index === 1
-                          ? "Middle Workspace"
+                          ? "Workspace 2"
                           : index === 2
-                            ? "Bottom Workspace"
+                            ? "Workspace 3"
                             : index === 3
-                              ? "Validation Workspace: Smokehouse"
-                              : "Validation Workspace: API Playground";
+                              ? "Smokehouse"
+                              : "API Playground";
                     const src = workspaceStageUrl(app);
                     return (
                       <section key={`stack-${slot}-${app}`} className="app-module workspace-stage-block">
                         <header>
                           <h2>{slot}: {workspaceStageLabel(app)}</h2>
-                          <p>{index >= 3 ? "Fixed 1:1 validation guard rail." : "1:1 embedded surface in the primary container workspace."}</p>
+                          <p>{index >= 3 ? "Fixed validation rail in the primary bench." : "Primary embedded workspace lane."}</p>
                         </header>
                         <div className="tool-actions left">
                           <a className="ghost" href={src} target="_blank" rel="noreferrer">Open Standalone</a>
@@ -10018,16 +11422,40 @@ export function App() {
                     );
                   })
                 ) : (
-                  <section className="app-module workspace-stage-block">
-                    <header>
-                      <h2>Workspace Stack Collapsed</h2>
-                      <p>The IDE workspace below is now the primary working surface. Expand the stack only when you need sidecar staging or validation rails.</p>
-                    </header>
+                  <section className="app-module workspace-stage-toolbar workspace-stage-toolbar-collapsed">
                     <div className="tool-actions left">
-                      <button className="ghost" type="button" onClick={() => setShowWorkspaceStack(true)}>Open Stack</button>
+                      <button className="ghost" type="button" onClick={() => setShowWorkspaceStack(true)}>Open Workspace Stack</button>
+                      <span className="telemetry-chip">IDE-only mode</span>
                     </div>
                   </section>
                 )}
+
+                <section className="app-module workspace-stage-toolbar">
+                  <div className="tool-actions left">
+                    <button className="ghost" type="button" onClick={() => setShowWorkspaceStack((old) => !old)}>
+                      {showWorkspaceStack ? "Collapse Stack" : "Expand Stack"}
+                    </button>
+                    <button className="ghost" type="button" onClick={() => setShowExecutionSettings((old) => !old)}>
+                      {showExecutionSettings ? "Hide Pipeline" : "Configure Pipeline"}
+                    </button>
+                    <button className="ghost" type="button" onClick={() => setShowAppStrip((old) => !old)}>
+                      {showAppStrip ? "Hide Suite Browser" : "Open Suite Browser"}
+                    </button>
+                    <span className="telemetry-chip">Primary: {`${workspaceStageLabel(topWorkspaceApp)} -> ${workspaceStageLabel(middleWorkspaceApp)} -> ${workspaceStageLabel(bottomWorkspaceApp)}`}</span>
+                  </div>
+                  {showExecutionSettings ? (
+                    <div className="onboarding-summary-grid">
+                      <div>
+                        <strong>Workspace stack</strong>
+                        <span>{`${workspaceStageLabel(topWorkspaceApp)} -> ${workspaceStageLabel(middleWorkspaceApp)} -> ${workspaceStageLabel(bottomWorkspaceApp)}`}</span>
+                      </div>
+                      <div>
+                        <strong>Validation rails</strong>
+                        <span>Smokehouse-Standalone to API-Playground</span>
+                      </div>
+                    </div>
+                  ) : null}
+                </section>
 
                 <section className="app-module ide-module-focus">
                   <header><h2>IDE Workspace</h2><p>Real app-focused workspace with side-by-side code and live preview that can be detached.</p></header>

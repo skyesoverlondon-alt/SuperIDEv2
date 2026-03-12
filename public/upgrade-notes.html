@@ -55,18 +55,38 @@
   <div class="wrap">
     <div class="card">
       <h1>SuperIDEv2 Upgrade Notes</h1>
-      <p class="meta">Updated: 2026-03-05</p>
-      <p>Hardening pass completed across mode separation, Neural-to-Chat integration, standalone app workspaces, secure .skye behavior, and backend wiring for previously local-only app modules.</p>
+      <p class="meta">Updated: 2026-03-12</p>
+      <p>Platform expansion pass completed across Neural and Vault handoffs plus a major productivity-suite upgrade for SkyeSheets, SkyeSlides, SkyeForms, and SkyeNotes. Those four surfaces now behave like operational workspaces, not placeholder editors.</p>
       <a class="btn" href="/index.html">Back To IDE</a>
     </div>
 
     <div class="card">
-      <h2>Latest Patch (2026-03-05)</h2>
+      <h2>Latest Patch (2026-03-12)</h2>
       <ul>
-        <li>Cloudflare Worker CORS preflight fix shipped: null-body `204` response now uses `new Response(null, { status: 204 })` semantics.</li>
-        <li>Full smoke run executed: `PASS=13 FAIL=0` on production smokehouse contract routes.</li>
-        <li>Release checklist rerun passed with security, reliability, data integrity, and executive readiness gates all green.</li>
-        <li>Gateway-only call-path controls remain enforced through static checks and release gate scripts.</li>
+        <li>SkyeSheets now includes command views for risk, due-soon, and ownership lanes, plus focused row review and direct promotion into SkyeTasks.</li>
+        <li>SkyeSlides now includes run-of-show planning, presenter brief generation, review-task creation, and a stronger deck operations layer.</li>
+        <li>SkyeForms now includes response-ops filtering, completion scoring, latest-response routing into SkyeNotes, and an exportable form runbook lane.</li>
+        <li>SkyeNotes now includes notebook-density views, pinned-note execution routing, leadership-digest generation, and structured replacement-map panels.</li>
+        <li>Each productivity app now exposes clickable in-app replacement/spec cards so users can inspect the feature breakdown and replacement rationale directly from the workspace.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>Platform Integration</h2>
+      <ul>
+        <li>Neural Space Pro is now staged as a suite orchestrator lane with inbound and outbound app handoffs instead of a chat-only surface.</li>
+        <li>SkyeVault Pro now routes data into a much wider set of suite apps, including direct Neural Space Pro handoff support.</li>
+        <li>SuperIDE shell controls now support routing the current app into Neural Space Pro and staging the current app directly to SkyeVault Pro.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>Productivity Replacement Criteria</h2>
+      <ul>
+        <li>SkyeSheets is now measured as an execution spreadsheet, not just a cell grid: ownership, deadlines, risk, and downstream routing are first-class.</li>
+        <li>SkyeSlides is now measured as a deck operations system: narrative planning, presenter support, review routing, and timing awareness are first-class.</li>
+        <li>SkyeForms is now measured as an intake operations surface: builder quality, response quality, and post-submit workflow control are first-class.</li>
+        <li>SkyeNotes is now measured as a knowledge-to-action system: notebook structure, digest generation, and task/slide promotion are first-class.</li>
       </ul>
     </div>
 
