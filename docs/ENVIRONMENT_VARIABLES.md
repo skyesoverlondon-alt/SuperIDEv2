@@ -135,6 +135,11 @@ For the main app to work in production, start with the five core production vari
 
 These are used by files under [worker/src](../worker/src).
 
+Deployment note:
+
+Secrets belong on the code Worker service declared in [worker/wrangler.toml](/workspaces/SuperIDEv2/worker/wrangler.toml). This repo's Worker is not a static-assets-only Worker; it is a code Worker with `main = "src/index.ts"` and the service name `kaixu-superide-runner`.
+If Cloudflare shows the message that secret variables cannot be added to a Worker that only has static assets, you are in the wrong dashboard target and need to switch to the deployed code Worker service or redeploy it with `npm run deploy:worker`.
+
 ### Required Worker secrets or vars
 
 | Variable | Required | Purpose |
@@ -180,7 +185,7 @@ These appear in docs or historical notes, but they are not part of the current m
 
 ## Prototype-Only Legacy Variables
 
-These belong to the old provider-direct prototype in [Prototype:SkyDex4.6](../Prototype:SkyDex4.6). They are not required for the secured main app runtime.
+These belong to the old provider-direct prototype now archived in [artifacts/legacy-archive/Prototype-SkyDex4.6](/workspaces/SuperIDEv2/artifacts/legacy-archive/Prototype-SkyDex4.6). They are not required for the secured main app runtime.
 
 | Variable | Used by |
 |---|---|

@@ -10,6 +10,7 @@ import {
   resolveAccessibleChannel,
 } from "./_shared/skychat";
 import { callKaixuBrainWithFailover } from "./_shared/kaixu_brain";
+import { recordBrainUsage } from "./_shared/brain_usage";
 
 export const handler = async (event: any) => {
   const u = await requireUser(event);
@@ -113,6 +114,8 @@ export const handler = async (event: any) => {
       app: "SkyeChat",
       actor_email: u.email,
       actor_org: u.org_id,
+      actor_user_id: u.user_id,
+      auth_type: "session",
     },
   });
 
@@ -133,6 +136,8 @@ export const handler = async (event: any) => {
       effective_provider: result.effective_provider,
       effective_model: result.effective_model,
       brain_route: result.brain.route,
+      usage: result.usage,
+      billing: result.billing,
     });
     return json(result.status, {
       ok: false,
@@ -150,6 +155,8 @@ export const handler = async (event: any) => {
       configured_provider: result.configured_provider,
       effective_provider: result.effective_provider,
       effective_model: result.effective_model,
+      usage: result.usage,
+      billing: result.billing,
     });
   }
 
@@ -181,6 +188,29 @@ export const handler = async (event: any) => {
     brain_route: result.brain.route,
     brain_request_id: result.brain.request_id,
     used_backup: result.used_backup,
+    usage: result.usage,
+    billing: result.billing,
+  });
+
+  await recordBrainUsage({
+    actor: u.email,
+    actor_email: u.email,
+    actor_user_id: u.user_id,
+    org_id: u.org_id,
+    ws_id: effectiveWsId,
+    app: "SkyeChat",
+    auth_type: "session",
+    used_backup: result.used_backup,
+    brain_route: result.brain.route,
+    provider: result.effective_provider,
+    model: result.effective_model,
+    gateway_request_id: result.gateway_request_id,
+    backup_request_id: result.backup_request_id,
+    gateway_status: result.gateway_status,
+    backup_status: result.backup_status,
+    usage: result.usage,
+    billing: result.billing,
+    success: true,
   });
 
   return json(200, {
@@ -189,6 +219,9 @@ export const handler = async (event: any) => {
     ai_record_id: aiRow.rows[0]?.id || null,
     ai_message: result.text,
     brain: result.brain,
+    used_backup: result.used_backup,
+    usage: result.usage,
+    billing: result.billing,
     created_at: aiRow.rows[0]?.created_at || null,
   });
 };

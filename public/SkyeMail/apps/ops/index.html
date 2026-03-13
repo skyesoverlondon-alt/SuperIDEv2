@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SkyeMail Operations</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/SkyeMail/assets/platform.css" />
+  <script src="/_shared/standalone-session.js"></script>
+  <script defer src="/SkyeMail/assets/platform.js"></script>
+</head>
+<body data-app-id="SkyeMail" data-page="ops">
+  <div class="platform-shell">
+    <header class="platform-topbar">
+      <div>
+        <div class="platform-kicker">SkyeMail Platform</div>
+        <div class="platform-brand">Mail Ops</div>
+      </div>
+      <div class="platform-topbar-actions">
+        <a class="platform-button ghost" href="/SkyeMail/index.html">Platform Hub</a>
+        <a class="platform-button" data-nav="command" href="/SkyeMail/apps/command/index.html">Open Command Workspace</a>
+      </div>
+    </header>
+
+    <nav class="subnav">
+      <a data-page="hub" href="/SkyeMail/index.html">Hub</a>
+      <a data-page="mailbox" href="/SkyeMail/apps/mailbox/index.html">Mailbox</a>
+      <a data-page="templates" href="/SkyeMail/apps/templates/index.html">Compose</a>
+      <a data-page="campaigns" href="/SkyeMail/apps/campaigns/index.html">Campaigns</a>
+      <a data-page="ops" href="/SkyeMail/apps/ops/index.html">Ops</a>
+      <a data-page="command" href="/SkyeMail/apps/command/index.html">Command</a>
+    </nav>
+
+    <main class="platform-main">
+      <section class="panel-stack two-up">
+        <article class="platform-panel">
+          <div class="panel-heading">
+            <span class="eyebrow">Delivery And Escalation Posture</span>
+            <h2>Keep sender health and recovery notes visible</h2>
+          </div>
+          <form class="composer-form">
+            <div class="field-grid">
+              <label>Ops title
+                <input id="opsTitle" placeholder="Sender reputation watch" />
+              </label>
+              <label>Status
+                <select id="opsStatus">
+                  <option value="clear">clear</option>
+                  <option value="watch">watch</option>
+                  <option value="recovery">recovery</option>
+                </select>
+              </label>
+            </div>
+            <label>Operator note
+              <textarea id="opsNote" placeholder="Describe retry posture, sender risk, inbound issues, or escalation handling."></textarea>
+            </label>
+            <div class="button-row">
+              <button type="button" data-action="save-ops-note">Save Ops Note</button>
+              <button class="ghost" type="button" data-action="route-ops-to-command">Open In Command Workspace</button>
+            </div>
+          </form>
+        </article>
+
+        <article class="platform-panel">
+          <div class="panel-heading">
+            <span class="eyebrow">Saved Ops Notes</span>
+            <h2>Current posture</h2>
+          </div>
+          <div class="list-shell" data-bind="opsNotes"></div>
+        </article>
+      </section>
+
+      <section class="panel-stack two-up">
+        <article class="utility-card">
+          <h3>Recent Deliveries</h3>
+          <div class="list-shell" data-bind="recentDeliveries"></div>
+        </article>
+        <article class="utility-card">
+          <h3>Why This Exists</h3>
+          <p class="helper-copy">A serious mail platform keeps delivery and sender state visible. If retry, provider, and sender posture only exist as scattered error text, it is not a mail platform.</p>
+        </article>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

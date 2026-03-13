@@ -1,0 +1,23 @@
+{
+  "name": "skyevault-personal-netlify-family",
+  "private": true,
+  "version": "1.2.0",
+  "type": "module",
+  "description": "SkyeVault Personal surface running on the shared SuperIDE runtime with hosted backup, profile sync, and gateway-backed AI.",
+  "scripts": {
+    "dev": "netlify dev",
+    "build": "echo static-site",
+    "check": "node --check assets/js/common.js && node --check assets/js/local-vault.js && node --check assets/js/drive.js && node --check assets/js/hosted-bridge.js"
+  },
+  "dependencies": {
+    "@netlify/blobs": "^8.1.0",
+    "@netlify/functions": "^3.1.0",
+    "@neondatabase/serverless": "^1.0.1"
+  },
+  "devDependencies": {
+    "netlify-cli": "^23.0.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

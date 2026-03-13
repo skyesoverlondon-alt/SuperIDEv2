@@ -53,6 +53,11 @@
   status = 200
 
 [[redirects]]
+  from = "/api/admin/ai-brain-usage"
+  to = "/.netlify/functions/admin-ai-brain-usage"
+  status = 200
+
+[[redirects]]
   from = "/api/admin/file/*"
   to = "/.netlify/functions/admin-file/:splat"
   status = 200

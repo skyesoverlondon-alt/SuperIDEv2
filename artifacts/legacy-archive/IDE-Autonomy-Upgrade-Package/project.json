@@ -1,0 +1,32 @@
+{
+  "project_slug": "kaix4nthi4_4_6_deep_refactor",
+  "project_name": "kAIx4nthi4 4.6 Deep Refactor",
+  "source_zip": "kAIx4nthi4-4.6-deep-refactor.zip",
+  "source_zip_size_bytes": 5948776,
+  "special_focus_note": "Special focus: kAIx4nthi4 / \u201cKaizanthe\u201d lane",
+  "skipped_prefixes": [
+    "__MACOSX/",
+    ".git/",
+    "node_modules/",
+    "worker/node_modules/",
+    "dist/node_modules/",
+    ".DS_Store"
+  ],
+  "module_count": 13,
+  "module_keys": [
+    "assets",
+    "dev_notes",
+    "docs_enterprise",
+    "netlify_functions",
+    "root_core",
+    "scripts_automation",
+    "solesheetslogin",
+    "sql",
+    "tests_validation",
+    "tools",
+    "well-known",
+    "worker_runtime",
+    "xnthgateway"
+  ],
+  "readme_excerpt": ""
+}

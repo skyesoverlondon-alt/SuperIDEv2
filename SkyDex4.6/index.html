@@ -489,6 +489,7 @@
 
     .success { color: var(--success); }
     .danger { color: var(--danger); }
+    .warning { color: var(--gold-soft); }
     .file-status-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
     .file-badge { border-radius: 999px; border: 1px solid rgba(239, 199, 100, 0.24); padding: 2px 8px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; }
     .file-badge.changed { border-color: rgba(239, 199, 100, 0.42); color: var(--warning); }
@@ -497,6 +498,285 @@
     .diff-summary strong { display: block; margin-bottom: 8px; }
     .diff-summary-list { display: grid; gap: 6px; margin-top: 8px; }
     .diff-summary-item { font-size: 12px; color: var(--muted); }
+
+    .desktop-dropzone {
+      position: fixed;
+      inset: 18px;
+      display: grid;
+      place-items: center;
+      border-radius: 28px;
+      border: 1px dashed rgba(255, 227, 155, 0.34);
+      background: rgba(8, 5, 17, 0.76);
+      backdrop-filter: blur(16px);
+      box-shadow: 0 28px 80px rgba(0, 0, 0, 0.34);
+      opacity: 0;
+      pointer-events: none;
+      transform: scale(0.985);
+      transition: opacity 140ms ease, transform 140ms ease;
+      z-index: 50;
+    }
+
+    .desktop-dropzone.visible {
+      opacity: 1;
+      pointer-events: auto;
+      transform: scale(1);
+    }
+
+    .desktop-drop-card {
+      width: min(620px, calc(100vw - 72px));
+      padding: 28px;
+      border-radius: 26px;
+      border: 1px solid rgba(255, 227, 155, 0.28);
+      background:
+        radial-gradient(circle at top left, rgba(143, 91, 255, 0.2), transparent 42%),
+        radial-gradient(circle at bottom right, rgba(239, 199, 100, 0.16), transparent 40%),
+        linear-gradient(180deg, rgba(22, 14, 38, 0.96), rgba(10, 8, 18, 0.98));
+      text-align: center;
+    }
+
+    .desktop-drop-card h2 {
+      margin: 0 0 10px;
+      font-size: clamp(1.6rem, 3vw, 2.3rem);
+      color: var(--gold-soft);
+    }
+
+    .desktop-drop-card p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    .desktop-drop-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-top: 18px;
+    }
+
+    .agent-result-list {
+      display: grid;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .agent-op-item {
+      border: 1px solid rgba(201, 164, 79, 0.16);
+      border-radius: 14px;
+      padding: 10px 12px;
+      background: rgba(255, 255, 255, 0.03);
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .agent-op-item strong {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--text);
+    }
+
+    .agent-settings-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .agent-helper {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .tutorial-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 70;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 28px;
+      background: rgba(5, 4, 11, 0.78);
+      backdrop-filter: blur(18px);
+    }
+
+    .tutorial-overlay.visible {
+      display: flex;
+    }
+
+    .tutorial-dialog {
+      width: min(1180px, 100%);
+      max-height: min(92vh, 920px);
+      overflow: auto;
+      border-radius: 28px;
+      border: 1px solid rgba(239, 199, 100, 0.26);
+      background:
+        radial-gradient(circle at top right, rgba(143, 91, 255, 0.18), transparent 26%),
+        radial-gradient(circle at top left, rgba(239, 199, 100, 0.14), transparent 28%),
+        linear-gradient(180deg, rgba(16, 10, 29, 0.98), rgba(7, 6, 14, 0.98));
+      box-shadow: 0 40px 120px rgba(0, 0, 0, 0.5);
+    }
+
+    .tutorial-header,
+    .tutorial-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 14px;
+      padding: 20px 24px;
+      border-bottom: 1px solid rgba(239, 199, 100, 0.14);
+    }
+
+    .tutorial-footer {
+      border-bottom: none;
+      border-top: 1px solid rgba(239, 199, 100, 0.14);
+      flex-wrap: wrap;
+    }
+
+    .tutorial-header-copy h2,
+    .tutorial-header-copy p {
+      margin: 0;
+    }
+
+    .tutorial-header-copy p {
+      margin-top: 8px;
+      color: var(--muted);
+      max-width: 760px;
+      line-height: 1.55;
+    }
+
+    .tutorial-body {
+      display: grid;
+      gap: 18px;
+      padding: 22px 24px 26px;
+    }
+
+    .tutorial-hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+      gap: 16px;
+    }
+
+    .tutorial-card {
+      border: 1px solid rgba(239, 199, 100, 0.14);
+      border-radius: 22px;
+      padding: 18px;
+      background: rgba(255, 255, 255, 0.035);
+    }
+
+    .tutorial-card h3,
+    .tutorial-card h4,
+    .tutorial-card p {
+      margin: 0;
+    }
+
+    .tutorial-card p {
+      margin-top: 8px;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    .tutorial-status-grid,
+    .tutorial-step-grid,
+    .tutorial-playbook-grid,
+    .tutorial-action-grid {
+      display: grid;
+      gap: 12px;
+    }
+
+    .tutorial-status-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      margin-top: 14px;
+    }
+
+    .tutorial-step-grid,
+    .tutorial-playbook-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .tutorial-action-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      margin-top: 14px;
+    }
+
+    .tutorial-step,
+    .tutorial-status,
+    .tutorial-playbook {
+      border: 1px solid rgba(239, 199, 100, 0.14);
+      border-radius: 18px;
+      padding: 14px;
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .tutorial-step strong,
+    .tutorial-status strong,
+    .tutorial-playbook strong {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--text);
+    }
+
+    .tutorial-step div,
+    .tutorial-status div,
+    .tutorial-playbook div {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .tutorial-checklist {
+      display: grid;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .tutorial-check {
+      display: grid;
+      grid-template-columns: 18px 1fr;
+      gap: 10px;
+      align-items: start;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .tutorial-check::before {
+      content: "";
+      width: 10px;
+      height: 10px;
+      margin-top: 5px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, var(--gold), var(--purple));
+      box-shadow: 0 0 14px rgba(143, 91, 255, 0.26);
+    }
+
+    .tutorial-preset {
+      width: 100%;
+      text-align: left;
+      border: 1px solid rgba(239, 199, 100, 0.14);
+      border-radius: 18px;
+      padding: 14px;
+      background: rgba(255, 255, 255, 0.035);
+      color: var(--text);
+    }
+
+    .tutorial-preset strong {
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    .tutorial-preset span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .tutorial-note {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.6;
+      max-width: 740px;
+    }
 
     @media (max-width: 1320px) {
       :root { --sidebar-w: 250px; --rail-w: 330px; }
@@ -521,12 +801,151 @@
       .shell-header { padding: 14px; }
       .brand-subtitle { max-width: 70vw; }
       .field-grid { grid-template-columns: 1fr; }
+      .agent-settings-grid { grid-template-columns: 1fr; }
+      .tutorial-hero,
+      .tutorial-step-grid,
+      .tutorial-playbook-grid,
+      .tutorial-action-grid,
+      .tutorial-status-grid {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
 </head>
 <body>
+  <div class="tutorial-overlay" id="tutorialOverlay" aria-hidden="true">
+    <div class="tutorial-dialog" role="dialog" aria-modal="true" aria-labelledby="tutorialTitle">
+      <div class="tutorial-header">
+        <div class="tutorial-header-copy">
+          <div class="eyebrow">SkyDex Tutorial</div>
+          <h2 id="tutorialTitle">How to actually operate SkyDex 4.6</h2>
+          <p>SkyDex is a workspace IDE, release lane, and bounded agent surface. It can autonomously iterate, apply file operations, and save the workspace, but it is still sandboxed by auth, SKNore policy, the operation budget, and the max pass count.</p>
+        </div>
+        <button class="ghost" type="button" id="closeTutorialBtn">Close</button>
+      </div>
+      <div class="tutorial-body">
+        <section class="tutorial-hero">
+          <div class="tutorial-card">
+            <div class="eyebrow">What It Really Does</div>
+            <h3>Real autonomy, inside a hard boundary</h3>
+            <p>Autonomous execute mode can inspect the workspace snapshot, stage full-file operations, iterate across a virtual copy of the repo, then auto-apply and save the result. It does not become an unrestricted desktop agent, bypass external auth, provision secrets, or run arbitrary shell commands from inside this surface.</p>
+            <div class="tutorial-status-grid">
+              <div class="tutorial-status">
+                <strong>Autonomous for real</strong>
+                <div>Multi-pass workspace reasoning, operation staging, auto-apply, and persisted save flow are real in this app.</div>
+              </div>
+              <div class="tutorial-status">
+                <strong>Not unrestricted</strong>
+                <div>The lane is bounded by workspace APIs, SKNore filtering, active-path protection, iteration caps, and operation budgets.</div>
+              </div>
+              <div class="tutorial-status">
+                <strong>Safe review lane</strong>
+                <div>Controlled project mode lets users keep everything staged, inspect the operation list, and apply manually.</div>
+              </div>
+              <div class="tutorial-status">
+                <strong>Release-aware</strong>
+                <div>Save, SkyeDrive sync, GitHub push, and Netlify deploy all run from the same workspace state.</div>
+              </div>
+            </div>
+          </div>
+          <div class="tutorial-card">
+            <div class="eyebrow">Quick Presets</div>
+            <h3>Use the right mode on purpose</h3>
+            <div class="tutorial-action-grid">
+              <button class="tutorial-preset" type="button" id="tutorialPresetControlledBtn">
+                <strong>Controlled Plan</strong>
+                <span>Review-first setup. Good for client work, risky edits, and architecture changes.</span>
+              </button>
+              <button class="tutorial-preset" type="button" id="tutorialPresetAutonomousBtn">
+                <strong>Autonomous Execute</strong>
+                <span>Faster lane. Multi-pass execute, auto-apply, and auto-save once the run completes.</span>
+              </button>
+              <button class="tutorial-preset" type="button" id="tutorialExamplePromptBtn">
+                <strong>Load Example Prompt</strong>
+                <span>Seeds a high-signal prompt that matches how this agent is designed to work.</span>
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section class="tutorial-card">
+          <div class="eyebrow">Operating Flow</div>
+          <h3>Six-step workflow users should follow</h3>
+          <div class="tutorial-step-grid">
+            <div class="tutorial-step">
+              <strong>1. Load or import a workspace</strong>
+              <div>Open the saved workspace, choose a SkyeDrive source, or drag in a folder or ZIP. Desktop drop imports into the live snapshot, not a throwaway buffer.</div>
+            </div>
+            <div class="tutorial-step">
+              <strong>2. Inspect the baseline</strong>
+              <div>Check the snapshot diff, workspace intelligence, and active file. The agent works best when the workspace is current and the active path is meaningful.</div>
+            </div>
+            <div class="tutorial-step">
+              <strong>3. Pick a delivery mode</strong>
+              <div>Use controlled plan mode for review-heavy work. Use autonomous execute when you want the agent to make bounded multi-pass changes and save them automatically.</div>
+            </div>
+            <div class="tutorial-step">
+              <strong>4. Add operator memory</strong>
+              <div>Write local rules like “preserve route names,” “prefer focused edits,” or “do not touch auth.” This is the fastest way to steer the agent without repeating yourself.</div>
+            </div>
+            <div class="tutorial-step">
+              <strong>5. Review staged operations</strong>
+              <div>Read the reply, inspect the operation list, and apply manually when you are in controlled mode. In autonomous mode, the app will auto-apply and save if operations were returned.</div>
+            </div>
+            <div class="tutorial-step">
+              <strong>6. Ship from the same state</strong>
+              <div>Once the snapshot is correct, save and sync to SkyeDrive, then push to GitHub or deploy to Netlify. All release actions use the same saved workspace state.</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="tutorial-card">
+          <div class="eyebrow">When To Use Which Mode</div>
+          <h3>Decision guide for operators</h3>
+          <div class="tutorial-playbook-grid">
+            <div class="tutorial-playbook">
+              <strong>Controlled project</strong>
+              <div>Use this for production edits, client review, large refactors, contract work, and anything where a human must approve the exact changes first.</div>
+            </div>
+            <div class="tutorial-playbook">
+              <strong>Autonomous execution</strong>
+              <div>Use this for repetitive implementation, documentation updates, scaffolding, cleanup, and bounded feature work where auto-apply is acceptable.</div>
+            </div>
+            <div class="tutorial-playbook">
+              <strong>Plan preview first</strong>
+              <div>Use plan mode whenever the request is ambiguous, wide in scope, or likely to touch multiple files and release-critical paths.</div>
+            </div>
+          </div>
+          <div class="tutorial-checklist">
+            <div class="tutorial-check">If the prompt is vague, ask for a plan first instead of letting the agent guess at scope.</div>
+            <div class="tutorial-check">If the workspace contains protected or sensitive files, keep operator memory explicit about what must not be touched.</div>
+            <div class="tutorial-check">If the run returns zero operations, treat that as signal: either the prompt is under-specified or the requested change is outside the workspace boundary.</div>
+            <div class="tutorial-check">If the agent is set to autonomous execute, remember that it can auto-apply and save; operators should not use that mode casually on release-critical work.</div>
+          </div>
+        </section>
+      </div>
+      <div class="tutorial-footer">
+        <div class="tutorial-note">Recommendation: default new users to controlled plan mode until they understand the release path, then let them switch to autonomous execute for bounded implementation work.</div>
+        <div class="subheader-actions">
+          <button class="ghost" type="button" id="tutorialShowAgainBtn">Show Again Later</button>
+          <button class="primary" type="button" id="tutorialDoneBtn">Tutorial Complete</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="desktop-dropzone" id="desktopDropZone" aria-hidden="true">
+    <div class="desktop-drop-card">
+      <div class="eyebrow">Desktop Import</div>
+      <h2>Drop files, folders, or ZIPs into SkyDex</h2>
+      <p id="desktopDropLabel">Release to import your desktop selection into the active workspace snapshot. SkyDex will normalize the files, save them into the lane, and push a matching restore source into SkyeDrive.</p>
+      <div class="desktop-drop-actions">
+        <button class="primary" type="button" id="desktopDropZipBtn">Choose ZIP</button>
+        <button class="ghost" type="button" id="desktopDropFolderBtn">Choose Folder</button>
+      </div>
+    </div>
+  </div>
   <div class="shell">
     <header class="shell-header">
       <div class="brand-block">
@@ -540,6 +959,7 @@
         <span class="chip" id="workspaceChip">workspace: loading</span>
         <span class="chip" id="revisionChip">revision: none</span>
         <span class="chip" id="sourceChip">source: workspace only</span>
+        <button class="ghost" type="button" id="openTutorialBtn">Tutorial</button>
         <button class="ghost" type="button" id="syncSovereignBtn">Sync To SovereignVariables</button>
         <button class="ghost" type="button" id="openAdminBtn">Open Key Control</button>
         <button class="ghost" type="button" id="reloadWorkspaceBtn">Reload Workspace</button>
@@ -688,18 +1108,74 @@
         </div>
 
         <div class="rail-block field-stack">
-          <div class="eyebrow">kAIxU Prompt Lane</div>
+          <div class="eyebrow">Autonomous Agent Lane</div>
+          <div class="integration-status">
+            <strong>Execution profile</strong>
+            <div class="muted" id="agentProfileSummary">Controlled plan previews keep operations staged for review before they touch the workspace.</div>
+          </div>
+          <div class="integration-status">
+            <strong>Autonomy boundary</strong>
+            <div class="muted" id="agentBoundarySummary">SkyDex can autonomously inspect, iterate, apply, and save workspace changes, but it remains bounded by workspace APIs, SKNore, auth, and operation limits.</div>
+          </div>
+          <div class="agent-settings-grid">
+            <div class="field">
+              <label for="agentAutonomySelect">Delivery mode</label>
+              <select id="agentAutonomySelect">
+                <option value="controlled" selected>Controlled project</option>
+                <option value="autonomous">Autonomous execution</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="agentModeSelect">Agent pass</label>
+              <select id="agentModeSelect">
+                <option value="plan" selected>Plan preview</option>
+                <option value="execute">Execute operations</option>
+              </select>
+            </div>
+          </div>
+          <div class="agent-settings-grid">
+            <div class="field">
+              <label for="agentIterationsSelect">Max iterations</label>
+              <select id="agentIterationsSelect">
+                <option value="1">1 pass</option>
+                <option value="2">2 passes</option>
+                <option value="3" selected>3 passes</option>
+                <option value="4">4 passes</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="agentDepthSelect">Context depth</label>
+              <select id="agentDepthSelect">
+                <option value="light">Quick</option>
+                <option value="balanced" selected>Balanced</option>
+                <option value="deep">Deep</option>
+              </select>
+            </div>
+          </div>
           <div class="field">
             <label for="modelInput">Model override</label>
             <input id="modelInput" placeholder="Leave blank for server default" />
           </div>
           <div class="field">
+            <label for="agentMemoryInput">Operator memory</label>
+            <textarea id="agentMemoryInput" placeholder="Optional workspace instructions for the autonomous lane. Example: preserve existing route names, prefer focused edits, always keep Netlify functions auditable."></textarea>
+          </div>
+          <div class="field">
             <label for="promptInput">Prompt</label>
             <textarea id="promptInput" placeholder="Ask for a refactor, generate a file, or describe the next change."></textarea>
           </div>
+          <div class="agent-helper">Controlled mode returns staged operations for review. Autonomous execute mode iterates on the virtual workspace, then auto-applies and saves the result into the live SkyDex lane.</div>
           <div class="action-stack">
-            <button class="primary" type="button" id="runPromptBtn">Run kAIxU Prompt</button>
-            <button class="ghost" type="button" id="savePromptOutputBtn">Save Prompt Output As File</button>
+            <button class="primary" type="button" id="runPromptBtn">Run Agent</button>
+            <button class="ghost" type="button" id="applyAgentOpsBtn">Apply Agent Operations</button>
+            <button class="ghost" type="button" id="savePromptOutputBtn">Save Agent Report As File</button>
+          </div>
+          <div class="integration-status" id="agentRunStatus">
+            <strong>Agent status</strong>
+            <div class="muted">No staged agent run yet.</div>
+          </div>
+          <div class="agent-result-list" id="agentOperationList">
+            <div class="diff-summary-item">Run the agent to stage plan or execute operations against the workspace snapshot.</div>
           </div>
         </div>
 
@@ -723,10 +1199,15 @@
               <input id="skyedriveNoteInput" placeholder="Optional restore note" />
             </div>
           </div>
+          <label class="checkbox-row" for="autoMirrorSkyedriveInput">
+            <input id="autoMirrorSkyedriveInput" type="checkbox" />
+            <span>Mirror every workspace save into SkyeDrive automatically</span>
+          </label>
           <div class="action-stack">
             <button class="ghost" type="button" id="refreshSkyedriveBtn">Refresh SkyeDrive Sources</button>
             <button class="ghost" type="button" id="openSkyedriveBtn">Open Selected Source</button>
             <button class="ghost" type="button" id="pushSkyedriveBtn">Save Then Push To SkyeDrive</button>
+            <button class="ghost" type="button" id="rollbackSkyedriveBtn">Rollback To Attached Source</button>
             <button class="ghost" type="button" id="importZipSourceBtn">Import ZIP To Workspace</button>
             <button class="ghost" type="button" id="importFolderSourceBtn">Import Folder To Workspace</button>
           </div>
@@ -878,6 +1359,17 @@
       dirty: false,
       editor: null,
       promptOutput: "",
+      agentRun: {
+        pending: false,
+        reply: "",
+        summary: "",
+        operations: [],
+        report: null,
+        autonomy: "controlled",
+        mode: "plan",
+        applied: false,
+        appliedAt: null,
+      },
       filter: "",
       integrationStatus: {
         skyedrive: { connected: false, ws_id: null, record_id: null, title: null },
@@ -887,6 +1379,7 @@
       skyedriveSources: [],
       baselineFiles: [],
       sourceBaselineFiles: [],
+      autoMirrorSkyedrive: true,
       blogRecords: [],
       sknore: {
         scope: "workspace",
@@ -922,6 +1415,117 @@
     ];
 
     const $ = (id) => document.getElementById(id);
+    const AGENT_PREFERENCE_KEY = "skydex.agent.preferences:" + workspaceId;
+    const SKYDEX_TUTORIAL_SEEN_KEY = "skydex.tutorial.seen";
+  const SKYDEX_AUTOMIRROR_KEY = "skydex.skyedrive.auto-mirror";
+
+    function markTutorialSeen(seen) {
+      try {
+        if (seen) localStorage.setItem(SKYDEX_TUTORIAL_SEEN_KEY, "1");
+        else localStorage.removeItem(SKYDEX_TUTORIAL_SEEN_KEY);
+      } catch {
+        // ignore storage failures
+      }
+    }
+
+    function showTutorial(options = {}) {
+      const overlay = $("tutorialOverlay");
+      if (!overlay) return;
+      overlay.classList.add("visible");
+      overlay.setAttribute("aria-hidden", "false");
+      if (options.markSeen !== false) markTutorialSeen(true);
+    }
+
+    function hideTutorial() {
+      const overlay = $("tutorialOverlay");
+      if (!overlay) return;
+      overlay.classList.remove("visible");
+      overlay.setAttribute("aria-hidden", "true");
+    }
+
+    function applyTutorialPreset(kind) {
+      if (kind === "controlled") {
+        $("agentAutonomySelect").value = "controlled";
+        $("agentModeSelect").value = "plan";
+        $("agentIterationsSelect").value = "1";
+        $("agentDepthSelect").value = "balanced";
+      } else if (kind === "autonomous") {
+        $("agentAutonomySelect").value = "autonomous";
+        $("agentModeSelect").value = "execute";
+        $("agentIterationsSelect").value = "3";
+        $("agentDepthSelect").value = "balanced";
+      }
+      updateAgentProfileSummary();
+      saveAgentPreferences();
+    }
+
+    function loadTutorialExamplePrompt() {
+      $("promptInput").value = [
+        "Review the active workspace and implement the requested change with minimal churn.",
+        "Keep existing route names and release wiring intact.",
+        "If a file must change, return complete file content for that path.",
+        "Update docs only when the implementation actually changes behavior.",
+      ].join("\n");
+      $("agentMemoryInput").value = [
+        "Prefer focused edits.",
+        "Do not change auth or deployment paths unless the task explicitly requires it.",
+        "Preserve current naming and keep release-sensitive behavior auditable.",
+      ].join("\n");
+      saveAgentPreferences();
+      setStatus("Tutorial preset loaded", "Loaded a high-signal example prompt and operator memory into the agent lane.", "success");
+    }
+
+    function readAgentPreferences() {
+      try {
+        return JSON.parse(localStorage.getItem(AGENT_PREFERENCE_KEY) || "{}");
+      } catch {
+        return {};
+      }
+    }
+
+    function saveAgentPreferences() {
+      try {
+        localStorage.setItem(AGENT_PREFERENCE_KEY, JSON.stringify({
+          autonomy: $("agentAutonomySelect")?.value || "controlled",
+          mode: $("agentModeSelect")?.value || "plan",
+          iterations: $("agentIterationsSelect")?.value || "3",
+          depth: $("agentDepthSelect")?.value || "balanced",
+          memory: $("agentMemoryInput")?.value || "",
+          model: $("modelInput")?.value || "",
+        }));
+      } catch {
+        // ignore storage failures
+      }
+    }
+
+    function loadAgentPreferences() {
+      const prefs = readAgentPreferences();
+      if (prefs.autonomy) $("agentAutonomySelect").value = prefs.autonomy;
+      if (prefs.mode) $("agentModeSelect").value = prefs.mode;
+      if (prefs.iterations) $("agentIterationsSelect").value = String(prefs.iterations);
+      if (prefs.depth) $("agentDepthSelect").value = prefs.depth;
+      if (typeof prefs.memory === "string") $("agentMemoryInput").value = prefs.memory;
+      if (typeof prefs.model === "string") $("modelInput").value = prefs.model;
+    }
+
+    function loadAutoMirrorPreference() {
+      try {
+        const stored = localStorage.getItem(SKYDEX_AUTOMIRROR_KEY);
+        if (stored === "0") state.autoMirrorSkyedrive = false;
+        else if (stored === "1") state.autoMirrorSkyedrive = true;
+      } catch {
+        // ignore storage failures
+      }
+      if ($("autoMirrorSkyedriveInput")) $("autoMirrorSkyedriveInput").checked = Boolean(state.autoMirrorSkyedrive);
+    }
+
+    function saveAutoMirrorPreference() {
+      try {
+        localStorage.setItem(SKYDEX_AUTOMIRROR_KEY, state.autoMirrorSkyedrive ? "1" : "0");
+      } catch {
+        // ignore storage failures
+      }
+    }
 
     function log(message, tone = "info") {
       const entry = document.createElement("div");
@@ -963,6 +1567,124 @@
 
     function buildFileMap(files) {
       return new Map(cloneFiles(files).map((file) => [file.path, file.content]));
+    }
+
+    function normalizeAgentOperations(operations) {
+      return (Array.isArray(operations) ? operations : []).map((operation) => {
+        const type = String(operation?.type || "").trim().toLowerCase();
+        if (type === "rename") {
+          return {
+            type,
+            from: String(operation?.from || "").replace(/^\/+/, "").trim(),
+            to: String(operation?.to || "").replace(/^\/+/, "").trim(),
+          };
+        }
+        return {
+          type,
+          path: String(operation?.path || "").replace(/^\/+/, "").trim(),
+          content: typeof operation?.content === "string" ? operation.content : "",
+        };
+      }).filter((operation) => {
+        if (operation.type === "rename") return operation.from && operation.to && operation.from !== operation.to;
+        return operation.path && ["create", "update", "delete"].includes(operation.type);
+      });
+    }
+
+    function describeAgentOperation(operation) {
+      if (operation.type === "rename") return `${operation.type}: ${operation.from} -> ${operation.to}`;
+      return `${operation.type}: ${operation.path}`;
+    }
+
+    function renderAgentRun() {
+      const statusBox = $("agentRunStatus");
+      const list = $("agentOperationList");
+      if (!statusBox || !list) return;
+      const run = state.agentRun || {};
+      const report = run.report || {};
+      const operationCount = Array.isArray(run.operations) ? run.operations.length : 0;
+      if (run.pending) {
+        statusBox.innerHTML = "<strong>Agent status</strong><div class='muted'>The agent is walking the workspace snapshot and preparing operations now.</div>";
+        list.innerHTML = "<div class='diff-summary-item'>Running the autonomous lane against the current workspace context.</div>";
+        return;
+      }
+      if (!run.reply) {
+        statusBox.innerHTML = "<strong>Agent status</strong><div class='muted'>No staged agent run yet.</div>";
+        list.innerHTML = "<div class='diff-summary-item'>Run the agent to stage plan or execute operations against the workspace snapshot.</div>";
+        return;
+      }
+      const mode = String(run.mode || report.mode || "plan");
+      const autonomy = String(run.autonomy || report.autonomy || "controlled");
+      const counts = report.operationCounts || {};
+      statusBox.innerHTML = "<strong>Agent status</strong><div class='muted'>"
+        + escapeHtml(run.summary || "Agent response ready.")
+        + "</div><div class='muted' style='margin-top:6px'>mode=" + escapeHtml(mode)
+        + " · delivery=" + escapeHtml(autonomy)
+        + " · ops=" + escapeHtml(String(operationCount))
+        + " · passes=" + escapeHtml(String(report.maxIterations || 1))
+        + (run.appliedAt ? " · applied " + escapeHtml(new Date(run.appliedAt).toLocaleString()) : "")
+        + "</div>";
+      list.innerHTML = "";
+      const replyItem = document.createElement("div");
+      replyItem.className = "agent-op-item";
+      replyItem.innerHTML = "<strong>Reply</strong><div>" + escapeHtml(run.reply).replace(/\n/g, "<br />") + "</div>";
+      list.appendChild(replyItem);
+      if (operationCount) {
+        Object.keys(counts).forEach((key) => {
+          const pill = document.createElement("div");
+          pill.className = "agent-op-item";
+          pill.innerHTML = "<strong>Operation mix</strong><div>" + escapeHtml(`${key}: ${counts[key]}`) + "</div>";
+          list.appendChild(pill);
+        });
+      }
+      if (!operationCount) {
+        const empty = document.createElement("div");
+        empty.className = "diff-summary-item";
+        empty.textContent = "This run returned guidance without staged file operations.";
+        list.appendChild(empty);
+        return;
+      }
+      run.operations.slice(0, 12).forEach((operation) => {
+        const item = document.createElement("div");
+        item.className = "agent-op-item";
+        item.innerHTML = "<strong>" + escapeHtml(describeAgentOperation(operation)) + "</strong><div>"
+          + escapeHtml(operation.type === "rename"
+            ? "Staged rename inside the virtual workspace snapshot."
+            : operation.type === "delete"
+              ? "This file will be removed when the staged operations are applied."
+              : `${String(operation.content || "").length} characters of full-file content are staged for this path.`)
+          + "</div>";
+        list.appendChild(item);
+      });
+      if (operationCount > 12) {
+        const more = document.createElement("div");
+        more.className = "diff-summary-item";
+        more.textContent = `and ${operationCount - 12} more staged operation(s)`;
+        list.appendChild(more);
+      }
+    }
+
+    function updateAgentProfileSummary() {
+      const autonomy = $("agentAutonomySelect")?.value || "controlled";
+      const mode = $("agentModeSelect")?.value || "plan";
+      const iterations = $("agentIterationsSelect")?.value || "1";
+      const summary = $("agentProfileSummary");
+      const boundary = $("agentBoundarySummary");
+      if (!summary) return;
+      if (autonomy === "autonomous") {
+        summary.textContent = mode === "execute"
+          ? `Autonomous execute mode will iterate up to ${iterations} passes, auto-apply staged operations, and save the resulting workspace revision when the run returns changes.`
+          : `Autonomous delivery is selected, but the current pass is still a plan preview for review before execution.`;
+        if (boundary) {
+          boundary.textContent = "This is real bounded autonomy: the agent can reason across the workspace snapshot and auto-save results, but it still cannot exceed SKNore policy, workspace auth, iteration caps, or the operation budget.";
+        }
+        return;
+      }
+      summary.textContent = mode === "plan"
+        ? "Controlled plan previews keep operations staged for review before they touch the workspace."
+        : `Controlled execute mode returns the next ${iterations === "1" ? "pass" : `${iterations}-pass draft`} of operations without auto-applying them.`;
+      if (boundary) {
+        boundary.textContent = "Controlled mode keeps a human in the loop. The agent can still inspect and prepare real file operations, but it will not auto-apply them unless you explicitly switch to autonomous execute.";
+      }
     }
 
     let sknorePreviewTimer = null;
@@ -1419,6 +2141,52 @@
       });
     }
 
+    async function applyAgentOperations(options = {}) {
+      const operations = normalizeAgentOperations(state.agentRun?.operations);
+      if (!operations.length) throw new Error("No staged agent operations are available.");
+      collectCurrentEditor();
+      const nextMap = new Map(cloneFiles(state.files).map((file) => [file.path, { ...file }]));
+      let nextActivePath = "";
+      operations.forEach((operation) => {
+        if (operation.type === "rename") {
+          const existing = nextMap.get(operation.from);
+          nextMap.delete(operation.from);
+          nextMap.set(operation.to, { path: operation.to, content: existing?.content || "" });
+          if (!nextActivePath) nextActivePath = operation.to;
+          return;
+        }
+        if (operation.type === "delete") {
+          nextMap.delete(operation.path);
+          return;
+        }
+        nextMap.set(operation.path, { path: operation.path, content: operation.content || "" });
+        if (!nextActivePath) nextActivePath = operation.path;
+      });
+      state.files = Array.from(nextMap.values()).sort((a, b) => a.path.localeCompare(b.path));
+      state.dirty = true;
+      state.agentRun.applied = true;
+      state.agentRun.appliedAt = new Date().toISOString();
+      renderFiles();
+      const preferredPath = nextActivePath && nextMap.has(nextActivePath)
+        ? nextActivePath
+        : state.activePath && nextMap.has(state.activePath)
+          ? state.activePath
+          : state.files[0]?.path || "";
+      if (preferredPath) openFile(preferredPath);
+      else if (state.editor) state.editor.setValue("");
+      renderPreview();
+      scheduleSknorePreview(state.files);
+      renderAgentRun();
+      if (options.saveAfterApply && state.dirty) {
+        await saveWorkspace();
+      }
+      setStatus(
+        "Agent operations applied",
+        `${operations.length} staged operation${operations.length === 1 ? " was" : "s were"} applied${options.saveAfterApply ? " and saved" : ""} into the active SkyDex workspace.`,
+        "success"
+      );
+    }
+
     function renderIntegrationStatus() {
       const skyeDriveBox = $("skyedriveConnectionStatus");
       const githubBox = $("githubConnectionStatus");
@@ -1428,8 +2196,8 @@
       const netlify = state.integrationStatus.netlify || {};
 
       skyeDriveBox.innerHTML = skyedrive.connected
-        ? "<strong>SkyeDrive status</strong><div class='muted'>Active source <code>" + escapeHtml(skyedrive.title || skyedrive.record_id || "workspace-source") + "</code> is attached to workspace <code>" + escapeHtml(skyedrive.ws_id || state.workspaceId) + "</code>.</div>"
-        : "<strong>SkyeDrive status</strong><div class='muted'>No SkyeDrive workspace source is attached yet. You can still edit and save locally, then push the current snapshot into SkyeDrive.</div>";
+        ? "<strong>SkyeDrive status</strong><div class='muted'>Active source <code>" + escapeHtml(skyedrive.title || skyedrive.record_id || "workspace-source") + "</code> is attached to workspace <code>" + escapeHtml(skyedrive.ws_id || state.workspaceId) + "</code>. Auto-mirror is <code>" + (state.autoMirrorSkyedrive ? "on" : "off") + "</code>.</div>"
+        : "<strong>SkyeDrive status</strong><div class='muted'>No SkyeDrive workspace source is attached yet. You can still edit and save locally, then push the current snapshot into SkyeDrive. Auto-mirror is <code>" + (state.autoMirrorSkyedrive ? "on" : "off") + "</code>.</div>";
 
       githubBox.innerHTML = github.connected
         ? "<strong>GitHub status</strong><div class='muted'>Connected to <code>" + escapeHtml(github.repo || "") + "</code> on <code>" + escapeHtml(github.branch || "main") + "</code> with installation <code>" + escapeHtml(String(github.installation_id || "")) + "</code>.</div>"
@@ -1720,7 +2488,7 @@
       renderRestorePoints();
     }
 
-    async function saveWorkspace() {
+    async function saveWorkspace(options = {}) {
       collectCurrentEditor();
       state.workspaceName = $("projectName").value.trim() || state.workspaceName || "SkyDex Workspace";
       const payload = await jsonRequest("/api/ws-save", "POST", {
@@ -1734,7 +2502,14 @@
       state.dirty = false;
       updateHeader();
       void refreshSknoreReleasePreview(state.files);
-      setStatus("Workspace saved", "Full snapshot persisted before release actions.", "success");
+      if (options.autoMirror !== false && state.autoMirrorSkyedrive) {
+        const mirrorPayload = await mirrorWorkspaceToSkyeDrive({ silent: true });
+        const mirrorTitle = mirrorPayload?.title || state.integrationStatus.skyedrive?.title || state.workspaceName;
+        setStatus("Workspace saved", "Full snapshot persisted and mirrored into SkyeDrive as " + mirrorTitle + ".", "success");
+        return payload;
+      }
+      if (!options.suppressStatus) setStatus("Workspace saved", "Full snapshot persisted before release actions.", "success");
+      return payload;
     }
 
     async function saveBeforeRelease() {
@@ -1802,8 +2577,29 @@
       await openSkyeDriveSource(candidate.id);
     }
 
+    async function mirrorWorkspaceToSkyeDrive(options = {}) {
+      return pushSkyeDriveSourceFiles(null, {
+        title: $("skyedriveTitleInput").value.trim() || state.integrationStatus.skyedrive?.title || state.workspaceName,
+        note: $("skyedriveNoteInput").value.trim() || "Automatic workspace mirror from SkyDex.",
+        sourceKind: "workspace-save",
+        sourceName: state.workspaceName,
+        skipSave: true,
+        suppressStatus: options.silent !== false,
+      });
+    }
+
+    async function rollbackToAttachedSource() {
+      if (!state.skyedriveSources.length) await loadSkyeDriveSources();
+      const currentRecordId = String(state.integrationStatus.skyedrive?.record_id || $("skyedriveSourceSelect").value || "").trim();
+      if (!currentRecordId) throw new Error("Attach or select a SkyeDrive source before rolling back.");
+      const target = state.skyedriveSources.find((record) => String(record.id) === currentRecordId);
+      await createRestorePoint();
+      await openSkyeDriveSource(currentRecordId);
+      setStatus("Workspace rolled back", "Restored files from " + (target?.title || currentRecordId) + " after capturing a fresh restore point of your current workspace.", "success");
+    }
+
     async function pushSkyeDriveSourceFiles(sourceFiles, options) {
-      await saveBeforeRelease();
+      if (!options?.skipSave) await saveBeforeRelease();
       const title = String(options?.title || $("skyedriveTitleInput").value || "").trim();
       const note = String(options?.note || $("skyedriveNoteInput").value || "").trim();
       const releasePreviewFiles = cloneFiles(Array.isArray(sourceFiles) ? sourceFiles : state.files);
@@ -1833,7 +2629,7 @@
       renderRestorePoints();
       rememberReleaseResult("SkyeDrive", payload, releasePreviewFiles.length - blockedPaths.length);
       void refreshSknoreReleasePreview(state.files);
-      setStatus("SkyeDrive sync complete", "Saved workspace snapshot into SkyeDrive as " + (payload.title || title || "workspace-source") + ". " + summarizeSknoreResult(payload?.sknore, releasePreviewFiles.length - blockedPaths.length), "success");
+      if (!options?.suppressStatus) setStatus("SkyeDrive sync complete", "Saved workspace snapshot into SkyeDrive as " + (payload.title || title || "workspace-source") + ". " + summarizeSknoreResult(payload?.sknore, releasePreviewFiles.length - blockedPaths.length), "success");
       return payload;
     }
 
@@ -1897,6 +2693,125 @@
         imported.push({ path: relativePath, content });
       }
       await adoptImportedWorkspace(imported, (fileList && fileList[0] && fileList[0].webkitRelativePath ? fileList[0].webkitRelativePath.split("/")[0] : "Imported Folder"), "folder-import");
+    }
+
+    async function readDroppedEntry(entry) {
+      if (!entry) return [];
+      if (entry.isFile) {
+        const file = await new Promise((resolve, reject) => entry.file(resolve, reject));
+        const relativePath = String(entry.fullPath || file.name || "").replace(/^\/+/, "").trim();
+        return relativePath ? [{ file, relativePath }] : [];
+      }
+      if (!entry.isDirectory || typeof entry.createReader !== "function") return [];
+      const reader = entry.createReader();
+      const entries = [];
+      while (true) {
+        const batch = await new Promise((resolve, reject) => reader.readEntries(resolve, reject));
+        if (!batch.length) break;
+        entries.push(...batch);
+      }
+      const nested = await Promise.all(entries.map((child) => readDroppedEntry(child)));
+      return nested.flat();
+    }
+
+    async function collectDroppedFiles(dataTransfer) {
+      const items = Array.from(dataTransfer?.items || []);
+      const entryItems = items
+        .map((item) => item?.webkitGetAsEntry ? item.webkitGetAsEntry() : null)
+        .filter(Boolean);
+      if (entryItems.length) {
+        const nested = await Promise.all(entryItems.map((entry) => readDroppedEntry(entry)));
+        return nested.flat();
+      }
+      return Array.from(dataTransfer?.files || []).map((file) => ({
+        file,
+        relativePath: String(file.webkitRelativePath || file.name || "").replace(/^\/+/, "").trim(),
+      }));
+    }
+
+    function isDesktopFileDrag(event) {
+      return Array.from(event?.dataTransfer?.types || []).includes("Files");
+    }
+
+    let desktopDropDepth = 0;
+
+    function showDesktopDropZone() {
+      const zone = $("desktopDropZone");
+      if (!zone) return;
+      zone.classList.add("visible");
+      zone.setAttribute("aria-hidden", "false");
+    }
+
+    function hideDesktopDropZone(force = false) {
+      if (force) desktopDropDepth = 0;
+      const zone = $("desktopDropZone");
+      if (!zone) return;
+      if (!force && desktopDropDepth > 0) return;
+      zone.classList.remove("visible");
+      zone.setAttribute("aria-hidden", "true");
+    }
+
+    async function handleDesktopDrop(event) {
+      if (!isDesktopFileDrag(event)) return;
+      event.preventDefault();
+      desktopDropDepth = 0;
+      hideDesktopDropZone(true);
+      const plainFiles = Array.from(event.dataTransfer?.files || []);
+      if (plainFiles.length === 1 && /\.zip$/i.test(plainFiles[0].name || "")) {
+        await importZipSource(plainFiles[0]);
+        return;
+      }
+      const dropped = await collectDroppedFiles(event.dataTransfer);
+      if (dropped.length) {
+        await importFolderSource(dropped.map((entry) => {
+          const file = entry.file;
+          if (entry.relativePath && !file.webkitRelativePath) {
+            Object.defineProperty(file, "webkitRelativePath", {
+              value: entry.relativePath,
+              configurable: true,
+            });
+          }
+          return file;
+        }));
+        return;
+      }
+      if (plainFiles.length) {
+        await importFolderSource(plainFiles);
+        return;
+      }
+      throw new Error("No importable files were found in the desktop drop payload.");
+    }
+
+    function bindDesktopDropZone() {
+      window.addEventListener("dragenter", (event) => {
+        if (!isDesktopFileDrag(event)) return;
+        event.preventDefault();
+        desktopDropDepth += 1;
+        showDesktopDropZone();
+      });
+      window.addEventListener("dragover", (event) => {
+        if (!isDesktopFileDrag(event)) return;
+        event.preventDefault();
+        showDesktopDropZone();
+      });
+      window.addEventListener("dragleave", (event) => {
+        if (!isDesktopFileDrag(event)) return;
+        event.preventDefault();
+        desktopDropDepth = Math.max(0, desktopDropDepth - 1);
+        hideDesktopDropZone();
+      });
+      window.addEventListener("drop", (event) => {
+        if (!isDesktopFileDrag(event)) return;
+        runAction(() => handleDesktopDrop(event));
+      });
+      $("desktopDropZone")?.addEventListener("dragover", (event) => {
+        event.preventDefault();
+      });
+      $("desktopDropZone")?.addEventListener("dragleave", (event) => {
+        event.preventDefault();
+        desktopDropDepth = 0;
+        hideDesktopDropZone(true);
+      });
     }
 
     async function connectGithub() {
@@ -2055,37 +2970,102 @@
       const prompt = $("promptInput").value.trim();
       const model = $("modelInput").value.trim();
       if (!prompt) throw new Error("Prompt is required.");
+      const autonomy = $("agentAutonomySelect").value || "controlled";
+      const mode = $("agentModeSelect").value || "plan";
+      const maxIterations = Number($("agentIterationsSelect").value || 1);
+      const contextDepth = $("agentDepthSelect").value || "balanced";
       const insights = computeWorkspaceInsights();
       const contextualPrompt = [
-        "Workspace intelligence context:",
+        prompt,
+        "",
+        "SkyDex workspace context:",
         `workspace_id: ${state.workspaceId}`,
         `workspace_name: ${state.workspaceName}`,
         `active_path: ${state.activePath || "none"}`,
         `summary: ${insights.summary}`,
         `facts: ${insights.facts.join(" | ")}`,
         `priority_actions: ${insights.risks.join(" | ")}`,
-        "",
-        "User task:",
-        prompt,
       ].join("\n");
-      const payload = await jsonRequest("/api/kaixu-generate", "POST", {
+      state.agentRun = {
+        pending: true,
+        reply: "",
+        summary: "",
+        operations: [],
+        report: null,
+        autonomy,
+        mode,
+        applied: false,
+        appliedAt: null,
+      };
+      renderAgentRun();
+      const payload = await jsonRequest("/api/ai-agent", "POST", {
         ws_id: state.workspaceId,
         activePath: state.activePath || undefined,
         files: state.files,
         prompt: contextualPrompt,
         model: model || undefined,
+        mode,
+        autonomy,
+        smartContext: true,
+        contextDepth,
+        max_iterations: maxIterations,
+        operationBudget: autonomy === "autonomous" ? 48 : 24,
+        agentMemory: $("agentMemoryInput").value.trim(),
       });
-      state.promptOutput = String(payload.text || "").trim();
-      setStatus("kAIxU response ready", "Prompt output is available and can be saved as a workspace file.", "success");
+      state.promptOutput = String(payload?.result?.reply || "").trim();
+      state.agentRun = {
+        pending: false,
+        reply: state.promptOutput,
+        summary: String(payload?.result?.summary || "Agent response ready.").trim(),
+        operations: normalizeAgentOperations(payload?.result?.operations),
+        report: payload?.result?.report || null,
+        autonomy,
+        mode,
+        applied: false,
+        appliedAt: null,
+      };
+      renderAgentRun();
+      if (autonomy === "autonomous" && mode === "execute" && state.agentRun.operations.length) {
+        await applyAgentOperations({ saveAfterApply: true });
+        return;
+      }
+      setStatus(
+        "Agent response ready",
+        state.agentRun.operations.length
+          ? `${state.agentRun.operations.length} staged operation${state.agentRun.operations.length === 1 ? " is" : "s are"} ready for review.`
+          : "Agent guidance is ready. No file operations were staged.",
+        "success"
+      );
     }
 
     function savePromptOutput() {
       if (!state.promptOutput) throw new Error("Run a prompt first.");
       const stamp = new Date().toISOString().replace(/[.:]/g, "-");
-      const path = "notes/kaixu-output-" + stamp + ".md";
-      upsertFile(path, state.promptOutput);
+      const path = "notes/skydex-agent-report-" + stamp + ".md";
+      const report = state.agentRun?.report || {};
+      const operationSummary = normalizeAgentOperations(state.agentRun?.operations)
+        .map((operation) => `- ${describeAgentOperation(operation)}`)
+        .join("\n");
+      upsertFile(path, [
+        "# SkyDex Agent Report",
+        "",
+        `- workspace_id: ${state.workspaceId}`,
+        `- workspace_name: ${state.workspaceName}`,
+        `- autonomy: ${state.agentRun?.autonomy || report.autonomy || "controlled"}`,
+        `- mode: ${state.agentRun?.mode || report.mode || "plan"}`,
+        `- max_iterations: ${report.maxIterations || 1}`,
+        `- context_depth: ${report.contextDepth || "balanced"}`,
+        "",
+        "## Reply",
+        "",
+        state.promptOutput,
+        "",
+        "## Staged Operations",
+        "",
+        operationSummary || "- none",
+      ].join("\n"));
       openFile(path);
-      setStatus("Prompt output saved", "Stored the latest kAIxU output as " + path + ".", "success");
+      setStatus("Agent report saved", "Stored the latest agent report as " + path + ".", "success");
     }
 
     function downloadBlob(name, blob) {
@@ -2165,6 +3145,26 @@
     }
 
     function wireEvents() {
+      loadAgentPreferences();
+      loadAutoMirrorPreference();
+      updateAgentProfileSummary();
+      renderAgentRun();
+      $("openTutorialBtn").addEventListener("click", () => showTutorial({ markSeen: false }));
+      $("closeTutorialBtn").addEventListener("click", hideTutorial);
+      $("tutorialShowAgainBtn").addEventListener("click", () => {
+        markTutorialSeen(false);
+        hideTutorial();
+      });
+      $("tutorialDoneBtn").addEventListener("click", () => {
+        markTutorialSeen(true);
+        hideTutorial();
+      });
+      $("tutorialPresetControlledBtn").addEventListener("click", () => applyTutorialPreset("controlled"));
+      $("tutorialPresetAutonomousBtn").addEventListener("click", () => applyTutorialPreset("autonomous"));
+      $("tutorialExamplePromptBtn").addEventListener("click", loadTutorialExamplePrompt);
+      $("tutorialOverlay")?.addEventListener("click", (event) => {
+        if (event.target === $("tutorialOverlay")) hideTutorial();
+      });
       $("projectName").addEventListener("change", () => {
         state.workspaceName = $("projectName").value.trim() || state.workspaceName;
         updateHeader();
@@ -2234,11 +3234,38 @@
       $("openAdminBtn").addEventListener("click", () => {
         window.open("/SkyeAdmin/index.html?ws_id=" + encodeURIComponent(state.workspaceId), "_blank", "noopener,noreferrer");
       });
+      $("agentAutonomySelect").addEventListener("change", () => {
+        if ($("agentAutonomySelect").value === "autonomous") {
+          $("agentModeSelect").value = "execute";
+          if (Number($("agentIterationsSelect").value || 1) < 2) $("agentIterationsSelect").value = "3";
+          if ($("agentDepthSelect").value === "light") $("agentDepthSelect").value = "balanced";
+        }
+        updateAgentProfileSummary();
+        saveAgentPreferences();
+      });
+      $("agentModeSelect").addEventListener("change", () => {
+        updateAgentProfileSummary();
+        saveAgentPreferences();
+      });
+      $("agentIterationsSelect").addEventListener("change", () => {
+        updateAgentProfileSummary();
+        saveAgentPreferences();
+      });
+      $("agentDepthSelect").addEventListener("change", saveAgentPreferences);
+      $("agentMemoryInput").addEventListener("input", saveAgentPreferences);
+      $("modelInput").addEventListener("change", saveAgentPreferences);
       $("runPromptBtn").addEventListener("click", () => runAction(runPrompt));
+      $("applyAgentOpsBtn").addEventListener("click", () => runAction(() => applyAgentOperations({ saveAfterApply: false })));
       $("savePromptOutputBtn").addEventListener("click", () => runAction(() => Promise.resolve(savePromptOutput())));
       $("refreshSkyedriveBtn").addEventListener("click", () => runAction(loadSkyeDriveSources));
       $("openSkyedriveBtn").addEventListener("click", () => runAction(openSkyeDriveSource));
       $("pushSkyedriveBtn").addEventListener("click", () => runAction(pushSkyeDrive));
+      $("rollbackSkyedriveBtn").addEventListener("click", () => runAction(rollbackToAttachedSource));
+      $("autoMirrorSkyedriveInput").addEventListener("change", (event) => {
+        state.autoMirrorSkyedrive = Boolean(event.target.checked);
+        saveAutoMirrorPreference();
+        renderIntegrationStatus();
+      });
       $("createRestorePointBtn").addEventListener("click", () => runAction(createRestorePoint));
       $("restoreLatestPointBtn").addEventListener("click", () => runAction(restoreLatestPoint));
       $("refreshSknoreBtn").addEventListener("click", () => runAction(loadSknorePolicy));
@@ -2263,6 +3290,8 @@
         runAction(() => importFolderSource(files));
         event.target.value = "";
       });
+      $("desktopDropZipBtn").addEventListener("click", () => $("importZipSourceInput").click());
+      $("desktopDropFolderBtn").addEventListener("click", () => $("importFolderSourceInput").click());
       $("connectGithubBtn").addEventListener("click", () => runAction(connectGithub));
       $("pushGithubBtn").addEventListener("click", () => runAction(pushGithub));
       $("connectNetlifyBtn").addEventListener("click", () => runAction(connectNetlify));
@@ -2303,6 +3332,9 @@
         });
         Promise.all([loadWorkspace(), loadSkyeDriveSources(), loadIntegrationStatus(), loadSknorePolicy(), loadBlogRecall()])
           .then(() => {
+            if (!localStorage.getItem(SKYDEX_TUTORIAL_SEEN_KEY) || new URLSearchParams(window.location.search).get("tutorial") === "1") {
+              showTutorial();
+            }
             if (initialSkyedriveRecordId) {
               return runAction(() => openSkyeDriveSource(initialSkyedriveRecordId));
             }
@@ -2338,6 +3370,7 @@
     }
 
     wireEvents();
+    bindDesktopDropZone();
     initSplitter();
     initEditor();
   </script>

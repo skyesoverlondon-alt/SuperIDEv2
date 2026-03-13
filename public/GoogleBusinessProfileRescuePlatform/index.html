@@ -4,350 +4,284 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Google Business Rescue Platform</title>
+  <meta name="description" content="Google Business Profile rescue command platform with intake, evidence, appeals, outreach, and monitoring operator apps." />
+  <meta name="theme-color" content="#0b0614" />
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/SkyeVault-Pro-v4.46/assets/img/icon-192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="/SkyeVault-Pro-v4.46/assets/img/icon-512.png" />
+  <link rel="apple-touch-icon" href="/SkyeVault-Pro-v4.46/assets/img/icon-192.png" />
   <script src="/_shared/standalone-session.js"></script>
-  <style>
-    :root {
-      --bg: #09040d;
-      --panel: rgba(31, 14, 42, 0.82);
-      --border: rgba(238, 201, 116, 0.22);
-      --text: #f8f1df;
-      --muted: #d4c7b0;
-      --gold: #f0c96c;
-      --violet: #b779ff;
-      --emerald: #7af0bc;
-      --shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
-    }
-
-    * { box-sizing: border-box; }
-
-    body {
-      margin: 0;
-      min-height: 100vh;
-      font-family: "Segoe UI", "Helvetica Neue", sans-serif;
-      color: var(--text);
-      background:
-        radial-gradient(circle at top left, rgba(183, 121, 255, 0.3), transparent 32%),
-        radial-gradient(circle at top right, rgba(240, 201, 108, 0.18), transparent 28%),
-        linear-gradient(180deg, #13081d 0%, #09040d 58%, #050308 100%);
-    }
-
-    body.embed {
-      background: transparent;
-    }
-
-    .shell {
-      width: min(1180px, calc(100% - 32px));
-      margin: 24px auto;
-      display: grid;
-      gap: 18px;
-    }
-
-    .hero,
-    .card {
-      border: 1px solid var(--border);
-      background: var(--panel);
-      border-radius: 28px;
-      box-shadow: var(--shadow);
-      backdrop-filter: blur(14px);
-    }
-
-    .hero {
-      padding: 28px;
-      display: grid;
-      gap: 18px;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .hero::after {
-      content: "";
-      position: absolute;
-      inset: auto -90px -90px auto;
-      width: 220px;
-      height: 220px;
-      border-radius: 999px;
-      background: radial-gradient(circle, rgba(240, 201, 108, 0.22), transparent 70%);
-    }
-
-    .eyebrow {
-      display: inline-flex;
-      width: fit-content;
-      align-items: center;
-      gap: 8px;
-      padding: 8px 12px;
-      border-radius: 999px;
-      border: 1px solid rgba(240, 201, 108, 0.28);
-      background: rgba(240, 201, 108, 0.1);
-      color: var(--gold);
-      font-size: 12px;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-    }
-
-    h1,
-    h2,
-    p { margin: 0; }
-
-    h1 {
-      font-size: clamp(32px, 5vw, 56px);
-      line-height: 0.95;
-      max-width: 760px;
-    }
-
-    .hero-copy {
-      display: grid;
-      gap: 10px;
-      max-width: 760px;
-    }
-
-    .hero-copy p,
-    .card p,
-    li {
-      color: var(--muted);
-      line-height: 1.55;
-    }
-
-    .grid {
-      display: grid;
-      gap: 18px;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .card {
-      padding: 22px;
-      display: grid;
-      gap: 14px;
-    }
-
-    .metric-row,
-    .action-row,
-    .stack {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-    }
-
-    .metric {
-      min-width: 150px;
-      padding: 14px 16px;
-      border-radius: 18px;
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      background: rgba(255, 255, 255, 0.04);
-    }
-
-    .metric strong,
-    .status strong {
-      display: block;
-      color: var(--text);
-      font-size: 18px;
-      margin-top: 6px;
-    }
-
-    .status {
-      padding: 14px 16px;
-      border-radius: 18px;
-      background: rgba(122, 240, 188, 0.08);
-      border: 1px solid rgba(122, 240, 188, 0.18);
-    }
-
-    button,
-    a.action {
-      appearance: none;
-      border: 1px solid rgba(240, 201, 108, 0.28);
-      background: linear-gradient(180deg, rgba(240, 201, 108, 0.18), rgba(183, 121, 255, 0.14));
-      color: var(--text);
-      border-radius: 16px;
-      padding: 12px 16px;
-      font: inherit;
-      text-decoration: none;
-      cursor: pointer;
-      transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
-    }
-
-    button:hover,
-    a.action:hover {
-      transform: translateY(-1px);
-      border-color: rgba(240, 201, 108, 0.45);
-      background: linear-gradient(180deg, rgba(240, 201, 108, 0.24), rgba(183, 121, 255, 0.18));
-    }
-
-    ul {
-      margin: 0;
-      padding-left: 18px;
-      display: grid;
-      gap: 8px;
-    }
-
-    code,
-    .mono {
-      font-family: "SFMono-Regular", Consolas, monospace;
-      font-size: 0.92em;
-      color: #fff3cf;
-    }
-
-    .embed-note {
-      color: var(--emerald);
-      font-size: 13px;
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
-    }
-
-    @media (max-width: 820px) {
-      .grid {
-        grid-template-columns: 1fr;
-      }
-    }
-  </style>
+  <link rel="stylesheet" href="./assets/platform.css" />
 </head>
-<body>
+<body data-app="hub">
   <div class="shell">
-    <section class="hero">
-      <div class="eyebrow">Platform Capsule</div>
-      <div class="hero-copy">
-        <h1>Google Business Profile Rescue Platform</h1>
-        <p>Recovery operations for suspensions, verification failures, ownership conflicts, and evidence prep, positioned as a platform inside SuperIDE instead of an isolated app tile.</p>
-      </div>
-      <div class="metric-row">
-        <div class="metric">
-          <div>Workspace</div>
-          <strong id="workspaceLabel">primary-workspace</strong>
+    <section class="hero hero-hub">
+      <div class="eyebrow">Platform Hub</div>
+      <div class="hero-grid">
+        <div class="hero-copy">
+          <h1>Google Business Rescue Platform</h1>
+          <p>This is the rescue operating system. Intake, evidence, appeals, outreach, and monitoring are separate rescue apps tied to one live case, one escalation path, and one suite dispatch layer.</p>
+          <div class="action-row">
+            <a class="button-link" data-carry-query href="./apps/intake/index.html">Launch Intake</a>
+            <a class="button-link" data-carry-query href="./apps/evidence/index.html">Open Evidence Vault</a>
+            <a class="button-link" data-carry-query href="./apps/appeals/index.html">Open Appeal Builder</a>
+            <a class="button-link" data-carry-query href="./apps/outreach/index.html">Open Outreach Studio</a>
+            <a class="button-link" data-carry-query href="./apps/monitoring/index.html">Open Monitoring Deck</a>
+            <a class="button-link secondary" data-carry-query href="/GBPRescueSuite/index.html">Open GBP Mini Suite</a>
+          </div>
         </div>
-        <div class="metric">
-          <div>kAIxU Access</div>
-          <strong id="keyState">Checking</strong>
+        <div class="hero-panel stack">
+          <div class="metric-row">
+            <div class="metric"><div>Workspace</div><strong data-bind="workspaceLabel">primary-workspace</strong></div>
+            <div class="metric"><div>Launch Mode</div><strong data-bind="modeLabel">Standalone</strong></div>
+            <div class="metric"><div>kAIxU Access</div><strong data-bind="keyState">Checking</strong></div>
+          </div>
+          <div class="diagnostic-grid compact">
+            <div class="status"><div>Policy Risk</div><strong data-bind="policyRisk">Unknown</strong></div>
+            <div class="status"><div>Ownership Risk</div><strong data-bind="ownershipRisk">Unknown</strong></div>
+            <div class="status"><div>Readiness</div><strong data-bind="readiness">Unknown</strong></div>
+          </div>
+          <div class="install-banner">
+            <div>
+              <div class="hero-note">Install Surface</div>
+              <p class="muted">This platform installs as its own PWA using the shared SkyeVault icon estate.</p>
+            </div>
+            <div class="action-row slim">
+              <button type="button" data-action="install-app" data-install-button hidden>Install Platform</button>
+              <div class="pill" data-bind="installState">Waiting for browser installability</div>
+            </div>
+          </div>
         </div>
-        <div class="metric">
-          <div>Launch Mode</div>
-          <strong id="modeLabel">Embedded</strong>
-        </div>
-      </div>
-      <div class="action-row">
-        <button type="button" data-app="SkyeChat">Open Rescue Ops In SkyeChat</button>
-        <button type="button" data-app="SkyeMail">Open Rescue Outreach In SkyeMail</button>
-        <button type="button" data-app="SkyeAdmin">Open Admin Lane</button>
-        <button type="button" id="openNeural">Open Neural Space Pro</button>
       </div>
     </section>
-
-    <div class="grid">
-      <section class="card">
-        <h2>What This Platform Covers</h2>
-        <ul>
-          <li>Diagnose likely suspension causes and evidence gaps.</li>
-          <li>Organize reinstatement packages, monitoring notes, and workspace handoff.</li>
-          <li>Move directly into SkyeChat, SkyeMail, and Neural Space Pro from the same operating lane.</li>
-        </ul>
-      </section>
-
-      <section class="card">
-        <h2>Repo Status</h2>
-        <div class="status">
-          <div>Current shell</div>
-          <strong>Phase 1 foundation staged</strong>
-        </div>
-        <p>The full React plus Worker workspace is present in-repo. This capsule is the live SuperIDE entrypoint that keeps the rescue platform visible and connected while the deeper app continues expansion.</p>
-      </section>
-
-      <section class="card">
-        <h2>Command Network</h2>
-        <p>Use the shared kAIxU key once in SuperIDE. This capsule reflects whether the browser already has that key loaded and routes the operator into the right command surface without another manual paste step.</p>
-        <div class="stack mono">
-          <div>Bridge: kx.app.bridge</div>
-          <div>Key alias: kaixu_api_key</div>
-          <div>Primary key store: kx.api.accessToken</div>
-        </div>
-      </section>
-
-      <section class="card">
-        <h2>Operator Flow</h2>
-        <ul>
-          <li>Start in this rescue capsule to frame the case.</li>
-          <li>Move to Neural Space Pro for drafting or diagnostic acceleration.</li>
-          <li>Route into SkyeChat for team execution and SkyeMail for external follow-up.</li>
-          <li>Use SkyeAdmin when pricing, onboarding, or internal platform controls are needed.</li>
-        </ul>
-      </section>
-    </div>
 
     <section class="card">
-      <h2>Surface Notes</h2>
-      <p id="embedNote" class="embed-note">Embedded inside SuperIDE command deck.</p>
-      <p>This platform capsule is intentionally lightweight and embeddable. It exists so the rescue system is already represented in the command deck today, even before the deeper app workspace is published as a static surface.</p>
+      <div class="section-head">
+        <div>
+          <h2>Rescue Mini Suite</h2>
+          <p>The rescue platform now has a dedicated launcher hub that groups the five rescue apps with the suite support lanes around them.</p>
+        </div>
+        <div class="action-row slim">
+          <a class="button-link secondary" data-carry-query href="/GBPRescueSuite/index.html">Open Suite Hub</a>
+          <a class="button-link secondary" href="/AE-Flow/index.html">Open AE Flow</a>
+        </div>
+      </div>
     </section>
+
+    <section class="card">
+      <div class="section-head">
+        <div>
+          <h2>Rescue Operating System</h2>
+          <p>The root is the command surface for the rescue program. Each lane below is a dedicated product surface with one job in the reinstatement workflow.</p>
+        </div>
+        <div class="pill" data-bind="caseStatePill">Case not saved yet</div>
+      </div>
+      <div class="app-grid">
+        <a class="app-card" data-carry-query href="./apps/intake/index.html">
+          <span class="app-kicker">App 01</span>
+          <h3>Intake Desk</h3>
+          <p>Capture the business identity, failure mode, market, timeline, support history, and operator owner before anything else moves.</p>
+          <span class="app-link">Open Intake</span>
+        </a>
+        <a class="app-card" data-carry-query href="./apps/evidence/index.html">
+          <span class="app-kicker">App 02</span>
+          <h3>Evidence Vault</h3>
+          <p>Track licenses, leases, signage, photos, access history, and every artifact required to build a rescue packet that survives review.</p>
+          <span class="app-link">Open Evidence</span>
+        </a>
+        <a class="app-card" data-carry-query href="./apps/appeals/index.html">
+          <span class="app-kicker">App 03</span>
+          <h3>Appeal Forge</h3>
+          <p>Build the reinstatement narrative, policy framing, and final escalation brief from the shared case state.</p>
+          <span class="app-link">Open Appeals</span>
+        </a>
+        <a class="app-card" data-carry-query href="./apps/outreach/index.html">
+          <span class="app-kicker">App 04</span>
+          <h3>Outreach Desk</h3>
+          <p>Prepare support escalation copy, client updates, and suite-ready drafts so communication is part of the product, not an afterthought.</p>
+          <span class="app-link">Open Outreach</span>
+        </a>
+        <a class="app-card" data-carry-query href="./apps/monitoring/index.html">
+          <span class="app-kicker">App 05</span>
+          <h3>Recovery Watchtower</h3>
+          <p>Track follow-up windows, ranking watch notes, next review timing, and escalation triggers after the packet is in motion.</p>
+          <span class="app-link">Open Monitoring</span>
+        </a>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="section-head">
+        <div>
+          <h2>Live Rescue Cockpit</h2>
+          <p>Use the hub itself to capture the case, judge packet strength, and shape the output deck before you branch into specialist lanes.</p>
+        </div>
+        <div class="action-row slim">
+          <button type="button" data-action="save">Save Case State</button>
+          <a class="button-link secondary" data-carry-query href="./apps/intake/index.html">Open Full Intake</a>
+        </div>
+      </div>
+      <div class="field-grid">
+        <label>Business name
+          <input data-field="businessName" placeholder="Business legal or GBP display name" />
+        </label>
+        <label>Market
+          <input data-field="market" placeholder="City, metro, or service region" />
+        </label>
+        <label>Status
+          <select data-field="status">
+            <option value="suspended">suspended</option>
+            <option value="verification-failure">verification-failure</option>
+            <option value="ownership-conflict">ownership-conflict</option>
+            <option value="ranking-collapse">ranking-collapse</option>
+            <option value="disabled">disabled</option>
+          </select>
+        </label>
+        <label>Issue type
+          <select data-field="issueType">
+            <option value="policy-suspension">policy-suspension</option>
+            <option value="duplicate-listing">duplicate-listing</option>
+            <option value="verification-block">verification-block</option>
+            <option value="ownership-recovery">ownership-recovery</option>
+            <option value="ranking-loss">ranking-loss</option>
+          </select>
+        </label>
+        <label>Evidence strength
+          <select data-field="evidenceStrength">
+            <option value="low">low</option>
+            <option value="medium">medium</option>
+            <option value="high">high</option>
+          </select>
+        </label>
+        <label>Operator owner
+          <input data-field="owner" placeholder="Assigned rescue operator" />
+        </label>
+        <label>Support thread / case ids
+          <input data-field="supportThread" placeholder="GBP / Google support history" />
+        </label>
+        <label>Next review time
+          <input data-field="nextReviewAt" placeholder="Tomorrow 10:00 AM" />
+        </label>
+      </div>
+      <div class="field-grid">
+        <label>Operator notes
+          <textarea data-field="notes" placeholder="What broke, what was tried, and what still blocks reinstatement?"></textarea>
+        </label>
+        <label>Timeline
+          <textarea data-field="timeline" placeholder="Capture the timeline from failure to current escalation state."></textarea>
+        </label>
+      </div>
+      <div class="field-grid">
+        <label>Reinstatement narrative
+          <textarea data-field="reinstatementNarrative" placeholder="Write the appeal framing and operator thesis here."></textarea>
+        </label>
+        <label>Customer update / monitoring notes
+          <textarea data-field="customerUpdate" placeholder="Draft the client-facing update or operator follow-up note."></textarea>
+        </label>
+      </div>
+      <div class="operator-grid">
+        <label class="check-item"><input type="checkbox" data-check="businessLicense" /> Business license ready</label>
+        <label class="check-item"><input type="checkbox" data-check="utilityBill" /> Utility bill or lease ready</label>
+        <label class="check-item"><input type="checkbox" data-check="photos" /> Signage or storefront photos ready</label>
+        <label class="check-item"><input type="checkbox" data-check="appealHistory" /> Support thread documented</label>
+      </div>
+    </section>
+
+    <section class="platform-grid">
+      <section class="card">
+        <div class="section-head">
+          <div>
+            <h2>Incident Pressure Board</h2>
+            <p>This is the live rescue readout for the current case. The hub should tell an operator what is broken, what is missing, and what has to move next.</p>
+          </div>
+          <div class="action-row slim">
+            <button type="button" data-action="copy-appeal">Copy Appeal Brief</button>
+            <button type="button" data-action="copy-evidence">Copy Evidence Summary</button>
+          </div>
+        </div>
+        <div class="report-box" data-bind="diagnosisSummary">Start in Intake Desk to establish the rescue record and generate the first diagnosis.</div>
+        <div class="info-list">
+          <div><span>Business</span><strong data-bind="businessName">Not set</strong></div>
+          <div><span>Status</span><strong data-bind="status">suspended</strong></div>
+          <div><span>Market</span><strong data-bind="market">Not set</strong></div>
+          <div><span>Evidence Strength</span><strong data-bind="evidenceStrength">medium</strong></div>
+          <div><span>Readiness</span><strong data-bind="readiness">Unknown</strong></div>
+          <div><span>Last Updated</span><strong data-bind="updatedAt">Not saved yet</strong></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="section-head">
+          <div>
+            <h2>Dispatch Layer</h2>
+            <p>The rescue platform does the casework here, then dispatches into the wider suite to communicate, refine, store, and escalate.</p>
+          </div>
+          <div class="action-row slim">
+            <button type="button" data-action="send-mail">Route Outreach To SkyeMail</button>
+            <button type="button" data-action="send-chat">Route Brief To SkyeChat</button>
+          </div>
+        </div>
+        <div class="report-box" data-bind="monitoringSummary">Build the monitoring lane to generate the review schedule and recovery watch summary.</div>
+        <div class="operator-grid suite-grid">
+          <div class="tool-card">
+            <h3>SkyeMail</h3>
+            <p>Turn the current case into client-facing or support-facing outreach without retyping the brief.</p>
+            <div class="action-row slim"><button type="button" data-open-app="SkyeMail">Open Outreach In SkyeMail</button></div>
+          </div>
+          <div class="tool-card">
+            <h3>SkyeChat</h3>
+            <p>Push the rescue brief into live operator threads and war-room follow-up.</p>
+            <div class="action-row slim"><button type="button" data-open-app="SkyeChat">Open Rescue Ops</button></div>
+          </div>
+          <div class="tool-card">
+            <h3>Neural Space Pro</h3>
+            <p>Refine the reinstatement argument before the final escalation leaves the platform.</p>
+            <div class="action-row slim"><button type="button" data-action="send-neural">Open Neural Review</button></div>
+          </div>
+          <div class="tool-card">
+            <h3>SkyeDrive</h3>
+            <p>Store the evidence packet and supporting material in the document lane.</p>
+            <div class="action-row slim"><button type="button" data-action="send-drive">Open Evidence Storage</button></div>
+          </div>
+        </div>
+      </section>
+    </section>
+
+    <section class="card">
+      <div class="section-head">
+        <div>
+          <h2>Rescue Output Deck</h2>
+          <p>The platform produces the case packet here. Each output can be copied, refined, or routed into execution surfaces immediately.</p>
+        </div>
+        <div class="action-row slim">
+          <button type="button" data-action="copy-outreach">Copy Outreach Draft</button>
+          <button type="button" data-action="copy-monitoring">Copy Monitoring Deck</button>
+          <button type="button" data-open-app="SkyeAdmin">Escalate To Admin</button>
+        </div>
+      </div>
+      <div class="output-grid">
+        <div>
+          <h3>Appeal Brief</h3>
+          <div class="report-box" data-bind="appealBrief">Build the appeal lane to generate the reinstatement brief.</div>
+        </div>
+        <div>
+          <h3>Outreach Draft</h3>
+          <div class="report-box" data-bind="outreachDraft">Build the outreach lane to generate operator mail and client comms.</div>
+        </div>
+        <div>
+          <h3>Evidence Summary</h3>
+          <div class="report-box" data-bind="evidenceSummary">Build the evidence lane to generate the documentation packet summary.</div>
+        </div>
+        <div>
+          <h3>Monitoring Deck</h3>
+          <div class="report-box" data-bind="monitoringSummary">Build the monitoring lane to generate the recovery watch plan.</div>
+        </div>
+      </div>
+    </section>
+
+    <div class="pill" data-toast hidden><span data-toast-text>Saved.</span></div>
   </div>
 
-  <script>
-    (function () {
-      const params = new URLSearchParams(window.location.search);
-      const isEmbed = params.get('embed') === '1';
-      const wsId = params.get('ws_id') || 'primary-workspace';
-      const caseId = params.get('case_id') || `gbp-case-${wsId}`;
-      const standaloneSession = window.SkyeStandaloneSession || null;
-
-      if (isEmbed) document.body.classList.add('embed');
-
-      function readKey() {
-        return String(standaloneSession?.readToken?.() || localStorage.getItem('kx.api.accessToken') || localStorage.getItem('kaixu_api_key') || '').trim();
-      }
-
-      function updateState() {
-        const token = readKey();
-        const keyState = document.getElementById('keyState');
-        const workspaceLabel = document.getElementById('workspaceLabel');
-        const modeLabel = document.getElementById('modeLabel');
-        const embedNote = document.getElementById('embedNote');
-        if (keyState) keyState.textContent = token ? 'Loaded' : 'Missing';
-        if (workspaceLabel) workspaceLabel.textContent = wsId;
-        if (modeLabel) modeLabel.textContent = isEmbed ? 'Embedded' : 'Standalone';
-        if (embedNote) embedNote.textContent = isEmbed ? 'Embedded inside SuperIDE command deck.' : 'Standalone platform capsule.';
-      }
-
-      async function recordSuiteIntent(targetApp, intentName, detail, payload = {}) {
-        if (!standaloneSession?.recordSuiteIntent) return null;
-        return standaloneSession.recordSuiteIntent({
-          sourceApp: 'GoogleBusinessProfileRescuePlatform',
-          targetApp,
-          intent: { name: intentName, status: 'completed', summary: detail },
-          context: {
-            workspace_id: wsId,
-            case_id: caseId,
-            asset_ids: payload.asset_ids || [],
-          },
-          detail,
-          payload,
-        });
-      }
-
-      async function openApp(appId, note) {
-        const intentName = appId === 'SkyeChat' ? 'open-thread' : appId === 'SkyeMail' ? 'compose-mail' : 'escalate-admin';
-        await recordSuiteIntent(appId, intentName, note || `Routed from GBP rescue platform capsule into ${appId}.`, { case_id: caseId });
-        if (standaloneSession?.openApp) {
-          standaloneSession.openApp(appId, { source: 'Google Business Rescue Platform', note, channel: 'rescue-ops' });
-          return;
-        }
-        window.location.href = '/';
-      }
-
-      document.querySelectorAll('[data-app]').forEach((button) => {
-        button.addEventListener('click', async function () {
-          await openApp(button.getAttribute('data-app'), 'Routed from GBP rescue platform capsule');
-        });
-      });
-
-      document.getElementById('openNeural')?.addEventListener('click', async function () {
-        await recordSuiteIntent('Neural-Space-Pro', 'launch-neural', 'Routed rescue case into Neural Space Pro.', { case_id: caseId });
-        const url = '/Neural-Space-Pro/index.html?embed=0&ws_id=' + encodeURIComponent(wsId);
-        if (window.top && window.top !== window) {
-          window.top.location.href = url;
-          return;
-        }
-        window.location.href = url;
-      });
-
-      window.addEventListener('storage', updateState);
-      window.addEventListener('kaixu:key-sync', updateState);
-      updateState();
-    })();
-  </script>
+  <script src="./assets/platform.js"></script>
 </body>
 </html>

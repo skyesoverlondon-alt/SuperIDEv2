@@ -60,14 +60,30 @@
         
         .logo-img { width: 32px; height: 32px; object-fit: contain; }
         .logo-img-large { width: 80px; height: 80px; object-fit: contain; }
+        .suite-launcher { border-bottom: 1px solid rgba(255,255,255,0.06); background: linear-gradient(180deg, rgba(8,8,8,0.85), rgba(8,8,8,0.28)); }
+        .suite-launcher-track { scrollbar-width: none; }
+        .suite-launcher-track::-webkit-scrollbar { display: none; }
+        .suite-launcher-link { display: inline-flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03); color: #e5eefc; white-space: nowrap; transition: all 0.2s ease; }
+        .suite-launcher-link:hover,
+        .suite-launcher-link:focus-visible { background: rgba(59,130,246,0.16); border-color: rgba(59,130,246,0.34); color: #fff; outline: none; }
+        .suite-launcher-link.active { background: rgba(59,130,246,0.22); border-color: rgba(96,165,250,0.4); color: #fff; box-shadow: 0 0 0 1px rgba(96,165,250,0.16) inset; }
+        .suite-launcher-link.pulse { animation: neural-rail-pulse 1.1s ease; }
+        .welcome-card { background: radial-gradient(circle at top, rgba(59,130,246,0.16), rgba(8,8,8,0.92) 72%); border: 1px solid rgba(255,255,255,0.08); box-shadow: 0 30px 90px rgba(0,0,0,0.28); }
+        .skyehawk-popup { position: fixed; top: 94px; right: 24px; z-index: 120; width: min(360px, calc(100vw - 32px)); padding: 16px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1); background: rgba(8,10,20,0.94); box-shadow: 0 24px 70px rgba(0,0,0,0.4); backdrop-filter: blur(18px); }
+        .skyehawk-popup.hidden { display: none; }
+        .skyehawk-popup-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+        .skyehawk-popup button { border-radius: 999px; padding: 10px 14px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; }
+        @keyframes neural-rail-pulse { 0% { transform: translateY(0); box-shadow: 0 0 0 rgba(59,130,246,0); } 35% { transform: translateY(-2px); box-shadow: 0 12px 40px rgba(59,130,246,0.2); } 100% { transform: translateY(0); box-shadow: 0 0 0 rgba(59,130,246,0); } }
         body.embed-shell aside { width: 18rem; }
         body.embed-chat #kb-drawer,
         body.embed-chat aside,
         body.embed-chat header,
+        body.embed-chat #suite-launcher,
         body.embed-chat #health-panel,
         body.embed-chat #signal-lane,
         body.embed-chat #workspace-grounding,
         body.embed-chat #canvas-panel,
+        body.embed-chat #skyehawk-popup,
         body.embed-chat #welcome-view {
             display: none !important;
         }
@@ -146,10 +162,39 @@
                     <i class="fa-solid fa-brain text-blue-400 text-xs"></i>
                     <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Processing...</span>
                 </div>
+                <button id="skyehawkLauncherBtn" type="button" class="w-11 h-11 rounded-full border border-white/10 bg-white/5 flex items-center justify-center hover:bg-white/10 transition-all" aria-label="Open suite launcher">
+                    <img src="/SKYESOVERLONDONDIETYLOGO.png" alt="Skyehawk launcher" class="w-7 h-7 object-contain">
+                </button>
                 <div id="runtime-mode-badge" class="px-3 py-2 glass-panel rounded-full text-[10px] font-black uppercase tracking-widest text-emerald-300">Mode: Pending</div>
                 <button id="stop-btn" onclick="stopEngine()" class="hidden px-4 py-2 bg-red-500/10 border border-red-500/20 text-red-400 rounded-full text-[10px] font-black uppercase">Interrupt</button>
             </div>
         </header>
+
+        <section id="suite-launcher" class="suite-launcher px-8 py-4">
+            <div class="flex items-center justify-between gap-3 flex-wrap mb-3">
+                <div>
+                    <div class="text-[10px] font-black uppercase tracking-[0.22em] text-blue-300">Suite Launcher</div>
+                    <div class="text-sm text-gray-400 mt-1">Jump between core Skye surfaces from a single top rail. Scroll horizontally to access the full suite.</div>
+                </div>
+                <button id="suiteLauncherHintBtn" type="button" class="px-3 py-2 glass-panel rounded-full text-[10px] font-black uppercase tracking-widest text-gray-300 hover:text-white">Show Menu Hint</button>
+            </div>
+            <div id="suite-launcher-track" class="suite-launcher-track flex gap-3 overflow-x-auto pb-1"></div>
+        </section>
+
+        <div id="skyehawk-popup" class="skyehawk-popup hidden" role="dialog" aria-live="polite" aria-label="Skyehawk menu hint">
+            <div class="flex items-start gap-3">
+                <img src="/SKYESOVERLONDONDIETYLOGO.png" alt="Skyehawk" class="w-11 h-11 object-contain rounded-2xl border border-white/10 bg-white/5 p-2">
+                <div class="min-w-0">
+                    <div class="text-[10px] font-black uppercase tracking-[0.22em] text-blue-300">Skyehawk Guide</div>
+                    <div class="text-sm text-gray-100 mt-1">Use the hawk button in the header to open the suite menu. That menu now lives in the top bar and scrolls sideways for the rest of the apps.</div>
+                    <div class="text-xs text-gray-400 mt-2">Open the launcher once, then jump directly into SkyDex, SkyeDocxPro, SkyeBlog, or other linked surfaces.</div>
+                </div>
+            </div>
+            <div class="skyehawk-popup-actions">
+                <button id="skyehawkOpenMenuBtn" type="button" class="bg-white text-black">Open Menu</button>
+                <button id="skyehawkDismissBtn" type="button" class="border border-white/10 bg-transparent text-white">Dismiss</button>
+            </div>
+        </div>
 
         <div id="health-panel" class="mx-8 mt-4 px-4 py-3 glass-panel rounded-2xl text-[11px] text-gray-300">
             Health: initializing...
@@ -194,12 +239,79 @@
             </div>
         </section>
 
-        <div id="chat-window" class="flex-1 overflow-y-auto pt-10 pb-32">
-            <div id="welcome-view" class="h-full flex flex-col items-center justify-center text-center p-12 space-y-8 max-w-2xl mx-auto">
-                <img src="/SKYESOVERLONDONDIETYLOGO.png" alt="kAIxu Logo" class="logo-img-large shadow-2xl">
+        <section id="suite-orchestrator" class="utility-section mx-8 mt-4 glass-panel rounded-3xl p-4 md:p-5">
+            <div class="flex items-center justify-between gap-3 flex-wrap">
                 <div>
-                    <h2 class="text-5xl font-black tracking-tighter leading-tight">Neural Space Pro.</h2>
-                    <p class="text-gray-500 font-medium mt-4">Advanced neural intelligence for multi-modal analysis, documentation synthesis, and technical reasoning.</p>
+                    <div class="text-[10px] font-black uppercase tracking-[0.22em] text-fuchsia-300">Suite Orchestrator</div>
+                    <div class="text-sm text-gray-400 mt-1">Turn the current Neural session into a suite payload, push it into another app, or stage the whole thing for SkyeVault Pro.</div>
+                </div>
+                <div class="flex items-center gap-2 flex-wrap">
+                    <button type="button" class="utility-toggle px-3 py-2 glass-panel rounded-full text-[10px] font-black uppercase tracking-widest text-gray-300 hover:text-white" data-section="suite-orchestrator" aria-expanded="true">
+                        Collapse <i class="fa-solid fa-chevron-down ml-2"></i>
+                    </button>
+                    <button onclick="openOrchestratorTarget()" class="px-3 py-2 glass-panel rounded-full text-[10px] font-black uppercase tracking-widest text-gray-300 hover:text-white">Open Target</button>
+                </div>
+            </div>
+            <div class="utility-section-body">
+                <div class="mt-4 grid grid-cols-1 xl:grid-cols-2 gap-3">
+                    <label class="text-[10px] font-black uppercase tracking-[0.18em] text-gray-500">Target App
+                        <select id="suite-handoff-target" class="mt-2 w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-gray-200 outline-none">
+                            <option value="SkyeVault-Pro-v4.46">SkyeVault Pro</option>
+                            <option value="SkyeDocs">SkyeDocs</option>
+                            <option value="SkyeNotes">SkyeNotes</option>
+                            <option value="SkyeTasks">SkyeTasks</option>
+                            <option value="SkyeMail">SkyeMail</option>
+                            <option value="SkyeChat">SkyeChat</option>
+                            <option value="SkyeSheets">SkyeSheets</option>
+                            <option value="SkyeSlides">SkyeSlides</option>
+                            <option value="SkyeForms">SkyeForms</option>
+                            <option value="SkyeCalendar">SkyeCalendar</option>
+                            <option value="SkyeDrive">SkyeDrive</option>
+                        </select>
+                    </label>
+                    <label class="text-[10px] font-black uppercase tracking-[0.18em] text-gray-500">Handoff Shape
+                        <select id="suite-handoff-shape" class="mt-2 w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-gray-200 outline-none">
+                            <option value="auto">Auto by target</option>
+                            <option value="docs">Document</option>
+                            <option value="notes">Note</option>
+                            <option value="tasks">Task board</option>
+                            <option value="mail">Mail draft</option>
+                            <option value="chat">Chat post</option>
+                            <option value="sheet">Sheet rows</option>
+                            <option value="slides">Slide deck</option>
+                            <option value="forms">Form draft</option>
+                            <option value="calendar">Calendar event</option>
+                            <option value="drive">Drive manifest</option>
+                        </select>
+                    </label>
+                </div>
+                <div class="mt-4 flex flex-wrap gap-2">
+                    <button onclick="sendNeuralHandoff()" class="px-4 py-3 bg-white text-black rounded-full font-black uppercase tracking-widest text-[10px]">Send To Target</button>
+                    <button onclick="stageNeuralToVault()" class="px-4 py-3 border border-white/10 rounded-full font-black uppercase tracking-widest text-[10px] text-white hover:bg-white/5">Stage To Vault</button>
+                    <button onclick="syncSignalLane({ force: true })" class="px-4 py-3 border border-white/10 rounded-full font-black uppercase tracking-widest text-[10px] text-white hover:bg-white/5">Refresh Signals</button>
+                </div>
+                <div id="suite-handoff-status" class="mt-4 rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-xs text-gray-300">Neural Space Pro is ready to hand work into the rest of the suite.</div>
+            </div>
+        </section>
+
+        <div id="chat-window" class="flex-1 overflow-y-auto pt-10 pb-32">
+            <div id="welcome-view" class="h-full flex flex-col items-center justify-center text-center p-8 md:p-12 max-w-3xl mx-auto">
+                <div class="welcome-card w-full rounded-[2rem] p-8 md:p-10 space-y-6">
+                    <div class="flex items-center justify-center gap-3">
+                        <img src="/SKYESOVERLONDONDIETYLOGO.png" alt="kAIxu Logo" class="w-12 h-12 object-contain rounded-2xl border border-white/10 bg-white/5 p-2">
+                        <div class="text-left">
+                            <div class="text-[10px] font-black uppercase tracking-[0.22em] text-blue-300">Neural Space Pro</div>
+                            <div class="text-sm text-gray-400">Research, synthesis, signal intake, and workspace-grounded reasoning.</div>
+                        </div>
+                    </div>
+                    <div>
+                        <h2 class="text-4xl md:text-5xl font-black tracking-tighter leading-tight">Start in chat. Jump across the suite from the top rail.</h2>
+                        <p class="text-gray-400 font-medium mt-4">The app menu is no longer hidden in a sidebar. Use the Skyehawk button or the launcher rail above to move between Neural Space Pro and the rest of the platform.</p>
+                    </div>
+                    <div class="flex flex-wrap items-center justify-center gap-3">
+                        <button id="welcomeOpenMenuBtn" type="button" class="px-5 py-3 bg-white text-black rounded-full font-black uppercase tracking-widest text-[11px]">Open App Menu</button>
+                        <button id="welcomeOpenConfigBtn" type="button" class="px-5 py-3 border border-white/10 rounded-full font-black uppercase tracking-widest text-[11px] text-white hover:bg-white/5">Open Config</button>
+                    </div>
                 </div>
             </div>
             <div id="messages-list" class="max-w-4xl mx-auto px-6 space-y-12"></div>
@@ -288,6 +400,9 @@
         const NEURAL_SESSION_SAVE_ENDPOINT = '/api/neural-session-save';
         const WORKSPACE_SNAPSHOT_ENDPOINT = '/api/ws-get';
         const APP_BRIDGE_EVENT_KEY = 'kx.app.bridge';
+        const NEURAL_PENDING_IMPORT_KEY = 'kx.neural.pending.import';
+        const NEURAL_CONSUMED_IMPORT_ID_KEY = 'kx.neural.pending.import.last';
+        const VAULT_PRO_PENDING_IMPORT_KEY = 'kx.vaultpro.pending.import';
         const COMMAND_FEED_KEY = 'kx.command.feed';
         const SOVEREIGN_INBOX_KEY = 'sovereign.variables.inbox.v1';
         const KB_PINS_KEY = 'kaixu.neural.kb.pins';
@@ -313,6 +428,78 @@
             params.set('ws_id', wsId);
             const src = `${window.location.origin}/Neural-Space-Pro/index.html?${params.toString()}`;
             return `<iframe src="${src}" title="kAIxu Neural Space Pro" style="width:100%;min-height:720px;border:0;border-radius:24px;overflow:hidden" loading="lazy" allow="clipboard-write"></iframe>`;
+        }
+
+        const SUITE_APPS = [
+            { label: 'SuperIDE', href: '/', icon: 'fa-solid fa-grid-2' },
+            { label: 'SkyDex 4.6', href: '/SkyDex4.6/', icon: 'fa-solid fa-code' },
+            { label: 'kAIxU Platform', href: '/kAIxU/index.html', icon: 'fa-solid fa-stars' },
+            { label: 'kAIxU Suite', href: '/kAIxUSuite/index.html', icon: 'fa-solid fa-wand-magic-sparkles' },
+            { label: 'Contractor Suite', href: '/ContractorWorkflowSuite/index.html', icon: 'fa-solid fa-diagram-project' },
+            { label: 'ContractorNetwork', href: '/ContractorNetwork/index.html', icon: 'fa-solid fa-users-gear' },
+            { label: 'Contractor Income', href: '/ContractorIncomeVerification/index.html', icon: 'fa-solid fa-file-invoice-dollar' },
+            { label: 'AE Flow', href: '/AE-Flow/index.html', icon: 'fa-solid fa-briefcase' },
+            { label: 'Skye Platinum', href: '/SkyePlatinum/index.html', icon: 'fa-solid fa-crown' },
+            { label: 'Neural Space Pro', href: '/Neural-Space-Pro/', icon: 'fa-solid fa-brain' },
+            { label: 'SkyeDocxPro', href: '/SkyeDocxPro/', icon: 'fa-solid fa-file-lines' },
+            { label: 'GBP Rescue', href: '/GoogleBusinessProfileRescuePlatform/index.html', icon: 'fa-solid fa-life-ring' },
+            { label: 'GBP Rescue Suite', href: '/GBPRescueSuite/index.html', icon: 'fa-solid fa-layer-group' },
+            { label: 'SkyeBlog', href: '/SkyeBlog/', icon: 'fa-solid fa-feather-pointed' },
+            { label: 'SovereignVariables', href: '/SovereignVariables/', icon: 'fa-solid fa-sliders' },
+        ];
+        const SKYEHAWK_POPUP_DISMISSED_KEY = 'kaixu.neural.skyehawk.dismissed';
+
+        function renderSuiteLauncher() {
+            const track = document.getElementById('suite-launcher-track');
+            if (!track) return;
+            const currentPath = window.location.pathname.replace(/index\.html$/, '');
+            track.innerHTML = SUITE_APPS.map((app) => {
+                const normalizedHref = app.href.replace(/index\.html$/, '');
+                const active = normalizedHref === '/' ? currentPath === '/' : currentPath.startsWith(normalizedHref);
+                return `<a class="suite-launcher-link${active ? ' active' : ''}" href="${app.href}"><i class="${app.icon}"></i><span>${app.label}</span></a>`;
+            }).join('');
+        }
+
+        function pulseSuiteLauncher() {
+            const track = document.getElementById('suite-launcher-track');
+            if (!track) return;
+            const active = track.querySelector('.suite-launcher-link.active') || track.querySelector('.suite-launcher-link');
+            if (!active) return;
+            active.classList.remove('pulse');
+            void active.offsetWidth;
+            active.classList.add('pulse');
+            active.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+        }
+
+        function revealSuiteLauncher() {
+            const launcher = document.getElementById('suite-launcher');
+            if (launcher) launcher.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            pulseSuiteLauncher();
+        }
+
+        function showSkyehawkPopup(force = false) {
+            if (isEmbedded || embedMode === 'chat') return;
+            const popup = document.getElementById('skyehawk-popup');
+            if (!popup) return;
+            let dismissed = false;
+            try {
+                dismissed = localStorage.getItem(SKYEHAWK_POPUP_DISMISSED_KEY) === '1';
+            } catch {
+                dismissed = false;
+            }
+            if (dismissed && !force) return;
+            popup.classList.remove('hidden');
+        }
+
+        function dismissSkyehawkPopup(persist = true) {
+            const popup = document.getElementById('skyehawk-popup');
+            if (popup) popup.classList.add('hidden');
+            if (!persist) return;
+            try {
+                localStorage.setItem(SKYEHAWK_POPUP_DISMISSED_KEY, '1');
+            } catch {
+                // ignore storage failures
+            }
         }
 
         // App State
@@ -411,7 +598,7 @@
         }
 
         function buildGatewayPrompt(prompt, atts) {
-            const sys = localStorage.getItem('kaixu_sys') || "You are kAIxu, the core intelligence of the Neural Space Pro environment. You are optimized for research, data synthesis, and technical architecture.";
+            const sys = localStorage.getItem('kaixu_sys') || "You are kAIxu, the core intelligence of Neural Space Pro. You are not a generic chat bot. You are the suite operator for the full Skyes Over London ecosystem. Default to research, synthesis, planning, implementation guidance, cross-app routing, workspace grounding, mission tracking, and production-ready next actions. When useful, structure output so it can be handed directly into SkyeDocs, SkyeNotes, SkyeTasks, SkyeMail, SkyeChat, SkyeSheets, SkyeSlides, SkyeForms, SkyeCalendar, SkyeDrive, or SkyeVault Pro without rewriting.";
             const attachmentBlocks = Array.isArray(atts)
                 ? atts.map((item) => item.type === 'image'
                     ? `[NEURAL_IMAGE_ATTACHMENT: ${item.name}]`
@@ -669,6 +856,375 @@
                 }),
             };
         }
+
+        function orchestratorStatus(message, tone = '') {
+            const node = document.getElementById('suite-handoff-status');
+            if (!node) return;
+            node.className = `mt-4 rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-xs ${tone === 'fail' ? 'text-red-300' : tone === 'ok' ? 'text-emerald-300' : tone === 'boundary' ? 'text-amber-200' : 'text-gray-300'}`;
+            node.textContent = message;
+        }
+
+        function slugify(value) {
+            return String(value || 'neural-space')
+                .trim()
+                .toLowerCase()
+                .replace(/[^a-z0-9._-]+/g, '-')
+                .replace(/^-+|-+$/g, '') || 'neural-space';
+        }
+
+        function getOrchestratorTarget() {
+            return String(document.getElementById('suite-handoff-target')?.value || 'SkyeVault-Pro-v4.46').trim();
+        }
+
+        function getOrchestratorShape() {
+            return String(document.getElementById('suite-handoff-shape')?.value || 'auto').trim();
+        }
+
+        function getLatestNeuralSummary() {
+            const latestUser = [...sessionMessages].reverse().find((message) => message.role === 'user' && String(message.content || '').trim());
+            const latestModel = [...sessionMessages].reverse().find((message) => message.role === 'model' && String(message.content || '').trim());
+            return [String(latestUser?.content || '').trim(), String(latestModel?.content || '').trim()].filter(Boolean).join('\n\n').slice(0, 2200);
+        }
+
+        function getTranscriptBlock(limit = 10) {
+            return sessionMessages.slice(-limit).map((message) => `${String(message.role || 'user').toUpperCase()}: ${String(message.content || '').trim()}`).join('\n\n').slice(0, 10000);
+        }
+
+        function getCanvasSnapshot() {
+            return String(document.getElementById('canvas-editor')?.value || '').trim().slice(0, 8000);
+        }
+
+        function buildNeuralExportBundle() {
+            const title = getSessionTitleFromMessages(sessionMessages) || 'Neural Stream';
+            const activeMission = missionRecords.find((mission) => mission.id === activeMissionId) || null;
+            return {
+                title,
+                summary: getLatestNeuralSummary(),
+                transcript: getTranscriptBlock(),
+                canvas: getCanvasSnapshot(),
+                mission: activeMission ? {
+                    id: activeMission.id,
+                    title: activeMission.title,
+                    priority: activeMission.priority,
+                    status: activeMission.status,
+                } : null,
+                workspace: summarizeWorkspaceForSession(),
+                signals: signalLaneItems.slice(0, 4).map((item) => ({ kind: item.kind, title: item.title, detail: item.detail, at: item.at })),
+                exported_at: new Date().toISOString(),
+                workspace_id: wsId,
+            };
+        }
+
+        function buildNeuralMarkdown(bundle) {
+            return [
+                `# ${bundle.title}`,
+                '',
+                bundle.summary ? `## Summary\n${bundle.summary}` : '',
+                bundle.canvas ? `## Workspace Canvas\n${bundle.canvas}` : '',
+                bundle.transcript ? `## Conversation\n${bundle.transcript}` : '',
+                bundle.mission ? `## Active Mission\n${bundle.mission.title} · ${bundle.mission.status || 'active'} · ${bundle.mission.priority || 'medium'}` : '',
+                bundle.workspace ? `## Workspace Snapshot\n${JSON.stringify(bundle.workspace, null, 2)}` : '',
+                bundle.signals?.length ? `## Signal Lane\n${bundle.signals.map((item) => `- ${item.kind}: ${item.title}${item.detail ? ` (${item.detail})` : ''}`).join('\n')}` : '',
+            ].filter(Boolean).join('\n\n');
+        }
+
+        function resolveHandoffShape(targetApp, shape) {
+            if (shape && shape !== 'auto') return shape;
+            const defaults = {
+                SkyeDocs: 'docs',
+                SkyeNotes: 'notes',
+                SkyeTasks: 'tasks',
+                SkyeMail: 'mail',
+                SkyeChat: 'chat',
+                SkyeSheets: 'sheet',
+                SkyeSlides: 'slides',
+                SkyeForms: 'forms',
+                SkyeCalendar: 'calendar',
+                SkyeDrive: 'drive',
+                'SkyeVault-Pro-v4.46': 'notes',
+            };
+            return defaults[targetApp] || 'docs';
+        }
+
+        function buildNeuralHandoffPayload(targetApp, selectedShape = 'auto') {
+            const bundle = buildNeuralExportBundle();
+            const shape = resolveHandoffShape(targetApp, selectedShape);
+            const markdown = buildNeuralMarkdown(bundle);
+            const summary = bundle.summary || bundle.transcript || bundle.canvas || 'Neural Space Pro handoff';
+            const now = new Date().toISOString();
+
+            if (shape === 'docs') {
+                const path = `neural/${slugify(bundle.title)}.md`;
+                return { payload: { files: [{ path, content: markdown }], active_path: path }, label: 'document handoff' };
+            }
+            if (shape === 'notes') {
+                return {
+                    payload: {
+                        notes: [{
+                            id: `note-${Date.now()}`,
+                            title: bundle.title,
+                            body: markdown,
+                            tags: 'neural,handoff,suite',
+                            owner: 'neural@skye.local',
+                            updated_at: now,
+                            notebook: 'Neural Imports',
+                            pinned: true,
+                        }],
+                    },
+                    label: 'note handoff',
+                };
+            }
+            if (shape === 'tasks') {
+                return {
+                    payload: {
+                        model: [{
+                            id: `task-${Date.now()}`,
+                            title: bundle.title,
+                            description: summary.slice(0, 1200),
+                            status: 'backlog',
+                            priority: bundle.mission?.priority || 'high',
+                            assignee: 'neural@skye.local',
+                            due_at: '',
+                            updated_at: now,
+                        }],
+                    },
+                    label: 'task handoff',
+                };
+            }
+            if (shape === 'mail') {
+                return {
+                    payload: {
+                        compose: {
+                            to: '',
+                            subject: `${bundle.title} · Neural handoff`,
+                            text: markdown.slice(0, 5000),
+                        },
+                    },
+                    label: 'mail draft',
+                };
+            }
+            if (shape === 'chat') {
+                return {
+                    payload: {
+                        compose: {
+                            channel: 'neural-ops',
+                            message: `[Neural Space Pro] ${summary.slice(0, 1200)}`,
+                        },
+                    },
+                    label: 'chat handoff',
+                };
+            }
+            if (shape === 'sheet') {
+                return {
+                    payload: {
+                        model: {
+                            title: `${bundle.title} Board`,
+                            columns: ['Title', 'Summary', 'Mission', 'Signals'],
+                            rows: [{
+                                id: `row-${Date.now()}`,
+                                owner: 'neural@skye.local',
+                                updated_at: now,
+                                cells: [bundle.title, summary.slice(0, 320), bundle.mission?.title || 'none', String(bundle.signals?.length || 0)],
+                            }],
+                        },
+                    },
+                    label: 'sheet handoff',
+                };
+            }
+            if (shape === 'slides') {
+                return {
+                    payload: {
+                        model: {
+                            title: `${bundle.title} Deck`,
+                            slides: [{
+                                id: `slide-${Date.now()}`,
+                                title: bundle.title,
+                                summary: summary.slice(0, 500),
+                                speaker: 'neural@skye.local',
+                                status: 'draft',
+                                updated_at: now,
+                            }],
+                        },
+                    },
+                    label: 'slide handoff',
+                };
+            }
+            if (shape === 'forms') {
+                return {
+                    payload: {
+                        questions: [{
+                            id: `question-${Date.now()}`,
+                            prompt: `Review ${bundle.title}`,
+                            type: 'long_text',
+                            required: true,
+                            owner: 'neural@skye.local',
+                            help_text: summary.slice(0, 240),
+                            options: [],
+                        }],
+                        responses: [],
+                    },
+                    label: 'form handoff',
+                };
+            }
+            if (shape === 'calendar') {
+                return {
+                    payload: {
+                        events: [{
+                            id: `event-${Date.now()}`,
+                            title: bundle.title,
+                            start_date: now,
+                            end_date: now,
+                            owner: 'neural@skye.local',
+                            status: 'planned',
+                            notes: summary.slice(0, 800),
+                        }],
+                    },
+                    label: 'calendar handoff',
+                };
+            }
+            if (shape === 'drive') {
+                return {
+                    payload: {
+                        assets: [{
+                            id: `asset-${Date.now()}`,
+                            name: `${slugify(bundle.title)}.md`,
+                            kind: 'doc',
+                            size_kb: Math.max(1, Math.round(markdown.length / 1024)),
+                            owner: 'neural@skye.local',
+                            version: 1,
+                            shared_with: '',
+                            relative_path: `neural/${slugify(bundle.title)}.md`,
+                            mime_type: 'text/markdown',
+                            source_app: 'Neural-Space-Pro',
+                            saved_at: now,
+                        }],
+                    },
+                    label: 'drive handoff',
+                };
+            }
+
+            return { payload: { files: [{ path: `neural/${slugify(bundle.title)}.md`, content: markdown }], active_path: `neural/${slugify(bundle.title)}.md` }, label: 'document handoff' };
+        }
+
+        function buildVaultEnvelopeFromNeural(shape = 'notes') {
+            const handoff = buildNeuralHandoffPayload('SkyeVault-Pro-v4.46', shape);
+            return {
+                id: `vault-sync-${Date.now()}`,
+                format: 'superide-vault-bridge-v1',
+                sourceApp: 'Neural-Space-Pro',
+                workspace_id: wsId,
+                exported_at: new Date().toISOString(),
+                title: `${buildNeuralExportBundle().title} Workspace Snapshot`,
+                payload: handoff.payload,
+            };
+        }
+
+        function buildNeuralImportPrompt(envelope) {
+            const source = String(envelope?.sourceApp || envelope?.source || 'Suite').trim() || 'Suite';
+            const payload = envelope?.payload && typeof envelope.payload === 'object' ? envelope.payload : {};
+            const detail = String(envelope?.detail || '').trim();
+            return [
+                `### Imported ${source} handoff`,
+                detail || `A structured workspace handoff arrived from ${source}.`,
+                '',
+                'Use this as the next prompt context inside Neural Space Pro:',
+                '',
+                JSON.stringify(payload, null, 2),
+            ].join('\n');
+        }
+
+        async function importPendingNeuralHandoff(force = false) {
+            const raw = localStorage.getItem(NEURAL_PENDING_IMPORT_KEY);
+            if (!raw) {
+                if (force) orchestratorStatus('No staged Neural handoff is waiting.', 'boundary');
+                return false;
+            }
+            let envelope = null;
+            try {
+                envelope = JSON.parse(raw);
+            } catch {
+                orchestratorStatus('Pending Neural handoff is invalid JSON.', 'fail');
+                return false;
+            }
+            if (!envelope || typeof envelope !== 'object') return false;
+            if (!force && envelope.id && envelope.id === localStorage.getItem(NEURAL_CONSUMED_IMPORT_ID_KEY)) return false;
+            const prompt = buildNeuralImportPrompt(envelope);
+            const input = document.getElementById('user-input');
+            const editor = document.getElementById('canvas-editor');
+            if (input) {
+                input.value = prompt;
+                autoResize(input);
+            }
+            if (editor) editor.value = prompt;
+            toggleWorkspace(true);
+            setCanvasMode('edit');
+            if (envelope.id) localStorage.setItem(NEURAL_CONSUMED_IMPORT_ID_KEY, String(envelope.id));
+            orchestratorStatus(`Imported ${String(envelope.sourceApp || envelope.source || 'suite')} handoff into Neural Space Pro.`, 'ok');
+            return true;
+        }
+
+        window.openOrchestratorTarget = () => {
+            const targetApp = getOrchestratorTarget();
+            try {
+                if (window.SkyeStandaloneSession?.openApp) {
+                    window.SkyeStandaloneSession.openApp(targetApp, { source: 'Neural-Space-Pro', note: `Opened ${targetApp} from Neural Space Pro.` });
+                }
+                orchestratorStatus(`Opened ${targetApp} from Neural Space Pro.`, 'ok');
+            } catch (error) {
+                orchestratorStatus(error?.message || `Unable to open ${targetApp}.`, 'fail');
+            }
+        };
+
+        window.stageNeuralToVault = async () => {
+            const shape = getOrchestratorShape();
+            const envelope = buildVaultEnvelopeFromNeural(shape);
+            localStorage.setItem(VAULT_PRO_PENDING_IMPORT_KEY, JSON.stringify(envelope));
+            window.SkyeStandaloneSession?.emitAppBridge?.({
+                kind: 'open-app',
+                source: 'Neural-Space-Pro',
+                appId: 'SkyeVault-Pro-v4.46',
+                note: 'Neural Space Pro staged a snapshot for SkyeVault Pro.',
+            });
+            await window.SkyeStandaloneSession?.recordSuiteIntent?.({
+                appId: 'Neural-Space-Pro',
+                sourceApp: 'Neural-Space-Pro',
+                targetApp: 'SkyeVault-Pro-v4.46',
+                intent: { name: 'neural-to-vault', status: 'completed', summary: 'Neural Space Pro staged a vault snapshot.' },
+                detail: 'Neural Space Pro staged the current session for SkyeVault Pro.',
+                payload: { title: envelope.title },
+            });
+            orchestratorStatus('Neural Space Pro staged the current session for SkyeVault Pro.', 'ok');
+        };
+
+        window.sendNeuralHandoff = async () => {
+            const targetApp = getOrchestratorTarget();
+            const shape = getOrchestratorShape();
+            if (targetApp === 'SkyeVault-Pro-v4.46') {
+                await window.stageNeuralToVault();
+                return;
+            }
+            const handoff = buildNeuralHandoffPayload(targetApp, shape);
+            const detail = `Neural Space Pro sent a ${handoff.label} into ${targetApp}.`;
+            window.SkyeStandaloneSession?.emitAppBridge?.({
+                kind: 'neural-handoff',
+                source: 'Neural-Space-Pro',
+                targetApp,
+                appId: targetApp,
+                payload: handoff.payload,
+                detail,
+                tone: 'ok',
+            });
+            window.SkyeStandaloneSession?.openApp?.(targetApp, { source: 'Neural-Space-Pro', note: detail });
+            await window.SkyeStandaloneSession?.recordSuiteIntent?.({
+                appId: 'Neural-Space-Pro',
+                sourceApp: 'Neural-Space-Pro',
+                targetApp,
+                intent: { name: 'neural-handoff', status: 'completed', summary: detail },
+                detail,
+                payload: { shape: handoff.label, title: buildNeuralExportBundle().title },
+            });
+            orchestratorStatus(detail, 'ok');
+        };
 
         async function apiJson(url, options = {}) {
             const response = await fetch(url, {
@@ -1733,8 +2289,11 @@
             });
         }
         window.addEventListener('storage', (event) => {
-            if ([COMMAND_FEED_KEY, SOVEREIGN_INBOX_KEY, APP_BRIDGE_EVENT_KEY, 'kx.api.accessToken', 'kx.api.tokenEmail'].includes(event.key || '')) {
+            if ([COMMAND_FEED_KEY, SOVEREIGN_INBOX_KEY, APP_BRIDGE_EVENT_KEY, NEURAL_PENDING_IMPORT_KEY, 'kx.api.accessToken', 'kx.api.tokenEmail'].includes(event.key || '')) {
                 void syncSignalLane({ force: true });
+            }
+            if (event.key === NEURAL_PENDING_IMPORT_KEY && event.newValue) {
+                void importPendingNeuralHandoff(false);
             }
             if ([LOCAL_ARCHIVE_KEY, KB_PINS_KEY].includes(event.key || '')) {
                 archiveRecords = readLocalArchives();
@@ -1748,6 +2307,7 @@
             const data = event.data || null;
             if (!data || data.type !== APP_BRIDGE_EVENT_KEY) return;
             void syncSignalLane({ force: true });
+            if (data.payload?.kind === 'neural-import') void importPendingNeuralHandoff(false);
         });
         window.addEventListener('focus', () => { void syncSignalLane({ force: true }); });
         document.addEventListener('visibilitychange', () => {
@@ -1755,12 +2315,31 @@
         });
         window.setInterval(() => { void syncSignalLane(); }, SIGNAL_POLL_MS);
         void syncSignalLane({ force: true });
+        void importPendingNeuralHandoff(false);
         initUtilitySections();
+        renderSuiteLauncher();
         renderPinnedItems();
         renderProjectSelector();
         renderWorkspaceGrounding();
         renderComposerMode();
         refreshRuntimeHealth();
+
+        document.getElementById('skyehawkLauncherBtn')?.addEventListener('click', () => {
+            dismissSkyehawkPopup();
+            revealSuiteLauncher();
+        });
+        document.getElementById('suiteLauncherHintBtn')?.addEventListener('click', () => showSkyehawkPopup(true));
+        document.getElementById('welcomeOpenMenuBtn')?.addEventListener('click', () => {
+            dismissSkyehawkPopup();
+            revealSuiteLauncher();
+        });
+        document.getElementById('welcomeOpenConfigBtn')?.addEventListener('click', () => toggleSettings());
+        document.getElementById('skyehawkOpenMenuBtn')?.addEventListener('click', () => {
+            dismissSkyehawkPopup();
+            revealSuiteLauncher();
+        });
+        document.getElementById('skyehawkDismissBtn')?.addEventListener('click', () => dismissSkyehawkPopup());
+        showSkyehawkPopup();
     </script>
     <button id="skye-tutorial-fab" type="button" style="position:fixed;right:16px;bottom:16px;z-index:10000;padding:10px 14px;border-radius:999px;border:1px solid rgba(191,238,255,.42);background:rgba(44,230,255,.2);color:#eff9ff;font-weight:700;cursor:pointer;">Start Tutorial</button>
     <div id="skye-tutorial-modal" style="display:none;position:fixed;inset:0;z-index:10001;background:rgba(2,6,23,.72);"></div>

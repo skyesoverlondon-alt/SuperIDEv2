@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GBP Rescue Platform · Case Intake</title>
+  <link rel="manifest" href="../../manifest.webmanifest" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/SkyeVault-Pro-v4.46/assets/img/icon-192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="/SkyeVault-Pro-v4.46/assets/img/icon-512.png" />
+  <link rel="apple-touch-icon" href="/SkyeVault-Pro-v4.46/assets/img/icon-192.png" />
+  <script src="/_shared/standalone-session.js"></script>
+  <link rel="stylesheet" href="../../assets/platform.css" />
+</head>
+<body data-app="intake">
+  <div class="shell">
+    <section class="hero">
+      <div class="eyebrow">App 01 · Intake</div>
+      <div class="nav-row">
+        <div class="hero-copy">
+          <h1>Case Intake</h1>
+          <p>Frame the rescue case correctly before any appeal or outreach work starts. This page owns core identity, issue classification, and rescue context.</p>
+        </div>
+        <a class="button-link secondary" data-carry-query href="../../index.html">Back To Hub</a>
+      </div>
+      <div class="metric-row">
+        <div class="metric"><div>Workspace</div><strong data-bind="workspaceLabel">primary-workspace</strong></div>
+        <div class="metric"><div>kAIxU Access</div><strong data-bind="keyState">Checking</strong></div>
+        <div class="metric"><div>Launch Mode</div><strong data-bind="modeLabel">Standalone</strong></div>
+      </div>
+    </section>
+
+    <section class="card field-stack">
+      <div class="section-head">
+        <div>
+          <h2>Operator Intake Form</h2>
+          <p>These fields populate the rest of the platform surfaces automatically.</p>
+        </div>
+        <div class="action-row slim">
+          <button type="button" data-action="save">Save Intake</button>
+          <button type="button" data-open-app="SkyeChat">Open Rescue Ops In SkyeChat</button>
+        </div>
+      </div>
+      <div class="field-grid">
+        <label>Business Name<input data-field="businessName" placeholder="Acme Roofing Chicago" /></label>
+        <label>GBP Status<select data-field="status"><option value="suspended">Suspended</option><option value="verification-failure">Verification Failure</option><option value="ownership-conflict">Ownership Conflict</option><option value="disabled-profile">Disabled Profile</option><option value="ranking-collapse">Ranking Collapse</option></select></label>
+        <label>Region / Market<input data-field="market" placeholder="Chicago, IL" /></label>
+        <label>Evidence Strength<select data-field="evidenceStrength"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></label>
+        <label>Issue Type<select data-field="issueType"><option value="policy-suspension">Policy Suspension</option><option value="verification-block">Verification Block</option><option value="ownership-dispute">Ownership Dispute</option><option value="ranking-collapse">Ranking Collapse</option></select></label>
+        <label>Case Owner / Operator<input data-field="owner" placeholder="Ops lead or account manager" /></label>
+        <label>Support Thread / Case IDs<input data-field="supportThread" placeholder="Google support IDs, emails, forum threads" /></label>
+        <label>Next Review Window<input data-field="nextReviewAt" placeholder="2026-03-13 09:00 CT" /></label>
+      </div>
+      <label>Timeline<textarea data-field="timeline" placeholder="When did the suspension hit, what changed, when were appeals or edits submitted?"></textarea></label>
+      <label>Operator Notes<textarea data-field="notes" placeholder="Storefront facts, service-area conflicts, manager access issues, profile edits, spam allegations, ranking symptoms."></textarea></label>
+    </section>
+
+    <section class="card">
+      <h2>Live Diagnosis</h2>
+      <div class="diagnostic-grid compact">
+        <div class="status"><div>Policy Risk</div><strong data-bind="policyRisk">Unknown</strong></div>
+        <div class="status"><div>Ownership Risk</div><strong data-bind="ownershipRisk">Unknown</strong></div>
+        <div class="status"><div>Readiness</div><strong data-bind="readiness">Unknown</strong></div>
+      </div>
+      <div class="report-box" data-bind="diagnosisSummary">Complete intake fields to generate a live diagnosis.</div>
+    </section>
+
+    <div class="pill" data-toast hidden><span data-toast-text>Saved.</span></div>
+  </div>
+  <script src="../../assets/platform.js"></script>
+</body>
+</html>

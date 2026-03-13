@@ -1,0 +1,572 @@
+{
+  "generated_at": "2026-03-13T11:53:53.139Z",
+  "site_base": "http://127.0.0.1:4173",
+  "ws_id": "primary-workspace",
+  "surface_count": 16,
+  "checks_total": 32,
+  "checks_failed": 0,
+  "ok": true,
+  "direct_results": [
+    {
+      "kind": "surface",
+      "app": "kAIxUPlatform",
+      "label": "kAIxU Platform",
+      "url": "http://127.0.0.1:4173/kAIxU/index.html?ws_id=primary-workspace",
+      "ok": true,
+      "status": 200,
+      "bodyAppId": "kAIxUPlatform",
+      "hasNavbar": true,
+      "hasPlatformFrame": true,
+      "hasProjectInput": true,
+      "selectorResults": {
+        ".hero": true,
+        ".track-grid": true,
+        ".product-grid": true
+      },
+      "errors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      ],
+      "ms": 774
+    },
+    {
+      "kind": "surface",
+      "app": "kAIxUSuite",
+      "label": "kAIxU Suite",
+      "url": "http://127.0.0.1:4173/kAIxUSuite/index.html?ws_id=primary-workspace",
+      "ok": true,
+      "status": 200,
+      "bodyAppId": "kAIxUSuite",
+      "hasNavbar": true,
+      "hasPlatformFrame": true,
+      "hasProjectInput": true,
+      "selectorResults": {
+        ".hero": true,
+        ".lane-list": true,
+        ".group-grid": true
+      },
+      "errors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      ],
+      "ms": 757
+    },
+    {
+      "kind": "surface",
+      "app": "kAIxU-Vision",
+      "label": "Vision",
+      "url": "http://127.0.0.1:4173/kAIxU-Vision/index.html?ws_id=primary-workspace",
+      "ok": true,
+      "status": 200,
+      "bodyAppId": "kAIxU-Vision",
+      "hasNavbar": true,
+      "hasPlatformFrame": true,
+      "hasProjectInput": true,
+      "selectorResults": {
+        "#frame-list": true,
+        "#frame-content": true
+      },
+      "errors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      ],
+      "ms": 3991
+    },
+    {
+      "kind": "surface",
+      "app": "kAixu-Nexus",
+      "label": "Nexus",
+      "url": "http://127.0.0.1:4173/kAixu-Nexus/index.html?ws_id=primary-workspace",
+      "ok": true,
+      "status": 200,
+      "bodyAppId": "kAixu-Nexus",
+      "hasNavbar": true,
+      "hasPlatformFrame": true,
+      "hasProjectInput": true,
+      "selectorResults": {
+        "#app": true,
+        "#log-container": true
+      },
+      "errors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      ],
+      "ms": 1758
+    },
+    {
+      "kind": "surface",
+      "app": "kAIxU-Codex",
+      "label": "Codex",
+      "url": "http://127.0.0.1:4173/kAIxU-Codex/index.html?ws_id=primary-workspace",
+      "ok": true,
+      "status": 200,
+      "bodyAppId": "kAIxU-Codex",
+      "hasNavbar": true,
+      "hasPlatformFrame": true,
+      "hasProjectInput": true,
+      "selectorResults": {
+        "#entry-list": true,
+        "#entry-content": true
+      },
+      "errors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      ],
+      "ms": 2053
+    },
+    {
+      "kind": "surface",
+      "app": "kAIxu-Atmos",
+      "label": "Atmos",
+      "url": "http://127.0.0.1:4173/kAIxu-Atmos/index.html?ws_id=primary-workspace",
+      "ok": true,
+      "status": 200,
+      "bodyAppId": "kAIxu-Atmos",
+      "hasNavbar": true,
+      "hasPlatformFrame": true,
+      "hasProjectInput": true,
+      "selectorResults": {
+        "#log-list": true,
+        "#log-content": true
+      },
+      "errors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      ],
+      "ms": 4060
+    },
+    {
+      "kind": "surface",
+      "app": "kAIxu-Quest",
+      "label": "Quest",
+      "url": "http://127.0.0.1:4173/kAIxu-Quest/index.html?ws_id=primary-workspace",
+      "ok": true,
+      "status": 200,
+      "bodyAppId": "kAIxu-Quest",
+      "hasNavbar": true,
+      "hasPlatformFrame": true,
+      "hasProjectInput": true,
+      "selectorResults": {
+        "#quest-list": true,
+        "#quest-content": true
+      },
+      "errors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      ],
+      "ms": 1876
+    },
+    {
+      "kind": "surface",
+      "app": "kAIxu-Forge",
+      "label": "Forge",
+      "url": "http://127.0.0.1:4173/kAIxu-Forge/index.html?ws_id=primary-workspace",
+      "ok": true,
+      "status": 200,
+      "bodyAppId": "kAIxu-Forge",
+      "hasNavbar": true,
+      "hasPlatformFrame": true,
+      "hasProjectInput": true,
+      "selectorResults": {
+        "#item-list": true,
+        "#item-content": true
+      },
+      "errors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      ],
+      "ms": 1514
+    },
+    {
+      "kind": "surface",
+      "app": "kAIxu-Atlas",
+      "label": "Atlas",
+      "url": "http://127.0.0.1:4173/kAIxu-Atlas/index.html?ws_id=primary-workspace",
+      "ok": true,
+      "status": 200,
+      "bodyAppId": "kAIxu-Atlas",
+      "hasNavbar": true,
+      "hasPlatformFrame": true,
+      "hasProjectInput": true,
+      "selectorResults": {
+        "#location-list": true,
+        "#location-content": true
+      },
+      "errors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      ],
+      "ms": 3168
+    },
+    {
+      "kind": "surface",
+      "app": "kAixU-Chronos",
+      "label": "Chronos",
+      "url": "http://127.0.0.1:4173/kAixU-Chronos/index.html?ws_id=primary-workspace",
+      "ok": true,
+      "status": 200,
+      "bodyAppId": "kAixU-Chronos",
+      "hasNavbar": true,
+      "hasPlatformFrame": true,
+      "hasProjectInput": true,
+      "selectorResults": {
+        "#event-list": true,
+        "#event-content": true
+      },
+      "errors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      ],
+      "ms": 2386
+    },
+    {
+      "kind": "surface",
+      "app": "kAIxu-Bestiary",
+      "label": "Bestiary",
+      "url": "http://127.0.0.1:4173/kAIxu-Bestiary/index.html?ws_id=primary-workspace",
+      "ok": true,
+      "status": 200,
+      "bodyAppId": "kAIxu-Bestiary",
+      "hasNavbar": true,
+      "hasPlatformFrame": true,
+      "hasProjectInput": true,
+      "selectorResults": {
+        "#creature-list": true,
+        "#creature-content": true
+      },
+      "errors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      ],
+      "ms": 1938
+    },
+    {
+      "kind": "surface",
+      "app": "kAIxu-Mythos",
+      "label": "Mythos",
+      "url": "http://127.0.0.1:4173/kAIxu-Mythos/index.html?ws_id=primary-workspace",
+      "ok": true,
+      "status": 200,
+      "bodyAppId": "kAIxu-Mythos",
+      "hasNavbar": true,
+      "hasPlatformFrame": true,
+      "hasProjectInput": true,
+      "selectorResults": {
+        "#deity-list": true,
+        "#deity-content": true
+      },
+      "errors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      ],
+      "ms": 1584
+    },
+    {
+      "kind": "surface",
+      "app": "kAIxU-Matrix",
+      "label": "Matrix",
+      "url": "http://127.0.0.1:4173/kAIxU-Matrix/index.html?ws_id=primary-workspace",
+      "ok": true,
+      "status": 200,
+      "bodyAppId": "kAIxU-Matrix",
+      "hasNavbar": true,
+      "hasPlatformFrame": true,
+      "hasProjectInput": true,
+      "selectorResults": {
+        "#node-list": true,
+        "#node-content": true
+      },
+      "errors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      ],
+      "ms": 1522
+    },
+    {
+      "kind": "surface",
+      "app": "kAIxu-Persona",
+      "label": "Persona",
+      "url": "http://127.0.0.1:4173/kAIxu-Persona/index.html?ws_id=primary-workspace",
+      "ok": true,
+      "status": 200,
+      "bodyAppId": "kAIxu-Persona",
+      "hasNavbar": true,
+      "hasPlatformFrame": true,
+      "hasProjectInput": true,
+      "selectorResults": {
+        "#profile-list": true,
+        "#persona-bio": true
+      },
+      "errors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      ],
+      "ms": 1855
+    },
+    {
+      "kind": "surface",
+      "app": "kAIxU-Faction",
+      "label": "Faction",
+      "url": "http://127.0.0.1:4173/kAIxU-Faction/index.html?ws_id=primary-workspace",
+      "ok": true,
+      "status": 200,
+      "bodyAppId": "kAIxU-Faction",
+      "hasNavbar": true,
+      "hasPlatformFrame": true,
+      "hasProjectInput": true,
+      "selectorResults": {
+        "#faction-list": true,
+        "#faction-content": true
+      },
+      "errors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      ],
+      "ms": 1428
+    },
+    {
+      "kind": "surface",
+      "app": "kAIxU-PrimeCommand",
+      "label": "PrimeCommand",
+      "url": "http://127.0.0.1:4173/kAIxU-PrimeCommand/index.html?ws_id=primary-workspace",
+      "ok": true,
+      "status": 200,
+      "bodyAppId": "kAIxU-PrimeCommand",
+      "hasNavbar": true,
+      "hasPlatformFrame": true,
+      "hasProjectInput": true,
+      "selectorResults": {
+        "#node-list": true,
+        "#node-content": true
+      },
+      "errors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      ],
+      "ms": 1434
+    }
+  ],
+  "shell_results": [
+    {
+      "kind": "shell",
+      "app": "kAIxUPlatform",
+      "label": "kAIxU Platform",
+      "url": "http://127.0.0.1:4173/index.html?app=kAIxUPlatform&ws_id=primary-workspace",
+      "ok": true,
+      "status": 200,
+      "hasModule": true,
+      "hasFrame": true,
+      "namesApp": true,
+      "errors": [],
+      "ms": 1954
+    },
+    {
+      "kind": "shell",
+      "app": "kAIxUSuite",
+      "label": "kAIxU Suite",
+      "url": "http://127.0.0.1:4173/index.html?app=kAIxUSuite&ws_id=primary-workspace",
+      "ok": true,
+      "status": 200,
+      "hasModule": true,
+      "hasFrame": true,
+      "namesApp": true,
+      "errors": [],
+      "ms": 1587
+    },
+    {
+      "kind": "shell",
+      "app": "kAIxU-Vision",
+      "label": "Vision",
+      "url": "http://127.0.0.1:4173/index.html?app=kAIxU-Vision&ws_id=primary-workspace",
+      "ok": true,
+      "status": 200,
+      "hasModule": true,
+      "hasFrame": true,
+      "namesApp": true,
+      "errors": [],
+      "ms": 3389
+    },
+    {
+      "kind": "shell",
+      "app": "kAixu-Nexus",
+      "label": "Nexus",
+      "url": "http://127.0.0.1:4173/index.html?app=kAixu-Nexus&ws_id=primary-workspace",
+      "ok": true,
+      "status": 200,
+      "hasModule": true,
+      "hasFrame": true,
+      "namesApp": true,
+      "errors": [],
+      "ms": 2618
+    },
+    {
+      "kind": "shell",
+      "app": "kAIxU-Codex",
+      "label": "Codex",
+      "url": "http://127.0.0.1:4173/index.html?app=kAIxU-Codex&ws_id=primary-workspace",
+      "ok": true,
+      "status": 200,
+      "hasModule": true,
+      "hasFrame": true,
+      "namesApp": true,
+      "errors": [],
+      "ms": 3168
+    },
+    {
+      "kind": "shell",
+      "app": "kAIxu-Atmos",
+      "label": "Atmos",
+      "url": "http://127.0.0.1:4173/index.html?app=kAIxu-Atmos&ws_id=primary-workspace",
+      "ok": true,
+      "status": 200,
+      "hasModule": true,
+      "hasFrame": true,
+      "namesApp": true,
+      "errors": [],
+      "ms": 3726
+    },
+    {
+      "kind": "shell",
+      "app": "kAIxu-Quest",
+      "label": "Quest",
+      "url": "http://127.0.0.1:4173/index.html?app=kAIxu-Quest&ws_id=primary-workspace",
+      "ok": true,
+      "status": 200,
+      "hasModule": true,
+      "hasFrame": true,
+      "namesApp": true,
+      "errors": [],
+      "ms": 2822
+    },
+    {
+      "kind": "shell",
+      "app": "kAIxu-Forge",
+      "label": "Forge",
+      "url": "http://127.0.0.1:4173/index.html?app=kAIxu-Forge&ws_id=primary-workspace",
+      "ok": true,
+      "status": 200,
+      "hasModule": true,
+      "hasFrame": true,
+      "namesApp": true,
+      "errors": [],
+      "ms": 3065
+    },
+    {
+      "kind": "shell",
+      "app": "kAIxu-Atlas",
+      "label": "Atlas",
+      "url": "http://127.0.0.1:4173/index.html?app=kAIxu-Atlas&ws_id=primary-workspace",
+      "ok": true,
+      "status": 200,
+      "hasModule": true,
+      "hasFrame": true,
+      "namesApp": true,
+      "errors": [],
+      "ms": 3563
+    },
+    {
+      "kind": "shell",
+      "app": "kAixU-Chronos",
+      "label": "Chronos",
+      "url": "http://127.0.0.1:4173/index.html?app=kAixU-Chronos&ws_id=primary-workspace",
+      "ok": true,
+      "status": 200,
+      "hasModule": true,
+      "hasFrame": true,
+      "namesApp": true,
+      "errors": [],
+      "ms": 3147
+    },
+    {
+      "kind": "shell",
+      "app": "kAIxu-Bestiary",
+      "label": "Bestiary",
+      "url": "http://127.0.0.1:4173/index.html?app=kAIxu-Bestiary&ws_id=primary-workspace",
+      "ok": true,
+      "status": 200,
+      "hasModule": true,
+      "hasFrame": true,
+      "namesApp": true,
+      "errors": [],
+      "ms": 3668
+    },
+    {
+      "kind": "shell",
+      "app": "kAIxu-Mythos",
+      "label": "Mythos",
+      "url": "http://127.0.0.1:4173/index.html?app=kAIxu-Mythos&ws_id=primary-workspace",
+      "ok": true,
+      "status": 200,
+      "hasModule": true,
+      "hasFrame": true,
+      "namesApp": true,
+      "errors": [],
+      "ms": 2751
+    },
+    {
+      "kind": "shell",
+      "app": "kAIxU-Matrix",
+      "label": "Matrix",
+      "url": "http://127.0.0.1:4173/index.html?app=kAIxU-Matrix&ws_id=primary-workspace",
+      "ok": true,
+      "status": 200,
+      "hasModule": true,
+      "hasFrame": true,
+      "namesApp": true,
+      "errors": [],
+      "ms": 3020
+    },
+    {
+      "kind": "shell",
+      "app": "kAIxu-Persona",
+      "label": "Persona",
+      "url": "http://127.0.0.1:4173/index.html?app=kAIxu-Persona&ws_id=primary-workspace",
+      "ok": true,
+      "status": 200,
+      "hasModule": true,
+      "hasFrame": true,
+      "namesApp": true,
+      "errors": [],
+      "ms": 3578
+    },
+    {
+      "kind": "shell",
+      "app": "kAIxU-Faction",
+      "label": "Faction",
+      "url": "http://127.0.0.1:4173/index.html?app=kAIxU-Faction&ws_id=primary-workspace",
+      "ok": true,
+      "status": 200,
+      "hasModule": true,
+      "hasFrame": true,
+      "namesApp": true,
+      "errors": [],
+      "ms": 2570
+    },
+    {
+      "kind": "shell",
+      "app": "kAIxU-PrimeCommand",
+      "label": "PrimeCommand",
+      "url": "http://127.0.0.1:4173/index.html?app=kAIxU-PrimeCommand&ws_id=primary-workspace",
+      "ok": true,
+      "status": 200,
+      "hasModule": true,
+      "hasFrame": true,
+      "namesApp": true,
+      "errors": [],
+      "ms": 4286
+    }
+  ]
+}

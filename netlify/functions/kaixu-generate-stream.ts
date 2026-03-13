@@ -3,6 +3,7 @@ import crypto from "crypto";
 import { requireUser, forbid } from "./_shared/auth";
 import { opt, must } from "./_shared/env";
 import { audit } from "./_shared/audit";
+import { recordBrainUsage } from "./_shared/brain_usage";
 import { filterSknoreFiles, isSknoreProtected, loadSknorePolicy } from "./_shared/sknore";
 import { hasValidMasterSequence, readBearerToken, resolveApiToken, tokenHasScope } from "./_shared/api_tokens";
 
@@ -31,6 +32,53 @@ function normalizeKaixuGatewayEndpoint(raw: string): string {
 function shouldUseBackup(status: number | null): boolean {
   if (status == null) return true;
   return status === 429 || status >= 500;
+}
+
+function estimateTokens(text: string): number | null {
+  const normalized = String(text || "").replace(/\s+/g, " ").trim();
+  if (!normalized) return 0;
+  return Math.max(1, Math.ceil(normalized.length / 4));
+}
+
+function summarizeMessages(messages: Array<{ role: string; content: string }>): string {
+  return messages
+    .map((message) => `${String(message?.role || "user")}: ${String(message?.content || "")}`.trim())
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+function extractStreamEventText(dataChunk: string): string {
+  const trimmed = String(dataChunk || "").trim();
+  if (!trimmed || trimmed === "[DONE]") return "";
+  try {
+    const parsed = JSON.parse(trimmed);
+    return String(
+      parsed?.text ||
+      parsed?.output ||
+      parsed?.delta?.content ||
+      parsed?.choices?.[0]?.delta?.content ||
+      parsed?.choices?.[0]?.message?.content ||
+      parsed?.candidates?.[0]?.content?.parts?.map((part: any) => String(part?.text || "")).join("") ||
+      ""
+    ).trim();
+  } catch {
+    return trimmed;
+  }
+}
+
+function createUsageFromStream(messages: Array<{ role: string; content: string }>, outputText: string) {
+  const promptTokens = estimateTokens(summarizeMessages(messages));
+  const completionTokens = estimateTokens(outputText);
+  return {
+    prompt_tokens: promptTokens,
+    completion_tokens: completionTokens,
+    total_tokens:
+      promptTokens == null && completionTokens == null
+        ? null
+        : (promptTokens || 0) + (completionTokens || 0),
+    exact: false,
+    source: "estimated" as const,
+  };
 }
 
 function sseHeaders(extraHeaders: Headers | Record<string, string> = {}) {
@@ -65,6 +113,126 @@ function buildRunnerHeaders(path: string, payload: any) {
 
 async function streamThrough(upstream: Response) {
   return new Response(upstream.body, {
+    status: upstream.status,
+    headers: sseHeaders(upstream.headers),
+  });
+}
+
+function trackStreamAndLog({
+  upstream,
+  actor,
+  actorEmail,
+  actorUserId,
+  actorOrg,
+  wsId,
+  authType,
+  apiTokenId,
+  apiTokenLabel,
+  apiTokenLockedEmail,
+  app,
+  route,
+  provider,
+  model,
+  gatewayStatus,
+  backupStatus,
+  gatewayRequestId,
+  backupRequestId,
+  messages,
+}: {
+  upstream: Response;
+  actor: string;
+  actorEmail: string;
+  actorUserId: string | null;
+  actorOrg: string | null;
+  wsId: string;
+  authType: "session" | "api_token" | "unknown";
+  apiTokenId: string | null;
+  apiTokenLabel: string | null;
+  apiTokenLockedEmail: string | null;
+  app: string;
+  route: "primary" | "backup";
+  provider: string;
+  model: string;
+  gatewayStatus: number | null;
+  backupStatus: number | null;
+  gatewayRequestId: string | null;
+  backupRequestId: string | null;
+  messages: Array<{ role: string; content: string }>;
+}) {
+  if (!upstream.body) {
+    return new Response(null, {
+      status: upstream.status,
+      headers: sseHeaders(upstream.headers),
+    });
+  }
+
+  const reader = upstream.body.getReader();
+  const decoder = new TextDecoder();
+  const encoder = new TextEncoder();
+  let sseBuffer = "";
+  let streamedText = "";
+
+  const body = new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      const { done, value } = await reader.read();
+      if (done) {
+        const usage = createUsageFromStream(messages, streamedText);
+        await recordBrainUsage({
+          actor,
+          actor_email: actorEmail,
+          actor_user_id: actorUserId,
+          org_id: actorOrg,
+          ws_id: wsId,
+          app,
+          auth_type: authType,
+          api_token_id: apiTokenId,
+          api_token_label: apiTokenLabel,
+          api_token_locked_email: apiTokenLockedEmail,
+          used_backup: route === "backup",
+          brain_route: route,
+          provider,
+          model,
+          gateway_request_id: gatewayRequestId,
+          backup_request_id: backupRequestId,
+          gateway_status: gatewayStatus,
+          backup_status: backupStatus,
+          usage,
+          billing: {
+            actor_email: actorEmail,
+            actor_user_id: actorUserId,
+            auth_type: authType,
+            api_token_id: apiTokenId,
+            api_token_label: apiTokenLabel,
+            api_token_locked_email: apiTokenLockedEmail,
+          },
+          success: true,
+        });
+        controller.close();
+        return;
+      }
+
+      if (value) {
+        const text = decoder.decode(value, { stream: true });
+        sseBuffer += text;
+        const frames = sseBuffer.split("\n\n");
+        sseBuffer = frames.pop() || "";
+        for (const frame of frames) {
+          const dataLines = frame
+            .split("\n")
+            .filter((line) => line.startsWith("data:"))
+            .map((line) => line.slice(5).trim())
+            .filter(Boolean);
+          for (const dataChunk of dataLines) streamedText += extractStreamEventText(dataChunk);
+        }
+        controller.enqueue(value);
+      }
+    },
+    async cancel(reason) {
+      await reader.cancel(reason);
+    },
+  });
+
+  return new Response(body, {
     status: upstream.status,
     headers: sseHeaders(upstream.headers),
   });
@@ -106,6 +274,8 @@ export default async (request: Request) => {
 
   const actorEmail = u?.email || `token:${tokenPrincipal?.prefix || "unknown"}`;
   const actorOrg = u?.org_id || tokenPrincipal?.org_id || null;
+  const actorUserId = u?.user_id || null;
+  const authType = tokenPrincipal ? "api_token" : u ? "session" : "unknown";
   const wsId = String(body?.ws_id || "").trim();
   const activePath = String(body?.activePath || "").trim() || null;
   const prompt = String(body?.prompt || "").trim();
@@ -170,12 +340,35 @@ export default async (request: Request) => {
 
     const contentType = String(upstream.headers.get("content-type") || "").toLowerCase();
     if (upstream.ok && contentType.includes("text/event-stream") && upstream.body) {
+      const gatewayRequestId = String(upstream.headers.get("x-kaixu-request-id") || "").trim() || null;
       await audit(actorEmail, actorOrg, wsId, "kaixu.generate.stream.ok", {
         activePath,
         filesLength: safeFiles.length,
         route: "primary",
+        used_backup: false,
+        gateway_request_id: gatewayRequestId,
       });
-      return streamThrough(upstream);
+      return trackStreamAndLog({
+        upstream,
+        actor: actorEmail,
+        actorEmail,
+        actorUserId,
+        actorOrg,
+        wsId,
+        authType,
+        apiTokenId: tokenPrincipal?.id || null,
+        apiTokenLabel: tokenPrincipal?.label || null,
+        apiTokenLockedEmail: tokenPrincipal?.locked_email || tokenEmailHeader || null,
+        app: "SuperIDE-stream",
+        route: "primary",
+        provider,
+        model,
+        gatewayStatus: upstream.status,
+        backupStatus: null,
+        gatewayRequestId,
+        backupRequestId: null,
+        messages,
+      });
     }
 
     if (!shouldUseBackup(upstream.status)) {
@@ -219,12 +412,35 @@ export default async (request: Request) => {
     });
     const contentType = String(backup.headers.get("content-type") || "").toLowerCase();
     if (backup.ok && contentType.includes("text/event-stream") && backup.body) {
+      const backupRequestId = String(backup.headers.get("x-kaixu-request-id") || "").trim() || null;
       await audit(actorEmail, actorOrg, wsId, "kaixu.generate.stream.ok", {
         activePath,
         filesLength: safeFiles.length,
         route: "backup",
+        used_backup: true,
+        backup_request_id: backupRequestId,
       });
-      return streamThrough(backup);
+      return trackStreamAndLog({
+        upstream: backup,
+        actor: actorEmail,
+        actorEmail,
+        actorUserId,
+        actorOrg,
+        wsId,
+        authType,
+        apiTokenId: tokenPrincipal?.id || null,
+        apiTokenLabel: tokenPrincipal?.label || null,
+        apiTokenLockedEmail: tokenPrincipal?.locked_email || tokenEmailHeader || null,
+        app: "SuperIDE-stream",
+        route: "backup",
+        provider,
+        model,
+        gatewayStatus: null,
+        backupStatus: backup.status,
+        gatewayRequestId: null,
+        backupRequestId,
+        messages,
+      });
     }
     const detail = await backup.text().catch(() => "");
     await audit(actorEmail, actorOrg, wsId, "kaixu.generate.stream.unavailable", {

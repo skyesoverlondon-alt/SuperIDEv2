@@ -12,6 +12,19 @@ type BrainContext = {
   app?: string | null;
   actor_email?: string | null;
   actor_org?: string | null;
+  actor_user_id?: string | null;
+  auth_type?: "session" | "api_token" | "unknown";
+  api_token_id?: string | null;
+  api_token_label?: string | null;
+  api_token_locked_email?: string | null;
+};
+
+export type BrainUsage = {
+  prompt_tokens: number | null;
+  completion_tokens: number | null;
+  total_tokens: number | null;
+  exact: boolean;
+  source: "provider" | "estimated";
 };
 
 type AttemptResult = {
@@ -21,6 +34,7 @@ type AttemptResult = {
   error: string;
   detail: string | null;
   requestId: string | null;
+  usage: BrainUsage;
 };
 
 type SuccessResult = {
@@ -42,6 +56,15 @@ type SuccessResult = {
   effective_provider: string;
   effective_model: string;
   used_backup: boolean;
+  usage: BrainUsage;
+  billing: {
+    actor_email: string | null;
+    actor_user_id: string | null;
+    auth_type: "session" | "api_token" | "unknown";
+    api_token_id: string | null;
+    api_token_label: string | null;
+    api_token_locked_email: string | null;
+  };
 };
 
 type FailureResult = {
@@ -68,6 +91,15 @@ type FailureResult = {
   effective_provider: string;
   effective_model: string;
   used_backup: boolean;
+  usage: BrainUsage;
+  billing: {
+    actor_email: string | null;
+    actor_user_id: string | null;
+    auth_type: "session" | "api_token" | "unknown";
+    api_token_id: string | null;
+    api_token_label: string | null;
+    api_token_locked_email: string | null;
+  };
 };
 
 export type KaixuBrainResult = SuccessResult | FailureResult;
@@ -110,13 +142,80 @@ function extractReply(data: any, text: string): string {
   return String(data?.text || data?.output || data?.choices?.[0]?.message?.content || text || "").trim();
 }
 
+function pickFirstNumber(...values: unknown[]): number | null {
+  for (const value of values) {
+    if (typeof value === "number" && Number.isFinite(value)) return Math.max(0, Math.trunc(value));
+  }
+  return null;
+}
+
+function estimateTokens(text: string): number | null {
+  const normalized = String(text || "").replace(/\s+/g, " ").trim();
+  if (!normalized) return 0;
+  return Math.max(1, Math.ceil(normalized.length / 4));
+}
+
+function summarizeMessages(messages: BrainMessage[]): string {
+  return messages
+    .map((message) => `${String(message?.role || "user")}: ${String(message?.content || "")}`.trim())
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+function extractUsage(data: any, messages: BrainMessage[], reply: string): BrainUsage {
+  const usage = data?.usage || data?.meta?.usage || data?.metrics?.usage || {};
+  const promptTokens = pickFirstNumber(
+    usage?.prompt_tokens,
+    usage?.input_tokens,
+    usage?.promptTokenCount,
+    usage?.inputTokenCount,
+    data?.prompt_tokens,
+    data?.input_tokens
+  );
+  const completionTokens = pickFirstNumber(
+    usage?.completion_tokens,
+    usage?.output_tokens,
+    usage?.candidates_token_count,
+    usage?.candidatesTokenCount,
+    usage?.outputTokenCount,
+    data?.completion_tokens,
+    data?.output_tokens
+  );
+  const totalTokens = pickFirstNumber(
+    usage?.total_tokens,
+    usage?.totalTokenCount,
+    data?.total_tokens,
+    promptTokens != null && completionTokens != null ? promptTokens + completionTokens : null
+  );
+  if (promptTokens != null || completionTokens != null || totalTokens != null) {
+    return {
+      prompt_tokens: promptTokens,
+      completion_tokens: completionTokens,
+      total_tokens: totalTokens != null ? totalTokens : (promptTokens || 0) + (completionTokens || 0),
+      exact: true,
+      source: "provider",
+    };
+  }
+  const estimatedPrompt = estimateTokens(summarizeMessages(messages));
+  const estimatedCompletion = estimateTokens(reply);
+  return {
+    prompt_tokens: estimatedPrompt,
+    completion_tokens: estimatedCompletion,
+    total_tokens:
+      estimatedPrompt == null && estimatedCompletion == null
+        ? null
+        : (estimatedPrompt || 0) + (estimatedCompletion || 0),
+    exact: false,
+    source: "estimated",
+  };
+}
+
 function shouldUseBackup(status: number | null, error: string): boolean {
-  if (error) return true;
   if (status == null) return true;
   return status === 429 || status >= 500;
 }
 
-async function callPrimaryBrain(endpoint: string, token: string, payload: Record<string, unknown>): Promise<AttemptResult> {
+async function callPrimaryBrain(endpoint: string, token: string, payload: Record<string, unknown>, messages: BrainMessage[]): Promise<AttemptResult> {
   try {
     const res = await fetch(endpoint, {
       method: "POST",
@@ -135,6 +234,7 @@ async function callPrimaryBrain(endpoint: string, token: string, payload: Record
     }
     const requestId = String(res.headers.get("x-kaixu-request-id") || data?.brain?.request_id || "").trim() || null;
     const reply = extractReply(data, text);
+    const usage = extractUsage(data, messages, reply);
     if (res.ok && reply) {
       return {
         ok: true,
@@ -143,6 +243,7 @@ async function callPrimaryBrain(endpoint: string, token: string, payload: Record
         error: "",
         detail: null,
         requestId,
+        usage,
       };
     }
     return {
@@ -152,6 +253,7 @@ async function callPrimaryBrain(endpoint: string, token: string, payload: Record
       error: compactErrorMessage(data, text),
       detail: text.slice(0, 2000) || null,
       requestId,
+      usage,
     };
   } catch (e: any) {
     return {
@@ -161,15 +263,17 @@ async function callPrimaryBrain(endpoint: string, token: string, payload: Record
       error: String(e?.message || "Primary brain request failed.").replace(/\s+/g, " ").trim().slice(0, 220),
       detail: null,
       requestId: null,
+      usage: extractUsage(null, messages, ""),
     };
   }
 }
 
-async function callBackupBrain(payload: Record<string, unknown>): Promise<AttemptResult> {
+async function callBackupBrain(payload: Record<string, unknown>, messages: BrainMessage[]): Promise<AttemptResult> {
   try {
     const { status, data } = await runnerCallDetailed<any>("/v1/brain/backup/generate", payload);
     const requestId = String(data?.brain?.request_id || "").trim() || null;
     const reply = extractReply(data, "");
+    const usage = extractUsage(data, messages, reply);
     if (status >= 200 && status < 300 && reply) {
       return {
         ok: true,
@@ -178,6 +282,7 @@ async function callBackupBrain(payload: Record<string, unknown>): Promise<Attemp
         error: "",
         detail: null,
         requestId,
+        usage,
       };
     }
     return {
@@ -187,6 +292,7 @@ async function callBackupBrain(payload: Record<string, unknown>): Promise<Attemp
       error: compactErrorMessage(data, ""),
       detail: JSON.stringify(data || {}).slice(0, 2000) || null,
       requestId,
+      usage,
     };
   } catch (e: any) {
     return {
@@ -196,6 +302,7 @@ async function callBackupBrain(payload: Record<string, unknown>): Promise<Attemp
       error: String(e?.message || "Backup brain request failed.").replace(/\s+/g, " ").trim().slice(0, 220),
       detail: null,
       requestId: null,
+      usage: extractUsage(null, messages, ""),
     };
   }
 }
@@ -219,13 +326,21 @@ export async function callKaixuBrainWithFailover({
   const configuredProvider = String(providerRaw || "Skyes Over London").trim() || "Skyes Over London";
   const provider = resolveKaixuGatewayProvider(configuredProvider);
   const model = String(bodyModel || defaultModel || "kAIxU-Prime6.7").trim() || "kAIxU-Prime6.7";
+  const billing = {
+    actor_email: requestContext?.actor_email || null,
+    actor_user_id: requestContext?.actor_user_id || null,
+    auth_type: requestContext?.auth_type || "unknown",
+    api_token_id: requestContext?.api_token_id || null,
+    api_token_label: requestContext?.api_token_label || null,
+    api_token_locked_email: requestContext?.api_token_locked_email || null,
+  };
   const payload = {
     provider,
     model,
     messages,
   };
 
-  const primary = await callPrimaryBrain(endpoint, token, payload);
+  const primary = await callPrimaryBrain(endpoint, token, payload, messages);
   if (primary.ok) {
     return {
       ok: true,
@@ -246,6 +361,8 @@ export async function callKaixuBrainWithFailover({
       effective_provider: provider,
       effective_model: model,
       used_backup: false,
+      usage: primary.usage,
+      billing,
     };
   }
 
@@ -258,7 +375,7 @@ export async function callKaixuBrainWithFailover({
         allow_backup: true,
         allow_user_direct: false,
       },
-    });
+    }, messages);
   }
 
   if (backup?.ok) {
@@ -281,6 +398,8 @@ export async function callKaixuBrainWithFailover({
       effective_provider: provider,
       effective_model: model,
       used_backup: true,
+      usage: backup.usage,
+      billing,
     };
   }
 
@@ -315,5 +434,7 @@ export async function callKaixuBrainWithFailover({
     effective_provider: provider,
     effective_model: model,
     used_backup: false,
+    usage: (backup?.usage || primary.usage),
+    billing,
   };
 }

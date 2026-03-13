@@ -70,6 +70,74 @@ function extractBrainReply(data: any, text: string): string {
   return String(data?.text || data?.output || data?.choices?.[0]?.message?.content || text || "").trim();
 }
 
+function pickFirstNumber(...values: unknown[]): number | null {
+  for (const value of values) {
+    if (typeof value === "number" && Number.isFinite(value)) return Math.max(0, Math.trunc(value));
+  }
+  return null;
+}
+
+function estimateTokens(text: string): number | null {
+  const normalized = String(text || "").replace(/\s+/g, " ").trim();
+  if (!normalized) return 0;
+  return Math.max(1, Math.ceil(normalized.length / 4));
+}
+
+function summarizeMessages(messages: any[]): string {
+  return messages
+    .map((message) => `${String(message?.role || "user")}: ${String(message?.content || "")}`.trim())
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+function extractBrainUsage(data: any, messages: any[], reply: string) {
+  const usage = data?.usage || data?.meta?.usage || data?.metrics?.usage || {};
+  const promptTokens = pickFirstNumber(
+    usage?.prompt_tokens,
+    usage?.input_tokens,
+    usage?.promptTokenCount,
+    usage?.inputTokenCount,
+    data?.prompt_tokens,
+    data?.input_tokens
+  );
+  const completionTokens = pickFirstNumber(
+    usage?.completion_tokens,
+    usage?.output_tokens,
+    usage?.candidates_token_count,
+    usage?.candidatesTokenCount,
+    usage?.outputTokenCount,
+    data?.completion_tokens,
+    data?.output_tokens
+  );
+  const totalTokens = pickFirstNumber(
+    usage?.total_tokens,
+    usage?.totalTokenCount,
+    data?.total_tokens,
+    promptTokens != null && completionTokens != null ? promptTokens + completionTokens : null
+  );
+  if (promptTokens != null || completionTokens != null || totalTokens != null) {
+    return {
+      prompt_tokens: promptTokens,
+      completion_tokens: completionTokens,
+      total_tokens: totalTokens != null ? totalTokens : (promptTokens || 0) + (completionTokens || 0),
+      exact: true,
+      source: "provider",
+    };
+  }
+  const estimatedPrompt = estimateTokens(summarizeMessages(messages));
+  const estimatedCompletion = estimateTokens(reply);
+  return {
+    prompt_tokens: estimatedPrompt,
+    completion_tokens: estimatedCompletion,
+    total_tokens:
+      estimatedPrompt == null && estimatedCompletion == null
+        ? null
+        : (estimatedPrompt || 0) + (estimatedCompletion || 0),
+    exact: false,
+    source: "estimated",
+  };
+}
+
 /**
  * Read the request body into a string and parsed JSON.  Returns
  * an object with `text` and `json` properties.  If parsing
@@ -110,7 +178,7 @@ router.post("/v1/brain/backup/generate", async (req: Request, env: any) => {
     return j({ ok: false, error: "Backup brain not configured.", brain: { route: "backup", failed: true } }, 503, corsHeaders(env, req));
   }
 
-  const token = String(env.KAIXU_APP_TOKEN || env.KAIXU_BACKUP_TOKEN || "").trim();
+  const token = String(env.KAIXU_BACKUP_TOKEN || env.KAIXU_APP_TOKEN || "").trim();
   if (!token) {
     return j({ ok: false, error: "Backup brain token not configured.", brain: { route: "backup", failed: true } }, 500, corsHeaders(env, req));
   }
@@ -136,6 +204,7 @@ router.post("/v1/brain/backup/generate", async (req: Request, env: any) => {
     }
     const requestId = String(upstream.headers.get("x-kaixu-request-id") || data?.brain?.request_id || "").trim() || null;
     const reply = extractBrainReply(data, upstreamText);
+    const usage = extractBrainUsage(data, messages, reply);
     if (!upstream.ok || !reply) {
       return j(
         {
@@ -152,6 +221,7 @@ router.post("/v1/brain/backup/generate", async (req: Request, env: any) => {
         ok: true,
         text: reply,
         brain: { route: "backup", provider, model, request_id: requestId },
+          usage,
       },
       200,
       corsHeaders(env, req)
@@ -183,7 +253,7 @@ router.post("/v1/brain/backup/generate-stream", async (req: Request, env: any) =
     return j({ ok: false, error: "Backup brain not configured.", brain: { route: "backup", failed: true } }, 503, corsHeaders(env, req));
   }
 
-  const token = String(env.KAIXU_APP_TOKEN || env.KAIXU_BACKUP_TOKEN || "").trim();
+  const token = String(env.KAIXU_BACKUP_TOKEN || env.KAIXU_APP_TOKEN || "").trim();
   if (!token) {
     return j({ ok: false, error: "Backup brain token not configured.", brain: { route: "backup", failed: true } }, 500, corsHeaders(env, req));
   }

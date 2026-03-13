@@ -183,7 +183,7 @@ export const handler = async (event: any) => {
         workspace,
         warning: "kAIxU token is shown once on signup. Store it now.",
       },
-      { "Set-Cookie": setSessionCookie(sess.token, sess.expires) }
+      { "Set-Cookie": setSessionCookie(sess.token, sess.expires, event) }
     );
   } catch (e: any) {
     if (String(e?.code || "") === "23505") {

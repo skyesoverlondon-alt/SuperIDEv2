@@ -14,15 +14,21 @@ export default async (request: Request) => {
   }
 
   const expectedKey = String(process.env.ADMIN_KEY || "").trim();
-  if (!expectedKey) {
-    return json(503, { error: "ADMIN_KEY is not configured." });
+  const expectedPassword = String(process.env.ADMIN_PASSWORD || "").trim();
+  if (!expectedKey && !expectedPassword) {
+    return json(503, { error: "Neither ADMIN_KEY nor ADMIN_PASSWORD is configured." });
   }
 
   const body = await request.json().catch(() => ({}));
   const providedKey = String((body as { key?: unknown })?.key || "").trim();
-  if (!providedKey || !timingSafeMatches(providedKey, expectedKey)) {
-    return json(401, { error: "Invalid admin key." });
+  const matchesAdminKey = providedKey && expectedKey ? timingSafeMatches(providedKey, expectedKey) : false;
+  const matchesAdminPassword = providedKey && expectedPassword ? timingSafeMatches(providedKey, expectedPassword) : false;
+  if (!providedKey || (!matchesAdminKey && !matchesAdminPassword)) {
+    return json(401, { error: "Invalid admin board credential." });
   }
 
-  return json(200, { ok: true });
+  return json(200, {
+    ok: true,
+    credential_type: matchesAdminKey ? "ADMIN_KEY" : "ADMIN_PASSWORD",
+  });
 };

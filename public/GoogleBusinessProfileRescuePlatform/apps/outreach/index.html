@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GBP Rescue Platform · Outreach Studio</title>
+  <link rel="manifest" href="../../manifest.webmanifest" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/SkyeVault-Pro-v4.46/assets/img/icon-192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="/SkyeVault-Pro-v4.46/assets/img/icon-512.png" />
+  <link rel="apple-touch-icon" href="/SkyeVault-Pro-v4.46/assets/img/icon-192.png" />
+  <script src="/_shared/standalone-session.js"></script>
+  <link rel="stylesheet" href="../../assets/platform.css" />
+</head>
+<body data-app="outreach">
+  <div class="shell">
+    <section class="hero">
+      <div class="eyebrow">App 04 · Outreach Studio</div>
+      <div class="nav-row">
+        <div class="hero-copy">
+          <h1>Outreach Studio</h1>
+          <p>Generate support escalation copy and client-facing updates from the rescue case without rebuilding context from scratch.</p>
+        </div>
+        <a class="button-link secondary" data-carry-query href="../../index.html">Back To Hub</a>
+      </div>
+    </section>
+
+    <div class="platform-grid">
+      <section class="card field-stack">
+        <h2>Customer Update</h2>
+        <label>Client Update<textarea data-field="customerUpdate" placeholder="Internal or client-facing summary: what happened, what is being done next, what documents are still needed."></textarea></label>
+        <div class="action-row">
+          <button type="button" data-action="save">Save Outreach</button>
+          <button type="button" data-action="copy-outreach">Copy Outreach Draft</button>
+        </div>
+      </section>
+
+      <section class="card field-stack">
+        <h2>Route Execution</h2>
+        <p>Push the draft into the suite surfaces that actually execute the work.</p>
+        <div class="action-row">
+          <button type="button" data-action="send-mail">Prepare SkyeMail Draft</button>
+          <button type="button" data-action="send-chat">Route Brief To SkyeChat</button>
+          <button type="button" data-action="send-admin">Escalate To SkyeAdmin</button>
+        </div>
+      </section>
+    </div>
+
+    <section class="card">
+      <h2>Generated Outreach Draft</h2>
+      <div class="report-box" data-bind="outreachDraft">Write the client update to generate the support outreach draft.</div>
+    </section>
+
+    <div class="pill" data-toast hidden><span data-toast-text>Saved.</span></div>
+  </div>
+  <script src="../../assets/platform.js"></script>
+</body>
+</html>

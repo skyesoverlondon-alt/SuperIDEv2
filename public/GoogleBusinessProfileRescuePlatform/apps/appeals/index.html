@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GBP Rescue Platform · Appeal Builder</title>
+  <link rel="manifest" href="../../manifest.webmanifest" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/SkyeVault-Pro-v4.46/assets/img/icon-192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="/SkyeVault-Pro-v4.46/assets/img/icon-512.png" />
+  <link rel="apple-touch-icon" href="/SkyeVault-Pro-v4.46/assets/img/icon-192.png" />
+  <script src="/_shared/standalone-session.js"></script>
+  <link rel="stylesheet" href="../../assets/platform.css" />
+</head>
+<body data-app="appeals">
+  <div class="shell">
+    <section class="hero">
+      <div class="eyebrow">App 03 · Appeal Builder</div>
+      <div class="nav-row">
+        <div class="hero-copy">
+          <h1>Appeal Builder</h1>
+          <p>Draft the reinstatement argument, combine it with evidence posture and issue framing, and hand the final brief into Neural, mail, or chat.</p>
+        </div>
+        <a class="button-link secondary" data-carry-query href="../../index.html">Back To Hub</a>
+      </div>
+    </section>
+
+    <section class="card field-stack">
+      <h2>Reinstatement Narrative</h2>
+      <label>Appeal Narrative<textarea data-field="reinstatementNarrative" placeholder="State the corrective actions, confirm policy compliance, explain storefront/service-area legitimacy, and request reinstatement."></textarea></label>
+      <div class="action-row">
+        <button type="button" data-action="save">Save Appeal</button>
+        <button type="button" data-action="copy-appeal">Copy Appeal Brief</button>
+        <button type="button" data-action="send-neural">Route To Neural</button>
+        <button type="button" data-action="send-mail">Prepare SkyeMail Draft</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Generated Appeal Brief</h2>
+      <div class="report-box" data-bind="appealBrief">Add the appeal narrative to generate the reinstatement brief.</div>
+    </section>
+
+    <div class="pill" data-toast hidden><span data-toast-text>Saved.</span></div>
+  </div>
+  <script src="../../assets/platform.js"></script>
+</body>
+</html>

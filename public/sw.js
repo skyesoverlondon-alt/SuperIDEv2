@@ -1,7 +1,10 @@
 const CACHE_NAME = "kaixu-superide-shell-v2";
+const CACHE_NAME = "kaixu-superide-shell-v3";
 const APP_SHELL = [
   "/",
   "/index.html",
+  "/recover-account/",
+  "/recover-account/index.html",
   "/manifest.webmanifest",
   "/SKYESOVERLONDONDIETYLOGO.png",
 ];
@@ -34,16 +37,29 @@ self.addEventListener("fetch", (event) => {
   if (url.pathname.startsWith("/.netlify/functions/")) return;
 
   if (request.mode === "navigate") {
+    const isRecoverRoute = url.pathname === "/recover-account" || url.pathname === "/recover-account/";
     event.respondWith(
       fetch(request)
         .then((response) => {
-          const copy = response.clone();
-          void caches.open(CACHE_NAME).then((cache) => cache.put("/index.html", copy));
+          const requestCopy = response.clone();
+          void caches.open(CACHE_NAME).then((cache) => {
+            void cache.put(request, requestCopy);
+            if (url.pathname === "/" || url.pathname === "/index.html") {
+              void cache.put("/index.html", response.clone());
+            }
+            if (isRecoverRoute) {
+              void cache.put("/recover-account/", response.clone());
+            }
+          });
           return response;
         })
         .catch(async () => {
           const cache = await caches.open(CACHE_NAME);
-          return (await cache.match("/index.html")) || Response.error();
+          return (
+            (await cache.match(request)) ||
+            (isRecoverRoute ? await cache.match("/recover-account/") : await cache.match("/index.html")) ||
+            Response.error()
+          );
         })
     );
     return;

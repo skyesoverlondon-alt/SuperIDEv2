@@ -65,6 +65,11 @@ Set the following environment variables in your Netlify site settings:
 
 After deploying the Worker with `wrangler deploy`, configure these secrets and variables via the Cloudflare dashboard or `wrangler secret put`:
 
+Important deployment note:
+
+The secret target is the code Worker service defined in [worker/wrangler.toml](/workspaces/SuperIDEv2/worker/wrangler.toml), currently named `kaixu-superide-runner` with `main = "src/index.ts"`.
+If the Cloudflare UI says that secret variables cannot be added because the Worker only has static assets, you are looking at the wrong Cloudflare resource. Use the deployed code Worker service, not a Pages/static-assets-only surface.
+
 | Secret | Description |
 |---|---|
 | `RUNNER_SHARED_SECRET` | The same secret used in Netlify. |

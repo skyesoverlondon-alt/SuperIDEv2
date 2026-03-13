@@ -16,6 +16,6 @@ export const handler = async (event: any) => {
   return json(
     200,
     { ok: true },
-    { "Set-Cookie": clearSessionCookie() }
+    { "Set-Cookie": clearSessionCookie(event) }
   );
 };

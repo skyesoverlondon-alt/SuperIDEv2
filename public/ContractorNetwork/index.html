@@ -1,3 +1,4 @@
+  1) Run <b>db/schema.sql</b> in Neon.<br/>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -8,6 +9,8 @@
 
   <!-- Netlify Identity widget (optional owner login lane) -->
   <script defer src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+  <script src="/_shared/auth-unlock.js"></script>
+  <script src="/_shared/standalone-session.js"></script>
 
   <style>
     :root{
@@ -335,7 +338,7 @@
   </style>
 </head>
 
-<body>
+<body data-app-id="ContractorNetwork">
   <div class="watermark" aria-hidden="true"></div>
   <div class="grain" aria-hidden="true"></div>
   <div class="scanlines" aria-hidden="true"></div>
@@ -353,6 +356,9 @@
       <a href="#intake">Onboard</a>
       <a href="#admin">Admin</a>
       <a href="#ops">Ops</a>
+      <a data-suite-link href="/contractor income verification drop in/APP SURFACE/public/index.html">Verify Suite</a>
+      <a data-suite-link href="/ContractorIncomeVerification/index.html">Income Lane</a>
+      <a data-suite-link href="/ContractorWorkflowSuite/index.html">Mini Suite</a>
       <a href="#setup">Setup</a>
       <a href="#founder">Founder</a>
     </div>
@@ -376,6 +382,13 @@
       <p class="help">
         Built to be walk-away deployable: set env vars once, then intake and admin are live.
       </p>
+      <div class="actions" style="margin-top:1rem;">
+        <a class="btn" data-suite-link href="/contractor income verification drop in/APP SURFACE/public/index.html">Open Verify Suite</a>
+        <a class="btn" data-suite-link href="/ContractorIncomeVerification/index.html">Open Income Verification</a>
+        <a class="ghost" data-suite-link href="/ContractorWorkflowSuite/index.html">Open Contractor Mini Suite</a>
+        <a class="ghost" data-suite-link href="/AE-Flow/index.html">Open AE Flow</a>
+        <a class="ghost" data-suite-link href="/SkyePlatinum/index.html">Open Skye Platinum</a>
+      </div>
     </section>
 
     <div class="grid">
@@ -611,7 +624,7 @@
       <h2>Setup Notes</h2>
       <div class="sep"></div>
       <p class="help">
-        1) Run <b>neon-schema.sql</b> in Neon.<br/>
+        1) Run <b>db/schema.sql</b> in Neon.<br/>
         2) Netlify env vars: <span class="mono">DATABASE_URL</span>, <span class="mono">ADMIN_PASSWORD</span>, <span class="mono">ADMIN_JWT_SECRET</span>.<br/>
         3) Enable Netlify Blobs (+ optional Identity).<br/>
         4) Deploy via Git (functions require it).
@@ -663,6 +676,17 @@
 
       function getWorkspaceId(){
         return new URLSearchParams(window.location.search).get("ws_id") || localStorage.getItem(WORKSPACE_ID_KEY) || "primary-workspace";
+      }
+
+      function hydrateSuiteLinks(){
+        const wsId = getWorkspaceId();
+        document.querySelectorAll('[data-suite-link]').forEach((node) => {
+          try {
+            const url = new URL(node.getAttribute('href'), window.location.origin);
+            if (wsId) url.searchParams.set('ws_id', wsId);
+            node.setAttribute('href', `${url.pathname}${url.search}`);
+          } catch {}
+        });
       }
 
       function readCommandFeed(){
@@ -1038,6 +1062,7 @@
       el("filterQ").addEventListener("keydown", (e)=>{ if (e.key === "Enter") { e.preventDefault(); adminRefresh(); } });
 
       if (state.adminToken) authMode.textContent = "password";
+      hydrateSuiteLinks();
       wireIdentity();
       checkHealth();
     })();

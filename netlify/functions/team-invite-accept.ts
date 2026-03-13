@@ -167,6 +167,6 @@ export const handler = async (event: any) => {
       },
       warning: "kAIxU token is shown once on invite acceptance. Store it now.",
     },
-    { "Set-Cookie": setSessionCookie(sess.token, sess.expires) }
+    { "Set-Cookie": setSessionCookie(sess.token, sess.expires, event) }
   );
 };

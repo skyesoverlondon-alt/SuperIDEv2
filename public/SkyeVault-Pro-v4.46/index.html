@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SkyeVault Pro · Intro</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <meta name="theme-color" content="#050011">
+  <link rel="icon" href="./assets/img/skyes-logo.png">
+  <link rel="stylesheet" href="./assets/css/styles.css">
+  <style>
+    body.has-live-bg{overflow:hidden}
+    .intro-overlay{position:relative;z-index:2;min-height:100vh;display:grid;place-items:center;padding:24px}
+    .intro-stage-wrap{position:relative;width:min(1600px,100%);min-height:100vh}
+    .intro-stage,.post-intro-stage,.void-stage{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;text-align:center;padding:28px;transition:opacity 900ms ease, transform 900ms ease}
+    .intro-stage{opacity:1}
+    .post-intro-stage,.void-stage{opacity:0;pointer-events:none;transform:scale(.985)}
+    .post-intro-stage.active,.void-stage.active{opacity:1;pointer-events:auto;transform:scale(1)}
+    .intro-stage.exit{opacity:0;transform:scale(1.03);pointer-events:none}
+    .vignette-layer{position:absolute;inset:0;background:radial-gradient(circle at center, transparent 32%, rgba(0,0,0,.85) 100%);pointer-events:none}
+    .intro-branding,.post-intro-card,.void-card{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center}
+    .intro-subtitle,.void-subtitle{font-family:Montserrat,Inter,sans-serif;font-size:clamp(10px,.85vw,14px);letter-spacing:.6em;text-transform:uppercase;color:var(--gold);text-shadow:0 0 20px rgba(255,204,0,.6);margin-bottom:18px}
+    .intro-main-title{font-size:clamp(40px,6vw,100px);font-weight:400;letter-spacing:.1em;text-transform:uppercase;color:#fff;text-shadow:0 0 20px rgba(255,255,255,.5),0 4px 30px rgba(170,0,255,.4);margin:0}
+    .intro-logo-main{width:min(34vw,500px);max-width:90%;min-width:250px;height:auto;margin-top:5vh;filter:drop-shadow(0 0 30px rgba(255,255,255,.1)) drop-shadow(0 0 40px rgba(255,204,0,.18));animation:floatPulse 5.6s ease-in-out infinite}
+    .intro-tagline-main{font-family:Montserrat,Inter,sans-serif;font-size:clamp(12px,1.2vw,18px);letter-spacing:.62em;text-transform:uppercase;color:#e6e6ff;text-shadow:0 0 20px rgba(170,0,255,.7);margin-top:5vh}
+    .post-intro-card,.void-card{width:min(980px,100%);padding:28px 24px;border-radius:28px;background:rgba(9,12,20,.52);border:1px solid rgba(255,255,255,.08);backdrop-filter:blur(18px);box-shadow:0 20px 60px rgba(0,0,0,.4)}
+    .architect-text{font-family:Didot,Georgia,serif;font-size:clamp(34px,4.6vw,80px);color:#fff;text-shadow:0 0 30px rgba(170,0,255,.6);margin:0 0 12px;text-align:center;font-weight:400}
+    .potential-text{font-family:Montserrat,Inter,sans-serif;font-size:clamp(14px,1.8vw,28px);letter-spacing:.44em;text-transform:uppercase;color:var(--gold);text-shadow:0 0 20px rgba(255,204,0,.45);text-align:center;margin-bottom:18px}
+    .intro-body-copy{max-width:840px;color:#dfe7ff;line-height:1.7;font-size:clamp(15px,1.2vw,18px);margin:0 auto 18px}
+    .intro-actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:22px}
+    .skip-intro-btn{position:fixed;right:24px;bottom:24px;z-index:5;background:rgba(0,0,0,.34);border:1px solid rgba(255,255,255,.18);color:#d7d7e4;padding:10px 18px;border-radius:999px;letter-spacing:.2em;text-transform:uppercase;font-size:.72rem}
+    .stage-note{margin-top:14px;color:#b7bfd1}
+    .intro-pills{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin:18px 0 2px}
+    @media (max-width:760px){.intro-actions{flex-direction:column}.skip-intro-btn{right:16px;bottom:16px}}
+  </style>
+</head>
+<body class="has-live-bg">
+  <iframe class="app-background-frame" src="./background.html" title="Background" aria-hidden="true" tabindex="-1"></iframe>
+  <div class="intro-overlay">
+    <div class="intro-stage-wrap">
+      <div class="vignette-layer"></div>
+
+      <section id="cinematic-stage" class="intro-stage">
+        <div class="ambient-fog"></div>
+        <div class="ambient-fog secondary"></div>
+        <div class="intro-branding">
+          <div class="intro-subtitle">An Intelligence Ecosystem</div>
+          <h1 class="intro-main-title">Skyes Over London</h1>
+          <img class="intro-logo-main" src="./assets/img/skyes-logo.png" alt="Skyes Over London logo">
+          <div class="intro-tagline-main">SkyeVault Pro</div>
+        </div>
+      </section>
+
+      <section id="post-intro-stage" class="post-intro-stage">
+        <div class="post-intro-card">
+          <h2 class="architect-text">Vault the skye.</h2>
+          <div class="potential-text">Keep every proof. Keep every file.</div>
+          <p class="intro-body-copy">This launch uses the source-doc intro language on purpose: stage first, system second. SkyeVault Pro opens like a real Skyes Over London environment, then hands you straight into the vault with your files, your folders, and SkyeDocx wired in like family.</p>
+          <div class="intro-pills">
+            <span class="badge">Vault-first</span>
+            <span class="badge">SkyeDocx linked</span>
+            <span class="badge">Founder page live</span>
+          </div>
+          <div class="intro-actions">
+            <a class="button" href="./drive/index.html">Enter Vault</a>
+            <a class="ghost-button" href="./apps/docx/index.html">Open SkyeDocx</a>
+            <a class="ghost-button" href="./founder/index.html">Founder</a>
+          </div>
+          <p class="stage-note small">Auto-launch engages in a moment. Use <code>?stay=1</code> to keep the intro on screen.</p>
+        </div>
+      </section>
+    </div>
+  </div>
+  <button id="skip-intro" class="skip-intro-btn" type="button">Skip intro</button>
+  <script>
+    const stage1 = document.getElementById('cinematic-stage');
+    const stage2 = document.getElementById('post-intro-stage');
+    const skip = document.getElementById('skip-intro');
+    let redirected = false;
+    function goVault(){ if (redirected || window.location.search.includes('stay=1')) return; redirected = true; window.location.replace('./drive/index.html'); }
+    function showStage2(){ stage1.classList.add('exit'); stage2.classList.add('active'); }
+    skip.addEventListener('click', goVault);
+    setTimeout(showStage2, 2400);
+    setTimeout(goVault, 6200);
+  </script>
+</body>
+</html>

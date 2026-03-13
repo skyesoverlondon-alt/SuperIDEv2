@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SkyeMail Compose Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/SkyeMail/assets/platform.css" />
+  <script src="/_shared/standalone-session.js"></script>
+  <script defer src="/SkyeMail/assets/platform.js"></script>
+</head>
+<body data-app-id="SkyeMail" data-page="templates">
+  <div class="platform-shell">
+    <header class="platform-topbar">
+      <div>
+        <div class="platform-kicker">SkyeMail Platform</div>
+        <div class="platform-brand">Compose Studio</div>
+      </div>
+      <div class="platform-topbar-actions">
+        <a class="platform-button ghost" href="/SkyeMail/index.html">Platform Hub</a>
+        <a class="platform-button" data-nav="command" href="/SkyeMail/apps/command/index.html">Open Command Workspace</a>
+      </div>
+    </header>
+
+    <nav class="subnav">
+      <a data-page="hub" href="/SkyeMail/index.html">Hub</a>
+      <a data-page="mailbox" href="/SkyeMail/apps/mailbox/index.html">Mailbox</a>
+      <a data-page="templates" href="/SkyeMail/apps/templates/index.html">Compose</a>
+      <a data-page="campaigns" href="/SkyeMail/apps/campaigns/index.html">Campaigns</a>
+      <a data-page="ops" href="/SkyeMail/apps/ops/index.html">Ops</a>
+      <a data-page="command" href="/SkyeMail/apps/command/index.html">Command</a>
+    </nav>
+
+    <main class="platform-main">
+      <section class="panel-stack two-up">
+        <article class="platform-panel">
+          <div class="panel-heading">
+            <span class="eyebrow">Drafting Surface</span>
+            <h2>Stage outbound mail before live send</h2>
+          </div>
+          <form class="composer-form">
+            <div class="field-grid">
+              <label>Source workspace
+                <input id="mailSource" placeholder="SkyeDocxPro, Rescue Ops, Neural" />
+              </label>
+              <label>Recipient
+                <input id="mailTo" placeholder="operator@client.com" />
+              </label>
+            </div>
+            <div class="field-grid">
+              <label>Subject
+                <input id="mailSubject" placeholder="Launch update or outreach subject" />
+              </label>
+              <label>SkyeChat follow-up channel
+                <input id="mailChannel" placeholder="rescue-ops" />
+              </label>
+            </div>
+            <label>Mail body
+              <textarea id="mailBody" placeholder="Draft the outbound mail body, summary, or approval request here."></textarea>
+            </label>
+            <div class="button-row">
+              <button type="button" data-action="save-compose-draft">Save Draft</button>
+              <button class="ghost" type="button" data-action="route-compose-to-command">Open In Command Workspace</button>
+            </div>
+          </form>
+        </article>
+
+        <article class="platform-panel">
+          <div class="panel-heading">
+            <span class="eyebrow">Draft Queue</span>
+            <h2>Staged compose items</h2>
+          </div>
+          <div class="list-shell" data-bind="composeDrafts"></div>
+        </article>
+      </section>
+
+      <section class="panel-stack three-up">
+        <article class="utility-card">
+          <h3>Why This Exists</h3>
+          <p class="helper-copy">A mail platform needs a drafting surface that is not identical to the live send console. This is where content is shaped before command execution.</p>
+        </article>
+        <article class="utility-card">
+          <h3>Recent Intake</h3>
+          <div class="list-shell" data-bind="recentHandoffs"></div>
+        </article>
+        <article class="utility-card">
+          <h3>Delivery Feed</h3>
+          <div class="list-shell" data-bind="recentDeliveries"></div>
+        </article>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

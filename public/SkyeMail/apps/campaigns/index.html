@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SkyeMail Campaign Lanes</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/SkyeMail/assets/platform.css" />
+  <script src="/_shared/standalone-session.js"></script>
+  <script defer src="/SkyeMail/assets/platform.js"></script>
+</head>
+<body data-app-id="SkyeMail" data-page="campaigns">
+  <div class="platform-shell">
+    <header class="platform-topbar">
+      <div>
+        <div class="platform-kicker">SkyeMail Platform</div>
+        <div class="platform-brand">Campaign Lanes</div>
+      </div>
+      <div class="platform-topbar-actions">
+        <a class="platform-button ghost" href="/SkyeMail/index.html">Platform Hub</a>
+        <a class="platform-button" data-nav="command" href="/SkyeMail/apps/command/index.html">Open Command Workspace</a>
+      </div>
+    </header>
+
+    <nav class="subnav">
+      <a data-page="hub" href="/SkyeMail/index.html">Hub</a>
+      <a data-page="mailbox" href="/SkyeMail/apps/mailbox/index.html">Mailbox</a>
+      <a data-page="templates" href="/SkyeMail/apps/templates/index.html">Compose</a>
+      <a data-page="campaigns" href="/SkyeMail/apps/campaigns/index.html">Campaigns</a>
+      <a data-page="ops" href="/SkyeMail/apps/ops/index.html">Ops</a>
+      <a data-page="command" href="/SkyeMail/apps/command/index.html">Command</a>
+    </nav>
+
+    <main class="platform-main">
+      <section class="panel-stack two-up">
+        <article class="platform-panel">
+          <div class="panel-heading">
+            <span class="eyebrow">Sequence Planning</span>
+            <h2>Build follow-up waves, rescue outreach, and announcement campaigns</h2>
+          </div>
+          <form class="composer-form">
+            <div class="field-grid">
+              <label>Campaign name
+                <input id="campaignName" placeholder="GBP rescue reactivation wave" />
+              </label>
+              <label>Audience segment
+                <input id="campaignAudience" placeholder="suspended-clients-q1" />
+              </label>
+            </div>
+            <label>Campaign brief
+              <textarea id="campaignSummary" placeholder="Describe the follow-up sequence, message order, owner, and outcome target."></textarea>
+            </label>
+            <div class="button-row">
+              <button type="button" data-action="save-campaign">Save Campaign</button>
+              <button class="ghost" type="button" data-action="route-campaign-to-command">Open In Command Workspace</button>
+            </div>
+          </form>
+        </article>
+
+        <article class="platform-panel">
+          <div class="panel-heading">
+            <span class="eyebrow">Campaign Queue</span>
+            <h2>Saved lanes</h2>
+          </div>
+          <div class="list-shell" data-bind="campaignQueue"></div>
+        </article>
+      </section>
+
+      <section class="panel-stack three-up">
+        <article class="utility-card">
+          <h3>Use Cases</h3>
+          <ul class="signal-list">
+            <li>Customer rescue follow-ups.</li>
+            <li>Product launch announcement waves.</li>
+            <li>Internal approval and executive briefing sequences.</li>
+          </ul>
+        </article>
+        <article class="utility-card">
+          <h3>Recent Intake</h3>
+          <div class="list-shell" data-bind="recentHandoffs"></div>
+        </article>
+        <article class="utility-card">
+          <h3>Why It Matters</h3>
+          <p class="helper-copy">Google Mail replacement means handling campaigns and waves as first-class product surfaces, not pretending every outreach workflow is a one-off compose action.</p>
+        </article>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

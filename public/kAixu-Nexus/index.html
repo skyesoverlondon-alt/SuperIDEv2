@@ -6,8 +6,12 @@
     <title>kAIxu Nexus | SOLEnterprises</title>
     <!-- Core Dependencies -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="/_shared/auth-unlock.js"></script>
+    <script src="/_shared/standalone-session.js"></script>
+    <script src="/_shared/kaixu-platform-frame.js"></script>
     <script src="/_shared/gateway-retry.js"></script>
     
     <style>
@@ -35,6 +39,16 @@
             overflow-x: hidden;
             display: flex;
             flex-direction: column;
+        }
+
+        #bg-canvas {
+            position: fixed;
+            inset: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -1;
+            pointer-events: none;
+            background: transparent;
         }
 
         .glass {
@@ -221,7 +235,8 @@
         ::-webkit-scrollbar-thumb { background: var(--royal-purple-main); border-radius: 10px; }
     </style>
 </head>
-<body>
+<body data-app-id="kAixu-Nexus">
+    <canvas id="bg-canvas"></canvas>
     <div id="app" class="flex flex-col min-h-screen">
         <!-- kAIxUs LOGO (PRIMARY BRAND IDENTITY - MASSIVE OVERFLOW) -->
         <div class="kaixu-logo-container">
@@ -256,7 +271,7 @@
         </div>
 
         <!-- HEADER -->
-        <header class="h-20 glass sticky top-0 z-50 flex items-center justify-between px-8 border-b border-white/10 shrink-0">
+        <header id="navbar" class="h-20 glass sticky top-0 z-50 flex items-center justify-between px-8 border-b border-white/10 shrink-0">
             <div class="flex items-center gap-4 pl-48"> 
                 <div class="hidden lg:block">
                     <p class="text-[10px] uppercase tracking-[0.3em] opacity-40">SOLEnterprises International</p>
@@ -302,6 +317,23 @@
                 </button>
             </div>
         </header>
+
+        <section id="kaixu-platform-frame" class="kaixu-platform-frame no-print">
+            <div class="kaixu-platform-copy">
+                <span class="kaixu-platform-kicker">Genesis Studio</span>
+                <span class="kaixu-platform-title">Project minting command</span>
+                <p class="kaixu-platform-summary">Nexus is the launch chamber for turning a loose idea into a structured kAIxU project with routeable next steps.</p>
+                <div class="kaixu-platform-meta">
+                    <span>Best for founders, producers, and operators who need a command surface for greenlighting a new branch quickly.</span>
+                    <span>Pitch Nexus as the point where a new kAIxU initiative becomes a live operating program.</span>
+                </div>
+            </div>
+            <div class="kaixu-platform-links">
+                <a class="primary" href="/kAIxU/index.html">Open kAIxU Platform</a>
+                <a href="/kAIxUSuite/index.html">Open Suite Launcher</a>
+                <a href="/Neural-Space-Pro/index.html">Open Neural Brain</a>
+            </div>
+        </section>
 
         <main class="grid grid-cols-12 gap-0 flex-grow">
             <!-- LEFT SIDEBAR: HUB EXPLORER -->
@@ -444,6 +476,63 @@
     <script>
         const { createApp, ref, onMounted, watch } = Vue;
 
+        function initThreeJS() {
+            const canvas = document.getElementById('bg-canvas');
+            if (!canvas || typeof THREE === 'undefined') return;
+            const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 14;
+
+            const lightA = new THREE.PointLight(0xffd700, 3.4, 100);
+            lightA.position.set(8, 10, 10);
+            scene.add(lightA);
+            const lightB = new THREE.PointLight(0xaa00ff, 2.8, 100);
+            lightB.position.set(-10, -8, 12);
+            scene.add(lightB);
+
+            const orbGroup = new THREE.Group();
+            const orbGeo = new THREE.IcosahedronGeometry(0.72, 0);
+            for (let index = 0; index < 18; index += 1) {
+                const color = index % 2 === 0 ? 0xffd700 : 0xaa00ff;
+                const mesh = new THREE.Mesh(
+                    orbGeo,
+                    new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.7, transparent: true, opacity: 0.5 })
+                );
+                mesh.position.set((Math.random() - 0.5) * 12, (Math.random() - 0.5) * 8, (Math.random() - 0.5) * 8);
+                mesh.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+                orbGroup.add(mesh);
+            }
+            scene.add(orbGroup);
+
+            const starPositions = [];
+            for (let index = 0; index < 700; index += 1) {
+                starPositions.push((Math.random() - 0.5) * 100, (Math.random() - 0.5) * 80, (Math.random() - 0.5) * 70);
+            }
+            const starGeo = new THREE.BufferGeometry();
+            starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPositions, 3));
+            const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.08, transparent: true, opacity: 0.75 }));
+            scene.add(stars);
+
+            function animate() {
+                requestAnimationFrame(animate);
+                orbGroup.rotation.y += 0.0018;
+                orbGroup.rotation.x += 0.0009;
+                stars.rotation.y -= 0.00035;
+                renderer.render(scene, camera);
+            }
+
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+
+            animate();
+        }
+
         createApp({
             setup() {
                 const executiveId = ref("TN-III-001");
@@ -520,6 +609,7 @@
                 const projects = ref([]);
 
                 onMounted(() => {
+                    initThreeJS();
                     const savedProjects = localStorage.getItem('kaixu_projects');
                     if (savedProjects) projects.value = JSON.parse(savedProjects);
                     

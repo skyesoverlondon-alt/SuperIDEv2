@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SkyeVault Pro · Vault First Workspace</title>
+  <link rel="manifest" href="../manifest.webmanifest">
+  <meta name="theme-color" content="#030407">
+  <link rel="icon" href="../assets/img/skyes-logo.png">
+  <link rel="stylesheet" href="../assets/css/styles.css">
+</head>
+<body class="has-live-bg" data-app-id="SkyeVault-Pro-v4.46">
+  <iframe class="app-background-frame" src="../background.html" title="Background" aria-hidden="true" tabindex="-1"></iframe>
+  <div id="drag-overlay" class="drag-overlay">
+    <div class="drag-overlay-card">
+      <img src="../assets/img/skyes-logo.png" alt="Skyes Over London logo">
+      <h2>Drop it.</h2>
+      <p>Files, folders, whole zip fleets. SkyeVault Pro can take the hit.</p>
+    </div>
+  </div>
+
+  <div id="settings-modal" class="modal-shell hidden" aria-hidden="true">
+    <div class="modal-backdrop" data-close-settings></div>
+    <div class="modal-card settings-card">
+      <div class="modal-head">
+        <div>
+          <div class="eyebrow">Settings · Skyes Over London</div>
+          <h2>SkyeVault Pro control room</h2>
+          <p class="small">Account, AI, backup, disk sync, membership, and the blunt truth about how this build works.</p>
+        </div>
+        <button class="icon-button" type="button" data-close-settings aria-label="Close settings">✕</button>
+      </div>
+
+      <div class="settings-grid">
+        <section class="workspace-card settings-section">
+          <div class="eyebrow">Account</div>
+          <div id="auth-slot"></div>
+          <div id="hosted-status" class="status-box" style="margin-top:12px;">Hosted account tools wake up when deployed on Netlify with Functions enabled.</div>
+        </section>
+
+        <section class="workspace-card settings-section">
+          <div class="eyebrow">Membership + annual drive</div>
+          <p class="small">Core ships 256GB, Flow ships 512GB, Pro ships 1TB. Keep the profile tied to the member account and the yearly shipment stays legible instead of turning into office folklore.</p>
+          <form id="membership-form" class="grid-3 compact-grid" style="margin-top:14px;">
+            <label>Full name<input name="full_name" type="text" placeholder="Skyes Over London"></label>
+            <label>Plan tier
+              <select name="plan_tier">
+                <option value="core">Core · 256GB</option>
+                <option value="flow">Flow · 512GB</option>
+                <option value="pro">Pro · 1TB</option>
+              </select>
+            </label>
+            <label>Email<input name="shipping_email" type="email" placeholder="you@example.com"></label>
+            <label>Shipping name<input name="shipping_name" type="text" placeholder="Recipient name"></label>
+            <label>Street<input name="shipping_address" type="text" placeholder="Street address"></label>
+            <label>City<input name="shipping_city" type="text" placeholder="Phoenix"></label>
+            <label>State<input name="shipping_state" type="text" placeholder="AZ"></label>
+            <label>ZIP<input name="shipping_zip" type="text" placeholder="85001"></label>
+            <label>Country<input name="shipping_country" type="text" placeholder="United States"></label>
+          </form>
+          <div id="profile-slot" class="workspace-card" style="margin-top:12px;">
+            <div class="eyebrow">Annual drive tier</div>
+            <div id="thumb-tier-badge" class="notice small">Annual thumb drive tier not set yet</div>
+          </div>
+          <div class="button-row" style="margin-top:12px;">
+            <button form="membership-form" class="button" type="submit" data-hosted-required disabled>Save membership profile</button>
+          </div>
+          <form name="skyevault-membership-intake" method="POST" data-netlify="true" hidden>
+            <input type="text" name="full_name">
+            <input type="text" name="plan_tier">
+            <input type="email" name="shipping_email">
+            <input type="text" name="shipping_name">
+            <input type="text" name="shipping_address">
+            <input type="text" name="shipping_city">
+            <input type="text" name="shipping_state">
+            <input type="text" name="shipping_zip">
+            <input type="text" name="shipping_country">
+          </form>
+        </section>
+
+        <section class="workspace-card settings-section">
+          <div class="eyebrow">Disk sync</div>
+          <p class="small">Pick any folder you want — including one on a thumb drive — then push copies out or pull them back in whenever you feel like it.</p>
+          <div class="button-row" style="margin-top:12px;">
+            <button id="connect-folder-button" class="button" type="button">Choose folder</button>
+            <button id="sync-folder-button" class="ghost-button" type="button">Sync to folder</button>
+            <button id="import-folder-button" class="ghost-button" type="button">Import folder</button>
+          </div>
+          <div id="folder-sync-status" class="status-box" style="margin-top:12px;">No folder connected yet.</div>
+        </section>
+
+        <section class="workspace-card settings-section">
+          <div class="eyebrow">Hosted backup</div>
+          <p class="small">Optional hosted snapshot lane on the shared SuperIDE runtime for members who want a second copy beyond browser storage and disk sync.</p>
+          <div class="button-row" style="margin-top:12px;">
+            <button id="backup-cloud-button" data-hosted-required class="button" type="button" disabled>Backup</button>
+            <button id="restore-cloud-button" data-hosted-required class="ghost-button" type="button" disabled>Restore</button>
+          </div>
+        </section>
+
+        <section class="workspace-card settings-section">
+          <div class="eyebrow">AI lane</div>
+          <p class="small">The live prompt dock rides beside the vault now. Keep the routed kAIxU model here, then use the collapsible dock for the actual file-finding chatter.</p>
+          <label>Model
+            <input id="kaixu-model-input" type="text" value="kAIxU-Prime6.7" placeholder="kAIxU-Prime6.7">
+          </label>
+          <div class="button-row" style="margin-top:12px;">
+            <button id="save-ai-settings-button" class="ghost-button" type="button">Save model</button>
+          </div>
+          <div class="status-box" style="margin-top:12px;">When deployed on Netlify, the dock uses a server-side Function that prefers <code>KAIXU_GATEWAY_ENDPOINT</code> + <code>KAIXU_APP_TOKEN</code> and can fail over to <code>KAIXU_BACKUP_ENDPOINT</code> + <code>KAIXU_BACKUP_TOKEN</code> so the browser never holds the secret.</div>
+        </section>
+
+        <section class="workspace-card settings-section settings-wide">
+          <div class="eyebrow">Transparency</div>
+          <div class="grid-3 compact-grid">
+            <div class="mini-card"><strong>Local first</strong><p>The live vault runs from browser storage. That is why it stays fast and still opens when you are offline.</p></div>
+            <div class="mini-card"><strong>Disk copies</strong><p>Thumb drive and folder sync are manual on purpose, so you always know where the extra copies live.</p></div>
+            <div class="mini-card"><strong>Hosted layer</strong><p>Backup, AI routing, and shipping profile sync wake up when this surface runs inside the shared SuperIDE runtime with sessions, Blobs, and the main database wired in.</p></div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <div id="move-modal" class="modal-shell hidden" aria-hidden="true">
+    <div class="modal-backdrop" data-close-move></div>
+    <div class="modal-card move-card">
+      <div class="modal-head">
+        <div>
+          <div class="eyebrow">Move item</div>
+          <h3 id="move-modal-title">Choose destination</h3>
+        </div>
+        <button class="icon-button" type="button" data-close-move aria-label="Close move dialog">✕</button>
+      </div>
+      <label>Destination folder
+        <select id="move-folder-select">
+          <option value="">Root</option>
+        </select>
+      </label>
+      <div id="move-modal-path" class="notice small" style="margin-top:12px;">Root</div>
+      <div class="button-row" style="margin-top:16px;">
+        <button type="button" class="ghost-button" data-close-move>Cancel</button>
+        <button type="button" class="button" id="confirm-move-button">Move</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="site-shell">
+    <div class="nav-wrap">
+      <div class="nav-inner">
+        <a class="brand" href="../drive/index.html">
+          <span class="brand-mark"><img src="../assets/img/skyes-logo.png" alt="Skyes Over London"></span>
+          <span>SkyeVault Pro</span>
+        </a>
+        <nav class="nav-links" aria-label="Primary">
+          <a href="../drive/index.html" class="active">Vault</a>
+          <a href="../apps/docx/index.html">SkyeDocx</a>
+          <a href="../founder/index.html">Founder</a>
+          <button id="open-settings-button" class="nav-button" type="button">Settings</button>
+        </nav>
+      </div>
+    </div>
+
+    <main class="container vault-container">
+      <div class="vault-app-shell">
+        <aside class="panel vault-rail">
+          <div class="workspace-card rail-hero-card">
+            <div class="eyebrow">Primary workspace</div>
+            <h1 class="rail-title">Vault</h1>
+            <p class="small">Cold storage. Fast family edits. The work opens here first.</p>
+            <div class="button-row rail-actions">
+              <button id="new-doc-button" class="button" type="button">New .skye doc</button>
+              <button id="new-folder-button" class="ghost-button" type="button">New folder</button>
+            </div>
+            <div class="button-row rail-actions">
+              <button id="pick-folder-upload-button" class="ghost-button" type="button">Add folder</button>
+              <button id="hero-settings-button" class="ghost-button" type="button">Settings</button>
+            </div>
+            <input id="file-input" class="hidden" type="file" multiple>
+            <input id="folder-input" class="hidden" type="file" webkitdirectory directory multiple>
+          </div>
+
+          <div class="workspace-card drive-rail-card">
+            <div class="eyebrow">Quick access</div>
+            <div id="quick-access-list" class="tree-list"></div>
+          </div>
+
+          <div class="workspace-card drive-rail-card">
+            <div class="eyebrow">Folders</div>
+            <div id="folder-tree" class="tree-list"></div>
+          </div>
+
+          <div class="workspace-card drive-rail-card">
+            <div class="eyebrow">Recent activity</div>
+            <div id="activity-list" class="list compact-list"></div>
+          </div>
+        </aside>
+
+        <section class="panel vault-main-panel">
+          <div class="vault-main-head">
+            <div>
+              <div class="eyebrow">Skyes Over London · Absolute midnight</div>
+              <h2 class="drive-main-title">SkyeVault Pro</h2>
+              <p class="small">The vault is the first room now. Folders on the left. Work in the middle. The vault owns the full room now. The helper rides in a detachable dock instead of eating half the workspace.</p>
+            </div>
+            <div class="vault-main-head-actions">
+              <span id="vault-status" class="notice small">Loading vault…</span>
+            </div>
+          </div>
+
+          <div id="superide-bridge-status" class="status-box">SuperIDE bridge standing by.</div>
+
+          <div class="button-row bridge-row">
+            <button id="superide-import-button" class="soft-button" type="button">Pull staged SuperIDE snapshot</button>
+            <button id="superide-open-shell-button" class="ghost-button" type="button">Open SuperIDE shell</button>
+          </div>
+
+          <div class="drive-topbar">
+            <form id="search-form" class="drive-search-form">
+              <label>Search the current lane
+                <input id="search-input" type="search" placeholder="Search names or text snippets">
+              </label>
+            </form>
+            <div class="drive-topbar-meta">
+              <div>
+                <div class="eyebrow" style="margin-bottom:6px">Path</div>
+                <div id="breadcrumbs" class="breadcrumbs"></div>
+              </div>
+              <div>
+                <div class="eyebrow" style="margin-bottom:6px">State</div>
+                <div id="sync-status" class="notice small">Preparing SkyeVault Pro…</div>
+              </div>
+            </div>
+          </div>
+
+          <div id="dropzone" class="drive-dropbar drop-target" data-drop-folder="">
+            <div>
+              <div class="eyebrow">Drop lane</div>
+              <strong>Drop files, folders, or zip archives here — or anywhere on the page.</strong>
+              <p class="small">SkyeVault Pro will ingest the lot and keep the pathing intact.</p>
+            </div>
+            <div class="button-row">
+              <button id="dropbar-upload-button" class="button" type="button">Add files</button>
+              <button id="dropbar-folder-button" class="ghost-button" type="button">Add folder</button>
+            </div>
+          </div>
+
+          <div id="dropzone-status" class="status-box">Ready for impact.</div>
+
+          <div id="vault-metrics" class="metric-grid drive-metrics-grid"></div>
+
+          <div>
+            <div class="section-head">
+              <div>
+                <div class="eyebrow">Folders in this lane</div>
+                <p class="small">Drag files or folders onto any folder card to move them like an actual drive instead of a cursed questionnaire.</p>
+              </div>
+            </div>
+            <div id="folder-grid" class="folder-grid"></div>
+          </div>
+
+          <div class="table-card drive-table-card">
+            <div class="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Size</th>
+                    <th>Updated</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="file-table-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <aside id="ai-dock" class="panel ai-dock collapsed">
+          <button id="ai-dock-toggle" class="dock-toggle" type="button" aria-expanded="false" aria-controls="ai-dock-body">❮</button>
+          <div class="dock-title">
+            <div class="eyebrow">kAIxU vault helper</div>
+            <h3>Ask the vault</h3>
+            <p class="small">Detached dock. Collapse it, expand it, or leave it floating while the vault keeps the whole main lane.</p>
+            <p class="small">Find files, summarize notes, or sniff out where the important thing is hiding.</p>
+          </div>
+          <div id="ai-dock-body" class="dock-body">
+            <label>Prompt
+              <textarea id="ai-prompt-input" rows="6" placeholder="Find the launch notes and tell me which file matters most."></textarea>
+            </label>
+            <div class="button-row">
+              <button id="ask-ai-button" class="button" type="button">Ask</button>
+              <button id="dock-settings-button" class="ghost-button" type="button">Settings</button>
+            </div>
+            <div class="ai-quick-prompts">
+              <button type="button" data-ai-chip="Show me the most recent documents and tell me what changed.">Recent changes</button>
+              <button type="button" data-ai-chip="Find documents about launch, deployment, or rollout and rank them by importance.">Launch files</button>
+              <button type="button" data-ai-chip="Summarize the files in this vault lane in plain English.">Summarize vault</button>
+            </div>
+            <div id="ai-output" class="status-box ai-output-box">The helper dock is ready. Ask something ugly and useful.</div>
+          </div>
+        </aside>
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        <div>SkyeVault Pro · Skyes Over London LC</div>
+        <div>Vault-first workspace · SkyeDocx family lane · drag fleets · helper dock · manual disk sync</div>
+      </div>
+    </footer>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+  <script src="/_shared/auth-unlock.js"></script>
+  <script src="/_shared/standalone-session.js"></script>
+  <script src="../assets/js/common.js"></script>
+  <script src="../assets/js/local-vault.js"></script>
+  <script src="../assets/js/hosted-bridge.js"></script>
+  <script src="../assets/js/drive.js"></script>
+  <script src="../assets/js/superide-bridge.js"></script>
+  <script src="../assets/js/skyeloop-bg.js"></script>
+</body>
+</html>

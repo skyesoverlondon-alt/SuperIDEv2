@@ -4,6 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SkyeSlides Standalone</title>
+  <script src="/_shared/auth-unlock.js"></script>
+  <script src="/_shared/standalone-session.js"></script>
   <style>
     @import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Space+Grotesk:wght@400;500;600&display=swap");
     :root { --bg:#060d13; --bg2:#0d1d27; --line:rgba(44,230,255,.34); --line2:rgba(191,238,255,.2); --text:#f6fbff; --muted:#9ab6c4; --gold:#ffcb47; }
@@ -31,7 +33,7 @@
     @media (max-width:760px){ .row { grid-template-columns:1fr; } }
   </style>
 </head>
-<body>
+<body data-app-id="SkyeSlides">
   <div class="shell">
     <header class="topbar">
       <div>

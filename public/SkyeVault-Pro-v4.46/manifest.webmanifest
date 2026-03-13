@@ -1,0 +1,12 @@
+{
+  "name": "SkyeVault Pro",
+  "short_name": "SkyeVault",
+  "start_url": "/drive/index.html",
+  "display": "standalone",
+  "background_color": "#030407",
+  "theme_color": "#030407",
+  "icons": [
+    { "src": "/assets/img/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/assets/img/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

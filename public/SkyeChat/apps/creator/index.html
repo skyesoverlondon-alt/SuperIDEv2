@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SkyeChat Creator Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/SkyeChat/assets/platform.css" />
+  <script src="/_shared/standalone-session.js"></script>
+  <script defer src="/SkyeChat/assets/platform.js"></script>
+</head>
+<body data-app-id="SkyeChat" data-page="creator">
+  <div class="platform-shell">
+    <header class="platform-topbar">
+      <div>
+        <div class="platform-kicker">SkyeChat Platform</div>
+        <div class="platform-brand">Creator Studio</div>
+      </div>
+      <div class="platform-topbar-actions">
+        <a class="platform-button ghost" href="/SkyeChat/index.html">Platform Hub</a>
+        <a class="platform-button" data-nav="command" href="/SkyeChat/apps/command/index.html">Publish In Command Workspace</a>
+      </div>
+    </header>
+
+    <nav class="subnav">
+      <a data-page="hub" href="/SkyeChat/index.html">Hub</a>
+      <a data-page="community" href="/SkyeChat/apps/community/index.html">Community</a>
+      <a data-page="messenger" href="/SkyeChat/apps/messenger/index.html">Messenger</a>
+      <a data-page="creator" href="/SkyeChat/apps/creator/index.html">Creator</a>
+      <a data-page="moderation" href="/SkyeChat/apps/moderation/index.html">Moderation</a>
+      <a data-page="command" href="/SkyeChat/apps/command/index.html">Command</a>
+    </nav>
+
+    <main class="platform-main">
+      <section class="panel-stack two-up">
+        <article class="platform-panel">
+          <div class="panel-heading">
+            <span class="eyebrow">DocxPro + SkyeBlog Ingress</span>
+            <h2>Turn suite output into social-native drops</h2>
+          </div>
+          <form class="composer-form">
+            <div class="field-grid">
+              <label>Source workspace
+                <input id="creatorSource" placeholder="SkyeDocxPro or SkyeBlog" />
+              </label>
+              <label>Target channel
+                <input id="creatorChannel" placeholder="community" value="community" />
+              </label>
+            </div>
+            <div class="field-grid">
+              <label>Drop title
+                <input id="creatorTitle" placeholder="Product release thread" />
+              </label>
+              <label>Topic slug
+                <input id="creatorTopic" placeholder="launch" />
+              </label>
+            </div>
+            <label>Teaser / caption / callout
+              <textarea id="creatorExcerpt" placeholder="Write the post body, teaser, thread opener, or creator caption here."></textarea>
+            </label>
+            <div class="button-row">
+              <button type="button" data-action="save-creator-draft">Save Creator Draft</button>
+              <button class="ghost" type="button" data-action="route-creator-to-command">Open In Command Workspace</button>
+            </div>
+          </form>
+        </article>
+
+        <article class="platform-panel">
+          <div class="panel-heading">
+            <span class="eyebrow">Creator Queue</span>
+            <h2>Staged drops</h2>
+          </div>
+          <div class="list-shell" data-bind="creatorDrafts"></div>
+        </article>
+      </section>
+
+      <section class="panel-stack three-up">
+        <article class="utility-card">
+          <h3>Content Modes</h3>
+          <ul class="signal-list">
+            <li>Forum opener for deep discussion.</li>
+            <li>Announcement burst for launches and updates.</li>
+            <li>Carousel-style caption flow for more social storytelling.</li>
+          </ul>
+        </article>
+        <article class="utility-card">
+          <h3>Recent Intake</h3>
+          <div class="list-shell" data-bind="recentHandoffs"></div>
+        </article>
+        <article class="utility-card">
+          <h3>Why It Exists</h3>
+          <p class="helper-copy">SkyeChat needs a creator surface because documents and blogs should publish into community-native formatting, not just dump raw text into a room.</p>
+        </article>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

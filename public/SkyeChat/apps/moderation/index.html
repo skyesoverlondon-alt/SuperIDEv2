@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SkyeChat Moderation Center</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/SkyeChat/assets/platform.css" />
+  <script src="/_shared/standalone-session.js"></script>
+  <script defer src="/SkyeChat/assets/platform.js"></script>
+</head>
+<body data-app-id="SkyeChat" data-page="moderation">
+  <div class="platform-shell">
+    <header class="platform-topbar">
+      <div>
+        <div class="platform-kicker">SkyeChat Platform</div>
+        <div class="platform-brand">Moderation Center</div>
+      </div>
+      <div class="platform-topbar-actions">
+        <a class="platform-button ghost" href="/SkyeChat/index.html">Platform Hub</a>
+        <a class="platform-button" data-nav="command" href="/SkyeChat/apps/command/index.html">Open Command Workspace</a>
+      </div>
+    </header>
+
+    <nav class="subnav">
+      <a data-page="hub" href="/SkyeChat/index.html">Hub</a>
+      <a data-page="community" href="/SkyeChat/apps/community/index.html">Community</a>
+      <a data-page="messenger" href="/SkyeChat/apps/messenger/index.html">Messenger</a>
+      <a data-page="creator" href="/SkyeChat/apps/creator/index.html">Creator</a>
+      <a data-page="moderation" href="/SkyeChat/apps/moderation/index.html">Moderation</a>
+      <a data-page="command" href="/SkyeChat/apps/command/index.html">Command</a>
+    </nav>
+
+    <main class="platform-main">
+      <section class="panel-stack two-up">
+        <article class="platform-panel">
+          <div class="panel-heading">
+            <span class="eyebrow">Governance Surface</span>
+            <h2>Save moderation posture and route it into the live command room</h2>
+          </div>
+          <form class="composer-form">
+            <div class="field-grid">
+              <label>Policy name
+                <input id="policyName" placeholder="High-risk launch watch" />
+              </label>
+              <label>Status
+                <select id="policyStatusInput">
+                  <option value="clear">clear</option>
+                  <option value="watch">watch</option>
+                  <option value="lockdown">lockdown</option>
+                </select>
+              </label>
+            </div>
+            <label>Operator note
+              <textarea id="policyNote" placeholder="Describe slow mode posture, lock rationale, escalation instructions, or incident sequencing."></textarea>
+            </label>
+            <div class="button-row">
+              <button type="button" data-action="save-policy">Save Policy Note</button>
+              <button class="ghost" type="button" data-action="route-policy-to-command">Open In Command Workspace</button>
+            </div>
+          </form>
+        </article>
+
+        <article class="platform-panel">
+          <div class="panel-heading">
+            <span class="eyebrow">Saved Governance Notes</span>
+            <h2>Local moderation presets</h2>
+          </div>
+          <div class="list-shell" data-bind="policyNotes"></div>
+        </article>
+      </section>
+
+      <section class="panel-stack two-up">
+        <article class="utility-card">
+          <h3>Latest Moderation Timeline</h3>
+          <div class="list-shell" data-bind="moderationTimeline"></div>
+        </article>
+        <article class="utility-card">
+          <h3>Why This Matters</h3>
+          <p class="helper-copy">A community platform without visible governance is not a real platform. This surface keeps policy, incidents, and room posture visible before they become hidden technical flags.</p>
+        </article>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

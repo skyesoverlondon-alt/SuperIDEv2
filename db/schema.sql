@@ -222,6 +222,37 @@ create index if not exists idx_api_tokens_status on api_tokens(status, expires_a
 create index if not exists idx_api_tokens_locked_email on api_tokens(locked_email);
 create index if not exists idx_api_tokens_scopes on api_tokens using gin (scopes_json);
 
+create table if not exists ai_brain_usage_log (
+  id uuid primary key default gen_random_uuid(),
+  at timestamptz not null default now(),
+  actor text not null,
+  actor_email text,
+  actor_user_id uuid references users(id) on delete set null,
+  org_id uuid references orgs(id) on delete set null,
+  ws_id uuid references workspaces(id) on delete set null,
+  app text not null,
+  auth_type text not null default 'unknown',
+  api_token_id uuid references api_tokens(id) on delete set null,
+  api_token_label text,
+  api_token_locked_email text,
+  used_backup boolean not null default false,
+  brain_route text not null check (brain_route in ('primary','backup')),
+  provider text,
+  model text,
+  gateway_request_id text,
+  backup_request_id text,
+  gateway_status integer,
+  backup_status integer,
+  usage_json jsonb not null default '{}'::jsonb,
+  billing_json jsonb not null default '{}'::jsonb,
+  success boolean not null default true
+);
+
+create index if not exists idx_ai_brain_usage_log_org_at on ai_brain_usage_log(org_id, at desc);
+create index if not exists idx_ai_brain_usage_log_ws_at on ai_brain_usage_log(ws_id, at desc);
+create index if not exists idx_ai_brain_usage_log_token_at on ai_brain_usage_log(api_token_id, at desc);
+create index if not exists idx_ai_brain_usage_log_backup_at on ai_brain_usage_log(used_backup, at desc);
+
 create table if not exists org_key_policies (
   org_id uuid primary key references orgs(id) on delete cascade,
   default_token_id uuid references api_tokens(id) on delete set null,
@@ -477,6 +508,85 @@ $$ language plpgsql;
 drop trigger if exists trg_contractor_submissions_updated_at on contractor_submissions;
 create trigger trg_contractor_submissions_updated_at
 before update on contractor_submissions
+for each row
+execute function set_updated_at();
+
+create table if not exists contractor_income_entries (
+  id uuid primary key default gen_random_uuid(),
+  contractor_submission_id uuid not null references contractor_submissions(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  entry_date date not null,
+  source_name text not null,
+  source_type text not null default 'manual',
+  reference_code text,
+  gross_amount numeric(12,2) not null default 0,
+  fee_amount numeric(12,2) not null default 0,
+  net_amount numeric(12,2) not null default 0,
+  category text not null default 'general',
+  notes text not null default '',
+  proof_url text,
+  verification_status text not null default 'unreviewed',
+  verification_notes text not null default '',
+  created_by text not null default 'admin'
+);
+
+create table if not exists contractor_expense_entries (
+  id uuid primary key default gen_random_uuid(),
+  contractor_submission_id uuid not null references contractor_submissions(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  entry_date date not null,
+  vendor_name text not null,
+  category text not null default 'general',
+  amount numeric(12,2) not null default 0,
+  deductible_percent numeric(5,2) not null default 100,
+  notes text not null default '',
+  proof_url text,
+  verification_status text not null default 'unreviewed',
+  verification_notes text not null default '',
+  created_by text not null default 'admin'
+);
+
+create table if not exists contractor_verification_packets (
+  id uuid primary key default gen_random_uuid(),
+  contractor_submission_id uuid not null references contractor_submissions(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  period_start date not null,
+  period_end date not null,
+  status text not null default 'draft',
+  verification_tier text not null default 'company_verified',
+  issued_by_name text not null default 'Skyes Over London',
+  issued_by_title text not null default 'Chief Executive Officer',
+  company_name text not null default 'Skyes Over London',
+  company_email text not null default 'SkyesOverLondonLC@solenterprises.org',
+  company_phone text not null default '4804695416',
+  statement_text text not null default '',
+  packet_notes text not null default '',
+  packet_hash text,
+  unique (contractor_submission_id, period_start, period_end)
+);
+
+create index if not exists idx_contractor_income_entries_submission on contractor_income_entries(contractor_submission_id, entry_date desc);
+create index if not exists idx_contractor_expense_entries_submission on contractor_expense_entries(contractor_submission_id, entry_date desc);
+create index if not exists idx_contractor_verification_packets_submission on contractor_verification_packets(contractor_submission_id, period_start desc, period_end desc);
+
+drop trigger if exists trg_contractor_income_entries_updated_at on contractor_income_entries;
+create trigger trg_contractor_income_entries_updated_at
+before update on contractor_income_entries
+for each row
+execute function set_updated_at();
+
+drop trigger if exists trg_contractor_expense_entries_updated_at on contractor_expense_entries;
+create trigger trg_contractor_expense_entries_updated_at
+before update on contractor_expense_entries
+for each row
+execute function set_updated_at();
+
+drop trigger if exists trg_contractor_verification_packets_updated_at on contractor_verification_packets;
+create trigger trg_contractor_verification_packets_updated_at
+before update on contractor_verification_packets
 for each row
 execute function set_updated_at();
 

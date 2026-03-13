@@ -322,3 +322,90 @@ Passing checks:
 3. Production smokehouse: PASS=13 FAIL=0.
 4. Production app route sweep: PASS=37 FAIL=0.
 
+3/11-3/13
+### E) kAIxU Platform Packaging + Suite Promotion
+1. Reframed the kAIxU family from a loose collection of app surfaces into a marketable platform line with a real front door.
+2. Upgraded `public/kAIxUSuite/index.html` so the suite reads like a product launcher with four sellable tracks instead of a raw app dump:
+3. `Genesis Studio`
+4. `World Engine`
+5. `Mythic Intelligence`
+6. `Command Deck`
+7. Built a dedicated public-facing kAIxU landing page at `public/kAIxU/index.html` for sales/demo use outside the suite launcher.
+8. Promoted `kAIxU-Matrix` and `kAIxu-Persona` into the formal kAIxU family so the platform story matched the actual public surface inventory.
+9. Updated `src/App.tsx` registry + route metadata so Matrix, Persona, the suite, and the dedicated platform landing page all resolve from the main shell.
+10. Updated `public/_shared/standalone-session.js` so the shared launcher rail recognizes the new platform page and the newly formalized family members.
+
+### F) kAIxU Individual App Packaging + Runtime Hardening
+1. Added a shared kAIxU positioning layer at `public/_shared/kaixu-platform-frame.js`.
+2. That frame injects a buyer-facing ribbon onto each individual kAIxU app page so every app now carries:
+3. track positioning
+4. product title framing
+5. buyer-specific summary
+6. outcome language
+7. links back into the kAIxU platform/suite surfaces
+8. Stamped explicit `data-app-id` values across the kAIxU family so the shared launcher/session/runtime infrastructure can identify each app correctly.
+9. Tightened the positioning copy so each app now reads like its own sellable product rather than just a generic member of the family.
+10. Discovery exposure was expanded by adding the kAIxU platform landing page into more launch surfaces, including contractor and GBP suite entry points.
+
+### G) kAIxU Smoke Timeline: The Full Failure -> Patch -> Pass Story
+1. Built a dedicated heavyweight browser smoke at `scripts/smoke-kaixu-platform-playwright.mjs` and added `npm run smoke:kaixu-platform` in `package.json`.
+2. The smoke checks both direct surface loads and shell embedding for the kAIxU platform page, suite page, and the individual app family.
+3. The target was not cosmetic. The target was to prove the family actually mounts, identifies itself correctly, and survives real navigation in the runtime.
+4. First smoke attempt failed before the suite was even tested because Playwright browser binaries were missing.
+5. Patched by installing the required Playwright browser package.
+6. Second smoke attempt failed before browser execution because the Linux runtime dependencies required by Playwright/Chromium were missing in the container.
+7. Patched by installing the missing Linux shared library dependencies.
+8. Third smoke attempt finally ran real browser checks and exposed the first true reliability wave.
+9. Failures at that stage were a mix of:
+10. preview/service-worker noise creating false negatives
+11. over-strict structural expectations in the smoke itself
+12. real shared-frame boot timing risk in the kAIxU product-positioning bridge
+13. Patched the shared kAIxU frame bootstrap so it no longer assumes body/nav markup already exists before execution.
+14. Patched the smoke expectations so preview-only service-worker registration noise would not be mistaken for app failure.
+15. Patched the smoke to use per-surface structural requirements instead of forcing every kAIxU surface into the exact same mount assumptions.
+16. Fourth smoke attempt improved sharply and collapsed the failure list down to one remaining real offender: `kAixu-Nexus`.
+17. Root cause there was structural drift caused by the Vue-driven layout/mount behavior. The generic injected frame assumptions were not reliable enough for Nexus.
+18. Patched `public/kAixu-Nexus/index.html` with explicit runtime anchors, including a native `#kaixu-platform-frame` ribbon and a stable navbar identifier.
+19. Final smoke run passed clean.
+20. Verified result: `surfaces=16`, `checks=32`, `failed=0`.
+21. Artifact emitted at `artifacts/kaixu-platform-smoke.json`.
+22. Bottom line: the smoke did exactly what it was supposed to do. It found real bootstrap risk, one structural outlier, a bunch of false-negative assumptions, and forced the kAIxU family into a genuinely reliable shipped state instead of a hand-wavy “looks good” state.
+
+### H) Contractor Verification Suite Integration
+1. Inspected the newly dropped contractor folder at `public/contractor income verification drop in/APP SURFACE/public`.
+2. Confirmed this was not 15 separate HTML apps. It is one integrated shell that already contains 15 contractor modules inside a single runtime-friendly page.
+3. Wired that surface into the formal SuperIDE contractor system instead of leaving it isolated as a standalone local-first drop-in.
+4. Registered it in `src/App.tsx` as `ContractorVerificationSuite` and mapped it into the main shell surface paths.
+5. Added it to the shared launcher/session bridge in `public/_shared/standalone-session.js`.
+6. Added launch routes into:
+7. `public/ContractorWorkflowSuite/index.html`
+8. `public/ContractorNetwork/index.html`
+9. `public/ContractorIncomeVerification/index.html`
+10. Retrofitted the suite HTML to use shared auth/session/workspace scripts, runtime metadata, and contractor lane links.
+11. Fixed the broken placeholder logo/manifest reference and replaced it with a live in-repo asset.
+12. Updated the suite logic so IndexedDB persistence is now scoped to the active workspace instead of dumping every operator into one local database.
+13. Added shared workspace carry behavior so contractor launches preserve `ws_id` when moving between the contractor suite, ContractorNetwork, Income Verification, and the larger shell.
+14. Added optional workspace-record sync so the suite can participate in the same shared runtime posture as the rest of the integrated surfaces.
+
+### I) Platform Vault Storage Protocol
+1. Formalized a new shared storage standard for standalone app surfaces.
+2. The standard is: serious apps do not stop at local-only persistence.
+3. Every meaningful app surface should have:
+4. workspace-scoped record sync through the app-record rail
+5. direct push-to-vault staging into SkyeVault Pro
+6. reverse import/handoff compatibility from the vault back into app surfaces
+7. Built a reusable shared browser helper at `public/_shared/app-storage-protocol.js` so new apps can adopt this with a script include + a small config block instead of bespoke storage glue every time.
+8. Expanded the backend app-record allowlist in `netlify/functions/_shared/app-records.ts` so the protocol can be adopted across more of the platform instead of staying boxed into a few surfaces.
+9. Wrote a dedicated standard file at `DEVV ONLY NO GIT/Vault Storage Protocol Standard.md` so this is now captured as project protocol, not just one patch.
+
+### J) Contractor Verification Smoke
+1. Added a dedicated Playwright smoke at `scripts/smoke-contractor-verification-playwright.mjs`.
+2. Added npm entrypoint: `npm run smoke:contractor-verification`.
+3. This smoke validates:
+4. direct contractor verification suite load
+5. shell embedding from the main SuperIDE runtime
+6. all 15 contractor modules opening from nav
+7. core selector presence for every module
+8. quick data persistence through reload
+9. runtime chrome presence including sync/vault controls
+

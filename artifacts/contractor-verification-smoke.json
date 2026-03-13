@@ -1,0 +1,157 @@
+{
+  "generated_at": "2026-03-13T12:39:24.553Z",
+  "site_base": "http://127.0.0.1:4173",
+  "ws_id": "primary-workspace",
+  "checks_total": 2,
+  "checks_failed": 0,
+  "ok": true,
+  "surface": {
+    "kind": "surface",
+    "url": "http://127.0.0.1:4173/contractor income verification drop in/APP SURFACE/public/index.html?ws_id=primary-workspace",
+    "ok": true,
+    "status": 200,
+    "bodyAppId": "ContractorVerificationSuite",
+    "hasRuntimeBar": true,
+    "hasSyncStatus": true,
+    "hasVaultStatus": true,
+    "hasPushVaultBtn": true,
+    "navCount": 16,
+    "persistence": {
+      "beforeReload": {
+        "income": "$412.25",
+        "expense": "$91.10",
+        "evidence": "1",
+        "ok": true
+      },
+      "afterReload": {
+        "income": "$412.25",
+        "expense": "$91.10",
+        "evidence": "1",
+        "ok": true
+      }
+    },
+    "moduleResults": {
+      "proofPacketStudio": {
+        "sectionPresent": true,
+        "selectors": {
+          "#packetPreview": true,
+          "#packetTitle": true
+        }
+      },
+      "evidenceVault": {
+        "sectionPresent": true,
+        "selectors": {
+          "#evidenceForm": true,
+          "#evidenceList": true
+        }
+      },
+      "incomeStabilityScoreboard": {
+        "sectionPresent": true,
+        "selectors": {
+          ".cvs-chart-bars": true,
+          ".cvs-grid-4": true
+        }
+      },
+      "credentialWallet": {
+        "sectionPresent": true,
+        "selectors": {
+          "#credForm": true,
+          "#credList": true
+        }
+      },
+      "disputeDefenseBuilder": {
+        "sectionPresent": true,
+        "selectors": {
+          "#disputeForm": true,
+          "#disputeList": true
+        }
+      },
+      "taxBucketPlanner": {
+        "sectionPresent": true,
+        "selectors": {
+          ".cvs-grid-4": true,
+          ".cvs-note": true
+        }
+      },
+      "clientDependenceRadar": {
+        "sectionPresent": true,
+        "selectors": {
+          ".cvs-chart-bars": true
+        }
+      },
+      "mileageFieldLedger": {
+        "sectionPresent": true,
+        "selectors": {
+          "#tripForm": true,
+          "#tripList": true
+        }
+      },
+      "invoiceConfidenceDesk": {
+        "sectionPresent": true,
+        "selectors": {
+          "#invoiceForm": true,
+          "#invoiceList": true
+        }
+      },
+      "cashflowCalendar": {
+        "sectionPresent": true,
+        "selectors": {
+          ".cvs-calendar": true
+        }
+      },
+      "receiptRescue": {
+        "sectionPresent": true,
+        "selectors": {
+          "#receiptForm": true,
+          "#receiptList": true
+        }
+      },
+      "verificationLetterComposer": {
+        "sectionPresent": true,
+        "selectors": {
+          "#letterPreview": true,
+          "#letterRecipient": true
+        }
+      },
+      "contractorOperatingProfile": {
+        "sectionPresent": true,
+        "selectors": {
+          "#profileForm": true,
+          ".cvs-print-frame": true
+        }
+      },
+      "leadToContractBoard": {
+        "sectionPresent": true,
+        "selectors": {
+          "#leadForm": true,
+          "#leadBoard": true
+        }
+      },
+      "missingProofDetector": {
+        "sectionPresent": true,
+        "selectors": {
+          ".cvs-note": true
+        }
+      }
+    },
+    "errors": [],
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+      "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+      "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+      "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+    ],
+    "ms": 5429
+  },
+  "shell": {
+    "kind": "shell",
+    "url": "http://127.0.0.1:4173/index.html?app=ContractorVerificationSuite&ws_id=primary-workspace",
+    "ok": true,
+    "status": 200,
+    "hasModule": true,
+    "hasFrame": true,
+    "namesApp": false,
+    "errors": [],
+    "ms": 2080
+  }
+}

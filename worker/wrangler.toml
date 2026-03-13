@@ -1,6 +1,7 @@
 name = "kaixu-superide-runner"
 main = "src/index.ts"
 compatibility_date = "2025-12-01"
+workers_dev = true
 
 # Bindings for KV and R2.  The KV namespace stores encrypted
 # secrets (e.g. Netlify tokens) per user, and the R2 bucket

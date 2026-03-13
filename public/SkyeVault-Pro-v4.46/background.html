@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SkyeVault Pro Background</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden; pointer-events:none;
+            background-color: #050011; /* Deep space purple */
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+        #loading-screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background-color: #050011;
+            color: #bc13fe;
+            z-index: 10;
+            transition: opacity 0.5s ease;
+        }
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(188, 19, 254, 0.3);
+            border-top: 4px solid #bc13fe;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        #error-msg {
+            display: none;
+            color: #ff3366;
+            margin-top: 10px;
+            text-align: center;
+            max-width: 80%;
+        }
+    </style>
+</head>
+<body>
+    <!-- Three.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <script>
+        let scene, camera, renderer;
+        let floorGrid, ceilingGrid;
+        let particlesMesh;
+        let logoGroup;
+        let goldObjects = [];
+        let logoLight, logoGlow;
+        
+        let mouseX = 0;
+        let mouseY = 0;
+        let targetX = 0;
+        let targetY = 0;
+
+        const windowHalfX = window.innerWidth / 2;
+        const windowHalfY = window.innerHeight / 2;
+        const clock = new THREE.Clock();
+
+        // Grid settings for the infinite loop
+        const gridTotalSize = 400;
+        const gridSegments = 80;
+        const gridSegmentSize = gridTotalSize / gridSegments; // = 5 units
+        const gridSpeed = 15; // Speed of the infinite loop
+
+        // Define colors
+        const bgColor = 0x050011;
+        const neonPurple = 0xa200ff;
+        const neonPink = 0xff00aa;
+        const goldColor = 0xffd700;
+
+        window.onload = function() { init(); };
+
+        function removeLoadingScreen() {}
+
+        function init() {
+            // 1. Scene Setup
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(bgColor);
+            scene.fog = new THREE.FogExp2(bgColor, 0.012); // Fog creates the depth fade-out effect
+
+            // 2. Camera Setup
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 500);
+            camera.position.set(0, 0, 10);
+
+            // 3. Renderer Setup
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Optimize for high-DPI
+            document.body.appendChild(renderer.domElement);
+
+            // 4. Create Infinite Neon Grids
+            const gridGeo = new THREE.PlaneGeometry(gridTotalSize, gridTotalSize, gridSegments, gridSegments);
+            
+            // Floor Grid (Purple)
+            const floorMat = new THREE.MeshBasicMaterial({
+                color: neonPurple,
+                wireframe: true,
+                transparent: true,
+                opacity: 0.4,
+                blending: THREE.AdditiveBlending
+            });
+            floorGrid = new THREE.Mesh(gridGeo, floorMat);
+            floorGrid.rotation.x = -Math.PI / 2;
+            floorGrid.position.y = -12;
+            scene.add(floorGrid);
+
+            // Ceiling Grid (Pink)
+            const ceilingMat = new THREE.MeshBasicMaterial({
+                color: neonPink,
+                wireframe: true,
+                transparent: true,
+                opacity: 0.2,
+                blending: THREE.AdditiveBlending
+            });
+            ceilingGrid = new THREE.Mesh(gridGeo, ceilingMat);
+            ceilingGrid.rotation.x = Math.PI / 2;
+            ceilingGrid.position.y = 12;
+            scene.add(ceilingGrid);
+
+            // 5. Add Floating Particles (Stardust)
+            const particlesGeo = new THREE.BufferGeometry();
+            const particlesCount = 800;
+            const posArray = new Float32Array(particlesCount * 3);
+            
+            for(let i = 0; i < particlesCount * 3; i++) {
+                posArray[i] = (Math.random() - 0.5) * 150; // Spread across x,y,z
+            }
+            
+            particlesGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+            const particlesMat = new THREE.PointsMaterial({
+                size: 0.3,
+                color: neonPink,
+                transparent: true,
+                opacity: 0.8,
+                blending: THREE.AdditiveBlending
+            });
+            
+            particlesMesh = new THREE.Points(particlesGeo, particlesMat);
+            scene.add(particlesMesh);
+
+            // 5.5 Add Lighting and Gold Objects
+            const ambientLight = new THREE.AmbientLight(0x400040, 1.5); // Soft purple ambient
+            scene.add(ambientLight);
+
+            const goldGeo = new THREE.OctahedronGeometry(1.5, 0); // Geometric shape
+            const goldMat = new THREE.MeshStandardMaterial({
+                color: goldColor,
+                metalness: 0.9,
+                roughness: 0.1,
+                emissive: 0x332200 // Slight warm internal glow
+            });
+
+            for (let i = 0; i < 25; i++) {
+                const mesh = new THREE.Mesh(goldGeo, goldMat);
+                mesh.position.set(
+                    (Math.random() - 0.5) * 80,
+                    (Math.random() - 0.5) * 30,
+                    (Math.random() - 0.5) * 100 - 20
+                );
+                mesh.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, 0);
+                
+                const s = Math.random() * 1.5 + 0.5;
+                mesh.scale.set(s, s, s);
+                
+                mesh.userData = {
+                    rx: (Math.random() - 0.5) * 0.03,
+                    ry: (Math.random() - 0.5) * 0.03,
+                    floatSpeed: Math.random() * 0.03 + 0.01,
+                    floatOffset: Math.random() * Math.PI * 2
+                };
+                
+                scene.add(mesh);
+                goldObjects.push(mesh);
+            }
+
+            // 6. Load Logo Texture
+            logoGroup = new THREE.Group();
+            scene.add(logoGroup);
+            logoGroup.position.z = -15; // Push it back into the scene
+
+            const textureLoader = new THREE.TextureLoader();
+            textureLoader.crossOrigin = "Anonymous"; // Required for external URLs
+            
+            const logoUrl = './assets/img/skyes-logo.png';
+
+            textureLoader.load(
+                logoUrl,
+                // onSuccess
+                function (texture) {
+                    texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+                    const processed = preprocessLogoTexture(texture);
+                    buildLogoMesh(processed);
+                    removeLoadingScreen();
+                },
+                // onProgress
+                undefined,
+                // onError
+                function (err) {
+                    console.warn('CORS prevented loading the image directly. Generating a fallback aesthetic.');
+                            
+                    // Fallback geometric logo if the image URL blocks canvas CORS
+                    buildFallbackLogo();
+                    
+                }
+            );
+
+            // 7. Event Listeners
+            window.addEventListener('resize', onWindowResize);
+            document.addEventListener('mousemove', onDocumentMouseMove);
+            
+            // Add touch support for mobile parallax
+            document.addEventListener('touchmove', (e) => {
+                if(e.touches.length > 0) {
+                    mouseX = (e.touches[0].clientX - windowHalfX);
+                    mouseY = (e.touches[0].clientY - windowHalfY);
+                }
+            });
+
+            // 8. Start Animation Loop
+            animate();
+        }
+
+
+        function preprocessLogoTexture(texture) {
+            try {
+                const image = texture.image;
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+                canvas.width = image.width;
+                canvas.height = image.height;
+                ctx.drawImage(image, 0, 0);
+
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const data = imageData.data;
+
+                const samplePoints = [
+                    [1, 1],
+                    [canvas.width - 2, 1],
+                    [1, canvas.height - 2],
+                    [canvas.width - 2, canvas.height - 2],
+                    [Math.floor(canvas.width / 2), 1],
+                    [Math.floor(canvas.width / 2), canvas.height - 2],
+                    [1, Math.floor(canvas.height / 2)],
+                    [canvas.width - 2, Math.floor(canvas.height / 2)]
+                ].filter(([x, y]) => x >= 0 && y >= 0 && x < canvas.width && y < canvas.height);
+
+                let bgR = 0, bgG = 0, bgB = 0, bgA = 0;
+                for (const [x, y] of samplePoints) {
+                    const idx = (y * canvas.width + x) * 4;
+                    bgR += data[idx];
+                    bgG += data[idx + 1];
+                    bgB += data[idx + 2];
+                    bgA += data[idx + 3];
+                }
+
+                const totalSamples = Math.max(samplePoints.length, 1);
+                bgR /= totalSamples;
+                bgG /= totalSamples;
+                bgB /= totalSamples;
+                bgA /= totalSamples;
+
+                const tolerance = 42;
+                const edgeFeather = 18;
+
+                for (let i = 0; i < data.length; i += 4) {
+                    const dr = data[i] - bgR;
+                    const dg = data[i + 1] - bgG;
+                    const db = data[i + 2] - bgB;
+                    const distance = Math.sqrt(dr * dr + dg * dg + db * db);
+
+                    if (distance < tolerance) {
+                        const fade = distance / tolerance;
+                        data[i + 3] = Math.min(data[i + 3], Math.floor(255 * fade * 0.15));
+                    } else if (distance < tolerance + edgeFeather) {
+                        const fade = (distance - tolerance) / edgeFeather;
+                        data[i + 3] = Math.min(data[i + 3], Math.floor(255 * fade));
+                    }
+                }
+
+                ctx.putImageData(imageData, 0, 0);
+
+                const bounds = getOpaqueBounds(ctx, canvas.width, canvas.height);
+                if (bounds) {
+                    const trimCanvas = document.createElement('canvas');
+                    const trimCtx = trimCanvas.getContext('2d');
+
+                    trimCanvas.width = bounds.width;
+                    trimCanvas.height = bounds.height;
+                    trimCtx.drawImage(
+                        canvas,
+                        bounds.x,
+                        bounds.y,
+                        bounds.width,
+                        bounds.height,
+                        0,
+                        0,
+                        bounds.width,
+                        bounds.height
+                    );
+
+                    const trimmedTexture = new THREE.CanvasTexture(trimCanvas);
+                    trimmedTexture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+                    trimmedTexture.needsUpdate = true;
+                    return trimmedTexture;
+                }
+
+                const processedTexture = new THREE.CanvasTexture(canvas);
+                processedTexture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+                processedTexture.needsUpdate = true;
+                return processedTexture;
+            } catch (err) {
+                console.warn('Logo preprocessing skipped:', err);
+                return texture;
+            }
+        }
+
+        function getOpaqueBounds(ctx, width, height) {
+            const pixels = ctx.getImageData(0, 0, width, height).data;
+            let minX = width;
+            let minY = height;
+            let maxX = -1;
+            let maxY = -1;
+
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const alpha = pixels[(y * width + x) * 4 + 3];
+                    if (alpha > 20) {
+                        if (x < minX) minX = x;
+                        if (y < minY) minY = y;
+                        if (x > maxX) maxX = x;
+                        if (y > maxY) maxY = y;
+                    }
+                }
+            }
+
+            if (maxX < minX || maxY < minY) return null;
+
+            const padding = 8;
+            minX = Math.max(0, minX - padding);
+            minY = Math.max(0, minY - padding);
+            maxX = Math.min(width - 1, maxX + padding);
+            maxY = Math.min(height - 1, maxY + padding);
+
+            return {
+                x: minX,
+                y: minY,
+                width: maxX - minX + 1,
+                height: maxY - minY + 1
+            };
+        }
+
+        function buildLogoMesh(texture) {
+            // Calculate aspect ratio dynamically
+            const aspect = texture.image.width / texture.image.height;
+            const baseHeight = 12;
+            const baseWidth = baseHeight * aspect;
+
+            // Main logo plane
+            const logoGeo = new THREE.PlaneGeometry(baseWidth, baseHeight);
+            const logoMat = new THREE.MeshBasicMaterial({
+                map: texture,
+                transparent: true,
+                alphaTest: 0.08,
+                side: THREE.DoubleSide
+            });
+            const logoMesh = new THREE.Mesh(logoGeo, logoMat);
+            
+            // Create a soft glowing aura sprite (no hard container edges)
+            const canvas = document.createElement('canvas');
+            canvas.width = 128; canvas.height = 128;
+            const ctx = canvas.getContext('2d');
+            const gradient = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+            gradient.addColorStop(0, 'rgba(255, 215, 0, 0.6)');
+            gradient.addColorStop(0.4, 'rgba(255, 215, 0, 0.2)');
+            gradient.addColorStop(1, 'rgba(255, 215, 0, 0)');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, 128, 128);
+            
+            const glowTexture = new THREE.CanvasTexture(canvas);
+            const glowMat = new THREE.SpriteMaterial({ 
+                map: glowTexture, 
+                color: goldColor, 
+                transparent: true, 
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+            logoGlow = new THREE.Sprite(glowMat);
+            logoGlow.userData = { baseX: baseWidth * 2.5, baseY: baseHeight * 2.5 };
+            logoGlow.scale.set(logoGlow.userData.baseX, logoGlow.userData.baseY, 1);
+            logoGlow.position.z = -0.5; // Slightly behind logo
+
+            // Gold Point Light to illuminate the floating gold objects
+            logoLight = new THREE.PointLight(goldColor, 2, 80);
+            logoLight.position.z = 2; // Slightly in front to cast light
+
+            logoGroup.add(logoMesh);
+            logoGroup.add(logoGlow);
+            logoGroup.add(logoLight);
+        }
+
+        function buildFallbackLogo() {
+            // If the image fails due to cross-origin issues, we build a cool 3D neon shape
+            const geo = new THREE.OctahedronGeometry(5, 0);
+            const mat = new THREE.MeshBasicMaterial({ 
+                color: goldColor, 
+                wireframe: true,
+                transparent: true,
+                opacity: 0.8,
+                blending: THREE.AdditiveBlending
+            });
+            const mesh = new THREE.Mesh(geo, mat);
+            
+            const geo2 = new THREE.OctahedronGeometry(3, 0);
+            const mat2 = new THREE.MeshBasicMaterial({ color: neonPurple, wireframe: true });
+            const mesh2 = new THREE.Mesh(geo2, mat2);
+            
+            // Add point light to fallback as well
+            logoLight = new THREE.PointLight(goldColor, 2, 80);
+            logoLight.position.z = 2;
+
+            logoGroup.add(mesh);
+            logoGroup.add(mesh2);
+            logoGroup.add(logoLight);
+            
+            // Auto rotate fallback shape
+            logoGroup.userData.isFallback = true;
+        }
+
+        function removeLoadingScreen() {
+            const loader = document.getElementById('loading-screen');
+            loader.style.opacity = '0';
+            setTimeout(() => { loader.style.display = 'none'; }, 500);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function onDocumentMouseMove(event) {
+            mouseX = (event.clientX - windowHalfX);
+            mouseY = (event.clientY - windowHalfY);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const dt = clock.getDelta();
+            const time = clock.getElapsedTime();
+
+            // 1. Infinite Grid Loop Math
+            // Move the grids towards the camera along the Z axis
+            floorGrid.position.z += gridSpeed * dt;
+            ceilingGrid.position.z += gridSpeed * dt;
+
+            // When the grid moves forward by exactly one segment size, snap it back.
+            // This creates a perfectly seamless infinite scrolling illusion.
+            if (floorGrid.position.z >= gridSegmentSize) {
+                floorGrid.position.z -= gridSegmentSize;
+                ceilingGrid.position.z -= gridSegmentSize;
+            }
+
+            // 2. Parallax Camera Movement
+            // Smoothly interpolate current camera target towards mouse position
+            targetX = mouseX * 0.005;
+            targetY = mouseY * 0.005;
+            
+            camera.position.x += (targetX - camera.position.x) * 0.05;
+            camera.position.y += (-targetY - camera.position.y) * 0.05;
+            camera.lookAt(scene.position);
+
+            // 3. Logo Animation
+            if (logoGroup) {
+                // Gentle floating up and down
+                logoGroup.position.y = Math.sin(time * 1.5) * 1.5;
+                
+                // Slight rotation based on time and mouse
+                logoGroup.rotation.y = Math.sin(time * 0.5) * 0.2 + (camera.position.x * 0.1);
+                logoGroup.rotation.z = Math.cos(time * 0.8) * 0.05;
+
+                // Gold Pulse Effect
+                const pulse = 1 + Math.sin(time * 4) * 0.03; // Gentle scale pulse
+                logoGroup.scale.set(pulse, pulse, pulse);
+
+                if (logoLight) {
+                    logoLight.intensity = 2 + Math.sin(time * 8) * 1.5; // Fast light flicker/pulse
+                }
+                if (logoGlow) {
+                    const glowPulse = 1 + Math.sin(time * 4) * 0.15; // Glow expands
+                    logoGlow.material.opacity = 0.5 + Math.sin(time * 8) * 0.3; // Glow intensity fades in/out
+                    logoGlow.scale.set(
+                        logoGlow.userData.baseX * glowPulse, 
+                        logoGlow.userData.baseY * glowPulse, 
+                        1
+                    );
+                }
+
+                // If using the 3D geometry fallback, spin it
+                if(logoGroup.userData.isFallback) {
+                    logoGroup.children[0].rotation.y += 0.01;
+                    logoGroup.children[1].rotation.x -= 0.02;
+                }
+            }
+
+            // Animate Gold Objects
+            for (let i = 0; i < goldObjects.length; i++) {
+                const obj = goldObjects[i];
+                obj.rotation.x += obj.userData.rx;
+                obj.rotation.y += obj.userData.ry;
+                obj.position.y += Math.sin(time * 2 + obj.userData.floatOffset) * obj.userData.floatSpeed;
+                
+                // Move slowly towards camera to match grid flow
+                obj.position.z += gridSpeed * 0.3 * dt; 
+                if (obj.position.z > 20) {
+                    obj.position.z = -80; // Loop them to the back seamlessly
+                }
+            }
+
+            // 4. Particle Animation
+            if (particlesMesh) {
+                particlesMesh.rotation.z += 0.001;
+                particlesMesh.position.z += 2 * dt; // Particles flow towards camera
+                if (particlesMesh.position.z > 50) {
+                    particlesMesh.position.z = -50; // Reset particle block
+                }
+            }
+
+            // Render Frame
+            renderer.render(scene, camera);
+        }
+    </script>
+</body>
+</html>

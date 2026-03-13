@@ -20,7 +20,7 @@ Optional:
 - ADMIN_IDENTITY_ANYONE=true (not recommended)
 
 ## Neon
-Run `neon-schema.sql` in Neon SQL editor.
+Run `db/schema.sql` in the main project root in Neon SQL editor.
 
 ## Local dev
 npm install

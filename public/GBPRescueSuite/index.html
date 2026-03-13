@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GBP Rescue Suite</title>
+  <script src="/_shared/auth-unlock.js"></script>
+  <script src="/_shared/standalone-session.js"></script>
+  <style>
+    :root {
+      --bg: #070510;
+      --panel: rgba(255,255,255,.055);
+      --line: rgba(255,255,255,.12);
+      --text: #f7f4ff;
+      --muted: #bbb3cb;
+      --gold: #f4c95d;
+      --magenta: #d455ff;
+      --indigo: #6f80ff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; color: var(--text); font: 15px/1.5 Inter, Arial, sans-serif;
+      background:
+        radial-gradient(circle at 18% 20%, rgba(212,85,255,.24), transparent 28%),
+        radial-gradient(circle at 78% 12%, rgba(111,128,255,.18), transparent 26%),
+        radial-gradient(circle at 70% 78%, rgba(244,201,93,.12), transparent 30%),
+        var(--bg);
+    }
+    .shell { max-width: 1320px; margin: 0 auto; padding: 28px; }
+    .hero, .panel, .card { border:1px solid var(--line); background: var(--panel); border-radius: 24px; }
+    .hero { padding: 28px; margin-bottom: 18px; }
+    .eyebrow { color: var(--gold); font-size: 11px; text-transform: uppercase; letter-spacing: .2em; }
+    h1 { margin: 10px 0; font-size: clamp(2rem, 4vw, 3.7rem); line-height: 1; }
+    p { color: var(--muted); }
+    .hero-actions, .card-actions { display:flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+    .hero-actions a, .card-actions a { text-decoration:none; color:var(--text); padding: 11px 14px; border-radius: 999px; border:1px solid var(--line); background: rgba(255,255,255,.04); }
+    .hero-actions a.primary { background: linear-gradient(135deg, rgba(212,85,255,.25), rgba(111,128,255,.22)); }
+    .grid-main { display:grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 14px; }
+    .grid-support { display:grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 14px; margin-top: 14px; }
+    .card { padding: 18px; min-height: 210px; display:flex; flex-direction:column; }
+    .card .kicker { color: var(--gold); font-size: 11px; text-transform: uppercase; letter-spacing: .14em; }
+    .card h2 { margin: 12px 0 8px; font-size: 20px; }
+    .card p { flex: 1; }
+    .playbook { display:grid; grid-template-columns: 1.15fr .85fr; gap: 16px; margin-top: 18px; }
+    .panel { padding: 20px; }
+    ol { margin:0; padding-left: 20px; }
+    li { margin: 0 0 10px; color: var(--muted); }
+    .stats { display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; margin-top: 12px; }
+    .stat { border:1px solid var(--line); border-radius: 16px; padding: 14px; background: rgba(255,255,255,.03); }
+    .stat strong { display:block; font-size: 24px; margin-top: 8px; }
+    @media (max-width: 1180px) { .grid-main, .grid-support { grid-template-columns: repeat(2, minmax(0,1fr)); } .playbook { grid-template-columns: 1fr; } }
+    @media (max-width: 680px) { .grid-main, .grid-support { grid-template-columns: 1fr; } .stats { grid-template-columns: repeat(2, minmax(0,1fr)); } .shell { padding: 18px; } }
+  </style>
+</head>
+<body data-app-id="GBPRescueSuite">
+  <div class="shell">
+    <section class="hero">
+      <div class="eyebrow">Mini Suite</div>
+      <h1>GBP Rescue Suite</h1>
+      <p>This launcher groups the Google Business Profile rescue workflow into one operating suite: Intake, Evidence, Appeals, Outreach, and Monitoring as the dedicated rescue apps, with AE Flow, SkyeMail, SkyeChat, Neural Space Pro, and SkyeDrive attached as execution lanes.</p>
+      <div class="hero-actions">
+        <a class="primary carry" href="/GoogleBusinessProfileRescuePlatform/index.html">Open GBP Hub</a>
+        <a class="carry" href="/GoogleBusinessProfileRescuePlatform/apps/intake/index.html">Launch Intake</a>
+        <a class="carry" href="/GoogleBusinessProfileRescuePlatform/apps/evidence/index.html">Open Evidence</a>
+        <a class="carry" href="/GoogleBusinessProfileRescuePlatform/apps/appeals/index.html">Open Appeals</a>
+        <a class="carry" href="/GoogleBusinessProfileRescuePlatform/apps/outreach/index.html">Open Outreach</a>
+        <a class="carry" href="/GoogleBusinessProfileRescuePlatform/apps/monitoring/index.html">Open Monitoring</a>
+        <a class="carry" href="/kAIxU/index.html">Open kAIxU Platform</a>
+      </div>
+      <div class="stats">
+        <div class="stat"><span>Dedicated Rescue Apps</span><strong>5</strong></div>
+        <div class="stat"><span>Support Lanes</span><strong>5</strong></div>
+        <div class="stat"><span>Runtime Persistence</span><strong>Live</strong></div>
+        <div class="stat"><span>Case Loop</span><strong>Connected</strong></div>
+      </div>
+    </section>
+
+    <section class="grid-main">
+      <article class="card"><div class="kicker">App 01</div><h2>Intake</h2><p>Capture business identity, issue type, owner, timeline, market, and the first case diagnosis.</p><div class="card-actions"><a class="carry" href="/GoogleBusinessProfileRescuePlatform/apps/intake/index.html">Open App</a></div></article>
+      <article class="card"><div class="kicker">App 02</div><h2>Evidence</h2><p>Track licenses, utility bills, photos, and support threads in the proof lane.</p><div class="card-actions"><a class="carry" href="/GoogleBusinessProfileRescuePlatform/apps/evidence/index.html">Open App</a></div></article>
+      <article class="card"><div class="kicker">App 03</div><h2>Appeals</h2><p>Build the reinstatement narrative and final escalation brief from shared case state.</p><div class="card-actions"><a class="carry" href="/GoogleBusinessProfileRescuePlatform/apps/appeals/index.html">Open App</a></div></article>
+      <article class="card"><div class="kicker">App 04</div><h2>Outreach</h2><p>Prepare support emails, client updates, and operator comms without rewriting the case.</p><div class="card-actions"><a class="carry" href="/GoogleBusinessProfileRescuePlatform/apps/outreach/index.html">Open App</a></div></article>
+      <article class="card"><div class="kicker">App 05</div><h2>Monitoring</h2><p>Track follow-up windows, watchtower notes, and next review actions after escalation.</p><div class="card-actions"><a class="carry" href="/GoogleBusinessProfileRescuePlatform/apps/monitoring/index.html">Open App</a></div></article>
+    </section>
+
+    <section class="grid-support">
+      <article class="card"><div class="kicker">Support Lane</div><h2>AE Flow</h2><p>Turn rescue cases into CRM execution and operator follow-through when outreach becomes work.</p><div class="card-actions"><a class="carry" href="/AE-Flow/index.html">Open Lane</a></div></article>
+      <article class="card"><div class="kicker">Support Lane</div><h2>SkyeMail</h2><p>Send escalation drafts and client updates from the shared case packet.</p><div class="card-actions"><a class="carry" href="/SkyeMail/index.html">Open Lane</a></div></article>
+      <article class="card"><div class="kicker">Support Lane</div><h2>SkyeChat</h2><p>Open the rescue ops room for threaded coordination, handoffs, and approvals.</p><div class="card-actions"><a class="carry" href="/SkyeChat/index.html">Open Lane</a></div></article>
+      <article class="card"><div class="kicker">Support Lane</div><h2>Neural Space Pro</h2><p>Refine appeals, diagnose policy issues, and prep next steps before sending.</p><div class="card-actions"><a class="carry" href="/Neural-Space-Pro/index.html">Open Lane</a></div></article>
+      <article class="card"><div class="kicker">Support Lane</div><h2>SkyeDrive</h2><p>Store the evidence packet, exports, and final rescue artifact bundle.</p><div class="card-actions"><a class="carry" href="/SkyeDrive/index.html">Open Lane</a></div></article>
+    </section>
+
+    <section class="playbook">
+      <div class="panel">
+        <div class="eyebrow">Workflow</div>
+        <h2>Recommended Flow</h2>
+        <ol>
+          <li>Start in Intake to define the case and capture the operator ground truth.</li>
+          <li>Move to Evidence to close proof gaps and document everything that supports reinstatement.</li>
+          <li>Use Appeals to shape the narrative and escalate with a clean packet.</li>
+          <li>Send from Outreach, then keep the live follow-up cycle active in Monitoring.</li>
+          <li>Use SkyeMail, SkyeChat, Neural Space Pro, AE Flow, and SkyeDrive as the execution and support lanes around the five rescue apps.</li>
+        </ol>
+      </div>
+      <div class="panel">
+        <div class="eyebrow">Persistence</div>
+        <h2>Shared Runtime, Not A Sidecar</h2>
+        <p>The GBP platform now saves case state through the main runtime app-record rail and falls back locally only when the operator is offline or unsigned. This suite page is only a launcher hub over that same runtime.</p>
+      </div>
+    </section>
+  </div>
+  <script>
+    (function(){
+      const params = new URLSearchParams(window.location.search);
+      const wsId = params.get('ws_id');
+      const caseId = params.get('case_id');
+      document.querySelectorAll('a.carry').forEach((node) => {
+        const url = new URL(node.getAttribute('href'), window.location.origin);
+        if (wsId) url.searchParams.set('ws_id', wsId);
+        if (caseId) url.searchParams.set('case_id', caseId);
+        node.setAttribute('href', `${url.pathname}${url.search}`);
+      });
+    })();
+  </script>
+</body>
+</html>

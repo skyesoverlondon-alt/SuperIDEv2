@@ -106,12 +106,38 @@ export async function ensureUserPinColumns() {
   await q("alter table if exists users add column if not exists pin_updated_at timestamptz", []);
 }
 
-export function setSessionCookie(token: string, expires: Date): string {
-  return `${COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax; Secure; Expires=${expires.toUTCString()}`;
+function shouldUseSecureCookie(event?: any): boolean {
+  const protoHeader = String(
+    event?.headers?.["x-forwarded-proto"] ||
+      event?.headers?.["X-Forwarded-Proto"] ||
+      ""
+  )
+    .split(",")[0]
+    .trim()
+    .toLowerCase();
+
+  if (protoHeader === "https") return true;
+  if (protoHeader === "http") return false;
+
+  const host = String(event?.headers?.host || event?.headers?.Host || "")
+    .trim()
+    .toLowerCase()
+    .split(":")[0];
+
+  if (!host) return true;
+  if (host === "localhost" || host === "127.0.0.1" || host === "::1" || host.endsWith(".localhost")) {
+    return false;
+  }
+
+  return true;
 }
 
-export function clearSessionCookie(): string {
-  return `${COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Secure; Expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+export function setSessionCookie(token: string, expires: Date, event?: any): string {
+  return `${COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax;${shouldUseSecureCookie(event) ? " Secure;" : ""} Expires=${expires.toUTCString()}`;
+}
+
+export function clearSessionCookie(event?: any): string {
+  return `${COOKIE}=; Path=/; HttpOnly; SameSite=Lax;${shouldUseSecureCookie(event) ? " Secure;" : ""} Expires=Thu, 01 Jan 1970 00:00:00 GMT`;
 }
 
 export function forbid() {

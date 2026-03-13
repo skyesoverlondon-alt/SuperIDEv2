@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>kAIxU Platform</title>
+  <script src="/_shared/auth-unlock.js"></script>
+  <script src="/_shared/standalone-session.js"></script>
+  <style>
+    :root {
+      --bg: #090412;
+      --panel: rgba(255,255,255,.05);
+      --line: rgba(255,255,255,.12);
+      --text: #fbf5ff;
+      --muted: #c8bbd7;
+      --gold: #f4c95d;
+      --violet: #9e59ff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--text);
+      font: 15px/1.5 "Avenir Next", "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 14% 14%, rgba(158,89,255,.22), transparent 28%),
+        radial-gradient(circle at 82% 10%, rgba(244,201,93,.14), transparent 24%),
+        radial-gradient(circle at 66% 82%, rgba(255,255,255,.05), transparent 22%),
+        var(--bg);
+    }
+    h1, h2, h3 { font-family: Georgia, "Times New Roman", serif; }
+    .shell { max-width: 1380px; margin: 0 auto; padding: 28px; }
+    .hero, .panel, .card { border: 1px solid var(--line); background: var(--panel); border-radius: 28px; }
+    .hero { padding: 34px; overflow: hidden; position: relative; }
+    .hero::before { content: ""; position: absolute; inset: 0; background: linear-gradient(120deg, rgba(158,89,255,.14), transparent 40%, rgba(244,201,93,.1) 72%, transparent 100%); pointer-events: none; }
+    .hero > * { position: relative; z-index: 1; }
+    .eyebrow { color: var(--gold); font-size: 11px; letter-spacing: .24em; text-transform: uppercase; }
+    h1 { margin: 12px 0; font-size: clamp(2.6rem, 4.6vw, 4.8rem); line-height: .94; max-width: 900px; }
+    p { color: var(--muted); }
+    .hero-copy { max-width: 880px; }
+    .actions, .card-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+    .actions a, .card-actions a { text-decoration: none; color: var(--text); padding: 11px 14px; border-radius: 999px; border: 1px solid var(--line); background: rgba(255,255,255,.04); }
+    .actions a.primary { background: linear-gradient(135deg, rgba(158,89,255,.3), rgba(244,201,93,.22)); }
+    .stats, .track-grid, .product-grid { display: grid; gap: 14px; }
+    .stats { grid-template-columns: repeat(4, minmax(0,1fr)); margin-top: 18px; }
+    .stat, .card { padding: 18px; }
+    .stat { border: 1px solid var(--line); border-radius: 18px; background: rgba(255,255,255,.03); }
+    .stat strong { display: block; font-size: 26px; margin-top: 8px; }
+    .panel { padding: 22px; margin-top: 18px; }
+    .track-grid { grid-template-columns: repeat(4, minmax(0,1fr)); }
+    .product-grid { grid-template-columns: repeat(3, minmax(0,1fr)); }
+    .card { min-height: 230px; display: flex; flex-direction: column; }
+    .card p { flex: 1; }
+    .card .kicker { color: var(--gold); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; }
+    .playbook { display: grid; grid-template-columns: 1.05fr .95fr; gap: 16px; }
+    ol { margin: 0; padding-left: 20px; }
+    li { margin: 0 0 10px; color: var(--muted); }
+    @media (max-width: 1180px) { .track-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } .product-grid, .playbook { grid-template-columns: 1fr; } }
+    @media (max-width: 720px) { .stats, .track-grid, .product-grid, .playbook { grid-template-columns: 1fr; } .shell { padding: 18px; } }
+  </style>
+</head>
+<body data-app-id="kAIxUPlatform">
+  <div class="shell">
+    <section class="hero">
+      <div class="eyebrow">Sales + Demo Landing</div>
+      <div class="hero-copy">
+        <h1>kAIxU Is A Platform Family, Not Just A Tool Cluster.</h1>
+        <p>Use this page when you want to demo or market kAIxU as a standalone platform line inside the SuperIDE ecosystem. It packages the family into clear offers for concept creation, world architecture, mythic systems, and command-level franchise control without exposing the whole internal launcher stack first.</p>
+      </div>
+      <div class="actions">
+        <a class="primary carry" href="/kAIxUSuite/index.html">Open kAIxU Suite</a>
+        <a class="carry" href="/Neural-Space-Pro/index.html">Open Neural Space Pro</a>
+        <a class="carry" href="/kAIxU-Vision/index.html">Launch Vision</a>
+        <a class="carry" href="/kAIxU-Codex/index.html">Launch Codex</a>
+        <a class="carry" href="/kAIxU-PrimeCommand/index.html">Launch PrimeCommand</a>
+      </div>
+      <div class="stats">
+        <div class="stat"><span>Core Apps</span><strong>14</strong></div>
+        <div class="stat"><span>Platform Tracks</span><strong>4</strong></div>
+        <div class="stat"><span>Executive Brain</span><strong>Neural</strong></div>
+        <div class="stat"><span>Runtime Base</span><strong>Shared</strong></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="eyebrow">Offers</div>
+      <h2 style="margin:10px 0 14px; font-size:30px;">Four Ways To Sell The Platform</h2>
+      <div class="track-grid">
+        <article class="card"><div class="kicker">Track 01</div><h3>Genesis Studio</h3><p>Sell kAIxU as the place where universes, franchises, and campaigns are born through Vision, Nexus, and Matrix.</p><div class="card-actions"><a class="carry" href="/kAIxU-Vision/index.html">Vision</a><a class="carry" href="/kAixu-Nexus/index.html">Nexus</a><a class="carry" href="/kAIxU-Matrix/index.html">Matrix</a></div></article>
+        <article class="card"><div class="kicker">Track 02</div><h3>World Engine</h3><p>Position Codex, Atlas, Chronos, and Quest as the architecture stack for canon, maps, histories, and campaign flow.</p><div class="card-actions"><a class="carry" href="/kAIxU-Codex/index.html">Codex</a><a class="carry" href="/kAIxu-Atlas/index.html">Atlas</a><a class="carry" href="/kAixU-Chronos/index.html">Chronos</a><a class="carry" href="/kAIxu-Quest/index.html">Quest</a></div></article>
+        <article class="card"><div class="kicker">Track 03</div><h3>Mythic Intelligence</h3><p>Lead with Mythos, Persona, Faction, Bestiary, and Forge when the buyer cares about cast, lore pressure, creatures, relics, and social power.</p><div class="card-actions"><a class="carry" href="/kAIxu-Mythos/index.html">Mythos</a><a class="carry" href="/kAIxu-Persona/index.html">Persona</a><a class="carry" href="/kAIxU-Faction/index.html">Faction</a><a class="carry" href="/kAIxu-Bestiary/index.html">Bestiary</a><a class="carry" href="/kAIxu-Forge/index.html">Forge</a></div></article>
+        <article class="card"><div class="kicker">Track 04</div><h3>Command Deck</h3><p>Use Neural Space Pro, Atmos, and PrimeCommand when you want the platform to read like an executive command surface instead of a creator sandbox.</p><div class="card-actions"><a class="carry" href="/Neural-Space-Pro/index.html">Neural</a><a class="carry" href="/kAIxu-Atmos/index.html">Atmos</a><a class="carry" href="/kAIxU-PrimeCommand/index.html">Prime</a></div></article>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="eyebrow">Products</div>
+      <h2 style="margin:10px 0 14px; font-size:30px;">Individual App Pitches</h2>
+      <div class="product-grid">
+        <article class="card"><div class="kicker">Product</div><h3>Vision</h3><p>Cinematic storyboarding and visual ideation for first-look universe concepts.</p><div class="card-actions"><a class="carry" href="/kAIxU-Vision/index.html">Open</a></div></article>
+        <article class="card"><div class="kicker">Product</div><h3>Persona</h3><p>Character creation and cast architecture for protagonists, antagonists, and social archetypes.</p><div class="card-actions"><a class="carry" href="/kAIxu-Persona/index.html">Open</a></div></article>
+        <article class="card"><div class="kicker">Product</div><h3>Matrix</h3><p>Incubation engine for new concept branches, ecosystem experiments, and spinout worlds.</p><div class="card-actions"><a class="carry" href="/kAIxU-Matrix/index.html">Open</a></div></article>
+        <article class="card"><div class="kicker">Product</div><h3>Codex</h3><p>World encyclopedia and canon system for structured universe design.</p><div class="card-actions"><a class="carry" href="/kAIxU-Codex/index.html">Open</a></div></article>
+        <article class="card"><div class="kicker">Product</div><h3>Mythos</h3><p>Pantheon and mythology builder for deities, domains, and supernatural law.</p><div class="card-actions"><a class="carry" href="/kAIxu-Mythos/index.html">Open</a></div></article>
+        <article class="card"><div class="kicker">Product</div><h3>PrimeCommand</h3><p>Franchise-level synthesis surface for final alignment, strategy, and presentation.</p><div class="card-actions"><a class="carry" href="/kAIxU-PrimeCommand/index.html">Open</a></div></article>
+      </div>
+    </section>
+
+    <section class="playbook" style="margin-top: 18px;">
+      <div class="panel" style="margin-top:0;">
+        <div class="eyebrow">Demo Flow</div>
+        <h2 style="margin:10px 0 14px; font-size:30px;">Recommended Sales Path</h2>
+        <ol>
+          <li>Open this landing page first when you need kAIxU to read like a product line rather than an internal launcher.</li>
+          <li>Jump into the suite launcher when the prospect needs to see the whole family grouped by track.</li>
+          <li>Demo one or two individual apps that match the buyer's use case instead of touring every surface.</li>
+          <li>Use Neural Space Pro last as the executive brain that ties the family together.</li>
+        </ol>
+      </div>
+      <div class="panel" style="margin-top:0;">
+        <div class="eyebrow">Architecture</div>
+        <h2 style="margin:10px 0 14px; font-size:30px;">Separate Front Door, Same Runtime</h2>
+        <p>This page is a dedicated demo and sales surface outside the suite launcher. It still rides the same SuperIDE runtime, auth, workspace context, and gateway layer as the rest of the kAIxU family.</p>
+      </div>
+    </section>
+  </div>
+  <script>
+    (function(){
+      const params = new URLSearchParams(window.location.search);
+      document.querySelectorAll('a.carry').forEach((node) => {
+        const url = new URL(node.getAttribute('href'), window.location.origin);
+        ['ws_id', 'case_id', 'contractor_id'].forEach((key) => {
+          const value = params.get(key);
+          if (value) url.searchParams.set(key, value);
+        });
+        node.setAttribute('href', `${url.pathname}${url.search}`);
+      });
+    })();
+  </script>
+</body>
+</html>

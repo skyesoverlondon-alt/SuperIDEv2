@@ -1,4 +1,7 @@
 export const ALLOWED_APP_RECORD_APPS = new Set([
+  "GoogleBusinessProfileRescuePlatform",
+  "ContractorIncomeVerification",
+  "ContractorVerificationSuite",
   "SkyeCalendar",
   "SkyeDrive",
   "SkyeVault",

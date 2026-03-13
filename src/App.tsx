@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import Editor from "@monaco-editor/react";
+import JSZip from "jszip";
 import { redactDiagnosticsValue } from "./redaction";
 import { filterSknoreFiles, isSknoreProtected, normalizeSknorePatterns } from "./sknore/policy";
 import { buildFilePreviewDocument, getPreviewHealthState, resolvePreviewUrl } from "./lib/providers/previewProvider";
@@ -43,6 +44,70 @@ type IdeDiagnostic = {
   at: string;
 };
 
+type PreviewConsoleEntry = {
+  id: string;
+  level: "log" | "info" | "warn" | "error";
+  source: "console" | "error" | "rejection" | "system";
+  message: string;
+  at: string;
+};
+
+type WorkspaceValidationIssue = {
+  id: string;
+  severity: "info" | "warn" | "error";
+  filePath: string;
+  rule: string;
+  message: string;
+};
+
+type WorkspaceValidationReport = {
+  generatedAt: string;
+  activePath: string;
+  previewMode: "quick" | "project";
+  previewHealth: "file" | "live" | "failed" | "none";
+  issueCount: number;
+  errorCount: number;
+  warnCount: number;
+  infoCount: number;
+  consoleEntryCount: number;
+  summary: string[];
+  issues: WorkspaceValidationIssue[];
+  fileHashes: Array<{ path: string; sha256: string; bytes: number }>;
+};
+
+type GbpRescueStatus = "suspended" | "verification-failure" | "ownership-conflict" | "disabled-profile" | "ranking-collapse";
+type GbpEvidenceStrength = "low" | "medium" | "high";
+
+type GbpRescueChecklist = {
+  businessLicense: boolean;
+  utilityBill: boolean;
+  photos: boolean;
+  appealHistory: boolean;
+};
+
+type GbpRescueState = {
+  businessName: string;
+  status: GbpRescueStatus;
+  market: string;
+  evidenceStrength: GbpEvidenceStrength;
+  notes: string;
+  checklist: GbpRescueChecklist;
+  updatedAt: string | null;
+};
+
+type GbpRescueDiagnosis = {
+  policyRisk: "Low" | "Medium" | "High";
+  ownershipRisk: "Low" | "Medium" | "High";
+  readiness: "Weak" | "Partial" | "Ready";
+  checklistScore: number;
+  evidenceGaps: string[];
+  brief: string;
+  outreachDraft: string;
+  clientUpdate: string;
+  reviewReply: string;
+  adminLaneBrief: string;
+};
+
 type HealthPayload = {
   ok?: boolean;
   name?: string;
@@ -78,13 +143,20 @@ type ToolTab = "assistant" | "smokehouse" | "playground";
 
 type SkyeAppId =
   | "SkyeDocs"
+  | "kAIxUPlatform"
+  | "kAIxUSuite"
+  | "ContractorWorkflowSuite"
   | "ContractorNetwork"
+  | "ContractorIncomeVerification"
+  | "ContractorVerificationSuite"
   | "SkyDex4.6"
+  | "WebPilePro"
   | "SkyeVault-Pro-v4.46"
   | "SkyeDocxPro"
   | "SkyeBlog"
   | "AE-Flow"
   | "GoogleBusinessProfileRescuePlatform"
+  | "GBPRescueSuite"
   | "SovereignVariables"
   | "SkyeBookx"
   | "SkyePlatinum"
@@ -114,6 +186,8 @@ type SkyeAppId =
   | "kAixU-Chronos"
   | "kAIxu-Bestiary"
   | "kAIxu-Mythos"
+  | "kAIxU-Matrix"
+  | "kAIxu-Persona"
   | "kAIxU-Faction"
   | "kAIxU-PrimeCommand"
   | "API-Playground"
@@ -901,16 +975,24 @@ const COMMAND_FEED_KEY = "kx.command.feed";
 const SOVEREIGN_VARIABLES_INBOX_KEY = "sovereign.variables.inbox.v1";
 const AUTH_HAS_PIN_KEY = "kx.auth.hasPin";
 const AUTH_PIN_UNLOCKED_AT_KEY = "kx.auth.pinUnlockedAt";
+const GBP_RESCUE_STATE_KEY = "kx.gbp.rescue.state";
 
 const SKYE_APPS: SkyeAppDefinition[] = [
   { id: "SkyeDocs", summary: "Collaborative document workspace.", mvp: ["Rich text", "Markdown mode", "Autosave"], searchTerms: ["docs", "editor", "document", "writing", "workspace"] },
+  { id: "kAIxUPlatform", summary: "Sales and demo landing page for presenting kAIxU as a standalone platform family inside the broader ecosystem.", mvp: ["Dedicated kAIxU landing page", "Track-based product framing", "Sales-ready front door"], searchTerms: ["kaixu", "platform", "demo", "sales", "landing page", "worldbuilding"] },
+  { id: "kAIxUSuite", summary: "Platform launcher for the kAIxU family, packaged into marketable tracks for genesis, worldbuilding, mythic systems, and command.", mvp: ["Branded kAIxU front door", "Four platform tracks", "Gateway-first family workflow"], searchTerms: ["kaixu", "platform", "worldbuilding", "franchise", "creative suite", "launcher"] },
+  { id: "ContractorWorkflowSuite", summary: "Mini suite hub for contractor intake, finance verification, ops execution, executive review, and document output.", mvp: ["Contractor routing hub", "Five-lane workflow launch", "Cross-app handoff"] },
   { id: "ContractorNetwork", summary: "Contractor intake, routing, and admin review platform.", mvp: ["Submission intake", "Admin review", "Field dispatch routing"], searchTerms: ["contractor", "intake", "vendor", "field ops", "submission"] },
+  { id: "ContractorIncomeVerification", summary: "Contractor income, expense, packet verification, CSV export, and proof report lane.", mvp: ["Income ledger", "Expense ledger", "Verification packets"], searchTerms: ["contractor", "income", "verification", "expense", "financials", "packet"] },
+  { id: "ContractorVerificationSuite", summary: "Fifteen-module contractor proof and operations suite for evidence, cashflow, invoices, receipts, letters, and missing-proof detection in one runtime shell.", mvp: ["15 integrated contractor tools", "Workspace-scoped persistence", "Proof and packet command deck"], searchTerms: ["contractor", "verification", "proof", "evidence", "cashflow", "receipts", "invoice", "letter", "mini suite"] },
   { id: "SkyDex4.6", summary: "Secure codex IDE surface wired to workspace, gateway, GitHub, and Netlify flows.", mvp: ["Workspace editing", "Gateway prompt lane", "Push + deploy controls"] },
+  { id: "WebPilePro", summary: "Premium multi-file web sandbox with Monaco, isolated preview, validation, and export packs.", mvp: ["Multi-file Monaco studio", "Isolated preview controls", "ZIP + evidence export"], searchTerms: ["web", "sandbox", "monaco", "preview", "html", "css", "javascript", "frontend"] },
   { id: "SkyeVault-Pro-v4.46", summary: "Local-first vault workspace with deep import/export back into the SuperIDE suite.", mvp: ["Vault workspace", "Cross-app snapshot ingest", "Send back into suite apps"], searchTerms: ["vault", "storage", "backup", "import", "export", "drive", "sync"] },
   { id: "SkyeDocxPro", summary: "Full document production suite integrated into SuperIDE.", mvp: ["Advanced editor", "Offline-ready workflows", "Production-grade exports"] },
   { id: "SkyeBlog", summary: "AI-first blog studio with direct community publishing flows.", mvp: ["AI draft generation", "Editorial workspace", "Push to chat/mail"] },
   { id: "AE-Flow", summary: "Embedded CRM platform with operator workflows and cross-app command routing.", mvp: ["CRM shell", "Workspace context", "Command network handoff"] },
   { id: "GoogleBusinessProfileRescuePlatform", summary: "Business rescue platform capsule for case diagnostics and reinstatement ops.", mvp: ["Platform launchpad", "Workspace sync", "Rescue handoff"] },
+  { id: "GBPRescueSuite", summary: "Mini suite hub for the full GBP rescue workflow and its five dedicated operator apps.", mvp: ["Five-app rescue suite", "Execution support lanes", "Shared case launch"] },
   { id: "SovereignVariables", summary: "Secure environment variable vault with portable exports.", mvp: ["Project/env management", "Encrypted .skye export", "Push to chat/mail"] },
   { id: "SkyeBookx", summary: "AI-native authoring and publishing surface.", mvp: ["Chapter drafting", "AI rewrite", "Compile preview"] },
   { id: "SkyePlatinum", summary: "Executive command hub with kAIxU analysis.", mvp: ["Client registry", "Ledger ops", "AI directives"] },
@@ -940,6 +1022,8 @@ const SKYE_APPS: SkyeAppDefinition[] = [
   { id: "kAixU-Chronos", summary: "Historical timeline authoring with gated AI expansion.", mvp: ["Event generation", "Timeline expansion", "Chronicle export"] },
   { id: "kAIxu-Bestiary", summary: "Creature dossier creator secured through gateway-only calls.", mvp: ["Lifeform generation", "Trait expansion", "Visual poster"] },
   { id: "kAIxu-Mythos", summary: "Mythology and pantheon design surface with gate-routed intelligence.", mvp: ["Deity generation", "Lore expansion", "Visual poster"] },
+  { id: "kAIxU-Matrix", summary: "Incubation core for spinning new worlds, branches, and ecosystem seeds into structured kAIxU programs.", mvp: ["Incubation nodes", "Seed generation", "Expansion exports"] },
+  { id: "kAIxu-Persona", summary: "Character design studio for cast systems, role archetypes, and operator-ready profiles.", mvp: ["Persona generation", "Character dossiers", "Profile exports"] },
   { id: "kAIxU-Faction", summary: "Faction intelligence desk with secure policy-compliant AI ops.", mvp: ["Faction generation", "Intel expansion", "Sigil poster"] },
   { id: "kAIxU-PrimeCommand", summary: "Franchise command bible with gateway-only strategic drafting.", mvp: ["Node generation", "Strategy expansion", "Key art poster"] },
   { id: "API-Playground", summary: "Standalone API test bench with hash-chained persistent logs.", mvp: ["Custom payloads", "Request replay", "Hash ledger export"] },
@@ -978,13 +1062,20 @@ const PLATFORM_INTRO_PILLARS = [
 
 const APP_SURFACE_PATHS: Partial<Record<SkyeAppId, string>> = {
   SkyeDocs: "/SkyeDocs/index.html",
+  kAIxUPlatform: "/kAIxU/index.html",
+  kAIxUSuite: "/kAIxUSuite/index.html",
+  ContractorWorkflowSuite: "/ContractorWorkflowSuite/index.html",
   ContractorNetwork: "/ContractorNetwork/index.html",
+  ContractorIncomeVerification: "/ContractorIncomeVerification/index.html",
+  ContractorVerificationSuite: "/contractor income verification drop in/APP SURFACE/public/index.html",
   "SkyDex4.6": "/SkyDex4.6/index.html",
+  WebPilePro: "/WebPilePro/index.html",
   "SkyeVault-Pro-v4.46": "/SkyeVault-Pro-v4.46/drive/index.html",
   SkyeDocxPro: "/SkyeDocxPro/index.html",
   SkyeBlog: "/SkyeBlog/index.html",
   "AE-Flow": "/AE-Flow/index.html",
   GoogleBusinessProfileRescuePlatform: "/GoogleBusinessProfileRescuePlatform/index.html",
+  GBPRescueSuite: "/GBPRescueSuite/index.html",
   SovereignVariables: "/SovereignVariables/index.html",
   SkyeBookx: "/SkyeBookx/index.html",
   SkyePlatinum: "/SkyePlatinum/index.html",
@@ -1014,6 +1105,8 @@ const APP_SURFACE_PATHS: Partial<Record<SkyeAppId, string>> = {
   "kAixU-Chronos": "/kAixU-Chronos/index.html",
   "kAIxu-Bestiary": "/kAIxu-Bestiary/index.html",
   "kAIxu-Mythos": "/kAIxu-Mythos/index.html",
+  "kAIxU-Matrix": "/kAIxU-Matrix/index.html",
+  "kAIxu-Persona": "/kAIxu-Persona/index.html",
   "kAIxU-Faction": "/kAIxU-Faction/index.html",
   "kAIxU-PrimeCommand": "/kAIxU-PrimeCommand/index.html",
   "API-Playground": "/API-Playground/index.html",
@@ -1051,10 +1144,40 @@ const APP_TUTORIALS: Record<SkyeAppId, string[]> = {
     "Review live submissions, admin review status, and file evidence without leaving the suite context.",
     "Route the next step into AE-Flow, SkyeMail, or Neural Space Pro when the contractor case needs follow-up.",
   ],
+  ContractorWorkflowSuite: [
+    "Open the contractor workflow suite and confirm all six operating lanes are available from one launcher.",
+    "Move from ContractorNetwork into the Contractor Verification Suite when the operator needs the full 15-module proof, evidence, invoice, receipt, and letter command surface, then use Contractor Income Verification for the focused finance lane.",
+    "Finish the loop in SkyeDocxPro when the contractor workflow needs a polished letter, packet, or client-ready document.",
+  ],
+  kAIxUPlatform: [
+    "Open the kAIxU platform landing page and confirm it reads like a product front door rather than an internal launcher.",
+    "Use the four platform tracks to route the viewer into the right subset of the family before opening the full suite launcher.",
+    "Treat the page as the sales and demo surface for kAIxU inside SuperIDE, then branch into the suite or individual apps as needed.",
+  ],
+  kAIxUSuite: [
+    "Open the kAIxU suite and confirm the family is packaged into four platform tracks: Genesis Studio, World Engine, Mythic Intelligence, and Command Deck.",
+    "Start in the track that matches the pitch or operator need, then branch deeper into Vision, Nexus, Codex, Atlas, Mythos, Quest, Forge, Atmos, or PrimeCommand without leaving the kAIxU front door.",
+    "Treat the page as the marketable front entrance for the kAIxU product line, not as a replacement for the main SuperIDE launcher.",
+  ],
+  ContractorIncomeVerification: [
+    "Open the contractor finance lane with the workspace and contractor context attached.",
+    "Load the reporting period, add income and expense rows, and issue the verification packet for the same contractor record.",
+    "Export the CSV or printable packet, then route the result back into ContractorNetwork, the Contractor Verification Suite, AE-Flow, or SkyeDocxPro as needed.",
+  ],
+  ContractorVerificationSuite: [
+    "Open the 15-module contractor verification suite with the current workspace ID attached and confirm the dashboard, module navigation, and shared top rail load correctly.",
+    "Use the suite to move across evidence, invoices, receipts, letters, packet assembly, cashflow, and proof-gap detection without leaving the same runtime shell.",
+    "Treat it as the broad contractor proof command surface, then branch into ContractorNetwork, Contractor Income Verification, AE-Flow, or SkyeDocxPro when the case needs routing or final output.",
+  ],
   "SkyDex4.6": [
     "Load the current workspace snapshot directly from the secure workspace API.",
     "Edit files in the embedded editor and save the full snapshot before release actions.",
     "Use the kAIxU prompt deck for gateway-routed generation, then connect GitHub or Netlify from the right rail as needed.",
+  ],
+  WebPilePro: [
+    "Open WebPilePro as a standalone studio or from the embedded runtime launch surfaces.",
+    "Use the Monaco file tabs, isolated preview controls, and device toggles to iterate on HTML, CSS, and JavaScript quickly.",
+    "Export the project ZIP or evidence pack, then route the output back into SkyDex, SkyeDrive, or a release lane.",
   ],
   "SkyeVault-Pro-v4.46": [
     "Open the vault workspace and confirm the bridge status shows SuperIDE connectivity.",
@@ -1091,6 +1214,11 @@ const APP_TUTORIALS: Record<SkyeAppId, string[]> = {
     "Use the platform to push a real next step into SkyeChat, SkyeMail, or Neural Space Pro so the rescue path is visibly connected.",
     "Open AE-Flow or ContractorNetwork when the rescue case needs sales, ops, or field follow-up and confirm the context carries over.",
     "Treat the rescue platform as part of the operating system: capture outcome, share follow-up, and return to the suite with no dead end.",
+  ],
+  GBPRescueSuite: [
+    "Open the GBP Rescue Suite hub and verify the five dedicated rescue apps are presented as one coordinated workflow instead of scattered pages.",
+    "Launch Intake, Evidence, Appeals, Outreach, and Monitoring from the suite, then use the attached support lanes for mail, chat, neural review, drive storage, and AE follow-up.",
+    "Confirm the same case ID and workspace context carry across the rescue pages so the operator can work one case end to end.",
   ],
   SovereignVariables: [
     "Create a project and at least one environment.",
@@ -1238,6 +1366,16 @@ const APP_TUTORIALS: Record<SkyeAppId, string[]> = {
     "Expand scripture and lore through gateway synthesis.",
     "Render divine poster and export mythology packet.",
   ],
+  "kAIxU-Matrix": [
+    "Generate an incubation node for a new universe, branch, or concept system.",
+    "Expand the seed through gateway synthesis, then route strong concepts into Vision, Nexus, Codex, or PrimeCommand.",
+    "Export the incubation record when the branch is ready to become part of the broader kAIxU canon.",
+  ],
+  "kAIxu-Persona": [
+    "Generate a character dossier seed with role, style, and narrative function.",
+    "Expand the profile through gateway synthesis to build a stronger cast system around the world.",
+    "Export the persona packet when the character needs to move into Mythos, Faction, Quest, or PrimeCommand.",
+  ],
   "kAIxU-Faction": [
     "Generate a faction dossier seed.",
     "Expand strategic intel through gateway generation.",
@@ -1260,15 +1398,21 @@ const APP_TUTORIALS: Record<SkyeAppId, string[]> = {
   ],
 };
 
-const FEATURED_APP_IDS: SkyeAppId[] = ["SkyDex4.6", "SkyeVault-Pro-v4.46", "SkyeBookx", "REACT2HTML", "SKYEMAIL-GEN", "Skye-ID", "SkyePlatinum"];
+const FEATURED_APP_IDS: SkyeAppId[] = ["SkyDex4.6", "WebPilePro", "SkyeVault-Pro-v4.46", "SkyeBookx", "REACT2HTML", "SKYEMAIL-GEN", "Skye-ID", "SkyePlatinum"];
 
 const SHELL_SKYEHAWK_DISMISSED_KEY = "kx.shell.skyehawk.dismissed";
 
 const SHELL_SKYEHAWK_LINKS: ShellSkyehawkLink[] = [
   { id: "superide", label: "SuperIDE", route: "SuperIDE" },
   { id: "skydex", label: "SkyDex 4.6", route: "SkyDex4.6" },
+  { id: "kaixuplatform", label: "kAIxU Platform", route: "kAIxUPlatform" },
+  { id: "kaixusuite", label: "kAIxU Suite", route: "kAIxUSuite" },
+  { id: "webpilepro", label: "WebPilePro", route: "WebPilePro" },
   { id: "vaultpro", label: "SkyeVault Pro", route: "SkyeVault-Pro-v4.46" },
+  { id: "contractorsuite", label: "Contractor Suite", route: "ContractorWorkflowSuite" },
   { id: "contractornetwork", label: "ContractorNetwork", route: "ContractorNetwork" },
+  { id: "contractorincome", label: "Contractor Income", route: "ContractorIncomeVerification" },
+  { id: "contractorverify", label: "Contractor Verify Suite", route: "ContractorVerificationSuite" },
   { id: "neural", label: "Neural Space Pro", route: "Neural-Space-Pro" },
   { id: "skyedocs", label: "SkyeDocs", route: "SkyeDocs" },
   { id: "skyedrive", label: "SkyeDrive", route: "SkyeDrive" },
@@ -1284,6 +1428,7 @@ const SHELL_SKYEHAWK_LINKS: ShellSkyehawkLink[] = [
   { id: "nexus", label: "kAixu-Nexus", route: "kAixu-Nexus" },
   { id: "recover", label: "Recover Account", route: "recover-account" },
   { id: "gbp", label: "GBP Rescue", route: "GoogleBusinessProfileRescuePlatform" },
+  { id: "gbpsuite", label: "GBP Rescue Suite", route: "GBPRescueSuite" },
 ];
 
 const APP_DRAWER_GROUPS: AppDrawerGroup[] = [
@@ -1291,7 +1436,7 @@ const APP_DRAWER_GROUPS: AppDrawerGroup[] = [
     id: "build",
     label: "Build + IDE",
     description: "Editor, deploy, preview, testing, and secure environment control surfaces.",
-    apps: ["SkyDex4.6", "SkyeVault-Pro-v4.46", "REACT2HTML", "API-Playground", "Smokehouse-Standalone", "SovereignVariables", "SkyeDrive", "SkyeVault"],
+    apps: ["SkyDex4.6", "WebPilePro", "SkyeVault-Pro-v4.46", "REACT2HTML", "API-Playground", "Smokehouse-Standalone", "SovereignVariables", "SkyeDrive", "SkyeVault"],
   },
   {
     id: "workspace",
@@ -1303,7 +1448,7 @@ const APP_DRAWER_GROUPS: AppDrawerGroup[] = [
     id: "platforms",
     label: "Platform Systems",
     description: "Full platform systems embedded in the command deck and linked to the shared workspace command network.",
-    apps: ["AE-Flow", "GoogleBusinessProfileRescuePlatform", "ContractorNetwork"],
+    apps: ["ContractorWorkflowSuite", "ContractorNetwork", "ContractorIncomeVerification", "ContractorVerificationSuite", "AE-Flow", "GoogleBusinessProfileRescuePlatform", "GBPRescueSuite"],
   },
   {
     id: "communications",
@@ -1320,8 +1465,8 @@ const APP_DRAWER_GROUPS: AppDrawerGroup[] = [
   {
     id: "codex",
     label: "kAIxU Creative + Codex",
-    description: "Worldbuilding, vision, atlas, lore, and secure creative generation surfaces.",
-    apps: ["kAIxU-Vision", "kAixu-Nexus", "kAIxU-Codex", "kAIxu-Atmos", "kAIxu-Quest", "kAIxu-Forge", "kAIxu-Atlas", "kAixU-Chronos", "kAIxu-Bestiary", "kAIxu-Mythos", "kAIxU-Faction", "kAIxU-PrimeCommand"],
+    description: "The kAIxU platform family for concept minting, world engines, mythic systems, and secure creative command.",
+    apps: ["kAIxUPlatform", "kAIxUSuite", "kAIxU-Vision", "kAixu-Nexus", "kAIxU-Codex", "kAIxu-Atmos", "kAIxu-Quest", "kAIxu-Forge", "kAIxu-Atlas", "kAixU-Chronos", "kAIxu-Bestiary", "kAIxu-Mythos", "kAIxU-Matrix", "kAIxu-Persona", "kAIxU-Faction", "kAIxU-PrimeCommand"],
   },
 ];
 
@@ -1429,6 +1574,153 @@ function buildDefaultWorkspaceSurfaces(seed: string): Record<SkyeAppId, string> 
 
 function makeId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function escapePreviewScriptString(value: string): string {
+  return String(value || "")
+    .replace(/\\/g, "\\\\")
+    .replace(/`/g, "\\`")
+    .replace(/\$\{/g, "\\${")
+    .replace(/<\/script/gi, "<\\/script");
+}
+
+function injectPreviewHarness(documentHtml: string, token: string, filePath: string): string {
+  const safeToken = escapePreviewScriptString(token);
+  const safeFilePath = escapePreviewScriptString(filePath);
+  const script = `<script>(function(){const TOKEN=\`${safeToken}\`;const FILE=\`${safeFilePath}\`;const ORIGIN=window.location.origin;const send=(eventType,payload)=>{try{parent.postMessage({type:"kx.app.bridge",payload:{kind:"skydex-preview-console",token:TOKEN,eventType,payload,source:"SkyDex4.6"}},ORIGIN);}catch(_){}};const serialize=(value)=>{if(typeof value==="string")return value;try{return JSON.stringify(value);}catch(_){return String(value);}};["log","info","warn","error"].forEach((level)=>{const original=console[level];console[level]=function(){const args=Array.from(arguments).map(serialize);send("console",{level,args,ts:Date.now(),path:FILE});try{return original&&original.apply(console,arguments);}catch(_){return undefined;}};});window.addEventListener("error",(event)=>{send("error",{message:event.message||"Preview error",stack:event.error&&event.error.stack?String(event.error.stack):"",ts:Date.now(),path:FILE});});window.addEventListener("unhandledrejection",(event)=>{let reason="Unhandled rejection";try{reason=typeof event.reason==="string"?event.reason:JSON.stringify(event.reason);}catch(_){reason=String(event.reason||"Unhandled rejection");}send("rejection",{reason,ts:Date.now(),path:FILE});});send("ready",{path:FILE,ts:Date.now()});})();</script>`;
+
+  if (/<head[^>]*>/i.test(documentHtml)) {
+    return documentHtml.replace(/<head([^>]*)>/i, `<head$1>${script}`);
+  }
+  if (/<body[^>]*>/i.test(documentHtml)) {
+    return documentHtml.replace(/<body([^>]*)>/i, `<body$1>${script}`);
+  }
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">${script}</head><body>${documentHtml}</body></html>`;
+}
+
+function defaultGbpRescueState(): GbpRescueState {
+  return {
+    businessName: "",
+    status: "suspended",
+    market: "",
+    evidenceStrength: "medium",
+    notes: "",
+    checklist: {
+      businessLicense: false,
+      utilityBill: false,
+      photos: false,
+      appealHistory: false,
+    },
+    updatedAt: null,
+  };
+}
+
+function normalizeGbpRescueState(value: unknown): GbpRescueState {
+  const base = defaultGbpRescueState();
+  if (!value || typeof value !== "object") return base;
+  const parsed = value as Partial<GbpRescueState> & { checklist?: Partial<GbpRescueChecklist> };
+  return {
+    businessName: String(parsed.businessName || ""),
+    status: (["suspended", "verification-failure", "ownership-conflict", "disabled-profile", "ranking-collapse"].includes(String(parsed.status || ""))
+      ? String(parsed.status)
+      : base.status) as GbpRescueStatus,
+    market: String(parsed.market || ""),
+    evidenceStrength: (["low", "medium", "high"].includes(String(parsed.evidenceStrength || ""))
+      ? String(parsed.evidenceStrength)
+      : base.evidenceStrength) as GbpEvidenceStrength,
+    notes: String(parsed.notes || ""),
+    checklist: {
+      businessLicense: Boolean(parsed.checklist?.businessLicense),
+      utilityBill: Boolean(parsed.checklist?.utilityBill),
+      photos: Boolean(parsed.checklist?.photos),
+      appealHistory: Boolean(parsed.checklist?.appealHistory),
+    },
+    updatedAt: typeof parsed.updatedAt === "string" ? parsed.updatedAt : null,
+  };
+}
+
+function buildGbpRescueDiagnosis(state: GbpRescueState, caseId: string): GbpRescueDiagnosis {
+  const checklistScore = Object.values(state.checklist).filter(Boolean).length;
+  const loweredNotes = state.notes.toLowerCase();
+  const policyRisk: GbpRescueDiagnosis["policyRisk"] =
+    state.status === "suspended" || /keyword|spam|guideline|duplicate|misrep/i.test(loweredNotes) ? "High" : state.status === "ranking-collapse" ? "Medium" : "Low";
+  const ownershipRisk: GbpRescueDiagnosis["ownershipRisk"] =
+    state.status === "ownership-conflict" || /owner|manager|agency|verification|account/i.test(loweredNotes) ? "High" : state.status === "verification-failure" ? "Medium" : "Low";
+  const readiness: GbpRescueDiagnosis["readiness"] = checklistScore >= 3 && state.evidenceStrength === "high" ? "Ready" : checklistScore >= 2 ? "Partial" : "Weak";
+  const evidenceGaps = [
+    !state.checklist.businessLicense ? "Business registration proof" : "",
+    !state.checklist.utilityBill ? "Address proof" : "",
+    !state.checklist.photos ? "Storefront or signage photos" : "",
+    !state.checklist.appealHistory ? "Support thread and prior appeal history" : "",
+  ].filter(Boolean);
+  const title = state.businessName.trim() || "Unknown business";
+  const market = state.market.trim() || "Unknown market";
+  const notes = state.notes.trim() || "No operator notes captured yet.";
+  const brief = [
+    `Case ID: ${caseId}`,
+    `Business: ${title}`,
+    `Market: ${market}`,
+    `Profile status: ${state.status}`,
+    `Policy risk: ${policyRisk}`,
+    `Ownership risk: ${ownershipRisk}`,
+    `Readiness: ${readiness}`,
+    `Evidence score: ${checklistScore}/4`,
+    "",
+    "Operator readout:",
+    notes,
+    "",
+    `Evidence gaps: ${evidenceGaps.length ? evidenceGaps.join(", ") : "No major gaps detected."}`,
+    "",
+    "Recommended next moves:",
+    readiness === "Weak"
+      ? "- Hold reinstatement submission until evidence collection is stronger."
+      : "- Build the reinstatement narrative and route it into Neural Space Pro for hardening.",
+    ownershipRisk === "High"
+      ? "- Document ownership trail, manager access, and verification attempts before external outreach."
+      : "- Keep ownership notes on file, but lead with policy-safe evidence and factual chronology.",
+    "- Push the internal execution summary into SkyeChat and stage the client-facing draft in SkyeMail.",
+  ].join("\n");
+  const outreachDraft = [
+    `Subject: Google Business Profile rescue update for ${title}`,
+    "",
+    `We have reviewed the ${state.status} case for ${title} in ${market}.`,
+    `Current assessment: policy risk is ${policyRisk.toLowerCase()}, ownership risk is ${ownershipRisk.toLowerCase()}, and reinstatement readiness is ${readiness.toLowerCase()}.`,
+    evidenceGaps.length
+      ? `Before outreach we still need: ${evidenceGaps.join(", ")}.`
+      : "The evidence packet is in a strong position for reinstatement work.",
+    "Next step: finalize the evidence packet, harden the appeal narrative, and submit with account-safe chronology.",
+  ].join("\n");
+  const clientUpdate = [
+    `Client update for ${title}`,
+    `Status: ${state.status}`,
+    `Readiness: ${readiness}`,
+    evidenceGaps.length ? `Remaining blockers: ${evidenceGaps.join(", ")}.` : "Evidence blockers are clear enough to move into submission prep.",
+    "We are actively preparing the reinstatement package and internal operator handoffs.",
+  ].join("\n");
+  const reviewReply = [
+    `Public reply draft for ${title}`,
+    "Thank you for the update. We are actively reviewing the listing status, validating account ownership, and assembling the required proof set so we can resolve the profile issue as quickly as possible.",
+  ].join("\n");
+  const adminLaneBrief = [
+    `${title} requires admin-lane review.`,
+    `Workspace case: ${caseId}`,
+    `Risk profile: policy ${policyRisk}, ownership ${ownershipRisk}.`,
+    evidenceGaps.length ? `Evidence blockers: ${evidenceGaps.join(", ")}.` : "No major evidence blockers detected.",
+    `Operator notes: ${notes}`,
+  ].join("\n");
+
+  return {
+    policyRisk,
+    ownershipRisk,
+    readiness,
+    checklistScore,
+    evidenceGaps,
+    brief,
+    outreachDraft,
+    clientUpdate,
+    reviewReply,
+    adminLaneBrief,
+  };
 }
 
 function tryParseJson(text: string): any {
@@ -1572,6 +1864,186 @@ async function sha256Hex(input: string): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", bytes);
   const arr = Array.from(new Uint8Array(digest));
   return arr.map((value) => value.toString(16).padStart(2, "0")).join("");
+}
+
+async function buildWorkspaceValidationReport(options: {
+  files: WorkspaceFile[];
+  activePath: string;
+  previewMode: "quick" | "project";
+  previewHealth: "file" | "live" | "failed" | "none";
+  previewConsoleEntries: PreviewConsoleEntry[];
+}): Promise<WorkspaceValidationReport> {
+  const { files, activePath, previewMode, previewHealth, previewConsoleEntries } = options;
+  const issues: WorkspaceValidationIssue[] = [];
+  const htmlFiles = files.filter((file) => ["html", "htm", "svg"].includes(fileExt(file.path)));
+  const jsFiles = files.filter((file) => ["js", "jsx", "ts", "tsx"].includes(fileExt(file.path)));
+  const hasReadme = files.some((file) => /(^|\/)README\.md$/i.test(file.path));
+
+  if (!htmlFiles.length) {
+    issues.push({
+      id: makeId(),
+      severity: "warn",
+      filePath: activePath || "workspace",
+      rule: "preview-entry",
+      message: "No HTML-like entry file detected. Quick preview will stay limited until an .html, .htm, or .svg surface exists.",
+    });
+  }
+
+  if (!hasReadme) {
+    issues.push({
+      id: makeId(),
+      severity: "info",
+      filePath: "README.md",
+      rule: "documentation",
+      message: "Workspace has no README summary. Handoff clarity will be weaker for export and review.",
+    });
+  }
+
+  for (const file of files) {
+    const ext = fileExt(file.path);
+    const content = file.content || "";
+    if (!content.trim()) {
+      issues.push({
+        id: makeId(),
+        severity: "warn",
+        filePath: file.path,
+        rule: "empty-file",
+        message: "File is empty and may be accidental shell scaffolding.",
+      });
+    }
+    if (/TODO|FIXME/i.test(content)) {
+      issues.push({
+        id: makeId(),
+        severity: "info",
+        filePath: file.path,
+        rule: "todo-markers",
+        message: "TODO or FIXME markers are still present in this file.",
+      });
+    }
+    if (["html", "htm"].includes(ext)) {
+      if (!/<title>[^<]+<\/title>/i.test(content)) {
+        issues.push({
+          id: makeId(),
+          severity: "warn",
+          filePath: file.path,
+          rule: "document-title",
+          message: "HTML document is missing a non-empty <title> tag.",
+        });
+      }
+      if (!/<meta[^>]+name=["']viewport["']/i.test(content)) {
+        issues.push({
+          id: makeId(),
+          severity: "info",
+          filePath: file.path,
+          rule: "viewport",
+          message: "HTML document is missing a viewport meta tag.",
+        });
+      }
+      if (/<img(?![^>]*\balt=)/i.test(content)) {
+        issues.push({
+          id: makeId(),
+          severity: "warn",
+          filePath: file.path,
+          rule: "image-alt",
+          message: "At least one <img> tag is missing alt text.",
+        });
+      }
+    }
+    if (["css"].includes(ext) && !/:root\s*\{/i.test(content)) {
+      issues.push({
+        id: makeId(),
+        severity: "info",
+        filePath: file.path,
+        rule: "design-tokens",
+        message: "CSS file has no :root token block. Reusable design variables may be missing.",
+      });
+    }
+    if (["js", "jsx", "ts", "tsx"].includes(ext) && /console\.(log|info|warn|error)\(/.test(content)) {
+      issues.push({
+        id: makeId(),
+        severity: "info",
+        filePath: file.path,
+        rule: "console-statements",
+        message: "Console statements remain in source. Keep only those intended for runtime instrumentation.",
+      });
+    }
+  }
+
+  const previewWarnCount = previewConsoleEntries.filter((entry) => entry.level === "warn" || entry.level === "error").length;
+  if (previewHealth === "failed") {
+    issues.push({
+      id: makeId(),
+      severity: "error",
+      filePath: activePath || "preview",
+      rule: "preview-health",
+      message: "Preview health is failing. Fix the active surface before shipping.",
+    });
+  } else if (previewWarnCount > 0) {
+    issues.push({
+      id: makeId(),
+      severity: previewConsoleEntries.some((entry) => entry.level === "error") ? "error" : "warn",
+      filePath: activePath || "preview",
+      rule: "preview-console",
+      message: `${previewWarnCount} preview warning/error entries were captured during the latest render.`,
+    });
+  }
+
+  const fileHashes = await Promise.all(
+    files.map(async (file) => ({
+      path: file.path,
+      sha256: await sha256Hex(file.content),
+      bytes: new TextEncoder().encode(file.content).byteLength,
+    }))
+  );
+
+  const errorCount = issues.filter((issue) => issue.severity === "error").length;
+  const warnCount = issues.filter((issue) => issue.severity === "warn").length;
+  const infoCount = issues.filter((issue) => issue.severity === "info").length;
+
+  return {
+    generatedAt: new Date().toISOString(),
+    activePath,
+    previewMode,
+    previewHealth,
+    issueCount: issues.length,
+    errorCount,
+    warnCount,
+    infoCount,
+    consoleEntryCount: previewConsoleEntries.length,
+    summary: [
+      `${files.length} workspace files scanned.`,
+      `${errorCount} errors, ${warnCount} warnings, ${infoCount} advisory notes.`,
+      `${previewConsoleEntries.length} preview console entries captured during the latest run.`,
+      previewMode === "quick"
+        ? "Quick preview validation is active with runtime console instrumentation."
+        : "Project preview validation is static-only; switch to Quick for inline console capture.",
+    ],
+    issues,
+    fileHashes,
+  };
+}
+
+function formatWorkspaceValidationReport(report: WorkspaceValidationReport): string {
+  return [
+    `SkyDex Validation Report`,
+    `Generated: ${report.generatedAt}`,
+    `Active file: ${report.activePath || "none"}`,
+    `Preview mode: ${report.previewMode}`,
+    `Preview health: ${report.previewHealth}`,
+    `Issue counts: errors=${report.errorCount}, warnings=${report.warnCount}, info=${report.infoCount}`,
+    `Preview console entries: ${report.consoleEntryCount}`,
+    "",
+    "Summary:",
+    ...report.summary.map((line) => `- ${line}`),
+    "",
+    "Issues:",
+    ...(report.issues.length
+      ? report.issues.map((issue) => `- [${issue.severity.toUpperCase()}] ${issue.filePath} :: ${issue.rule} :: ${issue.message}`)
+      : ["- No validation issues detected."]),
+    "",
+    "SHA-256 Manifest:",
+    ...report.fileHashes.map((entry) => `- ${entry.path} :: ${entry.sha256} :: ${entry.bytes} bytes`),
+  ].join("\n");
 }
 
 function isLegacyShellSecureEnvelope(value: any): value is LegacyShellSecureEnvelope {
@@ -2098,6 +2570,15 @@ export function App() {
     SkyeForms: PRODUCTIVITY_PAGE_SPECS.SkyeForms[0].id,
     SkyeNotes: PRODUCTIVITY_PAGE_SPECS.SkyeNotes[0].id,
   });
+  const [gbpRescueCase, setGbpRescueCase] = useState<GbpRescueState>(() => {
+    const raw = localStorage.getItem(GBP_RESCUE_STATE_KEY);
+    if (!raw) return defaultGbpRescueState();
+    try {
+      return normalizeGbpRescueState(JSON.parse(raw));
+    } catch {
+      return defaultGbpRescueState();
+    }
+  });
 
   const [teamInviteEmail, setTeamInviteEmail] = useState("");
   const [teamInviteRole, setTeamInviteRole] = useState<AuthRole>("member");
@@ -2152,6 +2633,11 @@ export function App() {
   const [workspaceConflict, setWorkspaceConflict] = useState<{ detectedAt: string; serverHash: string; message: string } | null>(null);
   const shellSkyehawkRailRef = useRef<HTMLElement | null>(null);
   const [ideDiagnostics, setIdeDiagnostics] = useState<IdeDiagnostic[]>([]);
+  const [previewConsoleEntries, setPreviewConsoleEntries] = useState<PreviewConsoleEntry[]>([]);
+  const [workspaceValidationReport, setWorkspaceValidationReport] = useState<WorkspaceValidationReport | null>(null);
+  const [isWorkspaceValidationRunning, setIsWorkspaceValidationRunning] = useState(false);
+  const [isWorkspaceProjectExporting, setIsWorkspaceProjectExporting] = useState(false);
+  const [isWorkspaceEvidenceExporting, setIsWorkspaceEvidenceExporting] = useState(false);
   const [isSavingWorkspace, setIsSavingWorkspace] = useState(false);
   const [isLoadingWorkspace, setIsLoadingWorkspace] = useState(false);
   const [isGitPushing, setIsGitPushing] = useState(false);
@@ -2287,6 +2773,22 @@ export function App() {
   const previewHealth = useMemo(
     () => getPreviewHealthState(effectivePreviewDocument, effectivePreviewUrl, previewFrameError),
     [effectivePreviewDocument, effectivePreviewUrl, previewFrameError]
+  );
+  const previewBridgeToken = useMemo(
+    () => makeId(),
+    [effectivePreviewDocument, effectivePreviewUrl, activeFile?.path, previewReloadToken, previewRuntimeMode]
+  );
+  const instrumentedPreviewDocument = useMemo(
+    () => (effectivePreviewDocument ? injectPreviewHarness(effectivePreviewDocument, previewBridgeToken, activeFile?.path || "preview.html") : null),
+    [effectivePreviewDocument, previewBridgeToken, activeFile?.path]
+  );
+  const gbpCaseId = useMemo(
+    () => `gbp-case-${workspaceId || "primary-workspace"}`,
+    [workspaceId]
+  );
+  const gbpDiagnosis = useMemo(
+    () => buildGbpRescueDiagnosis(gbpRescueCase, gbpCaseId),
+    [gbpRescueCase, gbpCaseId]
   );
   const selectedMission = useMemo(
     () => missions.find((mission) => mission.id === selectedMissionId) || null,
@@ -2525,6 +3027,18 @@ export function App() {
     if (contractorAdminToken.trim()) localStorage.setItem("sol_admin_token", contractorAdminToken.trim());
     else localStorage.removeItem("sol_admin_token");
   }, [contractorAdminToken]);
+
+  useEffect(() => {
+    localStorage.setItem(GBP_RESCUE_STATE_KEY, JSON.stringify(gbpRescueCase));
+  }, [gbpRescueCase]);
+
+  useEffect(() => {
+    setPreviewConsoleEntries([]);
+  }, [previewBridgeToken]);
+
+  useEffect(() => {
+    setWorkspaceValidationReport(null);
+  }, [workspaceCurrentHash, previewConsoleEntries.length, previewRuntimeMode, previewHealth]);
 
   function pushIdeDiagnostic(level: "info" | "warn" | "error", message: string) {
     const entry: IdeDiagnostic = {
@@ -3479,6 +3993,65 @@ export function App() {
       return;
     }
 
+    if (payload.kind === "skydex-preview-console") {
+      if (payload.token !== previewBridgeToken) return;
+      const eventType = String(payload.eventType || "").trim();
+      const data = payload.payload && typeof payload.payload === "object" ? payload.payload as Record<string, any> : {};
+      if (eventType === "ready") {
+        setPreviewFrameError("");
+        return;
+      }
+      if (eventType === "console") {
+        const level = (["log", "info", "warn", "error"].includes(String(data.level || "")) ? String(data.level) : "log") as PreviewConsoleEntry["level"];
+        const message = Array.isArray(data.args) ? data.args.map((entry) => String(entry)).join(" ") : String(data.message || "Console event");
+        const nextEntry: PreviewConsoleEntry = {
+          id: makeId(),
+          level,
+          source: "console",
+          message,
+          at: new Date(Number(data.ts || Date.now())).toISOString(),
+        };
+        setPreviewConsoleEntries((old) => [
+          nextEntry,
+          ...old,
+        ].slice(0, 80));
+        return;
+      }
+      if (eventType === "error") {
+        const message = String(data.message || "Preview error");
+        setPreviewFrameError(message);
+        const nextEntry: PreviewConsoleEntry = {
+          id: makeId(),
+          level: "error",
+          source: "error",
+          message: data.stack ? `${message}\n${String(data.stack)}` : message,
+          at: new Date(Number(data.ts || Date.now())).toISOString(),
+        };
+        setPreviewConsoleEntries((old) => [
+          nextEntry,
+          ...old,
+        ].slice(0, 80));
+        pushIdeDiagnostic("error", message);
+        return;
+      }
+      if (eventType === "rejection") {
+        const message = String(data.reason || "Unhandled promise rejection");
+        const nextEntry: PreviewConsoleEntry = {
+          id: makeId(),
+          level: "error",
+          source: "rejection",
+          message,
+          at: new Date(Number(data.ts || Date.now())).toISOString(),
+        };
+        setPreviewConsoleEntries((old) => [
+          nextEntry,
+          ...old,
+        ].slice(0, 80));
+        pushIdeDiagnostic("error", `Preview rejection: ${message}`);
+        return;
+      }
+    }
+
     if (payload.kind === "open-app") {
       if (payload.appId === "Neural-Space-Pro") {
         const noteParts = [payload.source, payload.note].filter(Boolean);
@@ -3766,6 +4339,22 @@ export function App() {
     const params = new URLSearchParams(window.location.search);
     const resetEmail = String(params.get("reset_email") || "").trim().toLowerCase();
     const token = String(params.get("reset_token") || "").trim();
+    const isRecoverRoute = window.location.pathname === "/recover-account" || window.location.pathname === "/recover-account/";
+    if (resetEmail || token) {
+      setAuthFlowMode("reset");
+      if (resetEmail) {
+        setRecoveryEmail(resetEmail);
+        setAuthUser(resetEmail);
+      }
+      if (token) setResetToken(token);
+      if (!isRecoverRoute) {
+        const recoverUrl = new URL("/recover-account/", window.location.origin);
+        if (resetEmail) recoverUrl.searchParams.set("reset_email", resetEmail);
+        if (token) recoverUrl.searchParams.set("reset_token", token);
+        window.location.replace(recoverUrl.toString());
+        return;
+      }
+    }
     if (resetEmail && !authUser.trim()) setAuthUser(resetEmail);
     if (resetEmail) setAuthUser(resetEmail);
     if (token) setResetToken(token);
@@ -3809,6 +4398,7 @@ export function App() {
   const isAuthCenterMode = searchParams.get("auth_center") === "1";
   const authCenterGuideRequested = searchParams.get("guide") === "1";
   const hideCinematicIntro = isAuthCenterMode || searchParams.get("no_intro") === "1";
+  const hasPasswordResetQuery = Boolean(searchParams.get("reset_email") || searchParams.get("reset_token"));
 
   function buildAuthCenterUrl(options: { guide?: boolean } = {}) {
     const url = new URL(window.location.href);
@@ -3852,8 +4442,8 @@ export function App() {
 
     const hasSession = assistantAuthStatus === "ok" || assistantAuthStatus === "token";
     if (hasSession && !inviteToken) return;
+    if (hasPasswordResetQuery) return;
     if (sessionStorage.getItem(AUTH_CENTER_AUTO_OPENED_SESSION_KEY) === "1") return;
-
     const timer = window.setTimeout(() => {
       sessionStorage.setItem(AUTH_CENTER_AUTO_OPENED_SESSION_KEY, "1");
       const opened = openAuthCenterWindow({
@@ -3864,7 +4454,7 @@ export function App() {
     }, 4800);
 
     return () => window.clearTimeout(timer);
-  }, [assistantAuthStatus, inviteToken, onboardingAssistMode, isAuthCenterMode, authCenterGuideRequested]);
+  }, [assistantAuthStatus, inviteToken, onboardingAssistMode, isAuthCenterMode, authCenterGuideRequested, hasPasswordResetQuery]);
 
   useEffect(() => {
     localStorage.setItem("kx.skye.sheets.model", JSON.stringify(sheetsModel));
@@ -7054,6 +7644,246 @@ export function App() {
     pushIdeDiagnostic("info", `Retry requested for ${previewRuntimeMode} preview.`);
   }
 
+  async function copyPreviewConsoleToClipboard() {
+    const text = previewConsoleEntries.length
+      ? previewConsoleEntries
+          .slice()
+          .reverse()
+          .map((entry) => `[${entry.level.toUpperCase()}] ${new Date(entry.at).toLocaleTimeString()} :: ${entry.message}`)
+          .join("\n")
+      : "No preview console entries captured.";
+    try {
+      await navigator.clipboard.writeText(text);
+      publishSuiteSyncResult("Copied preview console output.", "SkyDex4.6");
+    } catch (error: any) {
+      publishSuiteSyncResult(error?.message || "Clipboard copy failed.", "SkyDex4.6");
+    }
+  }
+
+  async function runWorkspaceValidation(options: { silent?: boolean } = {}) {
+    setIsWorkspaceValidationRunning(true);
+    try {
+      const report = await buildWorkspaceValidationReport({
+        files,
+        activePath: activeFile?.path || activePath,
+        previewMode: previewRuntimeMode,
+        previewHealth,
+        previewConsoleEntries,
+      });
+      setWorkspaceValidationReport(report);
+      if (!options.silent) {
+        const summary = `Validation complete: ${report.errorCount} errors, ${report.warnCount} warnings, ${report.infoCount} notes.`;
+        publishSuiteSyncResult(summary, "SkyDex4.6");
+        pushCommandFeed("SkyDex", summary, report.errorCount ? "fail" : report.warnCount ? "boundary" : "ok", "SkyDex4.6", undefined, "validate");
+      }
+      return report;
+    } catch (error: any) {
+      if (!options.silent) publishSuiteSyncResult(error?.message || "Validation failed.", "SkyDex4.6");
+      throw error;
+    } finally {
+      setIsWorkspaceValidationRunning(false);
+    }
+  }
+
+  async function copyWorkspaceValidationReport() {
+    try {
+      const report = workspaceValidationReport || await runWorkspaceValidation({ silent: true });
+      await navigator.clipboard.writeText(formatWorkspaceValidationReport(report));
+      publishSuiteSyncResult("Copied validation report.", "SkyDex4.6");
+    } catch (error: any) {
+      publishSuiteSyncResult(error?.message || "Validation report copy failed.", "SkyDex4.6");
+    }
+  }
+
+  async function exportWorkspaceProjectZip() {
+    setIsWorkspaceProjectExporting(true);
+    try {
+      const zip = new JSZip();
+      const root = `skydex-project-${Date.now()}`;
+      const folder = zip.folder(root);
+      if (!folder) throw new Error("Project ZIP root could not be created.");
+      files.forEach((file) => folder.file(file.path.replace(/^\/+/, "") || `file-${makeId()}.txt`, file.content));
+      folder.file(
+        "workspace-meta.json",
+        JSON.stringify(
+          {
+            selected_app: selectedSkyeApp,
+            workspace_id: workspaceId,
+            active_path: activeFile?.path || activePath,
+            preview_mode: previewRuntimeMode,
+            exported_at: new Date().toISOString(),
+          },
+          null,
+          2
+        )
+      );
+      const blob = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${root}.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+      publishSuiteSyncResult("Exported workspace project ZIP.", "SkyDex4.6");
+      pushCommandFeed("SkyDex", "Workspace project ZIP exported.", "ok", "SkyDex4.6", undefined, "zip");
+    } catch (error: any) {
+      publishSuiteSyncResult(error?.message || "Project ZIP export failed.", "SkyDex4.6");
+    } finally {
+      setIsWorkspaceProjectExporting(false);
+    }
+  }
+
+  async function exportWorkspaceEvidencePack() {
+    setIsWorkspaceEvidenceExporting(true);
+    try {
+      const report = workspaceValidationReport || await runWorkspaceValidation({ silent: true });
+      const zip = new JSZip();
+      const root = `skydex-evidence-${Date.now()}`;
+      const folder = zip.folder(root);
+      if (!folder) throw new Error("Evidence ZIP root could not be created.");
+      const sourceFolder = folder.folder("source");
+      if (!sourceFolder) throw new Error("Evidence source folder could not be created.");
+      files.forEach((file) => sourceFolder.file(file.path.replace(/^\/+/, "") || `file-${makeId()}.txt`, file.content));
+      folder.file("validation_report.txt", formatWorkspaceValidationReport(report));
+      folder.file("validation_report.json", JSON.stringify(report, null, 2));
+      folder.file("checksums.json", JSON.stringify(report.fileHashes, null, 2));
+      folder.file(
+        "preview_console.txt",
+        previewConsoleEntries.length
+          ? previewConsoleEntries
+              .slice()
+              .reverse()
+              .map((entry) => `[${entry.level.toUpperCase()}] ${entry.at} :: ${entry.message}`)
+              .join("\n")
+          : "No preview console entries captured."
+      );
+      folder.file("preview_console.json", JSON.stringify(previewConsoleEntries, null, 2));
+      const blob = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${root}.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+      publishSuiteSyncResult("Exported workspace evidence pack.", "SkyDex4.6");
+      pushCommandFeed("SkyDex", "Validation evidence pack exported.", report.errorCount ? "boundary" : "ok", "SkyDex4.6", undefined, "evidence");
+    } catch (error: any) {
+      publishSuiteSyncResult(error?.message || "Evidence pack export failed.", "SkyDex4.6");
+    } finally {
+      setIsWorkspaceEvidenceExporting(false);
+    }
+  }
+
+  function updateGbpRescueField<K extends keyof GbpRescueState>(field: K, value: GbpRescueState[K]) {
+    setGbpRescueCase((old) => ({ ...old, [field]: value }));
+  }
+
+  function updateGbpChecklistField(key: keyof GbpRescueChecklist, value: boolean) {
+    setGbpRescueCase((old) => ({ ...old, checklist: { ...old.checklist, [key]: value } }));
+  }
+
+  function saveGbpRescueCase() {
+    const next = { ...gbpRescueCase, updatedAt: new Date().toISOString() };
+    setGbpRescueCase(next);
+    publishSuiteSyncResult(`Saved GBP rescue case for ${next.businessName.trim() || "untitled business"}.`, "GoogleBusinessProfileRescuePlatform");
+    pushCommandFeed("GBP Rescue", `Saved rescue case for ${next.businessName.trim() || "untitled business"}.`, "ok", "GoogleBusinessProfileRescuePlatform", undefined, "save");
+  }
+
+  function openGbpRescueOpsInChat() {
+    const caseLabel = gbpRescueCase.businessName.trim() || "Untitled rescue case";
+    setChatChannelInput("rescue-ops");
+    setChatHistoryChannel("rescue-ops");
+    setChatMessageInput(`${caseLabel}\n\n${gbpDiagnosis.brief}`);
+    routeCrossAppFocus("SkyeChat", { channel: "rescue-ops", note: `GBP Rescue routed ${caseLabel} into SkyeChat.` });
+  }
+
+  function openGbpRescueOutreachInMail() {
+    const caseLabel = gbpRescueCase.businessName.trim() || "Untitled rescue case";
+    setMailSubject(`GBP Rescue update - ${caseLabel}`);
+    setMailText(gbpDiagnosis.outreachDraft);
+    routeCrossAppFocus("SkyeMail", { note: `GBP Rescue prepared outreach draft for ${caseLabel}.` });
+  }
+
+  function openGbpAdminLane() {
+    const caseLabel = gbpRescueCase.businessName.trim() || "Untitled rescue case";
+    setAdminBoardResult(gbpDiagnosis.adminLaneBrief);
+    routeCrossAppFocus("SkyeAdmin", { note: `GBP Rescue escalated ${caseLabel} into SkyeAdmin.` });
+  }
+
+  function exportGbpBriefToNotes() {
+    const caseLabel = gbpRescueCase.businessName.trim() || "Untitled rescue case";
+    setNotesModel((old) => [
+      {
+        id: `note-${Date.now()}`,
+        title: `${caseLabel} Rescue Brief`,
+        body: gbpDiagnosis.brief,
+        tags: "gbp,rescue,brief",
+        owner: authUser,
+        updated_at: new Date().toISOString(),
+        notebook: "GBP Rescue",
+        pinned: true,
+      },
+      ...old,
+    ]);
+    pushCommandFeed("GBP Rescue", `${caseLabel} brief exported into SkyeNotes.`, "ok", "SkyeNotes", undefined, "brief");
+    publishSuiteSyncResult(`Exported ${caseLabel} brief to SkyeNotes.`, "SkyeNotes");
+  }
+
+  function storeGbpEvidenceSnapshotInDrive() {
+    const caseLabel = gbpRescueCase.businessName.trim() || "untitled-rescue-case";
+    setDriveAssets((old) => [
+      {
+        id: `drive-${Date.now()}`,
+        name: `${caseLabel.replace(/\s+/g, "-").toLowerCase()}-evidence-pack.json`,
+        kind: "zip",
+        size_kb: Math.max(1, Math.round(new Blob([JSON.stringify({ case: gbpRescueCase, diagnosis: gbpDiagnosis }, null, 2)]).size / 1024)),
+        owner: authUser,
+        version: 1,
+        shared_with: "",
+        source_app: "GoogleBusinessProfileRescuePlatform",
+        saved_at: new Date().toISOString(),
+      },
+      ...old,
+    ]);
+    pushCommandFeed("GBP Rescue", `${caseLabel} evidence snapshot staged in SkyeDrive.`, "ok", "SkyeDrive", undefined, "evidence");
+    publishSuiteSyncResult(`Staged ${caseLabel} evidence snapshot in SkyeDrive.`, "SkyeDrive");
+  }
+
+  function createGbpRescueTasks() {
+    const caseLabel = gbpRescueCase.businessName.trim() || "Untitled rescue case";
+    const now = new Date().toISOString();
+    const nextTasks: TaskCard[] = [
+      {
+        id: `task-${Date.now()}-1`,
+        title: `Finish evidence packet for ${caseLabel}`,
+        description: gbpDiagnosis.evidenceGaps.length ? `Collect: ${gbpDiagnosis.evidenceGaps.join(", ")}.` : "Evidence packet is strong; verify final chronology and screenshots.",
+        status: "backlog",
+        priority: gbpDiagnosis.readiness === "Weak" ? "high" : "medium",
+        assignee: authUser,
+        due_at: new Date(Date.now() + 86400000).toISOString().slice(0, 10),
+        updated_at: now,
+      },
+      {
+        id: `task-${Date.now()}-2`,
+        title: `Draft reinstatement narrative for ${caseLabel}`,
+        description: `Policy risk ${gbpDiagnosis.policyRisk}; ownership risk ${gbpDiagnosis.ownershipRisk}. Push final draft through Neural Space Pro before submission.`,
+        status: "backlog",
+        priority: "high",
+        assignee: authUser,
+        due_at: new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10),
+        updated_at: now,
+      },
+    ];
+    setTasksModel((old) => [...nextTasks, ...old]);
+    pushCommandFeed("GBP Rescue", `Created ${nextTasks.length} rescue tasks for ${caseLabel}.`, "ok", "SkyeTasks", undefined, "tasks");
+    publishSuiteSyncResult(`Created rescue tasks for ${caseLabel}.`, "SkyeTasks");
+  }
+
+  function routeGbpCaseToNeural() {
+    const caseLabel = gbpRescueCase.businessName.trim() || "Untitled rescue case";
+    routeCurrentAppToNeural("GoogleBusinessProfileRescuePlatform", `GBP Rescue staged ${caseLabel} for evidence synthesis.`);
+  }
+
   async function notifySkyeChat() {
     setIsNotifyingChat(true);
     setChatNotifyResult("");
@@ -7704,7 +8534,7 @@ export function App() {
 
   function currentAppPayload(): Record<string, unknown> {
     if (selectedSkyeApp === "SkyeDocs") {
-      return { files, active_path: activePath };
+      return { files, active_path: activePath, preview_console: previewConsoleEntries, validation: workspaceValidationReport };
     }
     if (selectedSkyeApp === "SkyeSheets") {
       return { model: sheetsModel, record_id: sheetsRecordId, updated_at: sheetsRecordUpdatedAt };
@@ -7727,6 +8557,7 @@ export function App() {
     if (selectedSkyeApp === "SkyeForms") return { questions: formQuestions, responses: formResponses };
     if (selectedSkyeApp === "SkyeNotes") return { notes: notesModel };
     if (selectedSkyeApp === "SkyeAnalytics") return { smoke_runs: smokeLedger.length, mvp_complete: completeMvpItems };
+    if (selectedSkyeApp === "GoogleBusinessProfileRescuePlatform") return { rescue_case: gbpRescueCase, diagnosis: gbpDiagnosis, workspace_id: workspaceId };
     if (selectedSkyeApp === "SkyeVault-Pro-v4.46") return { workspace_id: workspaceId, note: "SkyeVault Pro state is managed in embedded app." };
     return { workspace_id: workspaceId, note: "SkyeDocxPro state is managed in embedded app." };
   }
@@ -7778,6 +8609,9 @@ export function App() {
       if (Array.isArray(payload.responses)) setFormResponses(payload.responses as FormResponseItem[]);
     }
     if (appId === "SkyeNotes" && Array.isArray(payload.notes)) setNotesModel(payload.notes as NoteItem[]);
+    if (appId === "GoogleBusinessProfileRescuePlatform" && payload.rescue_case && typeof payload.rescue_case === "object") {
+      setGbpRescueCase(normalizeGbpRescueState(payload.rescue_case));
+    }
   }
 
   function buildVaultProImportEnvelope(appId: SkyeAppId) {
@@ -8821,6 +9655,7 @@ export function App() {
 
     if (
       selectedSkyeApp === "SkyDex4.6" ||
+      selectedSkyeApp === "WebPilePro" ||
       selectedSkyeApp === "REACT2HTML" ||
       selectedSkyeApp === "SKYEMAIL-GEN" ||
       selectedSkyeApp === "Skye-ID" ||
@@ -9423,17 +10258,115 @@ export function App() {
 
     if (selectedSkyeApp === "GoogleBusinessProfileRescuePlatform") {
       return (
-        <section className="app-module platform-shell" style={{ minHeight: "84vh" }}>
+        <section className="app-module platform-shell gbp-platform-shell" style={{ minHeight: "84vh" }}>
           <header>
             <h2>Google Business Rescue Platform</h2>
-            <p>Embedded rescue operations platform positioned as a full system for diagnostics, evidence prep, and reinstatement execution inside the command deck.</p>
-            <p className="muted-copy">The deeper source workspace is staged in-repo; this live capsule keeps the platform visible and integrated inside SuperIDE right now.</p>
+            <p>Operator-ready rescue platform for suspensions, verification failures, ownership conflicts, evidence prep, and reinstatement execution inside the command deck.</p>
+            <p className="muted-copy">This lane now does real work in-shell: case capture, diagnosis, brief generation, note/drive/task routing, and direct handoff into chat, mail, neural, and admin lanes.</p>
           </header>
           <div className="tool-actions left" style={{ marginBottom: 10 }}>
             <a className="ghost" href={`/GoogleBusinessProfileRescuePlatform/index.html?ws_id=${encodeURIComponent(workspaceId)}`} target="_blank" rel="noreferrer">Open Rescue Platform Capsule</a>
-            <button className="ghost" type="button" onClick={() => setSelectedSkyeApp("SkyeChat")}>Route To SkyeChat</button>
-            <button className="ghost" type="button" onClick={() => setSelectedSkyeApp("SkyeMail")}>Route To SkyeMail</button>
-            <button className="ghost" type="button" onClick={() => setAppMode("neural")}>Open Neural Space Pro</button>
+            <button className="ghost" type="button" onClick={openGbpRescueOpsInChat}>Open Rescue Ops In SkyeChat</button>
+            <button className="ghost" type="button" onClick={openGbpRescueOutreachInMail}>Open Rescue Outreach In SkyeMail</button>
+            <button className="ghost" type="button" onClick={openGbpAdminLane}>Open Admin Lane</button>
+            <button className="ghost" type="button" onClick={routeGbpCaseToNeural}>Open Neural Space Pro</button>
+          </div>
+          <div className="kpi-grid gbp-kpi-grid">
+            <article className="kpi-card"><div>Policy Risk</div><strong>{gbpDiagnosis.policyRisk}</strong></article>
+            <article className="kpi-card"><div>Ownership Risk</div><strong>{gbpDiagnosis.ownershipRisk}</strong></article>
+            <article className="kpi-card"><div>Readiness</div><strong>{gbpDiagnosis.readiness}</strong></article>
+            <article className="kpi-card"><div>Evidence Score</div><strong>{gbpDiagnosis.checklistScore}/4</strong></article>
+          </div>
+          <div className="ops-grid two-up gbp-tool-grid">
+            <article className="list-item gbp-workbench-card">
+              <strong>Live Case Workspace</strong>
+              <div className="tool-row split" style={{ marginTop: 10 }}>
+                <input value={gbpRescueCase.businessName} onChange={(event) => updateGbpRescueField("businessName", event.target.value)} placeholder="Business name" />
+                <input value={gbpRescueCase.market} onChange={(event) => updateGbpRescueField("market", event.target.value)} placeholder="Region / market" />
+              </div>
+              <div className="tool-row split" style={{ marginTop: 10 }}>
+                <select value={gbpRescueCase.status} onChange={(event) => updateGbpRescueField("status", event.target.value as GbpRescueStatus)}>
+                  <option value="suspended">Suspended</option>
+                  <option value="verification-failure">Verification Failure</option>
+                  <option value="ownership-conflict">Ownership Conflict</option>
+                  <option value="disabled-profile">Disabled Profile</option>
+                  <option value="ranking-collapse">Ranking Collapse</option>
+                </select>
+                <select value={gbpRescueCase.evidenceStrength} onChange={(event) => updateGbpRescueField("evidenceStrength", event.target.value as GbpEvidenceStrength)}>
+                  <option value="low">Evidence strength: low</option>
+                  <option value="medium">Evidence strength: medium</option>
+                  <option value="high">Evidence strength: high</option>
+                </select>
+              </div>
+              <textarea rows={8} value={gbpRescueCase.notes} onChange={(event) => updateGbpRescueField("notes", event.target.value)} placeholder="Case notes, prior appeals, ownership history, storefront facts, and support friction." style={{ marginTop: 10 }} />
+              <div className="gbp-checklist-grid">
+                <label><input type="checkbox" checked={gbpRescueCase.checklist.businessLicense} onChange={(event) => updateGbpChecklistField("businessLicense", event.target.checked)} /> Business registration ready</label>
+                <label><input type="checkbox" checked={gbpRescueCase.checklist.utilityBill} onChange={(event) => updateGbpChecklistField("utilityBill", event.target.checked)} /> Address proof ready</label>
+                <label><input type="checkbox" checked={gbpRescueCase.checklist.photos} onChange={(event) => updateGbpChecklistField("photos", event.target.checked)} /> Photos and signage ready</label>
+                <label><input type="checkbox" checked={gbpRescueCase.checklist.appealHistory} onChange={(event) => updateGbpChecklistField("appealHistory", event.target.checked)} /> Appeal history documented</label>
+              </div>
+              <div className="tool-actions left" style={{ marginTop: 12 }}>
+                <button className="ghost" type="button" onClick={saveGbpRescueCase}>Save Case State</button>
+                <button className="ghost" type="button" onClick={exportGbpBriefToNotes}>Brief To SkyeNotes</button>
+                <button className="ghost" type="button" onClick={storeGbpEvidenceSnapshotInDrive}>Evidence To SkyeDrive</button>
+                <button className="ghost" type="button" onClick={createGbpRescueTasks}>Create Rescue Tasks</button>
+              </div>
+              <div className="metric-strip" style={{ marginTop: 10 }}>
+                <span>{gbpRescueCase.updatedAt ? `Saved ${new Date(gbpRescueCase.updatedAt).toLocaleString()}` : "Case not saved yet"}</span>
+                <span>{gbpDiagnosis.evidenceGaps.length ? `${gbpDiagnosis.evidenceGaps.length} evidence gaps open` : "Evidence set looks complete"}</span>
+                <span>{workspaceId}</span>
+              </div>
+            </article>
+            <article className="list-item gbp-output-card">
+              <strong>Generated Rescue Outputs</strong>
+              <div className="gbp-report-box">{gbpDiagnosis.brief}</div>
+              <div className="gbp-output-grid">
+                <div>
+                  <small>Client Update</small>
+                  <div className="gbp-report-box compact">{gbpDiagnosis.clientUpdate}</div>
+                </div>
+                <div>
+                  <small>Review Reply</small>
+                  <div className="gbp-report-box compact">{gbpDiagnosis.reviewReply}</div>
+                </div>
+              </div>
+              <div className="tool-actions left" style={{ marginTop: 12 }}>
+                <button className="ghost" type="button" onClick={openGbpRescueOpsInChat}>Route Brief To Chat</button>
+                <button className="ghost" type="button" onClick={openGbpRescueOutreachInMail}>Prepare Mail Draft</button>
+                <button className="ghost" type="button" onClick={routeGbpCaseToNeural}>Send To Neural</button>
+              </div>
+            </article>
+          </div>
+          <div className="ops-grid two-up gbp-tool-grid">
+            <article className="list-item">
+              <strong>Embedded Rescue Tool Apps</strong>
+              <div className="list-stack compact-section" style={{ marginTop: 10 }}>
+                <div className="list-item compact-inline"><strong>SkyeChat Rescue Ops</strong><span>War-room channel with the live brief prefilled.</span></div>
+                <div className="list-item compact-inline"><strong>SkyeMail Rescue Outreach</strong><span>Outbound client update and reinstatement messaging draft.</span></div>
+                <div className="list-item compact-inline"><strong>SkyeDrive Evidence Locker</strong><span>Stores the latest evidence snapshot for handoff and audit.</span></div>
+                <div className="list-item compact-inline"><strong>SkyeTasks Rescue Tracker</strong><span>Creates concrete operator tasks from the current diagnosis.</span></div>
+              </div>
+              <div className="tool-actions left" style={{ marginTop: 12 }}>
+                <button className="ghost" type="button" onClick={() => routeCrossAppFocus("SkyeDrive", { note: "GBP Rescue opened SkyeDrive for evidence review." })}>Open Evidence Locker</button>
+                <button className="ghost" type="button" onClick={() => routeCrossAppFocus("SkyeNotes", { note: "GBP Rescue opened SkyeNotes for brief review." })}>Open Brief Notebook</button>
+                <button className="ghost" type="button" onClick={() => routeCrossAppFocus("SkyeTasks", { note: "GBP Rescue opened SkyeTasks for operator execution." })}>Open Rescue Tracker</button>
+                <button className="ghost" type="button" onClick={openGbpAdminLane}>Escalate Admin Controls</button>
+              </div>
+            </article>
+            <article className="list-item">
+              <strong>Evidence and Escalation Readout</strong>
+              <div className="metric-strip" style={{ marginTop: 10 }}>
+                <span>Case ID {gbpCaseId}</span>
+                <span>Policy {gbpDiagnosis.policyRisk}</span>
+                <span>Ownership {gbpDiagnosis.ownershipRisk}</span>
+              </div>
+              <div className="gbp-report-box compact" style={{ marginTop: 12 }}>{gbpDiagnosis.adminLaneBrief}</div>
+              <ul style={{ marginTop: 12 }}>
+                {gbpDiagnosis.evidenceGaps.length
+                  ? gbpDiagnosis.evidenceGaps.map((gap) => <li key={gap}>{gap}</li>)
+                  : <li>No major evidence gaps detected. Finalize chronology and submission narrative.</li>}
+              </ul>
+            </article>
           </div>
           <iframe
             title="Google Business Rescue Platform"
@@ -10554,6 +11487,7 @@ export function App() {
   const isSkyeDocsStackMode = appMode === "skyeide" && selectedSkyeApp === "SkyeDocs";
   const dockApps: DockApp[] = ["SkyeMail", "SkyeDrive", "SovereignVariables", "SkyeCalendar", "SkyeChat"];
   const standaloneIdeUrl = buildStandaloneAppUrl("SkyDex4.6", workspaceId) || "/SkyDex4.6/index.html";
+  const standaloneWebPileUrl = buildStandaloneAppUrl("WebPilePro", workspaceId) || "/WebPilePro/index.html";
   const leftMiddleDockUrl = buildAppSurfaceUrl(leftMiddleDockApp, workspaceId) || "/";
   const leftMiddleDockEmbedUrl = `${leftMiddleDockUrl}${leftMiddleDockUrl.includes("?") ? "&" : "?"}embed=1`;
   const leftBottomDockUrl = buildAppSurfaceUrl(leftBottomDockApp, workspaceId) || "/";
@@ -11316,6 +12250,45 @@ export function App() {
         </article>
       </section>
 
+      <section className="executive-grid" aria-label="skydex autonomy launch">
+        <article className="executive-card">
+          <header className="executive-card-head">
+            <div>
+              <p className="platform-intro-kicker">SkyDex 4.6</p>
+              <h3>Autonomous IDE lane with a direct standalone launch</h3>
+            </div>
+            <div className="tool-actions left executive-card-actions">
+              <button className="ghost" type="button" onClick={() => { setAppMode("skyeide"); setSelectedSkyeApp("SkyDex4.6"); }}>
+                Open In Workspace
+              </button>
+              <a className="ghost" href={standaloneIdeUrl} target="_blank" rel="noreferrer">Open Standalone IDE</a>
+            </div>
+          </header>
+          <p className="muted-copy">
+            SkyDex can autonomously inspect, iterate, apply, and save workspace changes, but it stays bounded by auth,
+            workspace scope, SKNore policy, and operation limits. This keeps the lane autonomous enough to do real work
+            without turning it into an ungoverned executor.
+          </p>
+          <div className="topbar-telemetry platform-intro-telemetry">
+            <span className="telemetry-chip">Autonomy: bounded execute mode</span>
+            <span className="telemetry-chip">Auth: {hasActiveAuthSession ? "session active" : "sign-in required"}</span>
+            <span className="telemetry-chip">Policy: {sknoreBlockedCount} protected paths</span>
+            <span className="telemetry-chip">Workspace: {workspaceId || "org-scope"}</span>
+          </div>
+          <div className="tool-actions left" style={{ marginTop: 12 }}>
+            <button className="ghost" type="button" onClick={() => setShowHomePanels(false)}>
+              Enter IDE Bench
+            </button>
+            <button className="ghost" type="button" onClick={() => setShowTutorialPanel(true)}>
+              View Tutorials
+            </button>
+            <button className="ghost" type="button" onClick={() => openAuthCenterWindow({ focus: true, guide: true })}>
+              Open Guided Auth Center
+            </button>
+          </div>
+        </article>
+      </section>
+
       <section className="workspace-surface-bar">
         <div className="workspace-surface-meta">Internal Control Lane</div>
         {!adminBoardUnlocked ? (
@@ -11974,161 +12947,94 @@ export function App() {
                   </div>
                   <input id="skye-import-input" type="file" accept=".skye" style={{ display: "none" }} onChange={onImportSkyeFile} />
                   {ideOpsResult && <p className="muted-copy">{ideOpsResult}</p>}
-                  <div className="ide-super-shell">
-                    <aside className="ide-super-rail" aria-label="Workbench rail">
-                      <button className={`ghost ${ideRailTab === "explorer" ? "active" : ""}`} type="button" onClick={() => setIdeRailTab("explorer")}>Files</button>
-                      <button className={`ghost ${ideRailTab === "search" ? "active" : ""}`} type="button" onClick={() => setIdeRailTab("search")}>Search</button>
-                      <button className={`ghost ${ideRailTab === "git" ? "active" : ""}`} type="button" onClick={() => setIdeRailTab("git")}>Git</button>
-                      <button className={`ghost ${ideRailTab === "run" ? "active" : ""}`} type="button" onClick={() => setIdeRailTab("run")}>Run</button>
-                      <button className={`ghost ${ideRailTab === "extensions" ? "active" : ""}`} type="button" onClick={() => setIdeRailTab("extensions")}>Ext</button>
-                    </aside>
-
-                    <aside className="ide-super-sidebar" aria-label="Workbench sidebar">
-                      {ideRailTab === "explorer" && (
-                        <>
-                          <h3>Workspace Files</h3>
-                          <div className="ide-sidebar-list">
-                            {files.map((file) => (
-                              <button
-                                key={`explorer-${file.path}`}
-                                type="button"
-                                className={`ghost ide-sidebar-item ${activePath === file.path ? "active" : ""}`}
-                                onClick={() => setActivePath(file.path)}
-                              >
-                                {file.path}
-                              </button>
-                            ))}
-                          </div>
-                        </>
-                      )}
-
-                      {ideRailTab === "search" && (
-                        <>
-                          <h3>Find File</h3>
-                          <input
-                            value={ideFileSearch}
-                            onChange={(event) => setIdeFileSearch(event.target.value)}
-                            placeholder="Search by path..."
-                          />
-                          <div className="ide-sidebar-list">
-                            {ideVisibleFiles.map((file) => (
-                              <button
-                                key={`search-${file.path}`}
-                                type="button"
-                                className={`ghost ide-sidebar-item ${activePath === file.path ? "active" : ""}`}
-                                onClick={() => setActivePath(file.path)}
-                              >
-                                {file.path}
-                              </button>
-                            ))}
-                            {!ideVisibleFiles.length && <p className="muted-copy">No files match that path filter.</p>}
-                          </div>
-                        </>
-                      )}
-
-                      {ideRailTab === "git" && (
-                        <>
-                          <h3>Git Actions</h3>
-                          <p className="muted-copy">Commit and push from the same workspace shell.</p>
-                          {workspaceConflict && (
-                            <div className="smoke-warning">
-                              <strong>Save Conflict</strong>
-                              <div>{workspaceConflict.message}</div>
-                              <div className="tool-actions left">
-                                <button className="ghost" type="button" onClick={() => void loadWorkspaceNow()} disabled={isLoadingWorkspace}>
-                                  Reload Server Copy
-                                </button>
-                                <button className="ghost" type="button" onClick={() => void saveWorkspaceNow(true)} disabled={isSavingWorkspace}>
-                                  Force Save
-                                </button>
-                              </div>
-                            </div>
-                          )}
-                          <div className="tool-actions left">
-                            <button className="ghost" type="button" onClick={() => void saveWorkspaceNow()} disabled={isSavingWorkspace}>
-                              {isSavingWorkspace ? "Saving..." : "Save"}
-                            </button>
-                            <button className="ghost" type="button" onClick={() => void pushWorkspaceToGitHub()} disabled={isGitPushing}>
-                              {isGitPushing ? "Pushing..." : "Push"}
-                            </button>
-                          </div>
-                        </>
-                      )}
-
-                      {ideRailTab === "run" && (
-                        <>
-                          <h3>Run + Deploy</h3>
-                          <p className="muted-copy">Preview is available inline. Deploy remains one-click here.</p>
-                          <div className="tool-actions left">
-                            <button className="ghost" type="button" onClick={() => setAutoSaveEnabled((old) => !old)}>
-                              Autosave: {autoSaveEnabled ? "ON" : "OFF"}
-                            </button>
-                            <button className="ghost" type="button" onClick={() => void saveWorkspaceNow()} disabled={isSavingWorkspace}>
-                              {isSavingWorkspace ? "Saving..." : "Save Now"}
-                            </button>
-                          </div>
-                          <div className="tool-actions left">
-                            <button className="ghost" type="button" onClick={retryPreview}>Retry Preview</button>
-                            <button className="ghost" type="button" onClick={openDetachedPreview}>Open Preview</button>
-                            <button className="ghost" type="button" onClick={() => void deployWorkspaceNow()} disabled={isDeployingWorkspace}>
-                              {isDeployingWorkspace ? "Deploying..." : "Deploy"}
-                            </button>
-                          </div>
-                        </>
-                      )}
-
-                      {ideRailTab === "extensions" && (
-                        <>
-                          <h3>Workbench Status</h3>
-                          <p className="muted-copy">Drop-in shell is wired into SuperIDE. This stays in the same app runtime and identity context.</p>
-                          <p className="muted-copy">Current file: {activeFile?.path || "none"}</p>
-                        </>
-                      )}
-                    </aside>
-
-                  <div className="ide-super-main">
-                    <div className="preview-head">
-                      <strong>Code + Live Preview</strong>
-                      <div className="tool-actions left">
-                        <span className="telemetry-chip">Runtime: {previewRuntimeMode}</span>
-                        <button className="ghost" type="button" onClick={() => setPreviewRuntimeMode("quick")} disabled={previewRuntimeMode === "quick"}>Quick</button>
-                        <button className="ghost" type="button" onClick={() => setPreviewRuntimeMode("project")} disabled={previewRuntimeMode === "project"}>Project</button>
-                        <span className="telemetry-chip">Autosave: {autoSaveEnabled ? "on" : "off"}</span>
-                        <span className="telemetry-chip">Files: {workspaceDirty ? "Dirty" : "Saved"}</span>
-                        <span className="telemetry-chip">Preview Health: {previewHealth}</span>
-                        <button className="ghost" type="button" onClick={() => setPreviewPane("split")} disabled={previewPane === "split"}>Split</button>
-                        <button className="ghost" type="button" onClick={() => setPreviewPane("code")} disabled={previewPane === "code"}>Code</button>
-                        <button className="ghost" type="button" onClick={() => setPreviewPane("preview")} disabled={previewPane === "preview"}>Preview</button>
-                        <button className="ghost" type="button" onClick={() => setPreviewDevice("desktop")} disabled={previewDevice === "desktop"}>Desktop</button>
-                        <button className="ghost" type="button" onClick={() => setPreviewDevice("mobile")} disabled={previewDevice === "mobile"}>Mobile</button>
-                        <button className="ghost" type="button" onClick={retryPreview}>Retry</button>
-                        <button className="ghost" type="button" onClick={openDetachedPreview}>Detach</button>
+                  <div className="webpile-ide-shell">
+                    <section className="webpile-shell-head">
+                      <div>
+                        <p className="platform-intro-kicker">WebPile Method</p>
+                        <h3>Monaco-first workspace with a cleaner preview deck</h3>
+                        <p className="muted-copy">SkyDex now uses the WebPile-style editor and preview methodology while staying connected to your secure workspace, GitHub, Netlify, and suite runtime.</p>
                       </div>
-                    </div>
-                    <div className={`ide-workbench ${previewPane}`}>
-                      {previewPane === "split" ? (
-                        <div className="ide-split-resizable" ref={ideSplitRef}>
-                          <div className="ide-code-col" style={{ width: `${ideSplitRatio}%` }}>
-                            <div className="editor-head">{activeFile?.path || "No file"}</div>
-                            <Editor
-                              height="72vh"
-                              theme="vs-dark"
-                              path={activeFile?.path}
-                              value={activeFile?.content || ""}
-                              onChange={(value) => updateActiveFileContent(value || "")}
-                              options={{ minimap: { enabled: false }, fontSize: 13, wordWrap: "on", automaticLayout: true }}
-                            />
+                      <div className="tool-actions left webpile-head-actions">
+                        <a className="ghost" href={standaloneWebPileUrl} target="_blank" rel="noreferrer">Open WebPilePro</a>
+                        <a className="ghost" href={standaloneIdeUrl} target="_blank" rel="noreferrer">Open Standalone IDE</a>
+                      </div>
+                    </section>
+
+                    <section className="webpile-file-strip" aria-label="Workspace files">
+                      {files.map((file) => (
+                        <button
+                          key={`webpile-file-${file.path}`}
+                          type="button"
+                          className={`webpile-file-chip ${activePath === file.path ? "active" : ""}`}
+                          onClick={() => setActivePath(file.path)}
+                        >
+                          <span className={`webpile-file-dot ${workspaceUnloadedPaths.includes(file.path) ? "warn" : "ok"}`} />
+                          <strong>{file.path}</strong>
+                        </button>
+                      ))}
+                    </section>
+
+                    <div className="webpile-ide-grid">
+                      <section className="webpile-panel webpile-editor-panel">
+                        <header className="webpile-panel-head">
+                          <div>
+                            <h3>Editor</h3>
+                            <p>{activeFile?.path || "No file selected"}</p>
                           </div>
-                          <div
-                            className="panel-resizer vertical"
-                            role="separator"
-                            aria-label="Resize code and preview"
-                            onPointerDown={(event) => beginResize("ide-split", event)}
+                          <div className="tool-actions left webpile-panel-actions">
+                            <span className="telemetry-chip">Autosave: {autoSaveEnabled ? "on" : "off"}</span>
+                            <span className="telemetry-chip">Files: {workspaceDirty ? "Dirty" : "Saved"}</span>
+                            <span className="telemetry-chip">Runtime: {previewRuntimeMode}</span>
+                          </div>
+                        </header>
+                        <div className="webpile-panel-toolbar">
+                          <input value={newFilePath} onChange={(event) => setNewFilePath(event.target.value)} placeholder="src/new-file.ts" />
+                          <button className="ghost" type="button" onClick={addWorkspaceFile}>Add File</button>
+                          <button className="ghost" type="button" onClick={deleteActiveWorkspaceFile}>Delete Active</button>
+                          <input value={ideCommitMessage} onChange={(event) => setIdeCommitMessage(event.target.value)} placeholder="Commit message for GitHub push" />
+                        </div>
+                        <div className="webpile-editor-statusbar">
+                          <span className="telemetry-chip">Preview Health: {previewHealth}</span>
+                          <span className="telemetry-chip">Surface: {selectedSkyeApp}</span>
+                          <span className="telemetry-chip">Active File: {activeFile?.path || "none"}</span>
+                        </div>
+                        <div className="webpile-editor-surface">
+                          <Editor
+                            height="76vh"
+                            theme="vs-dark"
+                            path={activeFile?.path}
+                            value={activeFile?.content || ""}
+                            onChange={(value) => updateActiveFileContent(value || "")}
+                            options={{ minimap: { enabled: false }, fontSize: 13, wordWrap: "on", automaticLayout: true, smoothScrolling: true, cursorBlinking: "smooth", roundedSelection: true }}
                           />
-                          <div className="preview-shell" style={{ width: `${100 - ideSplitRatio}%` }}>
-                            {effectivePreviewDocument ? (
+                        </div>
+                      </section>
+
+                      <section className="webpile-panel webpile-preview-panel">
+                        <header className="webpile-panel-head">
+                          <div>
+                            <h3>Preview</h3>
+                            <p>Device-aware live preview with fast detachment and retry controls.</p>
+                          </div>
+                          <div className="tool-actions left webpile-panel-actions">
+                            <button className="ghost" type="button" onClick={() => setPreviewRuntimeMode("quick")} disabled={previewRuntimeMode === "quick"}>Quick</button>
+                            <button className="ghost" type="button" onClick={() => setPreviewRuntimeMode("project")} disabled={previewRuntimeMode === "project"}>Project</button>
+                            <button className="ghost" type="button" onClick={() => setPreviewDevice("desktop")} disabled={previewDevice === "desktop"}>Desktop</button>
+                            <button className="ghost" type="button" onClick={() => setPreviewDevice("mobile")} disabled={previewDevice === "mobile"}>Mobile</button>
+                          </div>
+                        </header>
+                        <div className="webpile-panel-toolbar webpile-preview-toolbar">
+                          <button className="ghost" type="button" onClick={() => setPreviewPane("split")} disabled={previewPane === "split"}>Split</button>
+                          <button className="ghost" type="button" onClick={() => setPreviewPane("code")} disabled={previewPane === "code"}>Code</button>
+                          <button className="ghost" type="button" onClick={() => setPreviewPane("preview")} disabled={previewPane === "preview"}>Preview</button>
+                          <button className="ghost" type="button" onClick={retryPreview}>Retry</button>
+                          <button className="ghost" type="button" onClick={openDetachedPreview}>Detach</button>
+                        </div>
+                        <div className="webpile-preview-surface">
+                          {previewPane !== "code" ? (
+                            instrumentedPreviewDocument ? (
                               <div className={`preview-frame-wrap ${previewDevice}`}>
-                                <iframe key={`${activeFile?.path || "file"}-${effectivePreviewDocument.length}-${previewRuntimeMode}`} title="IDE File Preview" className="preview-frame" srcDoc={effectivePreviewDocument} sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-downloads" />
+                                <iframe key={`${previewBridgeToken}-${activeFile?.path || "file"}-${previewRuntimeMode}`} title="IDE File Preview" className="preview-frame" srcDoc={instrumentedPreviewDocument} sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-downloads" />
                               </div>
                             ) : effectivePreviewUrl ? (
                               <div className={`preview-frame-wrap ${previewDevice}`}>
@@ -12148,88 +13054,222 @@ export function App() {
                                     pushIdeDiagnostic("error", message);
                                   }}
                                 />
-                                {previewFrameError && (
-                                  <p className="muted-copy">
-                                    {previewFrameError}. <button className="ghost" type="button" onClick={openDetachedPreview}>Open in new tab</button>
-                                  </p>
-                                )}
                               </div>
                             ) : (
                               <p className="muted-copy">Preview supports live app surfaces and `.html`, `.htm`, `.svg`, `.md` file rendering.</p>
-                            )}
+                            )
+                          ) : (
+                            <div className="webpile-preview-placeholder">
+                              <strong>Preview hidden</strong>
+                              <p>Switch back to Split or Preview to reopen the live frame.</p>
+                            </div>
+                          )}
+                        </div>
+                        <div className="webpile-preview-footer">
+                          <span className="telemetry-chip">Mode: {previewPane}</span>
+                          <span className="telemetry-chip">Device: {previewDevice}</span>
+                          <span className="telemetry-chip">Console: {instrumentedPreviewDocument ? `${previewConsoleEntries.length} entries` : "Quick mode only"}</span>
+                          {previewFrameError ? <span className="telemetry-chip">Issue: {previewFrameError}</span> : <span className="telemetry-chip">Frame ready</span>}
+                        </div>
+                      </section>
+                    </div>
+
+                    <div className="webpile-utility-grid">
+                      <section className="webpile-panel webpile-utility-panel">
+                        <header className="webpile-panel-head">
+                          <div>
+                            <h3>Workbench Utility</h3>
+                            <p>Keep file discovery, git, run, and shell status nearby without the old sidebar taking over the layout.</p>
+                          </div>
+                          <div className="tool-actions left webpile-panel-actions">
+                            <button className={`ghost ${ideRailTab === "explorer" ? "active" : ""}`} type="button" onClick={() => setIdeRailTab("explorer")}>Files</button>
+                            <button className={`ghost ${ideRailTab === "search" ? "active" : ""}`} type="button" onClick={() => setIdeRailTab("search")}>Search</button>
+                            <button className={`ghost ${ideRailTab === "git" ? "active" : ""}`} type="button" onClick={() => setIdeRailTab("git")}>Git</button>
+                            <button className={`ghost ${ideRailTab === "run" ? "active" : ""}`} type="button" onClick={() => setIdeRailTab("run")}>Run</button>
+                            <button className={`ghost ${ideRailTab === "extensions" ? "active" : ""}`} type="button" onClick={() => setIdeRailTab("extensions")}>Status</button>
+                          </div>
+                        </header>
+                        <div className="webpile-utility-body">
+                          {ideRailTab === "explorer" && (
+                            <div className="webpile-utility-list">
+                              {files.map((file) => (
+                                <button
+                                  key={`explorer-${file.path}`}
+                                  type="button"
+                                  className={`ghost webpile-utility-item ${activePath === file.path ? "active" : ""}`}
+                                  onClick={() => setActivePath(file.path)}
+                                >
+                                  {file.path}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+
+                          {ideRailTab === "search" && (
+                            <>
+                              <input
+                                value={ideFileSearch}
+                                onChange={(event) => setIdeFileSearch(event.target.value)}
+                                placeholder="Search by path..."
+                              />
+                              <div className="webpile-utility-list">
+                                {ideVisibleFiles.map((file) => (
+                                  <button
+                                    key={`search-${file.path}`}
+                                    type="button"
+                                    className={`ghost webpile-utility-item ${activePath === file.path ? "active" : ""}`}
+                                    onClick={() => setActivePath(file.path)}
+                                  >
+                                    {file.path}
+                                  </button>
+                                ))}
+                                {!ideVisibleFiles.length && <p className="muted-copy">No files match that path filter.</p>}
+                              </div>
+                            </>
+                          )}
+
+                          {ideRailTab === "git" && (
+                            <>
+                              <p className="muted-copy">Commit and push from the same workspace shell.</p>
+                              {workspaceConflict && (
+                                <div className="smoke-warning">
+                                  <strong>Save Conflict</strong>
+                                  <div>{workspaceConflict.message}</div>
+                                  <div className="tool-actions left">
+                                    <button className="ghost" type="button" onClick={() => void loadWorkspaceNow()} disabled={isLoadingWorkspace}>
+                                      Reload Server Copy
+                                    </button>
+                                    <button className="ghost" type="button" onClick={() => void saveWorkspaceNow(true)} disabled={isSavingWorkspace}>
+                                      Force Save
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                              <div className="tool-actions left">
+                                <button className="ghost" type="button" onClick={() => void saveWorkspaceNow()} disabled={isSavingWorkspace}>
+                                  {isSavingWorkspace ? "Saving..." : "Save"}
+                                </button>
+                                <button className="ghost" type="button" onClick={() => void pushWorkspaceToGitHub()} disabled={isGitPushing}>
+                                  {isGitPushing ? "Pushing..." : "Push"}
+                                </button>
+                              </div>
+                            </>
+                          )}
+
+                          {ideRailTab === "run" && (
+                            <>
+                              <p className="muted-copy">Preview is available inline. Deploy remains one-click here.</p>
+                              <div className="tool-actions left">
+                                <button className="ghost" type="button" onClick={() => setAutoSaveEnabled((old) => !old)}>
+                                  Autosave: {autoSaveEnabled ? "ON" : "OFF"}
+                                </button>
+                                <button className="ghost" type="button" onClick={() => void saveWorkspaceNow()} disabled={isSavingWorkspace}>
+                                  {isSavingWorkspace ? "Saving..." : "Save Now"}
+                                </button>
+                                <button className="ghost" type="button" onClick={() => void deployWorkspaceNow()} disabled={isDeployingWorkspace}>
+                                  {isDeployingWorkspace ? "Deploying..." : "Deploy"}
+                                </button>
+                              </div>
+                            </>
+                          )}
+
+                          {ideRailTab === "extensions" && (
+                            <div className="webpile-status-grid">
+                              <div className="webpile-status-card">
+                                <strong>Current File</strong>
+                                <span>{activeFile?.path || "none"}</span>
+                              </div>
+                              <div className="webpile-status-card">
+                                <strong>Workspace</strong>
+                                <span>{workspaceId || "primary-workspace"}</span>
+                              </div>
+                              <div className="webpile-status-card">
+                                <strong>Preview</strong>
+                                <span>{previewHealth}</span>
+                              </div>
+                              <div className="webpile-status-card">
+                                <strong>Shell</strong>
+                                <span>SuperIDE runtime linked</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </section>
+
+                      <section className="webpile-panel webpile-diagnostics-panel">
+                        <header className="webpile-panel-head">
+                          <div>
+                            <h3>Validation + Evidence</h3>
+                            <p>Console capture, static validation, and export artifacts now sit inside the same embedded bench.</p>
+                          </div>
+                          <div className="tool-actions left webpile-panel-actions">
+                            <button className="ghost" type="button" onClick={() => void runWorkspaceValidation()} disabled={isWorkspaceValidationRunning}>{isWorkspaceValidationRunning ? "Validating..." : "Validate"}</button>
+                            <button className="ghost" type="button" onClick={copyPreviewConsoleToClipboard}>Copy Console</button>
+                            <button className="ghost" type="button" onClick={copyWorkspaceValidationReport} disabled={!workspaceValidationReport && isWorkspaceValidationRunning}>Copy Report</button>
+                            <button className="ghost" type="button" onClick={() => void exportWorkspaceProjectZip()} disabled={isWorkspaceProjectExporting}>{isWorkspaceProjectExporting ? "Exporting..." : "Export ZIP"}</button>
+                            <button className="ghost" type="button" onClick={() => void exportWorkspaceEvidencePack()} disabled={isWorkspaceEvidenceExporting}>{isWorkspaceEvidenceExporting ? "Packing..." : "Evidence Pack"}</button>
+                            <button className="ghost" type="button" onClick={() => { setPreviewConsoleEntries([]); setIdeDiagnostics([]); }}>Clear Logs</button>
+                          </div>
+                        </header>
+                        <div className="webpile-validation-strip">
+                          <div className="webpile-status-card"><strong>Errors</strong><span>{workspaceValidationReport?.errorCount || 0}</span></div>
+                          <div className="webpile-status-card"><strong>Warnings</strong><span>{workspaceValidationReport?.warnCount || 0}</span></div>
+                          <div className="webpile-status-card"><strong>Console</strong><span>{previewConsoleEntries.length}</span></div>
+                          <div className="webpile-status-card"><strong>Hashes</strong><span>{workspaceValidationReport?.fileHashes.length || files.length}</span></div>
+                        </div>
+                        <div className="webpile-console-box">
+                          <div className="webpile-console-head">
+                            <strong>Preview Console</strong>
+                            <span>{instrumentedPreviewDocument ? "Quick preview instrumentation active" : "Switch to Quick preview for inline console capture"}</span>
+                          </div>
+                          <div className="webpile-console-list">
+                            {!previewConsoleEntries.length && <p className="muted-copy">No preview console events captured yet.</p>}
+                            {previewConsoleEntries.map((entry) => (
+                              <div key={entry.id} className={`webpile-console-row ${entry.level}`}>
+                                <span className="telemetry-chip">{entry.level.toUpperCase()}</span>
+                                <div>
+                                  <strong>{entry.source}</strong>
+                                  <p>{entry.message}</p>
+                                </div>
+                                <small>{new Date(entry.at).toLocaleTimeString()}</small>
+                              </div>
+                            ))}
                           </div>
                         </div>
-                      ) : (
-                        <>
-                          {previewPane !== "preview" && (
-                            <div className="ide-code-col">
-                              <div className="editor-head">{activeFile?.path || "No file"}</div>
-                              <Editor
-                                height="76vh"
-                                theme="vs-dark"
-                                path={activeFile?.path}
-                                value={activeFile?.content || ""}
-                                onChange={(value) => updateActiveFileContent(value || "")}
-                                options={{ minimap: { enabled: false }, fontSize: 13, wordWrap: "on", automaticLayout: true }}
-                              />
-                            </div>
+                        <div className="webpile-report-box">
+                          {workspaceValidationReport ? (
+                            <>
+                              <strong>Validation Summary</strong>
+                              <p>{workspaceValidationReport.summary.join(" ")}</p>
+                              <div className="webpile-issue-list">
+                                {workspaceValidationReport.issues.length ? workspaceValidationReport.issues.map((issue) => (
+                                  <div key={issue.id} className={`webpile-issue-row ${issue.severity}`}>
+                                    <span className="telemetry-chip">{issue.severity.toUpperCase()}</span>
+                                    <div>
+                                      <strong>{issue.filePath}</strong>
+                                      <p>{issue.message}</p>
+                                    </div>
+                                  </div>
+                                )) : <p className="muted-copy">No validation issues detected.</p>}
+                              </div>
+                            </>
+                          ) : (
+                            <p className="muted-copy">Run validation to generate a report, checksum manifest, and evidence export pack.</p>
                           )}
-                          {previewPane !== "code" && (
-                            <div className="preview-shell">
-                              {effectivePreviewDocument ? (
-                                <div className={`preview-frame-wrap ${previewDevice}`}>
-                                  <iframe key={`${activeFile?.path || "file"}-${effectivePreviewDocument.length}-${previewRuntimeMode}`} title="IDE File Preview" className="preview-frame" srcDoc={effectivePreviewDocument} sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-downloads" />
-                                </div>
-                              ) : effectivePreviewUrl ? (
-                                <div className={`preview-frame-wrap ${previewDevice}`}>
-                                  <iframe
-                                    key={`${effectivePreviewUrl}-${previewReloadToken}-${previewRuntimeMode}`}
-                                    title="IDE Live Preview"
-                                    className="preview-frame"
-                                    src={effectivePreviewUrl}
-                                    sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-downloads"
-                                    onLoad={() => {
-                                      setPreviewFrameError("");
-                                      pushIdeDiagnostic("info", `${previewRuntimeMode} preview loaded.`);
-                                    }}
-                                    onError={() => {
-                                      const message = `Preview failed for ${effectivePreviewUrl}`;
-                                      setPreviewFrameError(message);
-                                      pushIdeDiagnostic("error", message);
-                                    }}
-                                  />
-                                  {previewFrameError && (
-                                    <p className="muted-copy">
-                                      {previewFrameError}. <button className="ghost" type="button" onClick={openDetachedPreview}>Open in new tab</button>
-                                    </p>
-                                  )}
-                                </div>
-                              ) : (
-                                <p className="muted-copy">Preview supports live app surfaces and `.html`, `.htm`, `.svg`, `.md` file rendering.</p>
-                              )}
+                        </div>
+                        <div className="ide-diagnostics-list webpile-diagnostics-list">
+                          {!ideDiagnostics.length && <p className="muted-copy">No diagnostics yet.</p>}
+                          {ideDiagnostics.map((entry) => (
+                            <div key={entry.id} className={`ide-diagnostic-row ${entry.level}`}>
+                              <span className="telemetry-chip">{entry.level.toUpperCase()}</span>
+                              <span>{entry.message}</span>
+                              <small>{new Date(entry.at).toLocaleTimeString()}</small>
                             </div>
-                          )}
-                        </>
-                      )}
-                    </div>
-                    <div className="ide-diagnostics">
-                      <div className="ide-diagnostics-head">
-                        <strong>Diagnostics</strong>
-                        <button className="ghost" type="button" onClick={() => setIdeDiagnostics([])}>Clear</button>
-                      </div>
-                      <div className="ide-diagnostics-list">
-                        {!ideDiagnostics.length && <p className="muted-copy">No diagnostics yet.</p>}
-                        {ideDiagnostics.map((entry) => (
-                          <div key={entry.id} className={`ide-diagnostic-row ${entry.level}`}>
-                            <span className="telemetry-chip">{entry.level.toUpperCase()}</span>
-                            <span>{entry.message}</span>
-                            <small>{new Date(entry.at).toLocaleTimeString()}</small>
-                          </div>
-                        ))}
-                      </div>
+                          ))}
+                        </div>
+                      </section>
                     </div>
                   </div>
-                </div>
               </section>
               </>
             ) : (

@@ -2,7 +2,7 @@
   "name": "skyes-contractor-neon-console",
   "private": true,
   "version": "1.0.0",
-  "description": "Skyes Over London LC Contractor Network Console (Neon + Netlify Blobs + optional Identity)",
+  "description": "Skyes Over London LC Contractor Network surface running on the shared SuperIDE runtime.",
   "type": "module",
   "scripts": {
     "dev": "netlify dev"

@@ -16,5 +16,19 @@ export default defineConfig({
         secure: false,
       },
     },
-  }
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return undefined;
+          if (id.includes("@monaco-editor") || id.includes("monaco-editor")) return "monaco-vendor";
+          if (id.includes("react") || id.includes("scheduler")) return "react-vendor";
+          if (id.includes("@sentry")) return "sentry-vendor";
+          if (id.includes("three")) return "three-vendor";
+          return "vendor";
+        },
+      },
+    },
+  },
 });

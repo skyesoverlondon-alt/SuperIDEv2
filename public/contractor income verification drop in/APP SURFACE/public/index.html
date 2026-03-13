@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Contractor Verification Suite</title>
+  <script src="/_shared/auth-unlock.js"></script>
+  <script src="/_shared/standalone-session.js"></script>
+  <script src="/_shared/workspace-record-sync.js"></script>
+  <script src="/_shared/app-storage-protocol.js"></script>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="styles.css" />
+  <meta name="theme-color" content="#0a0d18" />
+</head>
+<body data-app-id="ContractorVerificationSuite">
+  <div class="cvs-app-shell">
+    <header class="cvs-topbar">
+      <div class="cvs-brand">
+        <img id="brandLogo" src="/SkyeDocxPro/assets/icon/brand/icon-192.png" alt="Brand logo" class="cvs-brand-logo" />
+        <div>
+          <div class="cvs-kicker">Shared runtime contractor suite</div>
+          <h1>Contractor Verification Suite</h1>
+          <p class="cvs-subtitle">15 integrated modules wired into the SuperIDE contractor path</p>
+        </div>
+      </div>
+      <div class="cvs-top-actions">
+        <a class="cvs-btn cvs-btn-ghost cvs-link-btn carry" href="/ContractorWorkflowSuite/index.html">Contractor Suite</a>
+        <a class="cvs-btn cvs-btn-ghost cvs-link-btn carry" href="/ContractorNetwork/index.html">ContractorNetwork</a>
+        <a class="cvs-btn cvs-btn-ghost cvs-link-btn carry" href="/ContractorIncomeVerification/index.html">Income Lane</a>
+        <button id="backupExportBtn" class="cvs-btn cvs-btn-ghost">Export JSON</button>
+        <label class="cvs-btn cvs-btn-ghost cvs-file-label">
+          Import JSON
+          <input id="backupImportInput" type="file" accept="application/json" hidden />
+        </label>
+        <button id="printViewBtn" class="cvs-btn">Print Current View</button>
+      </div>
+    </header>
+
+    <section class="cvs-hero-grid">
+      <div class="cvs-hero-panel">
+        <section class="cvs-runtime-bar">
+          <div class="cvs-runtime-pill">One runtime</div>
+          <div class="cvs-runtime-pill">Workspace <strong id="workspaceIdBadge">primary-workspace</strong></div>
+          <div id="syncStatus" class="cvs-runtime-pill">Sync ready</div>
+          <div id="vaultStatus" class="cvs-runtime-pill">Vault ready</div>
+          <button id="pushVaultBtn" class="cvs-btn cvs-btn-ghost" type="button">Push to Vault</button>
+          <button id="openVaultBtn" class="cvs-btn cvs-btn-ghost" type="button">Open Vault</button>
+        </section>
+        <div class="cvs-chip-row">
+          <span class="cvs-chip">IndexedDB</span>
+          <span class="cvs-chip">Print-ready</span>
+          <span class="cvs-chip">CSV export</span>
+          <span class="cvs-chip">SuperIDE drop-in</span>
+          <span class="cvs-chip">Vault round-trip</span>
+          <span class="cvs-chip">Workspace sync</span>
+        </div>
+        <h2>Build contractor trust, proof, and operational visibility without dragging in a whole steel cathedral.</h2>
+        <p>
+          This suite is one compact control surface for contractor records, proof packets, evidence, letters,
+          analytics, invoices, cashflow, mileage, receipts, profile, lead conversion, and proof-gap detection.
+          It now rides the shared storage protocol so the suite can sync to app records in Neon and round-trip snapshots through SkyeVault Pro.
+        </p>
+      </div>
+      <div class="cvs-hero-metrics">
+        <div class="cvs-stat-card">
+          <span>Total income</span>
+          <strong id="heroIncome">$0.00</strong>
+        </div>
+        <div class="cvs-stat-card">
+          <span>Total expenses</span>
+          <strong id="heroExpense">$0.00</strong>
+        </div>
+        <div class="cvs-stat-card">
+          <span>Evidence items</span>
+          <strong id="heroEvidence">0</strong>
+        </div>
+        <div class="cvs-stat-card">
+          <span>Missing-proof alerts</span>
+          <strong id="heroGaps">0</strong>
+        </div>
+      </div>
+    </section>
+
+    <section class="cvs-workspace">
+      <aside class="cvs-sidebar">
+        <div class="cvs-search-wrap">
+          <input id="moduleSearch" class="cvs-input" type="search" placeholder="Filter modules" />
+        </div>
+        <nav id="moduleNav" class="cvs-module-nav"></nav>
+      </aside>
+
+      <main class="cvs-main">
+        <section id="dashboardView" class="cvs-view active">
+          <div class="cvs-view-head">
+            <div>
+              <div class="cvs-kicker">Overview</div>
+              <h2>Suite command dashboard</h2>
+            </div>
+          </div>
+          <div id="dashboardGrid" class="cvs-dashboard-grid"></div>
+          <div class="cvs-two-col">
+            <div class="cvs-panel">
+              <div class="cvs-panel-head"><h3>Quick actions</h3></div>
+              <div class="cvs-quick-actions">
+                <button data-open-module="proofPacketStudio" class="cvs-btn">Open Proof Packet Studio</button>
+                <button data-open-module="verificationLetterComposer" class="cvs-btn cvs-btn-ghost">Open Verification Letter Composer</button>
+                <button data-open-module="missingProofDetector" class="cvs-btn cvs-btn-ghost">Run Missing Proof Detector</button>
+                <button data-open-module="evidenceVault" class="cvs-btn cvs-btn-ghost">Open Evidence Vault</button>
+              </div>
+            </div>
+            <div class="cvs-panel">
+              <div class="cvs-panel-head"><h3>System notes</h3></div>
+              <ul class="cvs-bullet-list">
+                <li>Everything here stores locally first, scoped to the active workspace.</li>
+                <li>JSON export/import remains available for backup or migration snapshots.</li>
+                <li>Packet and letter views are browser-print friendly.</li>
+                <li>Use the top rail to move back into ContractorNetwork, the focused income lane, or the broader contractor launcher.</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section id="moduleContainer" class="cvs-module-container"></section>
+      </main>
+    </section>
+  </div>
+
+  <template id="genericListTemplate">
+    <div class="cvs-panel">
+      <div class="cvs-panel-head">
+        <div>
+          <div class="cvs-kicker module-kicker"></div>
+          <h2 class="module-title"></h2>
+        </div>
+        <button class="cvs-btn module-add-btn">Add item</button>
+      </div>
+      <p class="module-description"></p>
+      <div class="cvs-two-col">
+        <form class="cvs-form module-form"></form>
+        <div class="cvs-panel module-list-panel">
+          <div class="cvs-panel-head"><h3>Saved items</h3></div>
+          <div class="module-list"></div>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <script src="app.js"></script>
+</body>
+</html>

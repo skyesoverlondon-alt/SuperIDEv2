@@ -5,6 +5,7 @@ import { filterSknoreFiles, isSknoreProtected, loadSknorePolicy } from "./_share
 import { audit } from "./_shared/audit";
 import { hasValidMasterSequence, readBearerToken, resolveApiToken, tokenHasScope } from "./_shared/api_tokens";
 import { callKaixuBrainWithFailover } from "./_shared/kaixu_brain";
+import { recordBrainUsage } from "./_shared/brain_usage";
 
 /**
  * Call the Kaixu Gateway to generate a response for the given prompt.
@@ -110,6 +111,11 @@ export const handler = async (event: any) => {
       app: "SuperIDE",
       actor_email: actorEmail,
       actor_org: actorOrg,
+      actor_user_id: u?.user_id || null,
+      auth_type: tokenPrincipal ? "api_token" : u ? "session" : "unknown",
+      api_token_id: tokenPrincipal?.id || null,
+      api_token_label: tokenPrincipal?.label || null,
+      api_token_locked_email: tokenPrincipal?.locked_email || tokenEmailHeader || null,
     },
   });
   if (!result.ok) {
@@ -126,6 +132,8 @@ export const handler = async (event: any) => {
       effective_provider: result.effective_provider,
       effective_model: result.effective_model,
       brain_route: result.brain.route,
+      usage: result.usage,
+      billing: result.billing,
     });
     return json(result.status, {
       ok: false,
@@ -143,13 +151,40 @@ export const handler = async (event: any) => {
       configured_provider: result.configured_provider,
       effective_provider: result.effective_provider,
       effective_model: result.effective_model,
+      usage: result.usage,
+      billing: result.billing,
     });
   }
+  await recordBrainUsage({
+    actor: actorEmail,
+    actor_email: actorEmail,
+    actor_user_id: u?.user_id || null,
+    org_id: actorOrg,
+    ws_id,
+    app: "SuperIDE",
+    auth_type: tokenPrincipal ? "api_token" : u ? "session" : "unknown",
+    api_token_id: tokenPrincipal?.id || null,
+    api_token_label: tokenPrincipal?.label || null,
+    api_token_locked_email: tokenPrincipal?.locked_email || tokenEmailHeader || null,
+    used_backup: result.used_backup,
+    brain_route: result.brain.route,
+    provider: result.effective_provider,
+    model: result.effective_model,
+    gateway_request_id: result.gateway_request_id,
+    backup_request_id: result.backup_request_id,
+    gateway_status: result.gateway_status,
+    backup_status: result.backup_status,
+    usage: result.usage,
+    billing: result.billing,
+    success: true,
+  });
   await audit(actorEmail, actorOrg, ws_id, "kaixu.generate.ok", {
     out_chars: result.text.length,
     brain_route: result.brain.route,
     brain_request_id: result.brain.request_id,
     used_backup: result.used_backup,
+    usage: result.usage,
+    billing: result.billing,
   });
-  return json(200, { ok: true, text: result.text, brain: result.brain });
+  return json(200, { ok: true, text: result.text, brain: result.brain, used_backup: result.used_backup, usage: result.usage, billing: result.billing });
 };

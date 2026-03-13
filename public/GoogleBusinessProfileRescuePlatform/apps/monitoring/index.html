@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GBP Rescue Platform · Monitoring Deck</title>
+  <link rel="manifest" href="../../manifest.webmanifest" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/SkyeVault-Pro-v4.46/assets/img/icon-192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="/SkyeVault-Pro-v4.46/assets/img/icon-512.png" />
+  <link rel="apple-touch-icon" href="/SkyeVault-Pro-v4.46/assets/img/icon-192.png" />
+  <script src="/_shared/standalone-session.js"></script>
+  <link rel="stylesheet" href="../../assets/platform.css" />
+</head>
+<body data-app="monitoring">
+  <div class="shell">
+    <section class="hero">
+      <div class="eyebrow">App 05 · Monitoring Deck</div>
+      <div class="nav-row">
+        <div class="hero-copy">
+          <h1>Monitoring Deck</h1>
+          <p>Keep the rescue lane live after submission: next review timing, thread watch, ranking symptoms, and escalation triggers.</p>
+        </div>
+        <a class="button-link secondary" data-carry-query href="../../index.html">Back To Hub</a>
+      </div>
+    </section>
+
+    <div class="platform-grid">
+      <section class="card field-stack">
+        <h2>Follow-Up Plan</h2>
+        <label>Next Review Window<input data-field="nextReviewAt" placeholder="2026-03-13 09:00 CT" /></label>
+        <label>Monitoring Notes<textarea data-field="monitoringNotes" placeholder="Log ranking watch changes, Google responses, additional evidence requests, and escalation points."></textarea></label>
+        <div class="action-row">
+          <button type="button" data-action="save">Save Monitoring</button>
+          <button type="button" data-action="copy-monitoring">Copy Monitoring Deck</button>
+        </div>
+      </section>
+
+      <section class="card field-stack">
+        <h2>Escalation Controls</h2>
+        <p>When the rescue case stalls, route the monitoring packet directly into the admin or chat lanes.</p>
+        <div class="action-row">
+          <button type="button" data-action="send-chat">Send Monitoring To Chat</button>
+          <button type="button" data-action="send-admin">Escalate Admin Controls</button>
+        </div>
+      </section>
+    </div>
+
+    <section class="card">
+      <h2>Monitoring Summary</h2>
+      <div class="report-box" data-bind="monitoringSummary">Add monitoring notes and next review timing to generate the monitoring deck.</div>
+    </section>
+
+    <div class="pill" data-toast hidden><span data-toast-text>Saved.</span></div>
+  </div>
+  <script src="../../assets/platform.js"></script>
+</body>
+</html>

@@ -1,0 +1,24 @@
+{
+  "name": "Skye DocX",
+  "short_name": "SkyeDocX",
+  "description": "Skye DocX \u2014 Professional offline document environment (PWA).",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0b0a0f",
+  "theme_color": "#141124",
+  "icons": [
+    {
+      "src": "./assets/icon/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./assets/icon/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

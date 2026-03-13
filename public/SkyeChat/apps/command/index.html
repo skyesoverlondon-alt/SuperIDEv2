@@ -1,0 +1,1327 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SkyeChat Command Workspace</title>
+  <script src="/_shared/correlation.js"></script>
+  <script src="/_shared/auth-unlock.js"></script>
+  <script src="/_shared/standalone-session.js"></script>
+  <script type="module">
+    import * as SkyeSecure from '/_shared/skye/skyeSecure.js';
+    window.SkyeSecure = SkyeSecure;
+  </script>
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Space+Grotesk:wght@400;500;600&display=swap");
+    :root {
+      --bg: #060d13;
+      --panel: #09151d;
+      --border: rgba(44,230,255,0.32);
+      --text: #eff9ff;
+      --muted: #9eb8c8;
+      --gold: #ffcb47;
+      --accent: #2ce6ff;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: "Space Grotesk", sans-serif; color: var(--text); background: radial-gradient(circle at 8% 0, rgba(44,230,255,0.16), transparent 36%), radial-gradient(circle at 92% 2%, rgba(255,203,71,0.14), transparent 42%), linear-gradient(155deg, #060d13, #0d1d27); }
+    .shell { display: grid; grid-template-rows: 64px 1fr; min-height: 100vh; }
+    .top { display:flex; align-items:center; justify-content:space-between; padding:0 16px; border-bottom:1px solid var(--border); background: rgba(3,10,14,0.78); backdrop-filter: blur(10px); }
+    .brand { font-family: "Orbitron", sans-serif; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+    .brand span { color: var(--gold); }
+    .top a, .top button { color: var(--text); background: rgba(0,0,0,0.28); border:1px solid rgba(191,238,255,0.24); border-radius:8px; padding:7px 10px; text-decoration:none; cursor:pointer; }
+    .main { display:grid; grid-template-columns: 350px 1fr; gap:12px; padding:12px; }
+    .card { background: linear-gradient(180deg, rgba(8,18,24,0.94), rgba(7,14,20,0.9)); border:1px solid var(--border); border-radius:12px; padding:12px; box-shadow: 0 10px 28px rgba(0,0,0,0.28); }
+    h2 { margin:0 0 10px; font-size:14px; text-transform:uppercase; letter-spacing:.06em; color:var(--gold); }
+    label { font-size:11px; text-transform:uppercase; color:var(--muted); display:block; margin:9px 0 5px; }
+    input, textarea { width:100%; background:rgba(0,0,0,0.34); color:var(--text); border:1px solid rgba(191,238,255,0.22); border-radius:8px; padding:9px 10px; }
+    textarea { min-height:110px; resize:vertical; }
+    .actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+    button { background:rgba(44,230,255,0.12); border:1px solid var(--border); color:var(--text); border-radius:8px; padding:8px 10px; cursor:pointer; }
+    button.primary { background:linear-gradient(120deg, rgba(44,230,255,0.22), rgba(255,203,71,0.22)); border-color:rgba(44,230,255,0.42); }
+    .feed { display:flex; flex-direction:column; gap:8px; max-height:75vh; overflow:auto; }
+    .msg { border:1px solid rgba(191,238,255,0.22); border-radius:10px; padding:10px; background: rgba(255,255,255,.03); }
+    .msg.reply { margin-left: 20px; border-left: 3px solid rgba(44,230,255,0.35); }
+    .meta { color:var(--muted); font-size:12px; margin-top:4px; }
+    .vote-row { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+    .pill { display:inline-block; border:1px solid rgba(191,238,255,0.24); border-radius:999px; padding:2px 8px; font-size:11px; color:var(--muted); }
+    .notif-list { display:flex; flex-direction:column; gap:6px; max-height:180px; overflow:auto; margin-top:8px; }
+    .notif-item { border:1px solid rgba(191,238,255,0.2); border-radius:8px; padding:8px; background:rgba(255,255,255,.02); font-size:12px; }
+    .notif-item.critical { border-color: rgba(255,86,86,0.55); }
+    .notif-item.high { border-color: rgba(255,203,71,0.55); }
+    .status { font-size:12px; color:var(--gold); margin-top:8px; white-space:pre-wrap; }
+    .row { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    .diag { border:1px solid rgba(191,238,255,0.22); border-radius:10px; padding:8px; color:var(--muted); font-size:11px; margin-top:8px; }
+    .summary-grid { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:8px; margin-bottom:10px; }
+    .summary-card { border:1px solid rgba(191,238,255,0.18); border-radius:10px; padding:10px; background:rgba(255,255,255,.03); }
+    .summary-card strong { display:block; font-size:10px; text-transform:uppercase; letter-spacing:.08em; color:var(--gold); margin-bottom:6px; }
+    .summary-card span { display:block; font-size:13px; color:var(--text); }
+    .lane-grid { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px; margin-bottom:10px; }
+    @media (max-width: 960px) {
+      .main { grid-template-columns: 1fr; }
+      .summary-grid, .lane-grid, .row { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 640px) {
+      .summary-grid, .lane-grid, .row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header class="top">
+      <div class="brand">Skye<span>Chat</span> Command Workspace</div>
+      <div style="display:flex;gap:8px;">
+        <a href="/SkyeChat/index.html">Back to Platform</a>
+        <button id="logoutBtn" type="button">Logout</button>
+      </div>
+    </header>
+
+    <main class="main">
+      <section class="card">
+        <h2>Account</h2>
+        <div class="row">
+          <input id="email" placeholder="email@company.com" />
+          <input id="orgName" placeholder="Organization" />
+        </div>
+        <input id="password" type="password" placeholder="Password" style="margin-top:8px;" />
+        <div class="actions">
+          <button id="signupBtn" type="button">Create Account</button>
+          <button id="loginBtn" type="button">Login</button>
+          <button id="meBtn" type="button">Refresh Session</button>
+        </div>
+        <label>kAIxU Access Key</label>
+        <input id="apiKey" type="password" placeholder="kx_at_..." />
+        <label>Key Lock Email</label>
+        <input id="tokenEmail" placeholder="user@company.com" />
+        <div class="actions">
+          <button id="saveKeyBtn" type="button">Save Key</button>
+          <button id="clearKeyBtn" type="button">Clear Key</button>
+        </div>
+
+        <h2 style="margin-top:14px;">Chat Profile</h2>
+        <label>Display name</label>
+        <input id="displayName" placeholder="Display name" />
+        <label>Handle</label>
+        <input id="handle" placeholder="@handle" />
+        <div class="actions">
+          <button id="saveProfileBtn" type="button">Save Profile</button>
+        </div>
+
+        <h2 style="margin-top:14px;">.skye Package</h2>
+        <label>Passphrase (required for secure .skye)</label>
+        <input id="skyePassphrase" type="password" placeholder="Enter passphrase" />
+        <label>Passphrase hint (optional)</label>
+        <input id="skyeHint" placeholder="Never include the real passphrase" />
+        <div class="actions">
+          <button id="exportSkyeBtn" type="button">Export .skye</button>
+          <button id="importSkyeBtn" type="button">Import .skye</button>
+        </div>
+        <input id="importSkyeInput" type="file" accept=".skye" style="display:none;" />
+
+        <h2 style="margin-top:14px;">Room Composer</h2>
+        <label>Channel</label>
+        <input id="channel" value="community" />
+        <div class="row" style="margin-top:8px;">
+          <input id="topicInput" placeholder="topic slug (optional)" />
+          <input id="replyParentId" placeholder="reply parent id (optional)" />
+        </div>
+        <div class="diag" id="replyTargetPanel">Reply target: none (new post)</div>
+        <label>Message</label>
+        <textarea id="message" placeholder="Message to room"></textarea>
+        <div class="actions">
+          <button class="primary" id="postBtn" type="button">Post Message</button>
+          <button id="kaixuBtn" type="button">Post + Ask kAIxU</button>
+          <button id="extractDecisionBtn" type="button">Extract Decisions</button>
+          <button id="loadBtn" type="button">Reload Channel</button>
+        </div>
+        <h2 style="margin-top:14px;">Moderation Controls</h2>
+        <div class="row">
+          <select id="roomLock">
+            <option value="off">Room lock: off</option>
+            <option value="on">Room lock: on</option>
+          </select>
+          <input id="slowMode" type="number" min="0" value="0" placeholder="Slow mode seconds" />
+        </div>
+        <div class="actions">
+          <button id="applyModeration" type="button">Apply Moderation</button>
+          <button id="revertModeration" type="button">Revert Last Moderation</button>
+        </div>
+        <div class="diag" id="moderationTimelinePanel">Moderation timeline: no actions yet.</div>
+
+        <h2 style="margin-top:14px;">Group Controls</h2>
+        <label>New group name</label>
+        <input id="groupName" placeholder="Founders Circle" />
+        <label>Group description</label>
+        <input id="groupDescription" placeholder="Private strategy room" />
+        <div class="actions">
+          <button id="createGroupBtn" type="button">Create Group</button>
+          <button id="reloadChannelsBtn" type="button">Reload Channels</button>
+        </div>
+        <label>Invite email to current group channel</label>
+        <input id="inviteEmail" placeholder="member@company.com" />
+        <div class="actions">
+          <button id="inviteGroupBtn" type="button">Invite User</button>
+        </div>
+
+        <div class="status" id="status"></div>
+      </section>
+
+      <section class="card">
+        <h2>Room Feed</h2>
+        <div class="summary-grid">
+          <div class="summary-card"><strong>Ops Readiness</strong><span id="chatSummaryReadiness">waiting</span></div>
+          <div class="summary-card"><strong>Active Channels</strong><span id="chatSummaryChannels">0 channels</span></div>
+          <div class="summary-card"><strong>Alert Pressure</strong><span id="chatSummaryAlerts">0 unread</span></div>
+          <div class="summary-card"><strong>Action Debt</strong><span id="chatSummaryDebt">0 follow-ups</span></div>
+        </div>
+        <div class="lane-grid">
+          <div class="diag" id="chatOpsLane">Ops lane: waiting for channels and notifications.</div>
+          <div class="diag" id="chatCommunityLane">Community lane: waiting for feed and topic ranking.</div>
+        </div>
+        <div class="diag" id="channelDirectoryPanel">Channels: loading...</div>
+        <div class="diag" id="notificationsPanel">Notifications: loading...</div>
+        <div class="row" style="margin-top:8px;">
+          <select id="feedSort">
+            <option value="hot">Sort: hot</option>
+            <option value="new">new</option>
+            <option value="top">top</option>
+          </select>
+          <input id="topicFilter" placeholder="topic filter (optional)" />
+        </div>
+        <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:12px;color:var(--muted);">
+          <input id="includeReplies" type="checkbox" style="width:auto;" /> Include replies in feed
+        </label>
+        <label>Filter channel</label>
+        <input id="filterChannel" value="community" />
+        <label>Search</label>
+        <input id="search" placeholder="search messages or source" />
+        <div class="actions">
+          <button id="applyFilterBtn" type="button">Apply Filter</button>
+          <button id="loadTopicFeedBtn" type="button">Load Topic Feed</button>
+          <button id="exportDigestBtn" type="button">Export Digest</button>
+        </div>
+        <div class="diag" id="healthPanel">Room health panel pending feed load.</div>
+        <div class="diag" id="qualitySignalsPanel">Quality signals pending feed load.</div>
+        <h2 style="margin-top:12px;">Notification Center</h2>
+        <div class="row">
+          <select id="notificationKindFilter">
+            <option value="">Type: all</option>
+            <option value="admin_announcement">admin_announcement</option>
+            <option value="group_invite">group_invite</option>
+          </select>
+          <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:12px;color:var(--muted);margin:0;">
+            <input id="notificationUnreadOnly" type="checkbox" style="width:auto;" checked /> unread only
+          </label>
+        </div>
+        <div class="actions">
+          <button id="loadNotificationsBtn" type="button">Load Notifications</button>
+          <button id="markAllReadBtn" type="button">Mark All Read</button>
+        </div>
+        <div class="notif-list" id="notificationList"></div>
+        <div class="feed" id="feed"></div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const APP_ID = 'SkyeChat';
+    const statusEl = document.getElementById('status');
+    const feedEl = document.getElementById('feed');
+    const healthPanel = document.getElementById('healthPanel');
+    const qualitySignalsPanel = document.getElementById('qualitySignalsPanel');
+    const moderationTimelinePanel = document.getElementById('moderationTimelinePanel');
+    const channelDirectoryPanel = document.getElementById('channelDirectoryPanel');
+    const notificationsPanel = document.getElementById('notificationsPanel');
+    const replyTargetPanel = document.getElementById('replyTargetPanel');
+    const notificationList = document.getElementById('notificationList');
+    const chatOpsLane = document.getElementById('chatOpsLane');
+    const chatCommunityLane = document.getElementById('chatCommunityLane');
+    const chatState = {
+      records: [],
+      channels: [],
+      orgRole: '',
+      notifications: { unread_count: 0, recent: [] },
+      topicSummary: [],
+      activeRootId: '',
+      moderationTimeline: JSON.parse(localStorage.getItem('skyechat.moderation.timeline') || '[]'),
+    };
+    const moderationState = {
+      lock: localStorage.getItem('skyechat.moderation.lock') || 'off',
+      slowMode: Number(localStorage.getItem('skyechat.moderation.slow') || 0),
+      lastPostAt: 0,
+    };
+    const query = new URLSearchParams(window.location.search);
+    const wsId = query.get('ws_id') || 'primary-workspace';
+    const initialChannel = query.get('channel') || 'community';
+    const initialTopic = query.get('topic') || '';
+
+    document.getElementById('channel').value = initialChannel;
+    document.getElementById('filterChannel').value = initialChannel;
+    document.getElementById('topicInput').value = initialTopic;
+
+    function consumePlatformLaunchDraft() {
+      try {
+        const raw = localStorage.getItem('skyechat.platform.launchDraft');
+        if (!raw) return;
+        localStorage.removeItem('skyechat.platform.launchDraft');
+        const draft = JSON.parse(raw);
+        if (draft?.ws_id && draft.ws_id !== wsId) return;
+        if (typeof draft.channel === 'string' && draft.channel) {
+          document.getElementById('channel').value = draft.channel;
+          document.getElementById('filterChannel').value = draft.channel;
+        }
+        if (typeof draft.topic === 'string') {
+          document.getElementById('topicInput').value = draft.topic;
+        }
+        if (typeof draft.parent_id === 'string') {
+          document.getElementById('replyParentId').value = draft.parent_id;
+          setReplyTarget(draft.parent_id);
+        }
+        if (typeof draft.message === 'string') {
+          document.getElementById('message').value = draft.message;
+        }
+        if (draft.status) {
+          setStatus(String(draft.status), 'ok');
+        }
+      } catch {
+        localStorage.removeItem('skyechat.platform.launchDraft');
+      }
+    }
+
+    function setReplyTarget(id) {
+      const target = String(id || '').trim();
+      document.getElementById('replyParentId').value = target;
+      replyTargetPanel.textContent = target ? `Reply target: ${target}` : 'Reply target: none (new post)';
+    }
+
+    if (query.get('embed') === '1') {
+      document.querySelector('.top a').setAttribute('href', `/index.html?app=SkyeChat&ws_id=${encodeURIComponent(wsId)}`);
+    }
+
+    function getSkyeSecure() {
+      if (!window.SkyeSecure) throw new Error('Shared .skye runtime is not loaded.');
+      return window.SkyeSecure;
+    }
+
+    const workflowTruth = {
+      session: { state: 'idle', label: 'Session Waiting' },
+      key: { state: 'idle', label: 'Key Missing' },
+      room: { state: 'idle', label: 'Room Idle' },
+      last: { state: 'idle', label: 'Last Waiting' },
+    };
+
+    function ensureWorkflowHud() {
+      if (document.getElementById('workflowHudStyle')) return;
+      const style = document.createElement('style');
+      style.id = 'workflowHudStyle';
+      style.textContent = `
+        .truth-bar { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+        .truth-chip { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border-radius:999px; border:1px solid rgba(191,238,255,0.24); background:rgba(255,255,255,0.03); font-size:11px; text-transform:uppercase; letter-spacing:.08em; }
+        .truth-dot { width:9px; height:9px; border-radius:999px; background:#7d8b96; box-shadow:0 0 0 1px rgba(255,255,255,0.08); }
+        .truth-chip[data-state="ok"] .truth-dot { background:#57df9e; box-shadow:0 0 12px rgba(87,223,158,.52); }
+        .truth-chip[data-state="warn"] .truth-dot { background:#ffcb47; box-shadow:0 0 12px rgba(255,203,71,.48); }
+        .truth-chip[data-state="fail"] .truth-dot { background:#ff6d84; box-shadow:0 0 12px rgba(255,109,132,.5); }
+        .status[data-tone="error"] { color:#ff9dad; }
+        .status[data-tone="ok"] { color:#9ef0c4; }
+      `;
+      document.head.appendChild(style);
+
+      const truthBar = document.createElement('div');
+      truthBar.id = 'workflowTruthBar';
+      truthBar.className = 'truth-bar';
+      truthBar.innerHTML = `
+        <div class="truth-chip" data-key="session" data-state="idle"><span class="truth-dot"></span><span>Session Waiting</span></div>
+        <div class="truth-chip" data-key="key" data-state="idle"><span class="truth-dot"></span><span>Key Missing</span></div>
+        <div class="truth-chip" data-key="room" data-state="idle"><span class="truth-dot"></span><span>Room Idle</span></div>
+        <div class="truth-chip" data-key="last" data-state="idle"><span class="truth-dot"></span><span>Last Waiting</span></div>
+      `;
+      statusEl.parentNode.insertBefore(truthBar, statusEl);
+      statusEl.dataset.tone = 'info';
+    }
+
+    function setTruth(key, state, label) {
+      if (!workflowTruth[key]) return;
+      workflowTruth[key] = { state, label };
+      const node = document.querySelector(`.truth-chip[data-key="${key}"]`);
+      if (!node) return;
+      node.dataset.state = state;
+      const labelNode = node.querySelector('span:last-child');
+      if (labelNode) labelNode.textContent = label;
+    }
+
+    function refreshAccessTruth() {
+      const token = String(standaloneSession?.readToken?.() || window.SkyeAuthUnlock?.readToken?.() || '').trim();
+      setTruth('key', token ? 'ok' : 'warn', token ? 'Key Loaded' : 'Key Missing');
+      setTruth('session', chatState.me?.email ? 'ok' : 'warn', chatState.me?.email ? (chatState.me?.has_pin ? 'Session + PIN' : 'Session Live') : 'Session Missing');
+    }
+
+    function setStatus(text, tone = 'info') {
+      statusEl.dataset.tone = tone;
+      statusEl.textContent = text || '';
+    }
+
+    function handleWorkflowError(error, roomLabel = 'Room Failed') {
+      const message = error?.message || String(error);
+      setTruth('room', 'fail', roomLabel);
+      setTruth('last', 'fail', 'Last Failed');
+      setStatus(message, 'error');
+    }
+
+    function persistModerationTimeline() {
+      localStorage.setItem('skyechat.moderation.timeline', JSON.stringify(chatState.moderationTimeline.slice(0, 60)));
+    }
+
+    function renderModerationTimeline() {
+      const rows = chatState.moderationTimeline.slice(0, 6);
+      if (!rows.length) {
+        moderationTimelinePanel.textContent = 'Moderation timeline: no actions yet.';
+        return;
+      }
+      moderationTimelinePanel.textContent = 'Moderation timeline: ' + rows.map((item) => `${item.type}[${item.prev.lock}/${item.prev.slowMode}->${item.next.lock}/${item.next.slowMode}]@${item.at.slice(11, 16)}`).join(' | ');
+    }
+
+    function renderChannelDirectory() {
+      const channels = Array.isArray(chatState.channels) ? chatState.channels : [];
+      if (!channels.length) {
+        channelDirectoryPanel.textContent = 'Channels: none available yet.';
+        renderOpsSummary();
+        return;
+      }
+      channelDirectoryPanel.textContent = `Channels (${chatState.orgRole || 'member'}): ` + channels.map((c) => `#${c.slug}[${c.kind}/${c.visibility}]`).join(' | ');
+      renderOpsSummary();
+    }
+
+    function renderNotificationsPanel() {
+      const notifications = chatState.notifications || { unread_count: 0, recent: [] };
+      const recent = Array.isArray(notifications.recent) ? notifications.recent : [];
+      if (!recent.length) {
+        notificationsPanel.textContent = `Notifications: unread=${Number(notifications.unread_count || 0)}.`;
+        notificationList.innerHTML = '';
+        renderOpsSummary();
+        return;
+      }
+      notificationsPanel.textContent = `Notifications: unread=${Number(notifications.unread_count || 0)} | ` + recent.slice(0, 4).map((n) => `${n.kind}:${n.message}`).join(' | ');
+      notificationList.innerHTML = recent.map((n) => {
+        const priority = String(n.priority || 'normal').toLowerCase();
+        const cls = priority === 'critical' ? 'critical' : (priority === 'high' ? 'high' : '');
+        const unread = n.read ? 'read' : 'unread';
+        return `<div class="notif-item ${cls}" data-notif-id="${n.id}">
+          <div><strong>${n.kind}</strong> <span class="pill">${priority}</span> <span class="pill">${unread}</span></div>
+          <div>${n.message || ''}</div>
+          <div class="meta">channel=${n.channel || 'n/a'} | ${String(n.created_at || '').slice(0, 19).replace('T', ' ')}</div>
+          <div class="vote-row"><button type="button" data-action="mark-read" data-notif-id="${n.id}">Mark Read</button></div>
+        </div>`;
+      }).join('');
+      renderOpsSummary();
+    }
+
+    function renderOpsSummary() {
+      const records = Array.isArray(chatState.records) ? chatState.records : [];
+      const channels = Array.isArray(chatState.channels) ? chatState.channels : [];
+      const topics = Array.isArray(chatState.topicSummary) ? chatState.topicSummary : [];
+      const notifications = chatState.notifications || { unread_count: 0, recent: [] };
+      const activeChannels = new Set([
+        ...channels.map((channel) => String(channel.slug || '').trim()),
+        ...records.map((record) => String(record?.payload?.channel || '').trim()),
+      ].filter(Boolean));
+      const unresolved = records.filter((record) => /\?$/.test(String(record?.payload?.message || '').trim())).length;
+      const actionDebt = records.filter((record) => /(todo|action|follow up|assign)/i.test(String(record?.payload?.message || '')) && !/(done|resolved|closed)/i.test(String(record?.payload?.message || ''))).length;
+      const topTopic = topics[0] ? `${topics[0].topic}(${topics[0].c})` : 'none';
+      const alertLead = Array.isArray(notifications.recent) && notifications.recent.length ? notifications.recent[0].message : 'none';
+      document.getElementById('chatSummaryReadiness').textContent = `${chatState.orgRole || 'member'} · ${records.length ? 'live' : 'warming'}`;
+      document.getElementById('chatSummaryChannels').textContent = `${activeChannels.size} active lanes`;
+      document.getElementById('chatSummaryAlerts').textContent = `${Number(notifications.unread_count || 0)} unread`;
+      document.getElementById('chatSummaryDebt').textContent = `${actionDebt} follow-ups · ${unresolved} open questions`;
+      chatOpsLane.textContent = `Ops lane: role=${chatState.orgRole || 'member'} | unread=${Number(notifications.unread_count || 0)} | lead_alert=${alertLead} | moderation_actions=${chatState.moderationTimeline.length}.`;
+      chatCommunityLane.textContent = `Community lane: active_channels=${activeChannels.size} | top_topic=${topTopic} | records=${records.length} | unresolved=${unresolved}.`;
+    }
+
+    function extractDecisionCandidates(records) {
+      const out = [];
+      (records || []).forEach((record, idx) => {
+        const payload = record?.payload || {};
+        const message = String(payload.message || '').trim();
+        if (!message) return;
+        const parts = message.split(/(?<=[.!?])\s+/);
+        parts.forEach((part) => {
+          if (!/(decision|decided|action|will|must|ship|launch|assign)/i.test(part)) return;
+          const dateMatch = part.match(/\b\d{4}-\d{2}-\d{2}\b/);
+          out.push({
+            id: `decision-${Date.now()}-${idx}-${out.length}`,
+            channel: payload.channel || 'general',
+            text: part.trim().slice(0, 220),
+            source: payload.source || 'SkyeChat',
+            sourceRecordId: record.id || record.record_id || '',
+            dueDate: dateMatch ? dateMatch[0] : new Date(Date.now() + 86400000).toISOString().slice(0, 10),
+          });
+        });
+      });
+      return out.slice(0, 12);
+    }
+
+    function buildIdempotencyKey(prefix, parts) {
+      const payload = [prefix].concat(parts || []).join('|');
+      let hash = 0;
+      for (let i = 0; i < payload.length; i += 1) {
+        hash = ((hash << 5) - hash + payload.charCodeAt(i)) | 0;
+      }
+      return `${prefix}:${Math.abs(hash)}`;
+    }
+
+    function renderHealthPanel(records) {
+      const rows = Array.isArray(records) ? records : [];
+      const unresolved = rows.filter((record) => /\?$/.test(String(record?.payload?.message || '').trim())).length;
+      const actionItems = rows.filter((record) => /(todo|action|follow up)/i.test(String(record?.payload?.message || ''))).length;
+      const channels = new Set(rows.map((record) => String(record?.payload?.channel || '').trim()).filter(Boolean));
+      healthPanel.textContent = `Health: messages=${rows.length}, unresolved_questions=${unresolved}, action_items=${actionItems}, active_channels=${channels.size}`;
+
+      const byChannel = new Map();
+      rows.forEach((record) => {
+        const c = String(record?.payload?.channel || 'general');
+        const created = new Date(String(record?.created_at || Date.now())).getTime();
+        const list = byChannel.get(c) || [];
+        list.push(created);
+        byChannel.set(c, list);
+      });
+      const lagSamples = [];
+      byChannel.forEach((times) => {
+        times.sort((a, b) => a - b);
+        for (let i = 1; i < times.length; i += 1) lagSamples.push((times[i] - times[i - 1]) / 60000);
+      });
+      const avgLag = lagSamples.length ? Math.round(lagSamples.reduce((a, b) => a + b, 0) / lagSamples.length) : 0;
+      const unresolvedActionDebt = rows.filter((record) => /(todo|action)/i.test(String(record?.payload?.message || '')) && !/(done|resolved|closed)/i.test(String(record?.payload?.message || ''))).length;
+      qualitySignalsPanel.textContent = `Quality signals: avg_response_lag_min=${avgLag}, unresolved_count=${unresolved}, action_debt=${unresolvedActionDebt}`;
+      renderOpsSummary();
+    }
+
+    function exportDigest() {
+      const rows = chatState.records || [];
+      const decisions = extractDecisionCandidates(rows);
+      const unresolved = rows.filter((record) => /\?$/.test(String(record?.payload?.message || '').trim())).slice(0, 12);
+      const digest = {
+        schema: 'skyechat-digest-v1',
+        generated_at: new Date().toISOString(),
+        ws_id: wsId,
+        channel_filter: document.getElementById('filterChannel').value.trim(),
+        metrics: {
+          message_count: rows.length,
+          unresolved_count: unresolved.length,
+          decision_count: decisions.length,
+          moderation_actions: chatState.moderationTimeline.length,
+        },
+        highlights: {
+          decisions: decisions.map((d) => ({ text: d.text, due_date: d.dueDate, provenance: { record_id: d.sourceRecordId, source: d.source, channel: d.channel } })),
+          unresolved_questions: unresolved.map((r) => ({ text: String(r?.payload?.message || '').slice(0, 220), provenance: { record_id: r.id || r.record_id || '', source: r?.payload?.source || '', channel: r?.payload?.channel || '' } })),
+        },
+      };
+      const blob = new Blob([JSON.stringify(digest, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `skyechat-digest-${Date.now()}.json`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      setStatus('Exported SkyeChat digest schema JSON.');
+    }
+
+    function hydrateModerationInputs() {
+      document.getElementById('roomLock').value = moderationState.lock;
+      document.getElementById('slowMode').value = String(moderationState.slowMode || 0);
+    }
+
+    async function applyModeration() {
+      const prev = { lock: moderationState.lock, slowMode: moderationState.slowMode };
+      moderationState.lock = document.getElementById('roomLock').value;
+      moderationState.slowMode = Math.max(0, Number(document.getElementById('slowMode').value || 0));
+      localStorage.setItem('skyechat.moderation.lock', moderationState.lock);
+      localStorage.setItem('skyechat.moderation.slow', String(moderationState.slowMode));
+      const idempotencyKey = buildIdempotencyKey('skyechat-moderation', [wsId, moderationState.lock, String(moderationState.slowMode)]);
+      await call('/api/skychat-notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ws_id: wsId,
+          channel: document.getElementById('channel').value.trim() || 'community',
+          source: 'SkyeChat Moderation',
+          message: `Moderation updated: lock=${moderationState.lock}, slow_mode=${moderationState.slowMode}s`,
+          idempotency_key: idempotencyKey,
+        }),
+      });
+      chatState.moderationTimeline.unshift({
+        type: 'apply',
+        at: new Date().toISOString(),
+        prev,
+        next: { lock: moderationState.lock, slowMode: moderationState.slowMode },
+        reversible: true,
+      });
+      persistModerationTimeline();
+      renderModerationTimeline();
+      setStatus(`Moderation saved: lock=${moderationState.lock}, slow=${moderationState.slowMode}s`);
+    }
+
+    async function revertLastModeration() {
+      const last = chatState.moderationTimeline.find((item) => item.reversible);
+      if (!last) {
+        setStatus('No reversible moderation action found.');
+        return;
+      }
+      moderationState.lock = last.prev.lock;
+      moderationState.slowMode = Number(last.prev.slowMode || 0);
+      localStorage.setItem('skyechat.moderation.lock', moderationState.lock);
+      localStorage.setItem('skyechat.moderation.slow', String(moderationState.slowMode));
+      hydrateModerationInputs();
+      const idempotencyKey = buildIdempotencyKey('skyechat-moderation-revert', [wsId, moderationState.lock, String(moderationState.slowMode), last.at]);
+      await call('/api/skychat-notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ws_id: wsId,
+          channel: document.getElementById('channel').value.trim() || 'community',
+          source: 'SkyeChat Moderation',
+          message: `Moderation reverted to lock=${moderationState.lock}, slow_mode=${moderationState.slowMode}s`,
+          idempotency_key: idempotencyKey,
+        }),
+      });
+      chatState.moderationTimeline.unshift({
+        type: 'revert',
+        at: new Date().toISOString(),
+        prev: last.next,
+        next: { lock: moderationState.lock, slowMode: moderationState.slowMode },
+        reversible: false,
+      });
+      persistModerationTimeline();
+      renderModerationTimeline();
+      setStatus('Reverted latest moderation action.');
+    }
+
+    async function extractDecisionsToWorkflows() {
+      const decisions = extractDecisionCandidates(chatState.records || []);
+      if (!decisions.length) {
+        setStatus('No decision/action candidates found in current feed.');
+        return;
+      }
+
+      const taskData = await call('/api/skyetasks-list?ws_id=' + encodeURIComponent(wsId) + '&limit=1');
+      const existingTasks = Array.isArray(taskData?.records) && Array.isArray(taskData.records[0]?.payload) ? taskData.records[0].payload : [];
+      const taskAdds = decisions.map((item, idx) => ({
+        id: 'chatdec-task-' + Date.now() + '-' + idx,
+        title: '[Decision] ' + item.text.slice(0, 88),
+        description: 'Provenance: channel=' + item.channel + ' source=' + item.source + ' record=' + (item.sourceRecordId || 'n/a'),
+        status: 'backlog',
+        priority: 'medium',
+        assignee: 'unassigned',
+        due_at: item.dueDate,
+        depends_on: '',
+        blocked_reason: '',
+        updated_at: new Date().toISOString(),
+      }));
+      await call('/api/skyetasks-save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ws_id: wsId, title: 'SkyeTasks Board', model: [...taskAdds, ...existingTasks] }),
+      });
+
+      const calData = await call('/api/app-record-list?ws_id=' + encodeURIComponent(wsId) + '&app=SkyeCalendar&limit=1');
+      const existingEvents = Array.isArray(calData?.records) && Array.isArray(calData.records[0]?.payload?.events) ? calData.records[0].payload.events : [];
+      const eventAdds = decisions.map((item, idx) => ({
+        id: 'chatdec-cal-' + Date.now() + '-' + idx,
+        title: '[Decision] ' + item.text.slice(0, 64),
+        start_date: item.dueDate,
+        end_date: item.dueDate,
+        owner: 'chat-derived',
+        status: 'planned',
+        notes: 'Provenance: channel=' + item.channel + ' source=' + item.source + ' record=' + (item.sourceRecordId || 'n/a'),
+      }));
+      await call('/api/app-record-save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ws_id: wsId, app: 'SkyeCalendar', title: 'SkyeCalendar Events', model: { events: [...eventAdds, ...existingEvents] } }),
+      });
+
+      setStatus(`Extracted ${decisions.length} decision(s) to SkyeTasks and SkyeCalendar with provenance links.`);
+    }
+
+    const standaloneSession = window.SkyeStandaloneSession || null;
+
+    async function recordSuiteIntent(intentName, status, options = {}) {
+      if (!standaloneSession?.recordSuiteIntent) return null;
+      return standaloneSession.recordSuiteIntent({
+        sourceApp: 'SkyeChat',
+        targetApp: options.targetApp || 'SkyeChat',
+        intent: { name: intentName, status, summary: options.summary || '' },
+        context: {
+          workspace_id: wsId,
+          thread_id: options.threadId || null,
+          channel_id: options.channelId || null,
+          mission_id: options.missionId || null,
+          draft_id: options.draftId || null,
+          asset_ids: options.assetIds || [],
+        },
+        detail: options.detail || '',
+        badge: options.badge || '',
+        payload: options.payload || {},
+      });
+    }
+
+    function applySuiteIntent(payload) {
+      const intent = payload?.intent || {};
+      const context = payload?.context || {};
+      const meta = payload?.payload || {};
+      if (typeof context.channel_id === 'string' && context.channel_id) {
+        document.getElementById('channel').value = context.channel_id;
+        document.getElementById('filterChannel').value = context.channel_id;
+      }
+      if (intent.name === 'open-thread' && typeof context.thread_id === 'string' && context.thread_id) {
+        void loadThread(context.thread_id).catch((error) => handleWorkflowError(error, 'Suite Thread Load Failed'));
+        return;
+      }
+      if (intent.name === 'open-thread' && typeof meta.message === 'string' && meta.message) {
+        document.getElementById('message').value = meta.message;
+        setStatus(payload?.detail || 'Suite handoff loaded into SkyeChat.', 'ok');
+      }
+    }
+
+    function getAccessAuthHeaders() {
+      if (standaloneSession?.authHeaders) return standaloneSession.authHeaders('skychat');
+      const token = (window.SkyeAuthUnlock?.readToken?.() || '').trim();
+      const email = (window.SkyeAuthUnlock?.readTokenEmail?.() || '').trim().toLowerCase();
+      const corr = window.SkyeCorrelation && window.SkyeCorrelation.next ? window.SkyeCorrelation.next('skychat') : '';
+      const headers = {};
+      if (token) headers.Authorization = `Bearer ${token}`;
+      if (email) headers['X-Token-Email'] = email;
+      if (corr) headers['X-Correlation-Id'] = corr;
+      return headers;
+    }
+
+    function hydrateAuthInputs() {
+      if (standaloneSession?.hydrateInputs) {
+        standaloneSession.hydrateInputs('apiKey', 'tokenEmail');
+        return;
+      }
+      document.getElementById('apiKey').value = window.SkyeAuthUnlock?.readToken?.() || '';
+      document.getElementById('tokenEmail').value = window.SkyeAuthUnlock?.readTokenEmail?.() || '';
+    }
+
+    function saveAuthInputs() {
+      const token = document.getElementById('apiKey').value.trim();
+      const email = document.getElementById('tokenEmail').value.trim().toLowerCase();
+      if (standaloneSession?.saveManualToken) standaloneSession.saveManualToken(token, email);
+      else {
+        localStorage.setItem('kx.api.accessToken', token);
+        localStorage.setItem('kx.api.tokenEmail', email);
+      }
+      refreshAccessTruth();
+      setTruth('last', 'ok', 'Key Saved');
+      setStatus('Saved kAIxU key context for SkyeChat.', 'ok');
+    }
+
+    function clearAuthInputs() {
+      if (standaloneSession?.clearToken) standaloneSession.clearToken();
+      else if (window.SkyeAuthUnlock && window.SkyeAuthUnlock.clearUnlockedToken) {
+        window.SkyeAuthUnlock.clearUnlockedToken();
+      } else {
+        localStorage.removeItem('kx.api.accessToken');
+        localStorage.removeItem('kx.api.tokenEmail');
+      }
+      hydrateAuthInputs();
+      refreshAccessTruth();
+      setTruth('last', 'warn', 'Key Cleared');
+      setStatus('Cleared kAIxU key context.','info');
+    }
+
+    async function ensureWorkspaceAccess(labelPrefix = 'chat-session') {
+      if (standaloneSession?.ensureSignedIn) {
+        const unlocked = await standaloneSession.ensureSignedIn({
+          appId: 'skychat',
+          labelPrefix,
+          prompt: true,
+        });
+        hydrateAuthInputs();
+        return unlocked;
+      }
+      if (window.SkyeAuthUnlock && window.SkyeAuthUnlock.ensureUnlockedAccess) {
+        const unlocked = await window.SkyeAuthUnlock.ensureUnlockedAccess({
+          labelPrefix,
+          pinPrompt: 'Enter your session PIN to unlock SkyeChat access',
+        });
+        hydrateAuthInputs();
+        return unlocked;
+      }
+      return null;
+    }
+
+    async function call(path, options = {}) {
+      const bypassUnlock = /^\/api\/auth-(login|signup|logout)$/.test(path);
+      if (standaloneSession?.request) {
+        return standaloneSession.request(path, {
+          credentials: 'include',
+          ...options,
+        }, {
+          appId: 'skychat',
+          labelPrefix: 'chat-session',
+          skipUnlock: bypassUnlock,
+          prompt: !bypassUnlock,
+        });
+      }
+      const authHeaders = getAccessAuthHeaders();
+      const mergedHeaders = { ...(options.headers || {}), ...authHeaders };
+      const res = await fetch(path, { credentials: 'include', ...options, headers: mergedHeaders });
+      let data = {};
+      try { data = await res.json(); } catch {}
+      if (!res.ok) throw new Error(data?.error || `${path} failed (${res.status})`);
+      return data;
+    }
+
+    function bytesToBase64(bytes) {
+      return getSkyeSecure().bytesToBase64(bytes);
+    }
+
+    function base64ToBytes(value) {
+      return getSkyeSecure().base64ToBytes(value);
+    }
+
+    async function deriveKey(passphrase, saltBytes) {
+      return getSkyeSecure().deriveSkyeKey(passphrase, saltBytes);
+    }
+
+    async function encryptSkye(plainText, passphrase) {
+      return getSkyeSecure().encryptSkyePayload(plainText, passphrase);
+    }
+
+    async function decryptSkye(block, passphrase) {
+      return getSkyeSecure().decryptSkyePayload(block, passphrase);
+    }
+
+    function buildSecureEnvelope(primary, hint) {
+      return getSkyeSecure().buildSkyeSecureEnvelope({
+        primary,
+        hint: hint || '',
+      });
+    }
+
+    function encodeSecureEnvelope(envelope) {
+      return getSkyeSecure().serializeSkyeEnvelope(envelope);
+    }
+
+    async function readSecureEnvelope(file) {
+      return getSkyeSecure().readSkyeEnvelopeFromBlob(file);
+    }
+
+    function collectSkyeState() {
+      return {
+        meta: {
+          app_id: APP_ID,
+          app_version: '1.0.0',
+          workspace_id: wsId,
+          title: 'SkyeChat Workspace Snapshot',
+          owner: document.getElementById('email').value || null,
+          schema_version: 1,
+        },
+        state: {
+          profile: {
+            display_name: document.getElementById('displayName').value,
+            handle: document.getElementById('handle').value,
+          },
+          compose: {
+            channel: document.getElementById('channel').value,
+            message: document.getElementById('message').value,
+          },
+          filters: {
+            filter_channel: document.getElementById('filterChannel').value,
+            search: document.getElementById('search').value,
+          },
+          feed_records: chatState.records,
+        },
+        assets: [],
+      };
+    }
+
+    function applySkyeState(payload) {
+      if (!payload?.meta || payload.meta.app_id !== APP_ID) throw new Error('This .skye file is not for SkyeChat.');
+      const schemaVersion = Number(payload?.meta?.schema_version || 1);
+      if (!Number.isFinite(schemaVersion) || schemaVersion > 1) throw new Error(`Unsupported .skye schema version for SkyeChat: ${schemaVersion}`);
+      const s = payload.state || {};
+      const p = s.profile || {};
+      const compose = s.compose || {};
+      const filters = s.filters || {};
+      if (typeof p.display_name === 'string') document.getElementById('displayName').value = p.display_name;
+      if (typeof p.handle === 'string') document.getElementById('handle').value = p.handle;
+      if (typeof compose.channel === 'string') document.getElementById('channel').value = compose.channel;
+      if (typeof compose.message === 'string') document.getElementById('message').value = compose.message;
+      if (typeof filters.filter_channel === 'string') document.getElementById('filterChannel').value = filters.filter_channel;
+      if (typeof filters.search === 'string') document.getElementById('search').value = filters.search;
+      if (Array.isArray(s.feed_records)) chatState.records = s.feed_records;
+    }
+
+    async function exportSkyeFile() {
+      const passphrase = document.getElementById('skyePassphrase').value.trim();
+      const hint = document.getElementById('skyeHint').value.trim();
+      if (passphrase.length < 6) throw new Error('Passphrase must be at least 6 characters.');
+      const payload = collectSkyeState();
+      const encrypted = await encryptSkye(JSON.stringify(payload), passphrase);
+      const envelope = buildSecureEnvelope(encrypted, hint);
+      const blob = encodeSecureEnvelope(envelope);
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `SkyeChat-${Date.now()}.skye`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      setStatus('Exported secure .skye package for SkyeChat.');
+    }
+
+    async function importSkyeFile(file) {
+      const envelope = await readSecureEnvelope(file);
+      const passphrase = prompt(`Enter passphrase to open .skye${envelope.hint ? ` (hint: ${envelope.hint})` : ''}`) || '';
+      if (!passphrase.trim()) throw new Error('Passphrase is required.');
+      const plain = await decryptSkye(envelope.payload.primary, passphrase.trim());
+      const payload = JSON.parse(plain);
+      const isCanonical = getSkyeSecure().validateSkyePlainPayload(payload) && payload?.meta?.app_id === APP_ID;
+      const legacyCompatible = payload?.meta?.app_id === APP_ID && Array.isArray(payload?.state?.feed_records);
+      if (!isCanonical && !legacyCompatible) throw new Error('Invalid .skye state payload.');
+      const mode = (prompt('Import mode: type merge or replace', 'merge') || 'merge').trim().toLowerCase();
+      applySkyeState(payload);
+      if (mode === 'merge') {
+        const imported = Array.isArray(payload?.state?.feed_records) ? payload.state.feed_records : [];
+        const merged = [...imported, ...chatState.records];
+        const unique = [];
+        const seen = new Set();
+        merged.forEach((item) => {
+          const key = JSON.stringify(item);
+          if (seen.has(key)) return;
+          seen.add(key);
+          unique.push(item);
+        });
+        chatState.records = unique;
+      }
+      setStatus('Imported secure .skye package for SkyeChat.');
+      await loadFeed();
+    }
+
+    async function refreshMe() {
+      try {
+        await ensureWorkspaceAccess('chat-refresh');
+      } catch {
+      }
+      const me = await call('/api/auth-me');
+      chatState.me = me || null;
+      if (me?.email) {
+        document.getElementById('email').value = me.email;
+        refreshAccessTruth();
+        setTruth('last', 'ok', 'Session Ready');
+        setStatus(me?.has_pin ? `Signed in as ${me.email}. Session PIN is configured for shared unlock.` : `Signed in as ${me.email}`, 'ok');
+      } else {
+        refreshAccessTruth();
+        setTruth('last', 'warn', 'Session Missing');
+        setStatus('Not signed in. Create account or login to use SkyeChat workspace.', 'error');
+      }
+    }
+
+    async function signup() {
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const orgName = document.getElementById('orgName').value.trim() || 'SkyeChat Org';
+      const signup = await call('/api/auth-signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, orgName }),
+      });
+      if (signup?.kaixu_token?.token) {
+        if (standaloneSession?.saveManualToken) standaloneSession.saveManualToken(signup.kaixu_token.token, signup.kaixu_token.locked_email || email.toLowerCase());
+        else {
+          localStorage.setItem('kx.api.accessToken', signup.kaixu_token.token);
+          localStorage.setItem('kx.api.tokenEmail', signup.kaixu_token.locked_email || email.toLowerCase());
+        }
+        hydrateAuthInputs();
+      }
+      await refreshMe();
+      await loadProfile();
+      await loadChannels();
+      await loadFeed();
+      setTruth('last', 'ok', 'Group Created');
+    }
+
+    async function login() {
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      await call('/api/auth-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      await ensureWorkspaceAccess('chat-login-auto');
+      await refreshMe();
+      await loadProfile();
+      await loadChannels();
+      await loadFeed();
+    }
+
+    async function loadChannels() {
+      const data = await call('/api/skychat-channel-list');
+      const channels = Array.isArray(data?.channels) ? data.channels : [];
+      chatState.channels = channels;
+      chatState.orgRole = String(data?.role || 'member');
+      renderChannelDirectory();
+
+      const current = document.getElementById('channel').value.trim();
+      const filter = document.getElementById('filterChannel').value.trim();
+      if (!channels.find((c) => c.slug === current)) {
+        document.getElementById('channel').value = channels[0]?.slug || 'community';
+      }
+      if (!channels.find((c) => c.slug === filter)) {
+        document.getElementById('filterChannel').value = channels[0]?.slug || 'community';
+      }
+    }
+
+    async function createGroup() {
+      const name = document.getElementById('groupName').value.trim();
+      const description = document.getElementById('groupDescription').value.trim();
+      if (!name) throw new Error('Group name is required.');
+      const data = await call('/api/skychat-group-create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, description }),
+      });
+      const slug = data?.group?.slug || '';
+      if (slug) {
+        document.getElementById('channel').value = slug;
+        document.getElementById('filterChannel').value = slug;
+      }
+      await loadChannels();
+      await loadFeed();
+      setStatus(`Created private group #${slug || name}.`);
+    }
+
+    async function inviteToGroup() {
+      const channel = document.getElementById('channel').value.trim();
+      const email = document.getElementById('inviteEmail').value.trim().toLowerCase();
+      if (!channel) throw new Error('Select a group channel first.');
+      if (!email) throw new Error('Invite email is required.');
+      await call('/api/skychat-group-invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channel, email }),
+      });
+      setTruth('room', 'ok', 'Invite Routed');
+      setTruth('last', 'ok', 'Invite Sent');
+      setStatus(`Invited ${email} to #${channel}.`, 'ok');
+    }
+
+    async function voteMessage(messageId, vote) {
+      await call('/api/skychat-vote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message_id: messageId, vote }),
+      });
+      await loadFeed();
+    }
+
+    async function loadThread(rootId) {
+      if (!rootId) throw new Error('Missing thread root id.');
+      const data = await call(`/api/skychat-thread-list?root_id=${encodeURIComponent(rootId)}`);
+      const records = Array.isArray(data?.records) ? data.records : [];
+      chatState.activeRootId = rootId;
+      chatState.records = records;
+      renderHealthPanel(records);
+      feedEl.innerHTML = records.map(renderFeedRecord).join('') || '<div class="meta">No thread messages found.</div>';
+      setTruth('room', 'ok', 'Thread Loaded');
+      setTruth('last', 'ok', 'Thread Ready');
+      setStatus(`Loaded thread ${rootId} with ${records.length} item(s).`, 'ok');
+    }
+
+    async function loadTopicFeed() {
+      const topic = document.getElementById('topicFilter').value.trim().toLowerCase();
+      const qs = new URLSearchParams();
+      qs.set('limit', '50');
+      if (topic) qs.set('topic', topic);
+      const data = await call(`/api/skychat-topic-feed?${qs.toString()}`);
+      const records = Array.isArray(data?.records) ? data.records : [];
+      chatState.records = records;
+      chatState.topicSummary = Array.isArray(data?.topics) ? data.topics : [];
+      renderHealthPanel(records);
+      feedEl.innerHTML = records.map(renderFeedRecord).join('') || '<div class="meta">No topic feed records found.</div>';
+      const topicText = chatState.topicSummary.slice(0, 6).map((row) => `${row.topic}(${row.c})`).join(' | ');
+      renderOpsSummary();
+      setTruth('room', 'ok', 'Topic Feed Live');
+      setTruth('last', 'ok', 'Topic Feed Loaded');
+      setStatus(`Topic feed loaded (${records.length} posts). ${topicText ? 'Top topics: ' + topicText : ''}`, 'ok');
+    }
+
+    async function loadNotifications() {
+      const kind = document.getElementById('notificationKindFilter').value.trim().toLowerCase();
+      const unreadOnly = document.getElementById('notificationUnreadOnly').checked;
+      const qs = new URLSearchParams();
+      qs.set('limit', '40');
+      if (kind) qs.set('kind', kind);
+      if (unreadOnly) qs.set('unread_only', '1');
+      const data = await call(`/api/skychat-notification-list?${qs.toString()}`);
+      chatState.notifications = {
+        unread_count: Number(data?.unread_count || 0),
+        recent: Array.isArray(data?.notifications) ? data.notifications : [],
+      };
+      renderNotificationsPanel();
+      setTruth('last', 'ok', 'Notifications Ready');
+    }
+
+    async function markNotificationRead(id) {
+      if (!id) return;
+      await call('/api/skychat-notification-read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, read: true }),
+      });
+      await loadNotifications();
+    }
+
+    async function markAllNotificationsRead() {
+      const kind = document.getElementById('notificationKindFilter').value.trim().toLowerCase();
+      await call('/api/skychat-notification-read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ all: true, read: true, kind: kind || undefined }),
+      });
+      await loadNotifications();
+      setTruth('last', 'ok', 'Notifications Cleared');
+      setStatus('Notifications marked as read.', 'ok');
+    }
+
+    async function logout() {
+      await call('/api/auth-logout', { method: 'POST' });
+      chatState.me = null;
+      refreshAccessTruth();
+      setTruth('room', 'idle', 'Room Idle');
+      setTruth('last', 'warn', 'Logged Out');
+      setStatus('Logged out.', 'info');
+      feedEl.innerHTML = '';
+    }
+
+    async function saveProfile() {
+      const displayName = document.getElementById('displayName').value.trim();
+      const handle = document.getElementById('handle').value.trim();
+      await call('/api/app-profile-set', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ app: 'SkyeChat', title: displayName || handle || 'SkyeChat Profile', profile: { display_name: displayName, handle } }),
+      });
+      setTruth('last', 'ok', 'Profile Saved');
+      setStatus('SkyeChat profile saved.', 'ok');
+    }
+
+    async function loadProfile() {
+      const data = await call('/api/app-profile-get?app=SkyeChat');
+      const p = data?.profile?.payload || {};
+      if (p?.display_name) document.getElementById('displayName').value = p.display_name;
+      if (p?.handle) document.getElementById('handle').value = p.handle;
+    }
+
+    async function postMessage() {
+      if (moderationState.lock === 'on') throw new Error('Room is locked by moderator policy.');
+      const now = Date.now();
+      if (moderationState.slowMode > 0 && (now - moderationState.lastPostAt) < moderationState.slowMode * 1000) {
+        throw new Error(`Slow mode active. Wait ${moderationState.slowMode}s between posts.`);
+      }
+      const channel = document.getElementById('channel').value.trim();
+      const message = document.getElementById('message').value.trim();
+      const topic = document.getElementById('topicInput').value.trim().toLowerCase();
+      const parentId = document.getElementById('replyParentId').value.trim();
+      const displayName = document.getElementById('displayName').value.trim() || 'SkyeChat User';
+      const idempotencyKey = buildIdempotencyKey('skyechat-post', [wsId, channel, topic, parentId, message, displayName]);
+      await call('/api/skychat-notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ws_id: wsId, channel, topic: topic || undefined, parent_id: parentId || undefined, message, source: `SkyeChat Workspace · ${displayName}`, idempotency_key: idempotencyKey }),
+      });
+      moderationState.lastPostAt = now;
+      setReplyTarget('');
+      await recordSuiteIntent('open-thread', 'completed', {
+        targetApp: 'SkyeChat',
+        summary: parentId ? 'Persist reply handoff inside SkyeChat.' : 'Persist channel post inside SkyeChat.',
+        detail: `SkyeChat posted to #${channel}${topic ? ` topic:${topic}` : ''}${parentId ? ' as reply' : ''}.`,
+        channelId: channel,
+        threadId: parentId || null,
+        draftId: idempotencyKey,
+        payload: { message, topic, parent_id: parentId || null },
+      });
+      setTruth('room', 'ok', 'Room Posted');
+      setTruth('last', 'ok', parentId ? 'Reply Sent' : 'Post Sent');
+      setStatus(`Posted to #${channel}${topic ? ` (topic:${topic})` : ''}${parentId ? ' as reply' : ''}`, 'ok');
+      await loadFeed();
+    }
+
+    async function postWithKaixu() {
+      const channel = document.getElementById('channel').value.trim();
+      const message = document.getElementById('message').value.trim();
+      await call('/api/skychat-kaixu', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channel, message, ws_id: wsId }),
+      });
+      setTruth('room', 'ok', 'kAIxU Routed');
+      setTruth('last', 'ok', 'kAIxU Replied');
+      setStatus(`Posted + kAIxU response in #${channel}`, 'ok');
+      await loadFeed();
+    }
+
+    function renderFeedRecord(record) {
+      const payload = record?.payload || {};
+      const c = payload?.channel_slug || payload?.channel || 'community';
+      const m = payload?.message || record?.title || '(empty)';
+      const s = payload?.source || 'unknown';
+      const createdAt = String(record?.created_at || '').slice(0, 19).replace('T', ' ');
+      const kind = payload?.channel_kind ? ` (${payload.channel_kind})` : '';
+      const postType = String(payload?.post_type || 'post');
+      const topic = String(payload?.topic || '').trim();
+      const depth = Number(payload?.depth || 0);
+      const voteScore = Number(record?.vote_score || 0);
+      const replyCount = Number(record?.reply_count || 0);
+      const rootId = String(payload?.root_id || record?.id || '');
+      const msgClass = postType === 'reply' || depth > 0 ? 'msg reply' : 'msg';
+      return `<div class="${msgClass}" data-msg-id="${record.id}">
+        <strong>#${c}${kind}</strong>
+        ${topic ? `<span class="pill">topic:${topic}</span>` : ''}
+        ${postType === 'reply' ? `<span class="pill">reply depth:${depth}</span>` : '<span class="pill">post</span>'}
+        <div>${m}</div>
+        <div class="meta">source: ${s} | ${createdAt} | id=${record.id}</div>
+        <div class="vote-row">
+          <button type="button" data-action="vote-up" data-msg-id="${record.id}">Upvote</button>
+          <button type="button" data-action="vote-down" data-msg-id="${record.id}">Downvote</button>
+          <button type="button" data-action="reply" data-msg-id="${record.id}">Reply</button>
+          <button type="button" data-action="open-thread" data-root-id="${rootId}">Open Thread</button>
+          <span class="pill">score:${voteScore}</span>
+          <span class="pill">replies:${replyCount}</span>
+        </div>
+      </div>`;
+    }
+
+    async function loadFeed() {
+      const channel = document.getElementById('filterChannel').value.trim();
+      const query = document.getElementById('search').value.trim();
+      const topic = document.getElementById('topicFilter').value.trim().toLowerCase();
+      const sort = document.getElementById('feedSort').value;
+      const includeReplies = document.getElementById('includeReplies').checked;
+      const qs = new URLSearchParams();
+      qs.set('limit', '50');
+      if (channel) qs.set('channel', channel);
+      if (query) qs.set('q', query);
+      if (topic) qs.set('topic', topic);
+      if (sort) qs.set('sort', sort);
+      if (includeReplies) qs.set('include_replies', '1');
+      const data = await call(`/api/skychat-list?${qs.toString()}`);
+      const records = Array.isArray(data?.records) ? data.records : [];
+      chatState.channels = Array.isArray(data?.channels) ? data.channels : chatState.channels;
+      chatState.notifications = data?.notifications || chatState.notifications;
+      chatState.records = records;
+      chatState.activeRootId = '';
+      renderChannelDirectory();
+      renderNotificationsPanel();
+      renderHealthPanel(records);
+      feedEl.innerHTML = records.map(renderFeedRecord).join('') || '<div class="meta">No messages found.</div>';
+      setTruth('room', 'ok', records.length ? 'Room Live' : 'Room Empty');
+      setTruth('last', 'ok', 'Feed Loaded');
+    }
+
+    ensureWorkflowHud();
+    hydrateAuthInputs();
+    refreshAccessTruth();
+    renderOpsSummary();
+    consumePlatformLaunchDraft();
+    if (standaloneSession?.subscribeSuiteIntents) {
+      standaloneSession.subscribeSuiteIntents('SkyeChat', applySuiteIntent);
+    }
+
+    document.getElementById('signupBtn').onclick = () => signup().catch((e) => handleWorkflowError(e, 'Signup Failed'));
+    document.getElementById('loginBtn').onclick = () => login().catch((e) => handleWorkflowError(e, 'Login Failed'));
+    document.getElementById('meBtn').onclick = () => refreshMe().then(loadProfile).catch((e) => handleWorkflowError(e, 'Session Refresh Failed'));
+    document.getElementById('saveKeyBtn').onclick = () => saveAuthInputs();
+    document.getElementById('clearKeyBtn').onclick = () => clearAuthInputs();
+    document.getElementById('saveProfileBtn').onclick = () => saveProfile().catch((e) => handleWorkflowError(e, 'Profile Save Failed'));
+    document.getElementById('postBtn').onclick = () => postMessage().catch((e) => handleWorkflowError(e, 'Post Failed'));
+    document.getElementById('kaixuBtn').onclick = () => postWithKaixu().catch((e) => handleWorkflowError(e, 'kAIxU Failed'));
+    document.getElementById('extractDecisionBtn').onclick = () => extractDecisionsToWorkflows().catch((e) => handleWorkflowError(e, 'Decision Extract Failed'));
+    document.getElementById('loadBtn').onclick = () => loadFeed().catch((e) => handleWorkflowError(e, 'Feed Load Failed'));
+    document.getElementById('applyFilterBtn').onclick = () => loadFeed().catch((e) => handleWorkflowError(e, 'Feed Filter Failed'));
+    document.getElementById('loadTopicFeedBtn').onclick = () => loadTopicFeed().catch((e) => handleWorkflowError(e, 'Topic Load Failed'));
+    document.getElementById('exportDigestBtn').onclick = () => exportDigest();
+    document.getElementById('applyModeration').onclick = () => applyModeration().catch((e) => handleWorkflowError(e, 'Moderation Failed'));
+    document.getElementById('revertModeration').onclick = () => revertLastModeration().catch((e) => handleWorkflowError(e, 'Moderation Revert Failed'));
+    document.getElementById('createGroupBtn').onclick = () => createGroup().catch((e) => handleWorkflowError(e, 'Group Create Failed'));
+    document.getElementById('reloadChannelsBtn').onclick = () => loadChannels().catch((e) => handleWorkflowError(e, 'Channel Load Failed'));
+    document.getElementById('inviteGroupBtn').onclick = () => inviteToGroup().catch((e) => handleWorkflowError(e, 'Invite Failed'));
+    document.getElementById('loadNotificationsBtn').onclick = () => loadNotifications().catch((e) => handleWorkflowError(e, 'Notification Load Failed'));
+    document.getElementById('markAllReadBtn').onclick = () => markAllNotificationsRead().catch((e) => handleWorkflowError(e, 'Notification Clear Failed'));
+    document.getElementById('logoutBtn').onclick = () => logout().catch((e) => handleWorkflowError(e, 'Logout Failed'));
+    document.getElementById('exportSkyeBtn').onclick = () => exportSkyeFile().catch((e) => handleWorkflowError(e, 'Export Failed'));
+    document.getElementById('importSkyeBtn').onclick = () => document.getElementById('importSkyeInput').click();
+    document.getElementById('importSkyeInput').addEventListener('change', (event) => {
+      const file = event.target.files?.[0];
+      event.target.value = '';
+      if (!file) return;
+      importSkyeFile(file).catch((e) => handleWorkflowError(e, 'Import Failed'));
+    });
+
+    feedEl.addEventListener('click', async (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      const action = target.getAttribute('data-action');
+      if (!action) return;
+      try {
+        if (action === 'vote-up') {
+          const id = target.getAttribute('data-msg-id') || '';
+          if (!id) return;
+          await voteMessage(id, 1);
+        } else if (action === 'vote-down') {
+          const id = target.getAttribute('data-msg-id') || '';
+          if (!id) return;
+          await voteMessage(id, -1);
+        } else if (action === 'reply') {
+          const id = target.getAttribute('data-msg-id') || '';
+          setReplyTarget(id);
+        } else if (action === 'open-thread') {
+          const rootId = target.getAttribute('data-root-id') || '';
+          if (!rootId) return;
+          await recordSuiteIntent('open-thread', 'completed', {
+            targetApp: 'SkyeChat',
+            threadId: rootId,
+            channelId: document.getElementById('filterChannel').value.trim() || document.getElementById('channel').value.trim(),
+            detail: `SkyeChat opened thread ${rootId}.`,
+            badge: 'thread',
+          });
+          await loadThread(rootId);
+        }
+      } catch (err) {
+        handleWorkflowError(err, 'Message Action Failed');
+      }
+    });
+
+    notificationList.addEventListener('click', async (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      if (target.getAttribute('data-action') !== 'mark-read') return;
+      const id = target.getAttribute('data-notif-id') || '';
+      if (!id) return;
+      try {
+        await markNotificationRead(id);
+      } catch (err) {
+        handleWorkflowError(err, 'Notification Action Failed');
+      }
+    });
+
+    hydrateModerationInputs();
+    renderModerationTimeline();
+    renderChannelDirectory();
+    renderNotificationsPanel();
+    setReplyTarget('');
+    refreshMe().then(loadProfile).then(loadChannels).then(loadFeed).then(loadNotifications).catch((e) => handleWorkflowError(e, 'Chat Bootstrap Failed'));
+  </script>
+<button id="skye-tutorial-fab" type="button" style="position:fixed;right:16px;bottom:16px;z-index:10000;padding:10px 14px;border-radius:999px;border:1px solid rgba(191,238,255,.42);background:rgba(44,230,255,.2);color:#eff9ff;font-weight:700;cursor:pointer;">Start Tutorial</button>
+<div id="skye-tutorial-modal" style="display:none;position:fixed;inset:0;z-index:10001;background:rgba(2,6,23,.72);"></div>
+<script>
+(function(){
+  const fab=document.getElementById('skye-tutorial-fab');
+  const modal=document.getElementById('skye-tutorial-modal');
+  if(!fab||!modal) return;
+  const app=(document.title||'App').replace(/Standalone|Workspace|Command Surface|Platform/gi,'').trim();
+  modal.innerHTML='<div style="max-width:520px;margin:10vh auto;background:#07131a;color:#eff9ff;border:1px solid rgba(191,238,255,.32);border-radius:14px;padding:18px"><h3 style="margin:0 0 8px">'+app+' Quick Start</h3><ol style="margin:0 0 12px 18px;line-height:1.5"><li>Review auth and active workspace context.</li><li>Run one core workflow action in this app.</li><li>Save/export/share output and verify completion state.</li></ol><div style="display:flex;justify-content:flex-end"><button id="skye-tutorial-close" type="button" style="padding:8px 12px;border-radius:10px;border:1px solid rgba(191,238,255,.32);background:rgba(0,0,0,.34);color:#eff9ff;cursor:pointer;">Close</button></div></div>';
+  fab.addEventListener('click',()=>{modal.style.display='block';});
+  modal.addEventListener('click',(e)=>{if(e.target===modal||e.target.id==='skye-tutorial-close') modal.style.display='none';});
+})();
+</script>
+</body>
+</html>

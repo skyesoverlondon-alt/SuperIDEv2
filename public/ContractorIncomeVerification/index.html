@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Contractor Income Verification</title>
+  <script src="/_shared/auth-unlock.js"></script>
+  <script src="/_shared/standalone-session.js"></script>
+  <style>
+    :root {
+      --bg: #05070f;
+      --panel: rgba(255,255,255,.05);
+      --line: rgba(255,255,255,.12);
+      --text: #f5f7ff;
+      --muted: #9ba7c7;
+      --gold: #f4c95d;
+      --purple: #8b5cf6;
+      --ok: #40d59a;
+      --danger: #ff6b81;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; color: var(--text); font: 14px/1.45 Inter, Arial, sans-serif;
+      background: radial-gradient(circle at top, rgba(139,92,246,.22), transparent 30%), radial-gradient(circle at 80% 10%, rgba(244,201,93,.12), transparent 28%), var(--bg);
+    }
+    .shell { max-width: 1280px; margin: 0 auto; padding: 24px; }
+    .hero, .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 20px; }
+    .hero { padding: 24px; margin-bottom: 18px; }
+    .hero h1 { margin: 0 0 10px; font-size: 28px; }
+    .hero p, .muted { color: var(--muted); }
+    .grid { display:grid; grid-template-columns: 380px 1fr; gap: 16px; }
+    .panel { padding: 18px; }
+    h2 { margin: 0 0 14px; font-size: 15px; letter-spacing: .12em; text-transform: uppercase; color: var(--gold); }
+    label { display:block; margin: 10px 0 6px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+    input, select, textarea, button {
+      width: 100%; border-radius: 12px; border: 1px solid var(--line); background: rgba(255,255,255,.04); color: var(--text);
+      padding: 12px 14px; font: inherit;
+    }
+    textarea { min-height: 90px; resize: vertical; }
+    .row { display:grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .row3 { display:grid; grid-template-columns: repeat(3,1fr); gap: 10px; }
+    .btns { display:flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+    .btns button { width: auto; cursor: pointer; padding: 11px 14px; }
+    .primary { background: linear-gradient(135deg, rgba(244,201,93,.18), rgba(139,92,246,.18)); }
+    .ghost { background: rgba(255,255,255,.03); }
+    .kpis { display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; margin: 12px 0 18px; }
+    .kpi { border:1px solid var(--line); border-radius:16px; padding: 14px; background: rgba(255,255,255,.03); }
+    .kpi .l { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .12em; }
+    .kpi .v { font-size: 22px; font-weight: 800; margin-top: 8px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align:left; padding: 10px 8px; border-bottom: 1px solid rgba(255,255,255,.08); vertical-align: top; }
+    th { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .12em; }
+    .split { display:grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .status { margin-top: 10px; color: var(--muted); }
+    .ok { color: var(--ok); }
+    .danger { color: var(--danger); }
+    a { color: var(--gold); }
+    @media (max-width: 1024px){ .grid{ grid-template-columns: 1fr; } .kpis{ grid-template-columns: repeat(2, minmax(0,1fr)); } .split{ grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body data-app-id="ContractorIncomeVerification">
+  <div class="shell">
+    <section class="hero">
+      <h1>Contractor Income Verification</h1>
+      <p>Standalone admin lane for contractor-specific income, expenses, verification packets, CSV export, and printable proof packet generation.</p>
+      <div class="btns" style="margin-top:14px;">
+        <button class="ghost" type="button" onclick="openLocal('/ContractorWorkflowSuite/index.html')">Open Contractor Mini Suite</button>
+        <button class="ghost" type="button" onclick="openLocal('/ContractorNetwork/index.html')">Open ContractorNetwork</button>
+        <button class="ghost" type="button" onclick="openLocal('/contractor income verification drop in/APP SURFACE/public/index.html')">Open Verify Suite</button>
+        <button class="ghost" type="button" onclick="openLocal('/AE-Flow/index.html')">Open AE Flow</button>
+        <button class="ghost" type="button" onclick="openLocal('/SkyePlatinum/index.html')">Open Skye Platinum</button>
+        <button class="ghost" type="button" onclick="openLocal('/SkyeDocxPro/index.html')">Open SkyeDocxPro</button>
+      </div>
+    </section>
+
+    <div class="grid">
+      <section class="panel">
+        <h2>Session</h2>
+        <label>Contractor Submission ID</label>
+        <input id="contractorId" placeholder="uuid from contractor_submissions.id" />
+        <div class="row">
+          <div>
+            <label>Period Start</label>
+            <input id="periodStart" type="date" />
+          </div>
+          <div>
+            <label>Period End</label>
+            <input id="periodEnd" type="date" />
+          </div>
+        </div>
+        <div class="btns">
+          <button class="primary" id="loadBtn">Load Period</button>
+          <button class="ghost" id="csvBtn">Export CSV</button>
+          <button class="ghost" id="reportBtn">Open Report</button>
+        </div>
+        <div id="status" class="status">Ready.</div>
+
+        <hr style="border-color: rgba(255,255,255,.08); margin: 18px 0;" />
+
+        <h2>Add Income</h2>
+        <div class="row">
+          <div>
+            <label>Date</label>
+            <input id="incomeDate" type="date" />
+          </div>
+          <div>
+            <label>Source</label>
+            <input id="incomeSource" placeholder="Uber, DoorDash, client invoice" />
+          </div>
+        </div>
+        <div class="row3">
+          <div>
+            <label>Source Type</label>
+            <input id="incomeSourceType" placeholder="gig_platform" value="gig_platform" />
+          </div>
+          <div>
+            <label>Category</label>
+            <input id="incomeCategory" placeholder="rideshare" value="general" />
+          </div>
+          <div>
+            <label>Reference</label>
+            <input id="incomeRef" placeholder="WEEK-19" />
+          </div>
+        </div>
+        <div class="row3">
+          <div>
+            <label>Gross</label>
+            <input id="incomeGross" type="number" step="0.01" placeholder="0.00" />
+          </div>
+          <div>
+            <label>Fees</label>
+            <input id="incomeFees" type="number" step="0.01" placeholder="0.00" />
+          </div>
+          <div>
+            <label>Net</label>
+            <input id="incomeNet" type="number" step="0.01" placeholder="leave blank to auto-calc" />
+          </div>
+        </div>
+        <label>Proof URL</label>
+        <input id="incomeProof" placeholder="https://..." />
+        <label>Notes</label>
+        <textarea id="incomeNotes" placeholder="Weekly payout, invoice settlement, etc."></textarea>
+        <div class="btns"><button class="primary" id="saveIncomeBtn">Save Income Row</button></div>
+
+        <hr style="border-color: rgba(255,255,255,.08); margin: 18px 0;" />
+
+        <h2>Add Expense</h2>
+        <div class="row">
+          <div>
+            <label>Date</label>
+            <input id="expenseDate" type="date" />
+          </div>
+          <div>
+            <label>Vendor</label>
+            <input id="expenseVendor" placeholder="Shell, Verizon, Home Depot" />
+          </div>
+        </div>
+        <div class="row3">
+          <div>
+            <label>Category</label>
+            <input id="expenseCategory" placeholder="fuel" value="general" />
+          </div>
+          <div>
+            <label>Amount</label>
+            <input id="expenseAmount" type="number" step="0.01" placeholder="0.00" />
+          </div>
+          <div>
+            <label>Deductible %</label>
+            <input id="expensePct" type="number" step="0.01" placeholder="100" value="100" />
+          </div>
+        </div>
+        <label>Proof URL</label>
+        <input id="expenseProof" placeholder="https://..." />
+        <label>Notes</label>
+        <textarea id="expenseNotes" placeholder="Fuel, maintenance, insurance, software, phone, etc."></textarea>
+        <div class="btns"><button class="primary" id="saveExpenseBtn">Save Expense Row</button></div>
+
+        <hr style="border-color: rgba(255,255,255,.08); margin: 18px 0;" />
+
+        <h2>Issue / Update Verification</h2>
+        <div class="row">
+          <div>
+            <label>Status</label>
+            <select id="packetStatus"><option>issued</option><option>draft</option><option>reviewed</option></select>
+          </div>
+          <div>
+            <label>Tier</label>
+            <select id="packetTier"><option>company_verified</option><option>compliance_reviewed</option><option>credential_backed</option></select>
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label>Issued By</label>
+            <input id="issuedByName" value="Skyes Over London" />
+          </div>
+          <div>
+            <label>Title</label>
+            <input id="issuedByTitle" value="Chief Executive Officer" />
+          </div>
+        </div>
+        <label>Statement Text</label>
+        <textarea id="packetStatement">This verification packet reflects contractor activity documented and maintained within the Skyes Over London contractor network platform for the selected reporting window.</textarea>
+        <div class="btns"><button class="primary" id="issuePacketBtn">Issue / Update Packet</button></div>
+      </section>
+
+      <section class="panel">
+        <h2>Summary</h2>
+        <div class="kpis">
+          <div class="kpi"><div class="l">Gross Income</div><div class="v" id="kpiGross">$0.00</div></div>
+          <div class="kpi"><div class="l">Fees</div><div class="v" id="kpiFees">$0.00</div></div>
+          <div class="kpi"><div class="l">Net Income</div><div class="v" id="kpiNet">$0.00</div></div>
+          <div class="kpi"><div class="l">Expenses</div><div class="v" id="kpiExp">$0.00</div></div>
+        </div>
+        <div id="contractorMeta" class="muted">No contractor loaded.</div>
+        <div id="packetMeta" class="muted" style="margin-top:8px"></div>
+
+        <div class="split" style="margin-top:16px">
+          <section>
+            <h2>Income Rows</h2>
+            <table>
+              <thead><tr><th>Date</th><th>Source</th><th>Gross</th><th>Fees</th><th>Net</th></tr></thead>
+              <tbody id="incomeTbody"><tr><td colspan="5" class="muted">No rows yet.</td></tr></tbody>
+            </table>
+          </section>
+          <section>
+            <h2>Expense Rows</h2>
+            <table>
+              <thead><tr><th>Date</th><th>Vendor</th><th>Category</th><th>Amount</th></tr></thead>
+              <tbody id="expenseTbody"><tr><td colspan="4" class="muted">No rows yet.</td></tr></tbody>
+            </table>
+          </section>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    const API = {
+      records: '/api/contractor-income-records',
+      record: '/api/contractor-income-record',
+      verify: '/api/contractor-income-verify',
+      csv: '/api/contractor-income-export',
+      report: '/api/contractor-income-report'
+    };
+
+    const $ = (id) => document.getElementById(id);
+    const state = { bundle: null };
+
+    function money(n){ return `$${Number(n || 0).toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2})}`; }
+    function setStatus(msg, cls=''){ const el = $('status'); el.textContent = msg; el.className = 'status ' + cls; }
+    function esc(v){ return String(v ?? '').replace(/[&<>\"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[m])); }
+    function today(){ return new Date().toISOString().slice(0,10); }
+    function startOfMonth(){ const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0,10); }
+
+    $('periodStart').value = startOfMonth();
+    $('periodEnd').value = today();
+    $('incomeDate').value = today();
+    $('expenseDate').value = today();
+
+    const params = new URLSearchParams(location.search);
+    const workspaceId = params.get('ws_id') || localStorage.getItem('kx.workspace.id') || 'primary-workspace';
+    if(params.get('contractor_id')) $('contractorId').value = params.get('contractor_id');
+
+    function openLocal(path){
+      const url = new URL(path, window.location.origin);
+      if (workspaceId) url.searchParams.set('ws_id', workspaceId);
+      const contractorId = $('contractorId').value.trim();
+      if (contractorId) url.searchParams.set('contractor_id', contractorId);
+      window.location.href = `${url.pathname}${url.search}`;
+    }
+
+    async function loadBundle(){
+      const contractorId = $('contractorId').value.trim();
+      const start = $('periodStart').value;
+      const end = $('periodEnd').value;
+      if(!contractorId || !start || !end){ setStatus('Need contractor id + start + end', 'danger'); return; }
+      setStatus('Loading...', '');
+      try {
+        const res = await fetch(`${API.records}?contractor_submission_id=${encodeURIComponent(contractorId)}&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`);
+        const data = await res.json();
+        if(!res.ok || !data.ok) throw new Error(data.error || 'Load failed');
+        state.bundle = data;
+        renderBundle();
+        setStatus('Loaded contractor financial window.', 'ok');
+      } catch (err) {
+        setStatus(err.message || String(err), 'danger');
+      }
+    }
+
+    function renderBundle(){
+      const b = state.bundle;
+      if(!b) return;
+      $('kpiGross').textContent = money(b.totals.gross_income);
+      $('kpiFees').textContent = money(b.totals.fees);
+      $('kpiNet').textContent = money(b.totals.net_income);
+      $('kpiExp').textContent = money(b.totals.expenses);
+      $('contractorMeta').textContent = `${b.contractor.full_name} · ${b.contractor.business_name || 'No business name'} · ${b.contractor.email || ''}`;
+      $('packetMeta').textContent = b.packet ? `Packet: ${b.packet.status} · ${b.packet.verification_tier} · hash ${b.packet.packet_hash}` : 'No verification packet for this period yet.';
+
+      $('incomeTbody').innerHTML = (b.income || []).length ? b.income.map(row => `
+        <tr>
+          <td>${esc(row.entry_date)}</td>
+          <td>${esc(row.source_name)}</td>
+          <td>${money(row.gross_amount)}</td>
+          <td>${money(row.fee_amount)}</td>
+          <td>${money(row.net_amount)}</td>
+        </tr>`).join('') : '<tr><td colspan="5" class="muted">No income rows yet.</td></tr>';
+
+      $('expenseTbody').innerHTML = (b.expenses || []).length ? b.expenses.map(row => `
+        <tr>
+          <td>${esc(row.entry_date)}</td>
+          <td>${esc(row.vendor_name)}</td>
+          <td>${esc(row.category)}</td>
+          <td>${money(row.amount)}</td>
+        </tr>`).join('') : '<tr><td colspan="4" class="muted">No expense rows yet.</td></tr>';
+    }
+
+    async function saveRecord(kind){
+      const contractor_submission_id = $('contractorId').value.trim();
+      if(!contractor_submission_id){ setStatus('Need contractor id first', 'danger'); return; }
+      const body = kind === 'income' ? {
+        contractor_submission_id,
+        kind: 'income',
+        entry_date: $('incomeDate').value,
+        source_name: $('incomeSource').value,
+        source_type: $('incomeSourceType').value,
+        reference_code: $('incomeRef').value,
+        gross_amount: $('incomeGross').value,
+        fee_amount: $('incomeFees').value,
+        net_amount: $('incomeNet').value || null,
+        category: $('incomeCategory').value,
+        proof_url: $('incomeProof').value,
+        notes: $('incomeNotes').value
+      } : {
+        contractor_submission_id,
+        kind: 'expense',
+        entry_date: $('expenseDate').value,
+        vendor_name: $('expenseVendor').value,
+        category: $('expenseCategory').value,
+        amount: $('expenseAmount').value,
+        deductible_percent: $('expensePct').value,
+        proof_url: $('expenseProof').value,
+        notes: $('expenseNotes').value
+      };
+
+      setStatus(`Saving ${kind} row...`, '');
+      try {
+        const res = await fetch(API.record, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        if(!res.ok || !data.ok) throw new Error(data.error || 'Save failed');
+        setStatus(`${kind === 'income' ? 'Income' : 'Expense'} row saved.`, 'ok');
+        await loadBundle();
+      } catch (err) {
+        setStatus(err.message || String(err), 'danger');
+      }
+    }
+
+    async function issuePacket(){
+      const contractor_submission_id = $('contractorId').value.trim();
+      const period_start = $('periodStart').value;
+      const period_end = $('periodEnd').value;
+      if(!contractor_submission_id || !period_start || !period_end){ setStatus('Need contractor id + period first', 'danger'); return; }
+      setStatus('Issuing verification packet...', '');
+      try {
+        const res = await fetch(API.verify, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contractor_submission_id,
+            period_start,
+            period_end,
+            status: $('packetStatus').value,
+            verification_tier: $('packetTier').value,
+            issued_by_name: $('issuedByName').value,
+            issued_by_title: $('issuedByTitle').value,
+            statement_text: $('packetStatement').value
+          })
+        });
+        const data = await res.json();
+        if(!res.ok || !data.ok) throw new Error(data.error || 'Packet issue failed');
+        setStatus('Verification packet updated.', 'ok');
+        await loadBundle();
+      } catch (err) {
+        setStatus(err.message || String(err), 'danger');
+      }
+    }
+
+    $('loadBtn').addEventListener('click', loadBundle);
+    $('saveIncomeBtn').addEventListener('click', () => saveRecord('income'));
+    $('saveExpenseBtn').addEventListener('click', () => saveRecord('expense'));
+    $('issuePacketBtn').addEventListener('click', issuePacket);
+    $('csvBtn').addEventListener('click', () => {
+      const contractorId = $('contractorId').value.trim();
+      const start = $('periodStart').value;
+      const end = $('periodEnd').value;
+      if(!contractorId || !start || !end){ setStatus('Need contractor id + period first', 'danger'); return; }
+      window.open(`${API.csv}?contractor_submission_id=${encodeURIComponent(contractorId)}&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`, '_blank', 'noopener');
+    });
+    $('reportBtn').addEventListener('click', () => {
+      const contractorId = $('contractorId').value.trim();
+      const start = $('periodStart').value;
+      const end = $('periodEnd').value;
+      if(!contractorId || !start || !end){ setStatus('Need contractor id + period first', 'danger'); return; }
+      window.open(`${API.report}?contractor_submission_id=${encodeURIComponent(contractorId)}&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`, '_blank', 'noopener');
+    });
+
+    if ($('contractorId').value.trim()) loadBundle();
+  </script>
+</body>
+</html>

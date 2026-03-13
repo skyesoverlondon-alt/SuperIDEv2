@@ -1,28 +1,14 @@
- im looking at neural space pro and some other apps. we still have the neural space pro using tokens! please audit all of the apps in all of the suites sir, nothing should be using tokens, every app should be using a kaixu key. Also lets ensure that the fucking kaixu key can be set in their settings menu once and it should populate in every fucking app, they should not be needing to paste a fucking key into every app, it defeats the purpose of the shit being part of a connected sysytem.
- 
- I also need to ensure that every kaixu app ive brought over here has the fucking 3js that i imported the app with meaning you should not have flattened or removed any styling from any of my kaixu apps. My main problem is that i imported a whole kaixu suite and those apps are now broken, they not functional at all
- 
- 
- we need to see how we can integrate this folder into our app /workspaces/SuperIDEv2/public/AE-Flow
+every app we have needs a real tutorial shipped with it. 
+the tutorials we currently have are all bullshit saying run auth and just use the app. 
 
-This is a product that can definitely be useful to our guest as it is a full crm plus some! The entire app needs to exist within the superide and should not be changed muchat all, the only thing it needs to do is talk to the other apps, so we must link it into our command network as well as make sure that it is positioned as a whole platform, not just an app. This is actually something I want to make a distinction about very quickly. SOme of our apps are just apps, but some of the things I've architect are full platform systems and should be treated as such, the systems/platforms just live within this command deck
+Apps need to clearly say what they do, the features and the specs or none of the apps will be used the way that they should be. 
 
+I need for every app to have the following, and this is across the entire plaform: 
+-an indepth tutorial
+-spec page
+-feature page
+-Valuation or what this app is worth meaning how much it would cost to recreate and how much it would cost to use the equivalent somewhere else. 
 
+Meaning that every app basically is able to sell itself even if im allowing users to use an app for free, it must never  feel cheap, by adding these into every app and platform, we essentially build into the app proof surfaces.  
 
-we need to see how we can integrate this folder into our app  /workspaces/SuperIDEv2/public/GoogleBusinessProfileRescuePlatform
-
-make sure that it is positioned as a whole platform, not just an app. this is a Google Business Review Platform, study it to see all that it does and how to incorporate the whole platform inside of the superide. Businesses being able to do their Google Business rescues from the app is a groundbreaking additional platform. I know users will go crazy over this. reason being the app will already have their companies information because they'll be working and all of that inside of the command center anyways and the whole entire superide platform should be listening to each other so our Google Business rescue platform should be just as integrated and know what is what so then when the company uses the platform its pulling from the command center we have everything linked up to and it should also have a neural link with neural space pro
-
-
-
-Also our Skyemail and Skyechat are platforms as well. Neural Space Pro is a platform. SkyeDocxPro and SkyeBlog and SkyeBookx are all standalone mega Apps that can replace things like Microsoft word easily, but combined they are part of the SkyeSuite, which is also a platform
-
-
-
-Im making this distinction because I want users to know these are not just apps, these are hardened systems that interact with one another, nothing is isolated app behavior, this is a command deck housing many platforms with Developer Level Infrastructure and Content Generators all in one. Our app should express this without having to say it. Users need to be able to get an overview of everything the app can do after signup. like the app should have an overall tour that takes them between tabs and helps them setup their workspace so its custom how they want. I've intentionally made it where the workstations and sidebar apps can all change and drag to reshape, so we should be walking them through that and also every major app we have but by the end of their guided tutorial of our entire app they should have a custom workspace tailored to them, an email and skyeid generated and persisted from the onboarding and then have overall knowledge of the entire platform.
-
-also i want the neural space pro to become something i can have other apps and shit embed into their apps and still connect does this make sense??? like how you can embed a youtube video i wanna be able to embed a neural space pro type chat box anywhere. meaning this project is live, i should be able to make a new website in the future drop in an embed snippet and it links up to the neural space we have here. does this make sense???? like i should be able to basically sell that embed snippet to companies like hey this is a full app just drop this embed into your app or website and you now have neural space pro 
-
-also shit like this s Workspace ID primary-workspace Site Base https://kaixusuperidev2.netlify.app Worker URL https://kaixu-superide-runner.skyesoverlondon.workers.dev Save
--shit like that is not for the fucking public. make that only accessible to the fucking admin me!and also make me an admin menu. password protected by the envar ADMIN_KEY
-my admin menu should make it easy for me to onboard new companies and all of that shit. meaning i need my own admin board and shit for this on this site as well. link it to our smokehouse, api playground and the pages you said you made about the app pricing and all of that 
+This phase must be in depth and actually hit on what im demanding. My investors really need to know the depth an dlevel of work that has gone into this and evry single product in here, this is not a bunch of random products just thrown into a blob, this is a coordinated environment of 

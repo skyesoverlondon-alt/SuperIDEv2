@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Contractor Workflow Suite</title>
+  <script src="/_shared/auth-unlock.js"></script>
+  <script src="/_shared/standalone-session.js"></script>
+  <style>
+    :root {
+      --bg: #05060d;
+      --panel: rgba(255,255,255,.05);
+      --line: rgba(255,255,255,.12);
+      --text: #f8f4ff;
+      --muted: #b7b0c8;
+      --gold: #f4c95d;
+      --violet: #a243ff;
+      --cyan: #53d9ff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--text);
+      font: 15px/1.5 Inter, Arial, sans-serif;
+      background:
+        radial-gradient(circle at 14% 18%, rgba(162,67,255,.24), transparent 28%),
+        radial-gradient(circle at 82% 12%, rgba(244,201,93,.14), transparent 26%),
+        radial-gradient(circle at 70% 72%, rgba(83,217,255,.12), transparent 30%),
+        var(--bg);
+    }
+    .shell { max-width: 1280px; margin: 0 auto; padding: 28px; }
+    .hero, .panel, .card { border: 1px solid var(--line); background: var(--panel); border-radius: 24px; }
+    .hero { padding: 28px; margin-bottom: 18px; }
+    .eyebrow { color: var(--gold); text-transform: uppercase; letter-spacing: .2em; font-size: 11px; }
+    h1 { margin: 10px 0; font-size: clamp(2rem, 4vw, 3.6rem); line-height: 1; }
+    p { color: var(--muted); }
+    .hero-actions, .card-actions { display:flex; flex-wrap: wrap; gap: 12px; margin-top: 16px; }
+    .hero-actions a, .card-actions a {
+      text-decoration:none; color:var(--text); padding: 11px 14px; border-radius: 999px; border: 1px solid var(--line);
+      background: rgba(255,255,255,.04);
+    }
+    .hero-actions a.primary { background: linear-gradient(135deg, rgba(162,67,255,.26), rgba(244,201,93,.18)); }
+    .grid { display:grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; }
+    .card { padding: 18px; min-height: 220px; display:flex; flex-direction:column; }
+    .card .kicker { color: var(--gold); text-transform: uppercase; letter-spacing: .14em; font-size: 11px; }
+    .card h2 { margin: 12px 0 8px; font-size: 20px; }
+    .card p { flex: 1; }
+    .playbook { margin-top: 18px; display:grid; grid-template-columns: 1.15fr .85fr; gap: 16px; }
+    .panel { padding: 20px; }
+    ol { margin: 0; padding-left: 20px; }
+    li { margin: 0 0 10px; color: var(--muted); }
+    .statline { display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; margin-top: 12px; }
+    .stat { border:1px solid var(--line); border-radius: 16px; padding: 14px; background: rgba(255,255,255,.03); }
+    .stat strong { display:block; font-size: 24px; margin-top: 8px; }
+    @media (max-width: 1100px) { .grid { grid-template-columns: repeat(2, minmax(0,1fr)); } .playbook { grid-template-columns: 1fr; } }
+    @media (max-width: 680px) { .grid { grid-template-columns: 1fr; } .statline { grid-template-columns: repeat(2, minmax(0,1fr)); } .shell { padding: 18px; } }
+  </style>
+</head>
+<body data-app-id="ContractorWorkflowSuite">
+  <div class="shell">
+    <section class="hero">
+      <div class="eyebrow">Mini Suite</div>
+      <h1>Contractor Workflow Suite</h1>
+      <p>This launcher groups the contractor operating path into one workflow: intake and review in ContractorNetwork, financial proof in Contractor Income Verification, downstream execution in AE Flow, executive control in Skye Platinum, and final packet output in SkyeDocxPro.</p>
+      <div class="hero-actions">
+        <a class="primary carry" href="/ContractorNetwork/index.html">Launch ContractorNetwork</a>
+        <a class="carry" href="/contractor income verification drop in/APP SURFACE/public/index.html">Open Verify Suite</a>
+        <a class="carry" href="/ContractorIncomeVerification/index.html">Open Income Verification</a>
+        <a class="carry" href="/AE-Flow/index.html">Open AE Flow</a>
+        <a class="carry" href="/SkyePlatinum/index.html">Open Skye Platinum</a>
+        <a class="carry" href="/SkyeDocxPro/index.html">Open SkyeDocxPro</a>
+        <a class="carry" href="/kAIxU/index.html">Open kAIxU Platform</a>
+      </div>
+      <div class="statline">
+        <div class="stat"><span>Core Lanes</span><strong>6</strong></div>
+        <div class="stat"><span>Shared Runtime</span><strong>1</strong></div>
+        <div class="stat"><span>Proof Modules</span><strong>15</strong></div>
+        <div class="stat"><span>Ops Handoff</span><strong>Looped</strong></div>
+      </div>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <div class="kicker">Lane 01</div>
+        <h2>ContractorNetwork</h2>
+        <p>Run intake, admin review, evidence, and routing against the shared contractor submission record.</p>
+        <div class="card-actions"><a class="carry" href="/ContractorNetwork/index.html">Open Lane</a></div>
+      </article>
+      <article class="card">
+        <div class="kicker">Lane 02</div>
+        <h2>Verify Suite</h2>
+        <p>Run the 15-module contractor verification shell for evidence, invoices, receipts, letters, proof packets, and missing-proof analysis.</p>
+        <div class="card-actions"><a class="carry" href="/contractor income verification drop in/APP SURFACE/public/index.html">Open Lane</a></div>
+      </article>
+      <article class="card">
+        <div class="kicker">Lane 03</div>
+        <h2>Income Verification</h2>
+        <p>Track income and expense rows, generate verification packets, export CSV, and print proof reports from the same contractor runtime.</p>
+        <div class="card-actions"><a class="carry" href="/ContractorIncomeVerification/index.html">Open Lane</a></div>
+      </article>
+      <article class="card">
+        <div class="kicker">Lane 04</div>
+        <h2>AE Flow</h2>
+        <p>Push follow-up, outreach, and pipeline execution into the CRM lane without splitting the runtime.</p>
+        <div class="card-actions"><a class="carry" href="/AE-Flow/index.html">Open Lane</a></div>
+      </article>
+      <article class="card">
+        <div class="kicker">Lane 05</div>
+        <h2>Skye Platinum</h2>
+        <p>Use executive command, client registry, and ledger visibility for higher-tier review and direction.</p>
+        <div class="card-actions"><a class="carry" href="/SkyePlatinum/index.html">Open Lane</a></div>
+      </article>
+      <article class="card">
+        <div class="kicker">Lane 06</div>
+        <h2>SkyeDocxPro</h2>
+        <p>Produce final letters, summaries, reports, and document packets from the same operational workflow.</p>
+        <div class="card-actions"><a class="carry" href="/SkyeDocxPro/index.html">Open Lane</a></div>
+      </article>
+    </section>
+
+    <section class="playbook">
+      <div class="panel">
+        <div class="eyebrow">Workflow</div>
+        <h2>Recommended Flow</h2>
+        <ol>
+          <li>Start in ContractorNetwork and confirm the contractor submission, evidence, and review status.</li>
+          <li>Move into the Verify Suite when the case needs the broader evidence, receipts, invoices, letter, and proof-gap command surface.</li>
+          <li>Use Contractor Income Verification when the operator needs the focused finance lane for packet issuance and CSV output.</li>
+          <li>Open AE Flow when the contractor case needs outreach, follow-up, or operator execution.</li>
+          <li>Use Skye Platinum when the operator needs executive review, client-level context, or command escalation.</li>
+          <li>Finish in SkyeDocxPro when the workflow needs a polished letter, packet, or deliverable artifact.</li>
+        </ol>
+      </div>
+      <div class="panel">
+        <div class="eyebrow">Promise</div>
+        <h2>One Runtime, One Launch Hub</h2>
+        <p>This page does not create a new backend or sidecar. It is a workflow launcher over the existing shared runtime. Every link stays inside the current app surface model and carries the workspace query forward.</p>
+      </div>
+    </section>
+  </div>
+  <script>
+    (function(){
+      const params = new URLSearchParams(window.location.search);
+      const wsId = params.get('ws_id');
+      document.querySelectorAll('a.carry').forEach((node) => {
+        const url = new URL(node.getAttribute('href'), window.location.origin);
+        if (wsId) url.searchParams.set('ws_id', wsId);
+        node.setAttribute('href', `${url.pathname}${url.search}`);
+      });
+    })();
+  </script>
+</body>
+</html>

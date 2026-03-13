@@ -6,6 +6,38 @@
   const SUITE_LEDGER_ENDPOINT = "/api/suite-events";
   const SUITE_INTENT_VERSION = "suite-intent-v1";
   const SUITE_CARD_ID = "skye-suite-integration-card";
+  const SKYEHAWK_LAUNCHER_ID = "skye-suite-launcher";
+  const SKYEHAWK_POPUP_ID = "skye-suite-popup";
+  const SKYEHAWK_DISMISSED_KEY = "skyehawk.global.dismissed";
+  const SUITE_APP_LINKS = [
+    { id: "SuperIDE", label: "SuperIDE", href: "/" },
+    { id: "SkyDex4.6", label: "SkyDex 4.6", href: "/SkyDex4.6/" },
+    { id: "kAIxUPlatform", label: "kAIxU Platform", href: "/kAIxU/index.html" },
+    { id: "kAIxUSuite", label: "kAIxU Suite", href: "/kAIxUSuite/index.html" },
+    { id: "SkyeVault-Pro-v4.46", label: "SkyeVault Pro", href: "/SkyeVault-Pro-v4.46/drive/index.html" },
+    { id: "ContractorWorkflowSuite", label: "Contractor Suite", href: "/ContractorWorkflowSuite/index.html" },
+    { id: "ContractorNetwork", label: "ContractorNetwork", href: "/ContractorNetwork/index.html" },
+    { id: "ContractorIncomeVerification", label: "Contractor Income", href: "/ContractorIncomeVerification/index.html" },
+    { id: "ContractorVerificationSuite", label: "Contractor Verify Suite", href: "/contractor income verification drop in/APP SURFACE/public/index.html" },
+    { id: "Neural-Space-Pro", label: "Neural Space Pro", href: "/Neural-Space-Pro/index.html" },
+    { id: "SkyeDocs", label: "SkyeDocs", href: "/SkyeDocs/index.html" },
+    { id: "SkyeDrive", label: "SkyeDrive", href: "/SkyeDrive/index.html" },
+    { id: "SkyeDocxPro", label: "SkyeDocxPro", href: "/SkyeDocxPro/" },
+    { id: "SkyePlatinum", label: "Skye Platinum", href: "/SkyePlatinum/index.html" },
+    { id: "SkyeBlog", label: "SkyeBlog", href: "/SkyeBlog/" },
+    { id: "SkyeSheets", label: "SkyeSheets", href: "/SkyeSheets/index.html" },
+    { id: "SkyeSlides", label: "SkyeSlides", href: "/SkyeSlides/index.html" },
+    { id: "SKYEMAIL-GEN", label: "SKYEMAIL-GEN", href: "/SKYEMAIL-GEN/index.html" },
+    { id: "Skye-ID", label: "Skye-ID", href: "/Skye-ID/index.html" },
+    { id: "SkyeMail", label: "SkyeMail", href: "/SkyeMail/index.html" },
+    { id: "SkyeChat", label: "SkyeChat", href: "/SkyeChat/index.html" },
+    { id: "SkyeAdmin", label: "SkyeAdmin", href: "/SkyeAdmin/index.html" },
+    { id: "kAixu-Nexus", label: "kAixu-Nexus", href: "/kAixu-Nexus/index.html" },
+    { id: "recover-account", label: "Recover Account", href: "/recover-account/index.html" },
+    { id: "SovereignVariables", label: "SovereignVariables", href: "/SovereignVariables/" },
+    { id: "GoogleBusinessProfileRescuePlatform", label: "GBP Rescue", href: "/GoogleBusinessProfileRescuePlatform/index.html" },
+    { id: "GBPRescueSuite", label: "GBP Rescue Suite", href: "/GBPRescueSuite/index.html" }
+  ];
 
   const APP_TITLE_ALIASES = {
     "API Playground": "API-Playground",
@@ -15,10 +47,20 @@
     "SkyeMail": "SkyeMail",
     "AE FLOW": "AE-Flow",
     "AE Flow": "AE-Flow",
+    "kAIxU Platform": "kAIxUPlatform",
+    "kAIxU Suite": "kAIxUSuite",
+    "kAIxu Matrix": "kAIxU-Matrix",
+    "kAIxu Persona": "kAIxu-Persona",
+    "Contractor Income Verification": "ContractorIncomeVerification",
+    "Contractor Verification Suite": "ContractorVerificationSuite",
+    "Contractor Verify Suite": "ContractorVerificationSuite",
+    "Contractor Workflow Suite": "ContractorWorkflowSuite",
     "SkyDex 4.6": "SkyDex4.6",
+    "SkyeVault Pro": "SkyeVault-Pro-v4.46",
     "SkyeDocxPro": "SkyeDocxPro",
     "Google Business Profile Rescue": "GoogleBusinessProfileRescuePlatform",
     "Google Business Rescue": "GoogleBusinessProfileRescuePlatform",
+    "GBP Rescue Suite": "GBPRescueSuite",
     "Neural Space Pro": "Neural-Space-Pro",
     "SovereignVariables": "SovereignVariables",
     "SkyeAnalytics": "SkyeAnalytics",
@@ -418,8 +460,135 @@
       `#${SUITE_CARD_ID} .suite-last{margin-top:10px;padding:10px;border-radius:12px;background:rgba(44,230,255,.08);border:1px solid rgba(44,230,255,.18)}`,
       `#${SUITE_CARD_ID} .suite-muted{color:rgba(246,251,255,.62)}`,
       `#${SUITE_CARD_ID} .suite-close{position:absolute;top:8px;right:8px;border:0;background:transparent;color:#f6fbff;cursor:pointer;font-size:16px}`,
+      `#${SKYEHAWK_LAUNCHER_ID}{position:fixed;top:16px;right:16px;z-index:9999;display:flex;align-items:center;gap:10px}`,
+      `#${SKYEHAWK_LAUNCHER_ID} button{appearance:none;border:1px solid rgba(255,203,71,.24);background:rgba(14,11,24,.9);color:#f6fbff;border-radius:999px;cursor:pointer}`,
+      `#${SKYEHAWK_LAUNCHER_ID} .skyehawk-trigger{width:52px;height:52px;display:grid;place-items:center;box-shadow:0 16px 34px rgba(0,0,0,.28)}`,
+      `#${SKYEHAWK_LAUNCHER_ID} .skyehawk-trigger img{width:32px;height:32px;object-fit:contain}`,
+      `#${SKYEHAWK_LAUNCHER_ID} .skyehawk-rail{display:flex;gap:8px;overflow-x:auto;max-width:min(70vw,840px);padding:6px 2px;scrollbar-width:none}`,
+      `#${SKYEHAWK_LAUNCHER_ID} .skyehawk-rail::-webkit-scrollbar{display:none}`,
+      `#${SKYEHAWK_LAUNCHER_ID} .skyehawk-link{display:inline-flex;align-items:center;white-space:nowrap;padding:11px 14px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;text-decoration:none;color:#f6fbff;border:1px solid rgba(191,238,255,.14);border-radius:999px;background:rgba(255,255,255,.04)}`,
+      `#${SKYEHAWK_LAUNCHER_ID} .skyehawk-link.active{border-color:rgba(255,203,71,.42);background:rgba(255,203,71,.14);color:#ffcb47}`,
+      `#${SKYEHAWK_POPUP_ID}{position:fixed;top:78px;right:16px;z-index:9999;width:min(360px,calc(100vw - 24px));padding:16px;border-radius:18px;border:1px solid rgba(191,238,255,.16);background:linear-gradient(180deg,rgba(14,11,24,.96),rgba(6,11,18,.96));box-shadow:0 20px 48px rgba(0,0,0,.32);color:#f6fbff}`,
+      `#${SKYEHAWK_POPUP_ID}[data-state="hidden"]{display:none}`,
+      `#${SKYEHAWK_POPUP_ID} .popup-head{display:flex;gap:12px;align-items:flex-start}`,
+      `#${SKYEHAWK_POPUP_ID} .popup-head img{width:42px;height:42px;object-fit:contain;padding:8px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08)}`,
+      `#${SKYEHAWK_POPUP_ID} h3{margin:0 0 6px;font-size:12px;color:#ffcb47;text-transform:uppercase;letter-spacing:.08em}`,
+      `#${SKYEHAWK_POPUP_ID} p{margin:0;color:rgba(246,251,255,.78);font-size:13px;line-height:1.5}`,
+      `#${SKYEHAWK_POPUP_ID} .popup-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}`,
+      `#${SKYEHAWK_POPUP_ID} .popup-actions button{appearance:none;border-radius:999px;padding:10px 14px;font:600 11px/1 "Space Grotesk",system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase;cursor:pointer}`,
+      `#${SKYEHAWK_POPUP_ID} .popup-open{border:1px solid rgba(255,203,71,.28);background:rgba(255,203,71,.16);color:#fff3cf}`,
+      `#${SKYEHAWK_POPUP_ID} .popup-dismiss{border:1px solid rgba(255,255,255,.1);background:transparent;color:#f6fbff}`,
+      `body[data-skyehawk="off"] #${SKYEHAWK_LAUNCHER_ID},body[data-skyehawk="off"] #${SKYEHAWK_POPUP_ID}{display:none !important}`,
     ].join("");
     document.head.appendChild(style);
+  }
+
+  function currentPathNormalized() {
+    return String(window.location.pathname || "").replace(/index\.html$/, "");
+  }
+
+  function suiteLinkMarkup() {
+    const currentPath = currentPathNormalized();
+    return SUITE_APP_LINKS.map(function (app) {
+      const href = String(app.href || "");
+      const normalizedHref = href.replace(/index\.html$/, "");
+      const isActive = normalizedHref === "/" ? currentPath === "/" : currentPath.indexOf(normalizedHref) === 0;
+      return `<a class="skyehawk-link${isActive ? " active" : ""}" href="${href}">${app.label}</a>`;
+    }).join("");
+  }
+
+  function dismissSkyehawkPopup(persist) {
+    const popup = document.getElementById(SKYEHAWK_POPUP_ID);
+    if (popup) popup.setAttribute("data-state", "hidden");
+    if (persist === false) return;
+    try {
+      localStorage.setItem(SKYEHAWK_DISMISSED_KEY, "1");
+    } catch {}
+  }
+
+  function showSkyehawkPopup(force) {
+    const popup = document.getElementById(SKYEHAWK_POPUP_ID);
+    if (!popup) return;
+    let dismissed = false;
+    try {
+      dismissed = localStorage.getItem(SKYEHAWK_DISMISSED_KEY) === "1";
+    } catch {}
+    if (dismissed && !force) return;
+    popup.setAttribute("data-state", "ready");
+  }
+
+  function revealSkyehawkRail() {
+    const launcher = document.getElementById(SKYEHAWK_LAUNCHER_ID);
+    if (!launcher) return;
+    launcher.scrollIntoView({ behavior: "smooth", block: "start", inline: "nearest" });
+    const active = launcher.querySelector(".skyehawk-link.active") || launcher.querySelector(".skyehawk-link");
+    if (active && typeof active.scrollIntoView === "function") {
+      active.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+    }
+  }
+
+  function mountSkyehawkLauncher() {
+    if (!document.body || document.body.getAttribute("data-skyehawk") === "off") return null;
+    ensureSuiteCardStyles();
+
+    let launcher = document.getElementById(SKYEHAWK_LAUNCHER_ID);
+    if (!launcher) {
+      launcher = document.createElement("div");
+      launcher.id = SKYEHAWK_LAUNCHER_ID;
+      launcher.innerHTML = [
+        '<button type="button" class="skyehawk-trigger" aria-label="Open Skyehawk suite launcher"><img src="/SKYESOVERLONDONDIETYLOGO.png" alt="Skyehawk"></button>',
+        `<nav class="skyehawk-rail" aria-label="Skye suite launcher">${suiteLinkMarkup()}</nav>`
+      ].join("");
+      document.body.appendChild(launcher);
+    } else {
+      const rail = launcher.querySelector(".skyehawk-rail");
+      if (rail) rail.innerHTML = suiteLinkMarkup();
+    }
+
+    let popup = document.getElementById(SKYEHAWK_POPUP_ID);
+    if (!popup) {
+      popup = document.createElement("aside");
+      popup.id = SKYEHAWK_POPUP_ID;
+      popup.setAttribute("data-state", "hidden");
+      popup.innerHTML = [
+        '<div class="popup-head">',
+        '<img src="/SKYESOVERLONDONDIETYLOGO.png" alt="Skyehawk">',
+        '<div><h3>Skyehawk Menu</h3><p>Use the hawk button and top rail to move between apps. The menu is now global across standalone surfaces, not hidden inside one page.</p></div>',
+        '</div>',
+        '<div class="popup-actions">',
+        '<button type="button" class="popup-open">Open Menu</button>',
+        '<button type="button" class="popup-dismiss">Dismiss</button>',
+        '</div>'
+      ].join("");
+      document.body.appendChild(popup);
+    }
+
+    const trigger = launcher.querySelector(".skyehawk-trigger");
+    if (trigger && !trigger.dataset.bound) {
+      trigger.dataset.bound = "1";
+      trigger.addEventListener("click", function () {
+        dismissSkyehawkPopup();
+        revealSkyehawkRail();
+      });
+    }
+
+    const popupOpen = popup.querySelector(".popup-open");
+    if (popupOpen && !popupOpen.dataset.bound) {
+      popupOpen.dataset.bound = "1";
+      popupOpen.addEventListener("click", function () {
+        dismissSkyehawkPopup();
+        revealSkyehawkRail();
+      });
+    }
+
+    const popupDismiss = popup.querySelector(".popup-dismiss");
+    if (popupDismiss && !popupDismiss.dataset.bound) {
+      popupDismiss.dataset.bound = "1";
+      popupDismiss.addEventListener("click", function () { dismissSkyehawkPopup(); });
+    }
+
+    showSkyehawkPopup(false);
+    return { launcher: launcher, popup: popup };
   }
 
   async function mountIntegrationCard(options) {
@@ -525,6 +694,7 @@
 
   const mountWhenReady = function () {
     if (!document.body || document.body.getAttribute("data-suite-card") === "off") return;
+    mountSkyehawkLauncher();
     void mountIntegrationCard({ appId: inferCurrentAppId("") });
   };
 
