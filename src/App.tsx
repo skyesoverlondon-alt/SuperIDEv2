@@ -24,6 +24,7 @@ import {
   type SkyeEncryptedBlock,
   type SkyePlainPayload,
 } from "./lib/skye";
+import appRegistryData from "./data/app-registry.json";
 
 type Message = {
   id: string;
@@ -195,9 +196,39 @@ type SkyeAppId =
 
 type SkyeAppDefinition = {
   id: SkyeAppId;
+  label: string;
   summary: string;
   mvp: string[];
   searchTerms?: string[];
+};
+
+type AppRegistryGroupId = "build" | "workspace" | "platforms" | "communications" | "operations" | "codex";
+
+type AppRegistryGroup = {
+  id: AppRegistryGroupId;
+  label: string;
+  description: string;
+};
+
+type AppRegistryApp = {
+  id: SkyeAppId | "Neural-Space-Pro";
+  label: string;
+  summary: string;
+  mvp: string[];
+  surfacePath: string;
+  groupId: AppRegistryGroupId;
+  drawerOrder?: number;
+  featured?: boolean;
+  shellMode: "skyeide" | "neural";
+  drawer: boolean;
+  skyehawk: boolean;
+  searchTerms?: string[];
+  aliases?: string[];
+};
+
+type AppRegistryData = {
+  groups: AppRegistryGroup[];
+  apps: AppRegistryApp[];
 };
 
 type AuthRole = "owner" | "admin" | "member" | "viewer";
@@ -442,7 +473,7 @@ type AppDrawerGroup = {
   id: string;
   label: string;
   description: string;
-  apps: SkyeAppId[];
+  apps: ShellSkyehawkRoute[];
 };
 
 type ShellSkyehawkRoute = SkyeAppId | "Neural-Space-Pro" | "SuperIDE";
@@ -451,6 +482,19 @@ type ShellSkyehawkLink = {
   id: string;
   label: string;
   route: ShellSkyehawkRoute;
+};
+
+type ShellDrawerApp = {
+  route: ShellSkyehawkRoute;
+  id: string;
+  label: string;
+  summary: string;
+  mvp: string[];
+  searchTerms?: string[];
+  groupId: AppRegistryGroupId;
+  drawerOrder: number;
+  featured: boolean;
+  isSkyeApp: boolean;
 };
 
 type MailRuntimeStatus = {
@@ -976,59 +1020,34 @@ const SOVEREIGN_VARIABLES_INBOX_KEY = "sovereign.variables.inbox.v1";
 const AUTH_HAS_PIN_KEY = "kx.auth.hasPin";
 const AUTH_PIN_UNLOCKED_AT_KEY = "kx.auth.pinUnlockedAt";
 const GBP_RESCUE_STATE_KEY = "kx.gbp.rescue.state";
+const FOUNDER_GATEWAY_STORAGE_KEY = "kx.auth.founderGatewayKey";
 
-const SKYE_APPS: SkyeAppDefinition[] = [
-  { id: "SkyeDocs", summary: "Collaborative document workspace.", mvp: ["Rich text", "Markdown mode", "Autosave"], searchTerms: ["docs", "editor", "document", "writing", "workspace"] },
-  { id: "kAIxUPlatform", summary: "Sales and demo landing page for presenting kAIxU as a standalone platform family inside the broader ecosystem.", mvp: ["Dedicated kAIxU landing page", "Track-based product framing", "Sales-ready front door"], searchTerms: ["kaixu", "platform", "demo", "sales", "landing page", "worldbuilding"] },
-  { id: "kAIxUSuite", summary: "Platform launcher for the kAIxU family, packaged into marketable tracks for genesis, worldbuilding, mythic systems, and command.", mvp: ["Branded kAIxU front door", "Four platform tracks", "Gateway-first family workflow"], searchTerms: ["kaixu", "platform", "worldbuilding", "franchise", "creative suite", "launcher"] },
-  { id: "ContractorWorkflowSuite", summary: "Mini suite hub for contractor intake, finance verification, ops execution, executive review, and document output.", mvp: ["Contractor routing hub", "Five-lane workflow launch", "Cross-app handoff"] },
-  { id: "ContractorNetwork", summary: "Contractor intake, routing, and admin review platform.", mvp: ["Submission intake", "Admin review", "Field dispatch routing"], searchTerms: ["contractor", "intake", "vendor", "field ops", "submission"] },
-  { id: "ContractorIncomeVerification", summary: "Contractor income, expense, packet verification, CSV export, and proof report lane.", mvp: ["Income ledger", "Expense ledger", "Verification packets"], searchTerms: ["contractor", "income", "verification", "expense", "financials", "packet"] },
-  { id: "ContractorVerificationSuite", summary: "Fifteen-module contractor proof and operations suite for evidence, cashflow, invoices, receipts, letters, and missing-proof detection in one runtime shell.", mvp: ["15 integrated contractor tools", "Workspace-scoped persistence", "Proof and packet command deck"], searchTerms: ["contractor", "verification", "proof", "evidence", "cashflow", "receipts", "invoice", "letter", "mini suite"] },
-  { id: "SkyDex4.6", summary: "Secure codex IDE surface wired to workspace, gateway, GitHub, and Netlify flows.", mvp: ["Workspace editing", "Gateway prompt lane", "Push + deploy controls"] },
-  { id: "WebPilePro", summary: "Premium multi-file web sandbox with Monaco, isolated preview, validation, and export packs.", mvp: ["Multi-file Monaco studio", "Isolated preview controls", "ZIP + evidence export"], searchTerms: ["web", "sandbox", "monaco", "preview", "html", "css", "javascript", "frontend"] },
-  { id: "SkyeVault-Pro-v4.46", summary: "Local-first vault workspace with deep import/export back into the SuperIDE suite.", mvp: ["Vault workspace", "Cross-app snapshot ingest", "Send back into suite apps"], searchTerms: ["vault", "storage", "backup", "import", "export", "drive", "sync"] },
-  { id: "SkyeDocxPro", summary: "Full document production suite integrated into SuperIDE.", mvp: ["Advanced editor", "Offline-ready workflows", "Production-grade exports"] },
-  { id: "SkyeBlog", summary: "AI-first blog studio with direct community publishing flows.", mvp: ["AI draft generation", "Editorial workspace", "Push to chat/mail"] },
-  { id: "AE-Flow", summary: "Embedded CRM platform with operator workflows and cross-app command routing.", mvp: ["CRM shell", "Workspace context", "Command network handoff"] },
-  { id: "GoogleBusinessProfileRescuePlatform", summary: "Business rescue platform capsule for case diagnostics and reinstatement ops.", mvp: ["Platform launchpad", "Workspace sync", "Rescue handoff"] },
-  { id: "GBPRescueSuite", summary: "Mini suite hub for the full GBP rescue workflow and its five dedicated operator apps.", mvp: ["Five-app rescue suite", "Execution support lanes", "Shared case launch"] },
-  { id: "SovereignVariables", summary: "Secure environment variable vault with portable exports.", mvp: ["Project/env management", "Encrypted .skye export", "Push to chat/mail"] },
-  { id: "SkyeBookx", summary: "AI-native authoring and publishing surface.", mvp: ["Chapter drafting", "AI rewrite", "Compile preview"] },
-  { id: "SkyePlatinum", summary: "Executive command hub with kAIxU analysis.", mvp: ["Client registry", "Ledger ops", "AI directives"] },
-  { id: "REACT2HTML", summary: "Convert React snippets into standalone HTML outputs.", mvp: ["kAIxU conversion", "Live preview", "Copy output"], searchTerms: ["react", "html", "convert", "component"] },
-  { id: "recover-account", summary: "Standalone recovery and password reset lane for auth restoration.", mvp: ["Recovery email entry", "Token reset", "Account restore"], searchTerms: ["login", "signin", "sign in", "signup", "sign up", "password", "reset", "recover", "recovery", "auth"] },
-  { id: "SKYEMAIL-GEN", summary: "Generate branded SKYEMAIL identities and exports.", mvp: ["Email generator", "Persistence", "PDF export"], searchTerms: ["login", "signup", "sign up", "mailbox", "identity", "email", "auth"] },
-  { id: "Skye-ID", summary: "Generate and archive identity cards with export workflows.", mvp: ["ID generator", "IndexedDB archive", "CSV/PDF export"], searchTerms: ["identity", "id", "profile", "auth", "login"] },
-  { id: "SkyeSheets", summary: "Grid and formula workbook app.", mvp: ["Editable grid", "Formula parser", "CSV import/export"] },
-  { id: "SkyeSlides", summary: "Deck builder and presenter mode.", mvp: ["Slide list", "Template blocks", "Presenter view"] },
-  { id: "SkyeMail", summary: "Inbox and compose workflows.", mvp: ["Inbox list", "Read thread", "Compose/send"] },
-  { id: "SkyeChat", summary: "Channels, threads, team messages.", mvp: ["Channel rooms", "Thread replies", "File attachments"] },
-  { id: "SkyeCalendar", summary: "Scheduling and event planning.", mvp: ["Month/week views", "Create/edit events", "Reminders"] },
-  { id: "SkyeDrive", summary: "Workspace file storage and sharing.", mvp: ["Upload", "Version history", "Share links"] },
-  { id: "SkyeVault", summary: "Secure credentials and secrets.", mvp: ["Encrypted entries", "Scoped sharing", "Audit log"] },
-  { id: "SkyeForms", summary: "Forms and response collection.", mvp: ["Form builder", "Response table", "Publish link"] },
-  { id: "SkyeNotes", summary: "Notebooks and quick capture.", mvp: ["Notebook tree", "Tags", "Search"] },
-  { id: "SkyeAnalytics", summary: "Usage and KPI dashboards.", mvp: ["KPI cards", "Trend charts", "Export CSV"] },
-  { id: "SkyeTasks", summary: "Kanban and assignment tracking.", mvp: ["Board columns", "Assignees", "Due dates"] },
-  { id: "SkyeAdmin", summary: "Org roles and integration controls.", mvp: ["User roles", "SSO/integrations", "Audit console"], searchTerms: ["admin", "login", "signup", "sign in", "auth", "onboarding", "users", "roles", "keys", "access"] },
-  { id: "kAIxU-Vision", summary: "Visual concept studio with gateway-only AI scene drafting.", mvp: ["Vision ideation", "Gateway generation", "Poster export"] },
-  { id: "kAixu-Nexus", summary: "SOLE project minting command surface via kAIxU gateway.", mvp: ["Prompt minting", "Inspection logs", "Asset export"] },
-  { id: "kAIxU-Codex", summary: "World-building codex editor using secured gateway inference.", mvp: ["Entry authoring", "Lore generation", "PDF export"] },
-  { id: "kAIxu-Atmos", summary: "Atmospheric script and playback workstation with gateway text synthesis.", mvp: ["Script drafting", "Ambient pass", "Playback preview"] },
-  { id: "kAIxu-Quest", summary: "Quest blueprint generator routed through gate-safe AI flows.", mvp: ["Quest generation", "Lore expansion", "Visual poster"] },
-  { id: "kAIxu-Forge", summary: "Item blueprint forge with gateway-only creative assist.", mvp: ["Item generation", "Spec expansion", "Visual poster"] },
-  { id: "kAIxu-Atlas", summary: "Cartography workstation with secure world map generation.", mvp: ["Location design", "Geo expansion", "Atlas export"] },
-  { id: "kAixU-Chronos", summary: "Historical timeline authoring with gated AI expansion.", mvp: ["Event generation", "Timeline expansion", "Chronicle export"] },
-  { id: "kAIxu-Bestiary", summary: "Creature dossier creator secured through gateway-only calls.", mvp: ["Lifeform generation", "Trait expansion", "Visual poster"] },
-  { id: "kAIxu-Mythos", summary: "Mythology and pantheon design surface with gate-routed intelligence.", mvp: ["Deity generation", "Lore expansion", "Visual poster"] },
-  { id: "kAIxU-Matrix", summary: "Incubation core for spinning new worlds, branches, and ecosystem seeds into structured kAIxU programs.", mvp: ["Incubation nodes", "Seed generation", "Expansion exports"] },
-  { id: "kAIxu-Persona", summary: "Character design studio for cast systems, role archetypes, and operator-ready profiles.", mvp: ["Persona generation", "Character dossiers", "Profile exports"] },
-  { id: "kAIxU-Faction", summary: "Faction intelligence desk with secure policy-compliant AI ops.", mvp: ["Faction generation", "Intel expansion", "Sigil poster"] },
-  { id: "kAIxU-PrimeCommand", summary: "Franchise command bible with gateway-only strategic drafting.", mvp: ["Node generation", "Strategy expansion", "Key art poster"] },
-  { id: "API-Playground", summary: "Standalone API test bench with hash-chained persistent logs.", mvp: ["Custom payloads", "Request replay", "Hash ledger export"] },
-  { id: "Smokehouse-Standalone", summary: "Standalone smoke runner with tamper-evident run history.", mvp: ["Contract checks", "Hash chain", "Runbook export"] },
-];
+const APP_REGISTRY = appRegistryData as AppRegistryData;
+
+const SHELL_DRAWER_APPS: ShellDrawerApp[] = APP_REGISTRY.apps
+  .filter((app) => app.drawer)
+  .map((app) => ({
+    route: app.id as ShellSkyehawkRoute,
+    id: app.id,
+    label: app.label,
+    summary: app.summary,
+    mvp: app.mvp,
+    searchTerms: app.searchTerms,
+    groupId: app.groupId,
+    drawerOrder: typeof app.drawerOrder === "number" ? app.drawerOrder : Number.MAX_SAFE_INTEGER,
+    featured: Boolean(app.featured),
+    isSkyeApp: app.shellMode === "skyeide",
+  }));
+
+const SKYE_APPS: SkyeAppDefinition[] = APP_REGISTRY.apps
+  .filter((app): app is AppRegistryApp & { id: SkyeAppId; shellMode: "skyeide" } => app.shellMode === "skyeide")
+  .map((app) => ({
+    id: app.id,
+    label: app.label,
+    summary: app.summary,
+    mvp: app.mvp,
+    searchTerms: app.searchTerms,
+  }));
 
 const SKYE_APP_ID_SET = new Set<string>(SKYE_APPS.map((app) => app.id));
 
@@ -1060,58 +1079,11 @@ const PLATFORM_INTRO_PILLARS = [
   },
 ];
 
-const APP_SURFACE_PATHS: Partial<Record<SkyeAppId, string>> = {
-  SkyeDocs: "/SkyeDocs/index.html",
-  kAIxUPlatform: "/kAIxU/index.html",
-  kAIxUSuite: "/kAIxUSuite/index.html",
-  ContractorWorkflowSuite: "/ContractorWorkflowSuite/index.html",
-  ContractorNetwork: "/ContractorNetwork/index.html",
-  ContractorIncomeVerification: "/ContractorIncomeVerification/index.html",
-  ContractorVerificationSuite: "/contractor income verification drop in/APP SURFACE/public/index.html",
-  "SkyDex4.6": "/SkyDex4.6/index.html",
-  WebPilePro: "/WebPilePro/index.html",
-  "SkyeVault-Pro-v4.46": "/SkyeVault-Pro-v4.46/drive/index.html",
-  SkyeDocxPro: "/SkyeDocxPro/index.html",
-  SkyeBlog: "/SkyeBlog/index.html",
-  "AE-Flow": "/AE-Flow/index.html",
-  GoogleBusinessProfileRescuePlatform: "/GoogleBusinessProfileRescuePlatform/index.html",
-  GBPRescueSuite: "/GBPRescueSuite/index.html",
-  SovereignVariables: "/SovereignVariables/index.html",
-  SkyeBookx: "/SkyeBookx/index.html",
-  SkyePlatinum: "/SkyePlatinum/index.html",
-  "REACT2HTML": "/REACT2HTML/index.html",
-  "recover-account": "/recover-account/index.html",
-  "SKYEMAIL-GEN": "/SKYEMAIL-GEN/index.html",
-  "Skye-ID": "/Skye-ID/index.html",
-  SkyeSheets: "/SkyeSheets/index.html",
-  SkyeSlides: "/SkyeSlides/index.html",
-  SkyeMail: "/SkyeMail/index.html",
-  SkyeChat: "/SkyeChat/index.html",
-  SkyeCalendar: "/SkyeCalendar/index.html",
-  SkyeDrive: "/SkyeDrive/index.html",
-  SkyeVault: "/SkyeVault/index.html",
-  SkyeForms: "/SkyeForms/index.html",
-  SkyeNotes: "/SkyeNotes/index.html",
-  SkyeAnalytics: "/SkyeAnalytics/index.html",
-  SkyeTasks: "/SkyeTasks/index.html",
-  SkyeAdmin: "/SkyeAdmin/index.html",
-  "kAIxU-Vision": "/kAIxU-Vision/index.html",
-  "kAixu-Nexus": "/kAixu-Nexus/index.html",
-  "kAIxU-Codex": "/kAIxU-Codex/index.html",
-  "kAIxu-Atmos": "/kAIxu-Atmos/index.html",
-  "kAIxu-Quest": "/kAIxu-Quest/index.html",
-  "kAIxu-Forge": "/kAIxu-Forge/index.html",
-  "kAIxu-Atlas": "/kAIxu-Atlas/index.html",
-  "kAixU-Chronos": "/kAixU-Chronos/index.html",
-  "kAIxu-Bestiary": "/kAIxu-Bestiary/index.html",
-  "kAIxu-Mythos": "/kAIxu-Mythos/index.html",
-  "kAIxU-Matrix": "/kAIxU-Matrix/index.html",
-  "kAIxu-Persona": "/kAIxu-Persona/index.html",
-  "kAIxU-Faction": "/kAIxU-Faction/index.html",
-  "kAIxU-PrimeCommand": "/kAIxU-PrimeCommand/index.html",
-  "API-Playground": "/API-Playground/index.html",
-  "Smokehouse-Standalone": "/Smokehouse/index.html",
-};
+const APP_SURFACE_PATHS: Partial<Record<SkyeAppId, string>> = Object.fromEntries(
+  APP_REGISTRY.apps
+    .filter((app): app is AppRegistryApp & { id: SkyeAppId; shellMode: "skyeide" } => app.shellMode === "skyeide")
+    .map((app) => [app.id, app.surfacePath])
+) as Partial<Record<SkyeAppId, string>>;
 
 function buildAppSurfaceUrl(appId: SkyeAppId, wsId: string): string | null {
   const basePath = APP_SURFACE_PATHS[appId];
@@ -1132,7 +1104,7 @@ function buildStandaloneAppUrl(appId: SkyeAppId, wsId: string): string | null {
   return query ? `${basePath}?${query}` : basePath;
 }
 
-const APP_TUTORIALS: Record<SkyeAppId, string[]> = {
+const APP_TUTORIALS: Partial<Record<SkyeAppId, string[]>> = {
   SkyeDocs: [
     "Open a project file from the left pane.",
     "Edit content in Monaco and verify syntax highlighting.",
@@ -1398,77 +1370,34 @@ const APP_TUTORIALS: Record<SkyeAppId, string[]> = {
   ],
 };
 
-const FEATURED_APP_IDS: SkyeAppId[] = ["SkyDex4.6", "WebPilePro", "SkyeVault-Pro-v4.46", "SkyeBookx", "REACT2HTML", "SKYEMAIL-GEN", "Skye-ID", "SkyePlatinum"];
+const FEATURED_APP_IDS: SkyeAppId[] = SHELL_DRAWER_APPS
+  .filter((app): app is ShellDrawerApp & { route: SkyeAppId; isSkyeApp: true } => app.featured && app.isSkyeApp)
+  .map((app) => app.route);
 
 const SHELL_SKYEHAWK_DISMISSED_KEY = "kx.shell.skyehawk.dismissed";
 
 const SHELL_SKYEHAWK_LINKS: ShellSkyehawkLink[] = [
   { id: "superide", label: "SuperIDE", route: "SuperIDE" },
-  { id: "skydex", label: "SkyDex 4.6", route: "SkyDex4.6" },
-  { id: "kaixuplatform", label: "kAIxU Platform", route: "kAIxUPlatform" },
-  { id: "kaixusuite", label: "kAIxU Suite", route: "kAIxUSuite" },
-  { id: "webpilepro", label: "WebPilePro", route: "WebPilePro" },
-  { id: "vaultpro", label: "SkyeVault Pro", route: "SkyeVault-Pro-v4.46" },
-  { id: "contractorsuite", label: "Contractor Suite", route: "ContractorWorkflowSuite" },
-  { id: "contractornetwork", label: "ContractorNetwork", route: "ContractorNetwork" },
-  { id: "contractorincome", label: "Contractor Income", route: "ContractorIncomeVerification" },
-  { id: "contractorverify", label: "Contractor Verify Suite", route: "ContractorVerificationSuite" },
-  { id: "neural", label: "Neural Space Pro", route: "Neural-Space-Pro" },
-  { id: "skyedocs", label: "SkyeDocs", route: "SkyeDocs" },
-  { id: "skyedrive", label: "SkyeDrive", route: "SkyeDrive" },
-  { id: "docxpro", label: "SkyeDocxPro", route: "SkyeDocxPro" },
-  { id: "skyeblog", label: "SkyeBlog", route: "SkyeBlog" },
-  { id: "skyesheets", label: "SkyeSheets", route: "SkyeSheets" },
-  { id: "skyeslides", label: "SkyeSlides", route: "SkyeSlides" },
-  { id: "skyemailgen", label: "SKYEMAIL-GEN", route: "SKYEMAIL-GEN" },
-  { id: "skyeid", label: "Skye-ID", route: "Skye-ID" },
-  { id: "skyemail", label: "SkyeMail", route: "SkyeMail" },
-  { id: "skyechat", label: "SkyeChat", route: "SkyeChat" },
-  { id: "skyeadmin", label: "SkyeAdmin", route: "SkyeAdmin" },
-  { id: "nexus", label: "kAixu-Nexus", route: "kAixu-Nexus" },
-  { id: "recover", label: "Recover Account", route: "recover-account" },
-  { id: "gbp", label: "GBP Rescue", route: "GoogleBusinessProfileRescuePlatform" },
-  { id: "gbpsuite", label: "GBP Rescue Suite", route: "GBPRescueSuite" },
+  ...APP_REGISTRY.apps
+    .filter((app) => app.skyehawk)
+    .map((app) => ({
+      id: app.id.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+      label: app.label,
+      route: app.id as ShellSkyehawkRoute,
+    })),
 ];
 
-const APP_DRAWER_GROUPS: AppDrawerGroup[] = [
-  {
-    id: "build",
-    label: "Build + IDE",
-    description: "Editor, deploy, preview, testing, and secure environment control surfaces.",
-    apps: ["SkyDex4.6", "WebPilePro", "SkyeVault-Pro-v4.46", "REACT2HTML", "API-Playground", "Smokehouse-Standalone", "SovereignVariables", "SkyeDrive", "SkyeVault"],
-  },
-  {
-    id: "workspace",
-    label: "Workspace + Content",
-    description: "Documents, publishing, books, forms, notes, sheets, and slide workflows.",
-    apps: ["SkyeDocs", "SkyeDocxPro", "SkyeBlog", "SkyeBookx", "SkyeSheets", "SkyeSlides", "SkyeForms", "SkyeNotes"],
-  },
-  {
-    id: "platforms",
-    label: "Platform Systems",
-    description: "Full platform systems embedded in the command deck and linked to the shared workspace command network.",
-    apps: ["ContractorWorkflowSuite", "ContractorNetwork", "ContractorIncomeVerification", "ContractorVerificationSuite", "AE-Flow", "GoogleBusinessProfileRescuePlatform", "GBPRescueSuite"],
-  },
-  {
-    id: "communications",
-    label: "Communications + Identity",
-    description: "Mail, chat, calendar, identity generation, and team administration.",
-    apps: ["recover-account", "SKYEMAIL-GEN", "Skye-ID", "SkyeMail", "SkyeChat", "SkyeCalendar", "SkyeAdmin"],
-  },
-  {
-    id: "operations",
-    label: "Operations + Executive",
-    description: "Analytics, task execution, command surfaces, and org-wide operating views.",
-    apps: ["SkyeAnalytics", "SkyeTasks", "SkyePlatinum"],
-  },
-  {
-    id: "codex",
-    label: "kAIxU Creative + Codex",
-    description: "The kAIxU platform family for concept minting, world engines, mythic systems, and secure creative command.",
-    apps: ["kAIxUPlatform", "kAIxUSuite", "kAIxU-Vision", "kAixu-Nexus", "kAIxU-Codex", "kAIxu-Atmos", "kAIxu-Quest", "kAIxu-Forge", "kAIxu-Atlas", "kAixU-Chronos", "kAIxu-Bestiary", "kAIxu-Mythos", "kAIxU-Matrix", "kAIxu-Persona", "kAIxU-Faction", "kAIxU-PrimeCommand"],
-  },
-];
+const APP_DRAWER_GROUPS: AppDrawerGroup[] = APP_REGISTRY.groups
+  .map((group) => ({
+    id: group.id,
+    label: group.label,
+    description: group.description,
+    apps: SHELL_DRAWER_APPS
+      .filter((app) => app.groupId === group.id)
+      .sort((left, right) => left.drawerOrder - right.drawerOrder)
+      .map((app) => app.route),
+  }))
+  .filter((group) => group.apps.length > 0);
 
 const WORKBENCH_STARTER_PRESETS: WorkbenchStarterPreset[] = [
   {
@@ -2084,7 +2013,7 @@ export function App() {
   const [appMode, setAppMode] = useState<AppMode>("skyeide");
   const [toolTab, setToolTab] = useState<ToolTab>("assistant");
   const [selectedSkyeApp, setSelectedSkyeApp] = useState<SkyeAppId>(
-    SKYE_APPS.some((app) => app.id === initialApp) ? initialApp : "SkyeDocs"
+    SKYE_APPS.some((app) => app.id === initialApp) ? initialApp : "SkyDex4.6"
   );
 
   const [mvpChecks, setMvpChecks] = useState<Record<string, boolean>>(() => {
@@ -2414,6 +2343,8 @@ export function App() {
   const [isIssuingTesterToken, setIsIssuingTesterToken] = useState(false);
   const [apiAccessToken, setApiAccessToken] = useState(() => localStorage.getItem("kx.api.accessToken") || "");
   const [apiTokenEmail, setApiTokenEmail] = useState(() => localStorage.getItem("kx.api.tokenEmail") || "");
+  const [founderGatewayKey, setFounderGatewayKey] = useState(() => localStorage.getItem(FOUNDER_GATEWAY_STORAGE_KEY) || "");
+  const [isActivatingFounderGateway, setIsActivatingFounderGateway] = useState(false);
   const [hasSessionPin, setHasSessionPin] = useState(() => localStorage.getItem(AUTH_HAS_PIN_KEY) === "1");
   const [pinUnlockedAt, setPinUnlockedAt] = useState(() => localStorage.getItem(AUTH_PIN_UNLOCKED_AT_KEY) || "");
   const [authPinDraft, setAuthPinDraft] = useState("");
@@ -3635,8 +3566,7 @@ export function App() {
       setAdminBoardKey("");
       setAdminBoardResult("Admin board unlocked.");
     } catch (error: any) {
-      setAdminBoardUnlocked(false);
-      setAdminBoardResult(error?.message || "Admin key verification failed.");
+      setAdminBoardResult(error?.message || "Admin board verification failed.");
     } finally {
       setIsAdminBoardVerifying(false);
     }
@@ -3656,11 +3586,9 @@ export function App() {
       setAdminBoardResult(error?.message || "Clipboard copy failed.");
     }
   }
-
   useEffect(() => {
     if (!selectedContractorSubmission) return;
     setContractorAdminNotes(selectedContractorSubmission.admin_notes || "");
-    setContractorAdminTags((selectedContractorSubmission.tags || []).join(", "));
     setContractorAdminStatus(selectedContractorSubmission.status || "reviewing");
   }, [selectedContractorSubmission]);
 
@@ -3669,15 +3597,11 @@ export function App() {
       contractorQueueSeenRef.current = "";
       return;
     }
-    if (contractorStatusFilter.trim() || contractorSearch.trim()) return;
-
-    void loadContractorSubmissions({ status: "", q: "" });
     const timer = window.setInterval(() => {
       void loadContractorSubmissions({ status: "", q: "" });
-    }, 20000);
-
+    }, 30000);
     return () => window.clearInterval(timer);
-  }, [contractorAdminToken, contractorStatusFilter, contractorSearch]);
+  }, [contractorAdminToken]);
 
   useEffect(() => {
     if (!contractorAdminToken.trim()) return;
@@ -4315,6 +4239,11 @@ export function App() {
   }, [apiAccessToken, apiTokenEmail]);
 
   useEffect(() => {
+    if (founderGatewayKey.trim()) localStorage.setItem(FOUNDER_GATEWAY_STORAGE_KEY, founderGatewayKey.trim());
+    else localStorage.removeItem(FOUNDER_GATEWAY_STORAGE_KEY);
+  }, [founderGatewayKey]);
+
+  useEffect(() => {
     localStorage.setItem(AUTH_HAS_PIN_KEY, hasSessionPin ? "1" : "0");
   }, [hasSessionPin]);
 
@@ -4442,7 +4371,7 @@ export function App() {
 
     const hasSession = assistantAuthStatus === "ok" || assistantAuthStatus === "token";
     if (hasSession && !inviteToken) return;
-    if (hasPasswordResetQuery) return;
+    if (!inviteToken && !hasPasswordResetQuery) return;
     if (sessionStorage.getItem(AUTH_CENTER_AUTO_OPENED_SESSION_KEY) === "1") return;
     const timer = window.setTimeout(() => {
       sessionStorage.setItem(AUTH_CENTER_AUTO_OPENED_SESSION_KEY, "1");
@@ -4994,23 +4923,24 @@ export function App() {
   }
 
   const selectedAppDefinition = useMemo(
-    () => SKYE_APPS.find((app) => app.id === selectedSkyeApp) || SKYE_APPS[0],
+    () => SKYE_APPS.find((app) => app.id === selectedSkyeApp) || SKYE_APPS.find((app) => app.id === "SkyDex4.6") || SKYE_APPS[0],
     [selectedSkyeApp]
   );
 
   const filteredApps = useMemo(() => {
     const featured = new Set(FEATURED_APP_IDS);
-    const prioritizeFeatured = (apps: SkyeAppDefinition[]) =>
+    const prioritizeFeatured = (apps: ShellDrawerApp[]) =>
       [...apps].sort((a, b) => {
-        const af = featured.has(a.id) ? 1 : 0;
-        const bf = featured.has(b.id) ? 1 : 0;
+        const af = featured.has(a.route as SkyeAppId) ? 1 : 0;
+        const bf = featured.has(b.route as SkyeAppId) ? 1 : 0;
         return bf - af;
       });
 
     const q = appSearch.trim().toLowerCase();
-    if (!q) return prioritizeFeatured(SKYE_APPS);
-    const filtered = SKYE_APPS.filter((app) => {
+    if (!q) return prioritizeFeatured(SHELL_DRAWER_APPS);
+    const filtered = SHELL_DRAWER_APPS.filter((app) => {
       if (app.id.toLowerCase().includes(q)) return true;
+      if (app.label.toLowerCase().includes(q)) return true;
       if (app.summary.toLowerCase().includes(q)) return true;
       if (Array.isArray(app.searchTerms) && app.searchTerms.some((term) => term.toLowerCase().includes(q))) return true;
       return app.mvp.some((item) => item.toLowerCase().includes(q));
@@ -5019,7 +4949,7 @@ export function App() {
   }, [appSearch]);
 
   const filteredAppGroups = useMemo(() => {
-    const filteredIds = new Set(filteredApps.map((app) => app.id));
+    const filteredIds = new Set<ShellSkyehawkRoute>(filteredApps.map((app) => app.route));
     return APP_DRAWER_GROUPS.map((group) => ({
       ...group,
       apps: group.apps.filter((appId) => filteredIds.has(appId)),
@@ -6383,6 +6313,52 @@ export function App() {
     }
   }
 
+  async function activateFounderGateway(options: { silent?: boolean } = {}) {
+    const key = founderGatewayKey.trim();
+    if (!key) return false;
+
+    setIsActivatingFounderGateway(true);
+    try {
+      const res = await fetch("/api/auth-founder-gateway", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ key }),
+      });
+      const data = await readApiJsonResponse(res, "/api/auth-founder-gateway");
+      if (!res.ok) {
+        if (!options.silent) setAuthResult(data?.error || `Founder gateway failed (${res.status}).`);
+        setAssistantAuthStatus("unauthorized");
+        return false;
+      }
+
+      const founderEmail = String(data?.user?.email || authUser).trim().toLowerCase();
+      if (data?.kaixu_token?.token) {
+        setApiAccessToken(String(data.kaixu_token.token));
+        setApiTokenEmail(String(data.kaixu_token.locked_email || ""));
+        setPinUnlockedAt(new Date().toISOString());
+      }
+      if (founderEmail) setAuthUser(founderEmail);
+      setRecoveryEmail(String(data?.user?.recovery_email || recoveryEmail || "").trim().toLowerCase());
+      applyOrgDashboardPayload(data);
+
+      const sessionMeta = await refreshAuthSession({ skipFounderBootstrap: true });
+      const sessionEmail = String((typeof sessionMeta === "object" && (sessionMeta as any)?.email) || founderEmail).trim().toLowerCase();
+      if (sessionEmail) setAuthUser(sessionEmail);
+      setAssistantAuthStatus(data?.kaixu_token?.token ? "token" : "ok");
+      if (!options.silent) {
+        setAuthResult(`Founder gateway active. Owner session restored for ${sessionEmail || founderEmail || "the configured founder"}.`);
+      }
+      return data;
+    } catch (error: any) {
+      if (!options.silent) setAuthResult(error?.message || "Founder gateway failed.");
+      setAssistantAuthStatus("unauthorized");
+      return false;
+    } finally {
+      setIsActivatingFounderGateway(false);
+    }
+  }
+
   async function checkAssistantAuth(): Promise<boolean> {
     if (apiAccessToken.trim()) {
       setAssistantAuthStatus("token");
@@ -6391,9 +6367,17 @@ export function App() {
     try {
       const res = await fetch("/api/auth-me", { method: "GET", credentials: "include" });
       const ok = res.ok;
+      if (!ok && founderGatewayKey.trim()) {
+        const founder = await activateFounderGateway({ silent: true });
+        return Boolean(founder);
+      }
       setAssistantAuthStatus(ok ? "ok" : "unauthorized");
       return ok;
     } catch {
+      if (founderGatewayKey.trim()) {
+        const founder = await activateFounderGateway({ silent: true });
+        return Boolean(founder);
+      }
       setAssistantAuthStatus("unauthorized");
       return false;
     }
@@ -6463,11 +6447,15 @@ export function App() {
     }
   }
 
-  async function refreshAuthSession() {
+  async function refreshAuthSession(options: { skipFounderBootstrap?: boolean } = {}) {
     try {
       const res = await fetch("/api/auth-me", { method: "GET", credentials: "include" });
-      const data = await res.json();
+      const data = await readApiJsonResponse(res, "/api/auth-me");
       if (!res.ok || !data?.email) {
+        if (!options.skipFounderBootstrap && founderGatewayKey.trim()) {
+          const founder = await activateFounderGateway({ silent: true });
+          return founder || false;
+        }
         setAssistantAuthStatus("unauthorized");
         return false;
       }
@@ -6482,6 +6470,10 @@ export function App() {
       setAssistantAuthStatus("ok");
       return data;
     } catch {
+      if (!options.skipFounderBootstrap && founderGatewayKey.trim()) {
+        const founder = await activateFounderGateway({ silent: true });
+        return founder || false;
+      }
       setAssistantAuthStatus("unauthorized");
       return false;
     }
@@ -6943,6 +6935,7 @@ export function App() {
       setAuthPassword("");
       setApiAccessToken("");
       setApiTokenEmail("");
+      setFounderGatewayKey("");
       setPinUnlockedAt("");
       setAuthResult("Signed out of browser session.");
     } catch (error: any) {
@@ -7243,6 +7236,35 @@ export function App() {
               </div>
               {pinOpsResult && <p className="muted-copy" style={{ marginTop: 8 }}>{pinOpsResult}</p>}
             </details>
+          </section>
+
+          <section className="auth-session-feedback auth-key-card">
+            <strong>Founder Gateway</strong>
+            <div>Use the founder-only runtime key to open a full owner session and unlocked admin-grade AI key without walking the standard login flow.</div>
+            <div className="tool-row split" style={{ marginTop: 10 }}>
+              <div>
+                <label htmlFor="founder-gateway-key">Founder gateway key</label>
+                <input
+                  id="founder-gateway-key"
+                  type="password"
+                  value={founderGatewayKey}
+                  onChange={(event) => setFounderGatewayKey(event.target.value)}
+                  placeholder="Founders_GateWay_Key"
+                />
+              </div>
+              <div>
+                <label>Runtime behavior</label>
+                <input value={founderGatewayKey.trim() ? "armed for auto-bootstrap" : "inactive"} readOnly />
+              </div>
+            </div>
+            <div className="tool-actions left" style={{ marginTop: 8 }}>
+              <button className="ghost" type="button" onClick={() => void activateFounderGateway()} disabled={isActivatingFounderGateway || !founderGatewayKey.trim()}>
+                {isActivatingFounderGateway ? "Unlocking..." : "Activate Founder Gateway"}
+              </button>
+              <button className="ghost" type="button" onClick={() => setFounderGatewayKey("")} disabled={!founderGatewayKey.trim() || isActivatingFounderGateway}>
+                Clear Founder Key
+              </button>
+            </div>
           </section>
 
           <section className="auth-session-feedback auth-primary-card">
@@ -11565,7 +11587,7 @@ export function App() {
         <div className="topbar-right">
           <a className="ghost" href={standaloneIdeUrl} target="_blank" rel="noreferrer">Standalone IDE</a>
           <a className="ghost" href="/upgrade-notes.html" target="_blank" rel="noreferrer">Upgrade Notes</a>
-          <button className="ghost" type="button" onClick={() => openAuthCenterWindow({ focus: true, guide: showOnboardingGuide })}>Auth Center</button>
+          <button className="ghost" type="button" onClick={() => openAuthCenterWindow({ focus: true, guide: showOnboardingGuide })}>Access Center</button>
           <div className={`status-dot ${assistantAuthStatus === "ok" || assistantAuthStatus === "token" ? "ok" : "fail"}`}>
             Auth {assistantAuthStatus === "ok" || assistantAuthStatus === "token" ? "Ready" : "Needs Setup"}
           </div>
@@ -11595,9 +11617,6 @@ export function App() {
         </button>
         <button className="ghost" type="button" onClick={() => saveCurrentAppToVaultPro(selectedSkyeApp)}>
           Stage Current App To Vault
-        </button>
-        <button className="ghost" type="button" onClick={() => openAuthCenterWindow({ focus: true, guide: true })}>
-          Guided Onboarding
         </button>
         <button className="ghost" type="button" onClick={() => setShowTutorialPanel(true)}>
           Tutorials
@@ -12453,10 +12472,10 @@ export function App() {
             <a className="ghost" href={standaloneIdeUrl} target="_blank" rel="noreferrer">Open Standalone IDE</a>
           </div>
           <div className="app-drawer-spotlight" aria-label="suite spotlight cards">
-            <button className="app-spotlight-card auth-center-launcher" type="button" onClick={() => openAuthCenterWindow({ focus: true, guide: true })}>
-              <span className="app-spotlight-kicker">Auth Center</span>
-              <strong>Login, signup, recovery, admin, and key flow</strong>
-              <small>Open the named auth product lane instead of relying on searchable metadata alone.</small>
+            <button className={`app-spotlight-card ${selectedSkyeApp === "SkyDex4.6" ? "active" : ""}`} type="button" onClick={() => { setSelectedSkyeApp("SkyDex4.6"); setAppMode("skyeide"); }}>
+              <span className="app-spotlight-kicker">IDE Lane</span>
+              <strong>SkyDex 4.6 autonomous repo editor</strong>
+              <small>Drop in a full repo, edit the codebase, run the bounded agent, and ship from the same governed workspace state.</small>
             </button>
             <button className={`app-spotlight-card ${selectedSkyeApp === "SkyeVault-Pro-v4.46" ? "active" : ""}`} type="button" onClick={() => { setSelectedSkyeApp("SkyeVault-Pro-v4.46"); setAppMode("skyeide"); }}>
               <span className="app-spotlight-kicker">Vault Lane</span>
@@ -12525,24 +12544,21 @@ export function App() {
                 </header>
                 <div className="app-drawer-list">
                   {group.apps.map((appId) => {
-                    const app = SKYE_APPS.find((entry) => entry.id === appId);
+                    const app = SHELL_DRAWER_APPS.find((entry) => entry.route === appId);
                     if (!app) return null;
-                    const done = app.mvp.filter((item) => mvpChecks[makeMvpKey(app.id, item)]).length;
+                    const done = app.isSkyeApp ? app.mvp.filter((item) => mvpChecks[makeMvpKey(app.route as SkyeAppId, item)]).length : 0;
                     return (
                       <button
                         key={`drawer-${group.id}-${app.id}`}
                         type="button"
-                        className={`app-item grouped ${selectedSkyeApp === app.id ? "active" : ""}`}
-                        onClick={() => {
-                          setSelectedSkyeApp(app.id);
-                          setAppMode("skyeide");
-                        }}
+                        className={`app-item grouped ${isShellSkyehawkRouteActive(app.route) ? "active" : ""}`}
+                        onClick={() => focusShellSkyehawkRoute(app.route)}
                       >
                         <span className="app-item-copy">
-                          <strong>{app.id}</strong>
+                          <strong>{app.label}</strong>
                           <small>{app.summary}</small>
                         </span>
-                        <span className="telemetry-chip">{done}/{app.mvp.length}</span>
+                        <span className="telemetry-chip">{app.isSkyeApp ? `${done}/${app.mvp.length}` : "lane"}</span>
                       </button>
                     );
                   })}
@@ -12646,7 +12662,6 @@ export function App() {
                     </div>
                   </div>
                   <div className="tool-actions left" style={{ marginBottom: 12 }}>
-                    <button className="ghost" type="button" onClick={() => openAuthCenterWindow({ focus: true, guide: true })}>Guided Onboarding</button>
                     <a className="ghost" href="https://skyesol.netlify.app/kaixu/requestkaixuapikey" target="_blank" rel="noreferrer">Request kAIxU Key</a>
                     <button className="ghost" type="button" onClick={() => routeCrossAppFocus("AE-Flow", { note: "Launch AE-Flow from the execution rail." })}>Open AE-Flow</button>
                     <button className="ghost" type="button" onClick={() => routeCrossAppFocus("GoogleBusinessProfileRescuePlatform", { note: "Launch GBP Rescue from the execution rail." })}>Open GBP Rescue</button>
@@ -12852,7 +12867,7 @@ export function App() {
             selectedSkyeApp === "SkyeDocs" ? (
               <>
                 {showWorkspaceStack ? (
-                  ([topWorkspaceApp, middleWorkspaceApp, bottomWorkspaceApp, "Smokehouse-Standalone", "API-Playground"] as WorkspaceStageApp[]).map((app, index) => {
+                  ([topWorkspaceApp, middleWorkspaceApp, bottomWorkspaceApp, "Smokehouse-Standalone", "API-Playground", "SkyDex4.6"] as WorkspaceStageApp[]).map((app, index) => {
                     const slot =
                       index === 0
                         ? "Workspace 1"
@@ -12862,7 +12877,9 @@ export function App() {
                             ? "Workspace 3"
                             : index === 3
                               ? "Smokehouse"
-                              : "API Playground";
+                              : index === 4
+                                ? "API Playground"
+                                : "SkyDex";
                     const src = workspaceStageUrl(app);
                     return (
                       <section key={`stack-${slot}-${app}`} className="app-module workspace-stage-block">
@@ -12907,7 +12924,7 @@ export function App() {
                       </div>
                       <div>
                         <strong>Validation rails</strong>
-                        <span>Smokehouse-Standalone to API-Playground</span>
+                        <span>Smokehouse-Standalone to API-Playground to SkyDex 4.6</span>
                       </div>
                     </div>
                   ) : null}

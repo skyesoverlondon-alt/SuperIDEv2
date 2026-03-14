@@ -5,6 +5,7 @@ This file is the single source of truth for environment variables used by this r
 Example files:
 
 - Root Netlify example: [/.env.netlify.example](../.env.netlify.example)
+- Full production template: [/.env.production.example](../.env.production.example)
 - Worker local example: [worker/.dev.vars.example](../worker/.dev.vars.example)
 
 Use it to answer three questions quickly:
@@ -44,6 +45,8 @@ Example file: [worker/.dev.vars.example](../worker/.dev.vars.example)
 - `KX_EVIDENCE_R2`
 
 The `VITE_*` variables are frontend build-time overrides. Most of them are not required because the code already has fallbacks.
+
+If you want a single copy-paste baseline that covers the end-to-end production runtime, start from [/.env.production.example](../.env.production.example) and then split the values into Netlify site settings, Worker secrets, and Docker env usage as appropriate.
 
 ## Frontend Build Variables
 
@@ -99,6 +102,8 @@ These are used by files under [netlify/functions](../netlify/functions).
 | `KAIXU_GATEWAY_PROVIDER` | no | Display or route label for the gateway provider |
 | `KAIXU_GATEWAY_MODEL` | no | Default model name used by gateway-backed generation |
 | `TOKEN_MASTER_SEQUENCE` | no | Extra privileged override path for token-lock-sensitive actions |
+| `Founders_GateWay_Key` | no | Founder-only browser bypass that boots a real owner session and unlocked admin runtime key without the normal login flow |
+| `Founders_GateWay_Email` | no but recommended when multiple owner accounts exist | Pins founder-gateway activation to a specific owner email instead of falling back to the first owner account found |
 | `CF_ACCESS_CLIENT_ID` | no | Service token client ID when Worker is protected by Cloudflare Access |
 | `CF_ACCESS_CLIENT_SECRET` | no | Service token secret when Worker is protected by Cloudflare Access |
 
@@ -130,6 +135,8 @@ These are used by files under [netlify/functions](../netlify/functions).
 ### Practical rule
 
 For the main app to work in production, start with the five core production variables first. Add mail or Access variables only if you are actually using those features.
+
+If you want founder bypass on the live Netlify runtime, set `Founders_GateWay_Key` in Netlify. The current implementation is intentionally Netlify-side because it creates the browser session and kAIxU token at the same boundary where login already lives.
 
 ## Cloudflare Worker Variables and Secrets
 
@@ -208,9 +215,10 @@ If you are configuring production from scratch, do it in this order:
 3. Set the same `RUNNER_SHARED_SECRET` in Netlify and Worker.
 4. Set `KAIXU_GATEWAY_ENDPOINT` and `KAIXU_APP_TOKEN` in Netlify.
 5. If you want automatic backup-brain failover, set `KAIXU_BACKUP_ENDPOINT` and the same `KAIXU_APP_TOKEN` on the Worker, or set `KAIXU_BACKUP_TOKEN` if the backup route uses a different credential.
-6. Add `GITHUB_APP_ID` and `GITHUB_APP_PRIVATE_KEY` to the Worker if GitHub push is needed.
-7. Add `NETLIFY_TOKEN_MASTER_KEY` and `KX_SECRETS_KV` if Netlify site connection and deploy are needed.
-8. Add mail variables only if onboarding mail, reset mail, or inbox features are required.
+6. If you want founder bypass in the live browser shell, set `Founders_GateWay_Key` in Netlify and optionally `Founders_GateWay_Email`.
+7. Add `GITHUB_APP_ID` and `GITHUB_APP_PRIVATE_KEY` to the Worker if GitHub push is needed.
+8. Add `NETLIFY_TOKEN_MASTER_KEY` and `KX_SECRETS_KV` if Netlify site connection and deploy are needed.
+9. Add mail variables only if onboarding mail, reset mail, or inbox features are required.
 
 ## SQL Note
 

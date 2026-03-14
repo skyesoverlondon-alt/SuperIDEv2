@@ -8,6 +8,15 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/SkyeChat/assets/platform.css" />
+  <script>
+    window.SKYECHAT_SECURE_DEFAULTS = {
+      appId: "SkyeChat",
+      requiredHeaders: {
+        "X-Correlation-Id": "Issued per request from window.SkyeStandaloneSession.authHeaders('SkyeChat') for audit correlation.",
+        "X-Token-Email": "Forwarded from the unlocked session token email so founder and operator actions keep an auditable identity trail.",
+      },
+    };
+  </script>
   <script src="/_shared/standalone-session.js"></script>
   <script defer src="/SkyeChat/assets/platform.js"></script>
 </head>

@@ -9,62 +9,48 @@
   const SKYEHAWK_LAUNCHER_ID = "skye-suite-launcher";
   const SKYEHAWK_POPUP_ID = "skye-suite-popup";
   const SKYEHAWK_DISMISSED_KEY = "skyehawk.global.dismissed";
-  const SUITE_APP_LINKS = [
-    { id: "SuperIDE", label: "SuperIDE", href: "/" },
-    { id: "SkyDex4.6", label: "SkyDex 4.6", href: "/SkyDex4.6/" },
-    { id: "kAIxUPlatform", label: "kAIxU Platform", href: "/kAIxU/index.html" },
-    { id: "kAIxUSuite", label: "kAIxU Suite", href: "/kAIxUSuite/index.html" },
-    { id: "SkyeVault-Pro-v4.46", label: "SkyeVault Pro", href: "/SkyeVault-Pro-v4.46/drive/index.html" },
-    { id: "ContractorWorkflowSuite", label: "Contractor Suite", href: "/ContractorWorkflowSuite/index.html" },
-    { id: "ContractorNetwork", label: "ContractorNetwork", href: "/ContractorNetwork/index.html" },
-    { id: "ContractorIncomeVerification", label: "Contractor Income", href: "/ContractorIncomeVerification/index.html" },
-    { id: "ContractorVerificationSuite", label: "Contractor Verify Suite", href: "/contractor income verification drop in/APP SURFACE/public/index.html" },
-    { id: "Neural-Space-Pro", label: "Neural Space Pro", href: "/Neural-Space-Pro/index.html" },
-    { id: "SkyeDocs", label: "SkyeDocs", href: "/SkyeDocs/index.html" },
-    { id: "SkyeDrive", label: "SkyeDrive", href: "/SkyeDrive/index.html" },
-    { id: "SkyeDocxPro", label: "SkyeDocxPro", href: "/SkyeDocxPro/" },
-    { id: "SkyePlatinum", label: "Skye Platinum", href: "/SkyePlatinum/index.html" },
-    { id: "SkyeBlog", label: "SkyeBlog", href: "/SkyeBlog/" },
-    { id: "SkyeSheets", label: "SkyeSheets", href: "/SkyeSheets/index.html" },
-    { id: "SkyeSlides", label: "SkyeSlides", href: "/SkyeSlides/index.html" },
-    { id: "SKYEMAIL-GEN", label: "SKYEMAIL-GEN", href: "/SKYEMAIL-GEN/index.html" },
-    { id: "Skye-ID", label: "Skye-ID", href: "/Skye-ID/index.html" },
-    { id: "SkyeMail", label: "SkyeMail", href: "/SkyeMail/index.html" },
-    { id: "SkyeChat", label: "SkyeChat", href: "/SkyeChat/index.html" },
-    { id: "SkyeAdmin", label: "SkyeAdmin", href: "/SkyeAdmin/index.html" },
-    { id: "kAixu-Nexus", label: "kAixu-Nexus", href: "/kAixu-Nexus/index.html" },
-    { id: "recover-account", label: "Recover Account", href: "/recover-account/index.html" },
-    { id: "SovereignVariables", label: "SovereignVariables", href: "/SovereignVariables/" },
-    { id: "GoogleBusinessProfileRescuePlatform", label: "GBP Rescue", href: "/GoogleBusinessProfileRescuePlatform/index.html" },
-    { id: "GBPRescueSuite", label: "GBP Rescue Suite", href: "/GBPRescueSuite/index.html" }
-  ];
+  const APP_REGISTRY_URL = "/_shared/app-registry.json";
+  let suiteAppLinks = [{ id: "SuperIDE", label: "SuperIDE", href: "/" }];
+  let appTitleAliases = {};
 
-  const APP_TITLE_ALIASES = {
-    "API Playground": "API-Playground",
-    "Smokehouse": "Smokehouse-Standalone",
-    "SkyeAdmin": "SkyeAdmin",
-    "SkyeChat": "SkyeChat",
-    "SkyeMail": "SkyeMail",
-    "AE FLOW": "AE-Flow",
-    "AE Flow": "AE-Flow",
-    "kAIxU Platform": "kAIxUPlatform",
-    "kAIxU Suite": "kAIxUSuite",
-    "kAIxu Matrix": "kAIxU-Matrix",
-    "kAIxu Persona": "kAIxu-Persona",
-    "Contractor Income Verification": "ContractorIncomeVerification",
-    "Contractor Verification Suite": "ContractorVerificationSuite",
-    "Contractor Verify Suite": "ContractorVerificationSuite",
-    "Contractor Workflow Suite": "ContractorWorkflowSuite",
-    "SkyDex 4.6": "SkyDex4.6",
-    "SkyeVault Pro": "SkyeVault-Pro-v4.46",
-    "SkyeDocxPro": "SkyeDocxPro",
-    "Google Business Profile Rescue": "GoogleBusinessProfileRescuePlatform",
-    "Google Business Rescue": "GoogleBusinessProfileRescuePlatform",
-    "GBP Rescue Suite": "GBPRescueSuite",
-    "Neural Space Pro": "Neural-Space-Pro",
-    "SovereignVariables": "SovereignVariables",
-    "SkyeAnalytics": "SkyeAnalytics",
-  };
+  function buildSuiteAppLinks(registry) {
+    const apps = Array.isArray(registry && registry.apps) ? registry.apps : [];
+    return [{ id: "SuperIDE", label: "SuperIDE", href: "/" }].concat(
+      apps
+        .filter((app) => app && app.surfacePath)
+        .map((app) => ({
+          id: String(app.id || "").trim(),
+          label: String(app.label || app.id || "").trim(),
+          href: String(app.surfacePath || "").trim(),
+        }))
+        .filter((app) => app.id && app.href)
+    );
+  }
+
+  function buildAppTitleAliases(registry) {
+    const apps = Array.isArray(registry && registry.apps) ? registry.apps : [];
+    return apps.reduce((aliases, app) => {
+      const nextId = String(app && app.id || "").trim();
+      if (!nextId) return aliases;
+      const names = [app.label, app.id].concat(Array.isArray(app.aliases) ? app.aliases : []);
+      names.forEach((value) => {
+        const nextValue = String(value || "").trim();
+        if (nextValue) aliases[nextValue] = nextId;
+      });
+      return aliases;
+    }, {});
+  }
+
+  const appRegistryReady = fetch(APP_REGISTRY_URL, { credentials: "same-origin" })
+    .then((response) => response.ok ? response.json() : null)
+    .then((registry) => {
+      if (!registry) return;
+      suiteAppLinks = buildSuiteAppLinks(registry);
+      appTitleAliases = buildAppTitleAliases(registry);
+    })
+    .catch(() => {
+      // keep launcher usable even if the registry asset fails to load
+    });
 
   function readToken() {
     if (window.SkyeAuthUnlock && typeof window.SkyeAuthUnlock.readToken === "function") {
@@ -159,8 +145,8 @@
       .replace(/\|.*$/, "")
       .replace(/Standalone|Workspace|Command Surface|Platform/gi, "")
       .trim();
-    if (APP_TITLE_ALIASES[rawTitle]) return APP_TITLE_ALIASES[rawTitle];
-    return APP_TITLE_ALIASES[rawTitle.replace(/\s+/g, " ")] || rawTitle.replace(/\s+/g, "-");
+    if (appTitleAliases[rawTitle]) return appTitleAliases[rawTitle];
+    return appTitleAliases[rawTitle.replace(/\s+/g, " ")] || rawTitle.replace(/\s+/g, "-");
   }
 
   function normalizeIntent(input) {
@@ -489,7 +475,7 @@
 
   function suiteLinkMarkup() {
     const currentPath = currentPathNormalized();
-    return SUITE_APP_LINKS.map(function (app) {
+    return suiteAppLinks.map(function (app) {
       const href = String(app.href || "");
       const normalizedHref = href.replace(/index\.html$/, "");
       const isActive = normalizedHref === "/" ? currentPath === "/" : currentPath.indexOf(normalizedHref) === 0;
@@ -694,8 +680,10 @@
 
   const mountWhenReady = function () {
     if (!document.body || document.body.getAttribute("data-suite-card") === "off") return;
-    mountSkyehawkLauncher();
-    void mountIntegrationCard({ appId: inferCurrentAppId("") });
+    appRegistryReady.finally(() => {
+      mountSkyehawkLauncher();
+      void mountIntegrationCard({ appId: inferCurrentAppId("") });
+    });
   };
 
   if (document.readyState === "loading") {

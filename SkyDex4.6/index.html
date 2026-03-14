@@ -821,7 +821,7 @@
         <div class="tutorial-header-copy">
           <div class="eyebrow">SkyDex Tutorial</div>
           <h2 id="tutorialTitle">How to actually operate SkyDex 4.6</h2>
-          <p>SkyDex is a workspace IDE, release lane, and bounded agent surface. It can autonomously iterate, apply file operations, and save the workspace, but it is still sandboxed by auth, SKNore policy, the operation budget, and the max pass count.</p>
+          <p>SkyDex is a workspace IDE, release lane, and bounded agent surface. You can drop in a full repo as a folder or ZIP, edit the codebase, and let the agent autonomously iterate and save the workspace, but it is still sandboxed by auth, SKNore policy, the operation budget, and the max pass count.</p>
         </div>
         <button class="ghost" type="button" id="closeTutorialBtn">Close</button>
       </div>
@@ -830,7 +830,7 @@
           <div class="tutorial-card">
             <div class="eyebrow">What It Really Does</div>
             <h3>Real autonomy, inside a hard boundary</h3>
-            <p>Autonomous execute mode can inspect the workspace snapshot, stage full-file operations, iterate across a virtual copy of the repo, then auto-apply and save the result. It does not become an unrestricted desktop agent, bypass external auth, provision secrets, or run arbitrary shell commands from inside this surface.</p>
+            <p>Autonomous execute mode can inspect the workspace snapshot, stage full-file operations, iterate across a virtual copy of the repo, then auto-apply and save the result. That means real codebase work after a full repo import, not just toy prompts. It still does not become an unrestricted desktop agent, bypass external auth, provision secrets, or run arbitrary shell commands from inside this surface.</p>
             <div class="tutorial-status-grid">
               <div class="tutorial-status">
                 <strong>Autonomous for real</strong>
@@ -876,7 +876,7 @@
           <div class="tutorial-step-grid">
             <div class="tutorial-step">
               <strong>1. Load or import a workspace</strong>
-              <div>Open the saved workspace, choose a SkyeDrive source, or drag in a folder or ZIP. Desktop drop imports into the live snapshot, not a throwaway buffer.</div>
+              <div>Open the saved workspace, choose a SkyeDrive source, or drag in a folder or ZIP. Desktop drop imports a real repo snapshot into the live workspace, not a throwaway buffer.</div>
             </div>
             <div class="tutorial-step">
               <strong>2. Inspect the baseline</strong>
@@ -958,8 +958,10 @@
       <div class="header-actions">
         <span class="chip" id="workspaceChip">workspace: loading</span>
         <span class="chip" id="revisionChip">revision: none</span>
+        <span class="chip" id="accessChip">access: session</span>
         <span class="chip" id="sourceChip">source: workspace only</span>
         <button class="ghost" type="button" id="openTutorialBtn">Tutorial</button>
+        <button class="ghost" type="button" id="founderQuickUnlockBtn">Founder Quick Unlock</button>
         <button class="ghost" type="button" id="syncSovereignBtn">Sync To SovereignVariables</button>
         <button class="ghost" type="button" id="openAdminBtn">Open Key Control</button>
         <button class="ghost" type="button" id="reloadWorkspaceBtn">Reload Workspace</button>
@@ -1380,6 +1382,7 @@
       baselineFiles: [],
       sourceBaselineFiles: [],
       autoMirrorSkyedrive: true,
+      founderGatewayActive: false,
       blogRecords: [],
       sknore: {
         scope: "workspace",
@@ -1417,7 +1420,104 @@
     const $ = (id) => document.getElementById(id);
     const AGENT_PREFERENCE_KEY = "skydex.agent.preferences:" + workspaceId;
     const SKYDEX_TUTORIAL_SEEN_KEY = "skydex.tutorial.seen";
-  const SKYDEX_AUTOMIRROR_KEY = "skydex.skyedrive.auto-mirror";
+    const SKYDEX_AUTOMIRROR_KEY = "skydex.skyedrive.auto-mirror";
+    const FOUNDER_GATEWAY_STORAGE_KEY = "kx.auth.founderGatewayKey";
+
+    function readStandaloneToken() {
+      return String(window.SkyeStandaloneSession?.readToken?.() || localStorage.getItem("kx.api.accessToken") || localStorage.getItem("kaixu_api_key") || "").trim();
+    }
+
+    function readStandaloneTokenEmail() {
+      return String(window.SkyeStandaloneSession?.readTokenEmail?.() || localStorage.getItem("kx.api.tokenEmail") || "").trim().toLowerCase();
+    }
+
+    function readFounderGatewayKey() {
+      try {
+        return String(localStorage.getItem(FOUNDER_GATEWAY_STORAGE_KEY) || "").trim();
+      } catch {
+        return "";
+      }
+    }
+
+    function persistFounderGatewayKey(value) {
+      try {
+        const nextValue = String(value || "").trim();
+        if (nextValue) localStorage.setItem(FOUNDER_GATEWAY_STORAGE_KEY, nextValue);
+        else localStorage.removeItem(FOUNDER_GATEWAY_STORAGE_KEY);
+      } catch {
+        // ignore storage failures
+      }
+    }
+
+    function updateAccessChip() {
+      const chip = $("accessChip");
+      if (!chip) return;
+      const email = readStandaloneTokenEmail();
+      if (state.founderGatewayActive) {
+        chip.textContent = "access: founder unlocked" + (email ? " · " + email : "");
+        return;
+      }
+      if (readStandaloneToken()) {
+        chip.textContent = "access: token ready" + (email ? " · " + email : "");
+        return;
+      }
+      chip.textContent = "access: session";
+    }
+
+    async function activateFounderGateway(options = {}) {
+      const settings = options || {};
+      const storedKey = readFounderGatewayKey();
+      const promptedKey = settings.prompt === false
+        ? ""
+        : window.prompt("Enter Founders_GateWay_Key for this browser origin.", storedKey || "");
+      const founderKey = String(settings.key || promptedKey || storedKey || "").trim();
+      if (!founderKey) {
+        if (!settings.silent) setStatus("Founder gateway idle", "No founder key was provided.", "info");
+        return null;
+      }
+      const response = await fetch("/api/auth-founder-gateway", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: founderKey }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload?.error || "Founder gateway activation failed.");
+      if (payload?.kaixu_token?.token && window.SkyeStandaloneSession?.saveManualToken) {
+        window.SkyeStandaloneSession.saveManualToken(payload.kaixu_token.token, payload?.user?.email || payload?.kaixu_token?.locked_email || "");
+      }
+      state.founderGatewayActive = Boolean(payload?.founder_gateway);
+      persistFounderGatewayKey(founderKey);
+      updateAccessChip();
+      if (!settings.silent) {
+        setStatus(
+          "Founder gateway active",
+          payload?.onboarding?.message || "Owner session and unlocked runtime key restored for this browser origin.",
+          "success"
+        );
+      }
+      return payload;
+    }
+
+    async function ensureFounderGatewayAccess() {
+      if (state.founderGatewayActive || readStandaloneToken()) {
+        updateAccessChip();
+        return false;
+      }
+      const founderKey = readFounderGatewayKey();
+      if (!founderKey) {
+        updateAccessChip();
+        return false;
+      }
+      try {
+        await activateFounderGateway({ key: founderKey, prompt: false, silent: true });
+        return true;
+      } catch {
+        return false;
+      } finally {
+        updateAccessChip();
+      }
+    }
 
     function markTutorialSeen(seen) {
       try {
@@ -1761,6 +1861,7 @@
     function updateHeader() {
       $("workspaceChip").textContent = "workspace: " + state.workspaceId;
       $("revisionChip").textContent = "revision: " + (state.revision || "none");
+      updateAccessChip();
       const skyedrive = state.integrationStatus.skyedrive || {};
       $("sourceChip").textContent = skyedrive.connected
         ? "source: SkyeDrive · " + (skyedrive.title || skyedrive.record_id || "connected")
@@ -2369,12 +2470,26 @@
     }
 
     async function jsonRequest(url, method, body) {
+      await ensureFounderGatewayAccess();
       if (window.SkyeStandaloneSession?.request) {
-        return window.SkyeStandaloneSession.request(url, {
-          method,
-          headers: body ? { "Content-Type": "application/json" } : undefined,
-          body: body ? JSON.stringify(body) : undefined,
-        }, { appId: 'skydex' });
+        try {
+          return await window.SkyeStandaloneSession.request(url, {
+            method,
+            headers: body ? { "Content-Type": "application/json" } : undefined,
+            body: body ? JSON.stringify(body) : undefined,
+          }, { appId: "skydex" });
+        } catch (error) {
+          const message = String(error?.message || "");
+          if (!readStandaloneToken() && readFounderGatewayKey() && /sign in first|401|403|token/i.test(message)) {
+            await activateFounderGateway({ key: readFounderGatewayKey(), prompt: false, silent: true });
+            return window.SkyeStandaloneSession.request(url, {
+              method,
+              headers: body ? { "Content-Type": "application/json" } : undefined,
+              body: body ? JSON.stringify(body) : undefined,
+            }, { appId: "skydex" });
+          }
+          throw error;
+        }
       }
       const response = await fetch(url, {
         method,
@@ -3162,6 +3277,11 @@
       $("tutorialPresetControlledBtn").addEventListener("click", () => applyTutorialPreset("controlled"));
       $("tutorialPresetAutonomousBtn").addEventListener("click", () => applyTutorialPreset("autonomous"));
       $("tutorialExamplePromptBtn").addEventListener("click", loadTutorialExamplePrompt);
+      $("founderQuickUnlockBtn").addEventListener("click", () => runAction(async () => {
+        await activateFounderGateway();
+        await loadWorkspace();
+        await loadIntegrationStatus();
+      }));
       $("tutorialOverlay")?.addEventListener("click", (event) => {
         if (event.target === $("tutorialOverlay")) hideTutorial();
       });
@@ -3330,7 +3450,9 @@
           updateHeader();
           scheduleSknorePreview(state.files);
         });
-        Promise.all([loadWorkspace(), loadSkyeDriveSources(), loadIntegrationStatus(), loadSknorePolicy(), loadBlogRecall()])
+        Promise.resolve()
+          .then(() => ensureFounderGatewayAccess())
+          .then(() => Promise.all([loadWorkspace(), loadSkyeDriveSources(), loadIntegrationStatus(), loadSknorePolicy(), loadBlogRecall()]))
           .then(() => {
             if (!localStorage.getItem(SKYDEX_TUTORIAL_SEEN_KEY) || new URLSearchParams(window.location.search).get("tutorial") === "1") {
               showTutorial();
