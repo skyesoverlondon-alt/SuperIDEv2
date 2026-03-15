@@ -77,6 +77,8 @@
       backdrop-filter: blur(18px);
       box-shadow: 0 10px 40px rgba(0, 0, 0, 0.24);
       min-width: 0;
+      position: relative;
+      z-index: 30;
     }
 
     .brand-block {
@@ -168,9 +170,26 @@
     .workspace-shell {
       min-height: 0;
       display: grid;
-      grid-template-columns: var(--sidebar-w) 1fr var(--rail-w);
-      gap: 14px;
+      grid-template-columns: 1fr;
+      gap: 0;
       padding: 14px;
+    }
+
+    .drawer-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(4, 3, 10, 0.72);
+      backdrop-filter: blur(8px);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 180ms ease;
+      z-index: 18;
+    }
+
+    body.drawer-left-open .drawer-backdrop,
+    body.drawer-right-open .drawer-backdrop {
+      opacity: 1;
+      pointer-events: auto;
     }
 
     .panel {
@@ -217,12 +236,67 @@
     .sidebar {
       display: grid;
       grid-template-rows: auto auto 1fr auto;
+      position: fixed;
+      left: 14px;
+      top: calc(var(--topbar-h) + 10px);
+      bottom: 14px;
+      width: min(calc(100vw - 28px), var(--sidebar-w));
+      z-index: 26;
+      transform: translateX(calc(-100% - 24px));
+      transition: transform 180ms ease;
+    }
+
+    body.drawer-left-open .sidebar {
+      transform: translateX(0);
     }
 
     .sidebar-block,
     .rail-block {
       padding: 16px 18px;
       border-bottom: 1px solid rgba(201, 164, 79, 0.12);
+    }
+
+    .section-toggle {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      border-radius: 16px;
+      border: 1px solid rgba(201, 164, 79, 0.16);
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--text);
+      font-weight: 700;
+      text-align: left;
+      margin-bottom: 12px;
+    }
+
+    .section-toggle small {
+      color: var(--muted);
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .section-toggle::after {
+      content: "+";
+      color: var(--gold-soft);
+      font-size: 18px;
+      line-height: 1;
+    }
+
+    .rail-block.section-open .section-toggle::after {
+      content: "-";
+    }
+
+    .section-content {
+      display: none;
+      gap: 12px;
+    }
+
+    .rail-block.section-open .section-content {
+      display: grid;
     }
 
     .sidebar-block:last-child,
@@ -307,6 +381,7 @@
       min-height: 0;
       display: grid;
       grid-template-rows: auto 1fr;
+      width: 100%;
     }
 
     .workspace-toolbar {
@@ -433,8 +508,37 @@
 
     .rail {
       min-height: 0;
-      overflow: auto;
       background: linear-gradient(180deg, var(--panel-2), rgba(8, 7, 14, 0.98));
+      position: fixed;
+      right: 14px;
+      top: calc(var(--topbar-h) + 10px);
+      bottom: 14px;
+      width: min(calc(100vw - 28px), var(--rail-w));
+      overflow: hidden;
+      z-index: 26;
+      transform: translateX(calc(100% + 24px));
+      transition: transform 180ms ease;
+    }
+
+    body.drawer-right-open .rail {
+      transform: translateX(0);
+    }
+
+    .rail-scroll {
+      min-height: 0;
+      overflow: auto;
+    }
+
+    .drawer-header-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .drawer-close {
+      padding: 8px 10px;
+      border-radius: 10px;
     }
 
     .status-card,
@@ -786,6 +890,12 @@
       html,
       body { overflow: auto; }
       .workspace-shell { grid-template-columns: 1fr; }
+      .sidebar,
+      .rail {
+        top: 12px;
+        bottom: 12px;
+        width: min(calc(100vw - 24px), 420px);
+      }
       .editor-shell {
         grid-template-columns: 1fr;
         grid-template-areas: "editor" "preview";
@@ -800,6 +910,7 @@
     @media (max-width: 760px) {
       .shell-header { padding: 14px; }
       .brand-subtitle { max-width: 70vw; }
+      .header-actions { justify-content: flex-start; }
       .field-grid { grid-template-columns: 1fr; }
       .agent-settings-grid { grid-template-columns: 1fr; }
       .tutorial-hero,
@@ -960,6 +1071,8 @@
         <span class="chip" id="revisionChip">revision: none</span>
         <span class="chip" id="accessChip">access: session</span>
         <span class="chip" id="sourceChip">source: workspace only</span>
+        <button class="ghost" type="button" id="toggleWorkspaceDrawerBtn">Workspace Menu</button>
+        <button class="ghost" type="button" id="toggleControlDrawerBtn">Control Menu</button>
         <button class="ghost" type="button" id="openTutorialBtn">Tutorial</button>
         <button class="ghost" type="button" id="founderQuickUnlockBtn">Founder Quick Unlock</button>
         <button class="ghost" type="button" id="syncSovereignBtn">Sync To SovereignVariables</button>
@@ -969,6 +1082,8 @@
       </div>
     </header>
 
+    <div class="drawer-backdrop" id="drawerBackdrop"></div>
+
     <div class="workspace-shell">
       <aside class="panel sidebar">
         <div class="panel-header">
@@ -976,6 +1091,9 @@
             <div class="eyebrow">Workspace Files</div>
             <h2 class="panel-title">Snapshot Editor</h2>
             <p class="panel-subtitle">Edits save into the same workspace snapshot used by SkyeDrive sync, optional GitHub push, and Netlify deploy.</p>
+          </div>
+          <div class="drawer-header-actions">
+            <button class="ghost drawer-close" type="button" id="closeWorkspaceDrawerBtn">Close</button>
           </div>
         </div>
         <div class="sidebar-block field-stack">
@@ -1079,9 +1197,13 @@
             <h2 class="panel-title">kAIxU + Release Controls</h2>
             <p class="panel-subtitle">Run prompts through the protected gateway, then sync the same saved snapshot into SkyeDrive, GitHub, or Netlify.</p>
           </div>
+          <div class="drawer-header-actions">
+            <button class="ghost drawer-close" type="button" id="closeControlDrawerBtn">Close</button>
+          </div>
         </div>
 
-        <div class="rail-block summary-stack">
+        <div class="rail-scroll" id="railScroll">
+        <div class="rail-block summary-stack" data-section-title="Audit Findings" data-default-open="1">
           <div class="integration-status">
             <strong>Audit Findings</strong>
             <div class="muted">Frontend save, source sync, push, and deploy are real. SkyDex 4.6 now treats SkyeDrive as a first-class workspace source instead of assuming GitHub is always attached.</div>
@@ -1092,7 +1214,7 @@
           </div>
         </div>
 
-        <div class="rail-block field-stack">
+        <div class="rail-block field-stack" data-section-title="Workspace Intelligence" data-default-open="1">
           <div class="eyebrow">Workspace Intelligence</div>
           <div class="integration-status">
             <strong id="workspaceIntelTitle">Workspace intelligence</strong>
@@ -1109,7 +1231,7 @@
           <div class="action-stack" id="workspacePromptSuggestions"></div>
         </div>
 
-        <div class="rail-block field-stack">
+        <div class="rail-block field-stack" data-section-title="Autonomous Agent Lane" data-default-open="1">
           <div class="eyebrow">Autonomous Agent Lane</div>
           <div class="integration-status">
             <strong>Execution profile</strong>
@@ -1181,7 +1303,7 @@
           </div>
         </div>
 
-        <div class="rail-block field-stack">
+        <div class="rail-block field-stack" data-section-title="SkyeDrive Source + Sync" data-default-open="1">
           <div class="eyebrow">SkyeDrive Source + Sync</div>
           <div class="integration-status" id="skyedriveConnectionStatus">
             <strong>SkyeDrive status</strong>
@@ -1217,7 +1339,7 @@
           <input id="importFolderSourceInput" type="file" webkitdirectory directory multiple style="display:none;" />
         </div>
 
-        <div class="rail-block field-stack">
+        <div class="rail-block field-stack" data-section-title="Restore Points">
           <div class="eyebrow">Restore Points</div>
           <div class="integration-status" id="restorePointStatus">
             <strong>Restore points</strong>
@@ -1230,7 +1352,7 @@
           </div>
         </div>
 
-        <div class="rail-block field-stack">
+        <div class="rail-block field-stack" data-section-title="SKNore Release Truth">
           <div class="eyebrow">SKNore Release Truth</div>
           <div class="integration-status" id="sknoreReleaseStatus">
             <strong>SKNore policy</strong>
@@ -1243,7 +1365,7 @@
           </div>
         </div>
 
-        <div class="rail-block field-stack">
+        <div class="rail-block field-stack" data-section-title="SkyeBlog Recall">
           <div class="eyebrow">SkyeBlog Recall</div>
           <div class="integration-status" id="blogRecallStatus">
             <strong>Recent blog records</strong>
@@ -1263,7 +1385,7 @@
           </div>
         </div>
 
-        <div class="rail-block field-stack">
+        <div class="rail-block field-stack" data-section-title="GitHub Connect + Push">
           <div class="eyebrow">GitHub Connect + Push</div>
           <div class="integration-status" id="githubConnectionStatus">
             <strong>GitHub status</strong>
@@ -1295,7 +1417,7 @@
           </div>
         </div>
 
-        <div class="rail-block field-stack">
+        <div class="rail-block field-stack" data-section-title="Netlify Connect + Deploy">
           <div class="eyebrow">Netlify Connect + Deploy</div>
           <div class="integration-status" id="netlifyConnectionStatus">
             <strong>Netlify status</strong>
@@ -1327,19 +1449,20 @@
           </div>
         </div>
 
-        <div class="rail-block">
+        <div class="rail-block" data-section-title="Outline">
           <div class="eyebrow">Outline</div>
           <div class="outline-stack" id="outlineBox">
             <div class="muted">No headings detected.</div>
           </div>
         </div>
 
-        <div class="rail-block summary-stack">
+        <div class="rail-block summary-stack" data-section-title="Status Log" data-default-open="1">
           <div class="status-card">
             <strong id="statusTitle">Status</strong>
             <div class="muted" id="statusBody">Booting SkyDex 4.6.</div>
           </div>
           <div class="log-list" id="logBox"></div>
+        </div>
         </div>
       </aside>
     </div>
@@ -3264,6 +3387,12 @@
       loadAutoMirrorPreference();
       updateAgentProfileSummary();
       renderAgentRun();
+      initDrawerSections();
+      $("toggleWorkspaceDrawerBtn").addEventListener("click", () => toggleDrawer("left"));
+      $("toggleControlDrawerBtn").addEventListener("click", () => toggleDrawer("right"));
+      $("closeWorkspaceDrawerBtn").addEventListener("click", closeDrawers);
+      $("closeControlDrawerBtn").addEventListener("click", closeDrawers);
+      $("drawerBackdrop").addEventListener("click", closeDrawers);
       $("openTutorialBtn").addEventListener("click", () => showTutorial({ markSeen: false }));
       $("closeTutorialBtn").addEventListener("click", hideTutorial);
       $("tutorialShowAgainBtn").addEventListener("click", () => {
@@ -3420,6 +3549,49 @@
         if (!state.dirty) return;
         event.preventDefault();
         event.returnValue = "";
+      });
+      window.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") closeDrawers();
+      });
+    }
+
+    function toggleDrawer(side) {
+      const leftOpen = document.body.classList.contains("drawer-left-open");
+      const rightOpen = document.body.classList.contains("drawer-right-open");
+      if (side === "left") {
+        document.body.classList.toggle("drawer-left-open", !leftOpen);
+        document.body.classList.remove("drawer-right-open");
+        return;
+      }
+      document.body.classList.toggle("drawer-right-open", !rightOpen);
+      document.body.classList.remove("drawer-left-open");
+    }
+
+    function closeDrawers() {
+      document.body.classList.remove("drawer-left-open", "drawer-right-open");
+    }
+
+    function initDrawerSections() {
+      const sections = Array.from(document.querySelectorAll(".rail-block[data-section-title]"));
+      sections.forEach((section) => {
+        if (section.dataset.sectionReady === "1") return;
+        const title = section.dataset.sectionTitle || "Section";
+        const content = document.createElement("div");
+        content.className = "section-content";
+        while (section.firstChild) {
+          content.appendChild(section.firstChild);
+        }
+        const toggle = document.createElement("button");
+        toggle.type = "button";
+        toggle.className = "section-toggle";
+        toggle.innerHTML = `<span>${title}</span><small>toggle</small>`;
+        toggle.addEventListener("click", () => {
+          section.classList.toggle("section-open");
+        });
+        section.appendChild(toggle);
+        section.appendChild(content);
+        if (section.dataset.defaultOpen === "1") section.classList.add("section-open");
+        section.dataset.sectionReady = "1";
       });
     }
 

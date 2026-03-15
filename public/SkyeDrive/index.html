@@ -95,6 +95,51 @@ function save() {
   status.textContent = `Saved ${new Date().toLocaleString()}`;
 }
 
+function upsertBridgeRecord(payload) {
+  if (!payload || !payload.title) return false;
+  const stamp = new Date().toISOString();
+  const text = String(payload.text || payload.excerpt || payload.title || '');
+  const size = Number(payload.size || text.length || 0);
+  const recordId = String(payload.record_id || '').trim();
+  const next = {
+    name: String(payload.title || 'Imported Draft').trim(),
+    kind: payload.kind || 'doc',
+    owner: payload.owner || 'owner@skye.local',
+    version: 1,
+    at: stamp,
+    size,
+    checksum: checksumText(text),
+    versions: [{ version: 1, at: stamp, size, checksum: checksumText(text) }],
+    immutable: false,
+    share: null,
+    integrity_state: 'ok',
+    integrity_hash: checksumText(JSON.stringify(payload)),
+    record_id: recordId,
+    excerpt: String(payload.excerpt || '').trim(),
+    source: payload.source || 'suite',
+  };
+  items = items.filter((entry) => String(entry.record_id || '') !== recordId || !recordId);
+  items.unshift(next);
+  save();
+  render();
+  status.textContent = `Imported ${next.name} from ${next.source || 'suite'}.`;
+  return true;
+}
+
+function consumeBridgeDraft() {
+  if (qs.get('bridge_import') !== '1') return;
+  let payload = null;
+  try {
+    payload = JSON.parse(localStorage.getItem('skye.drive.bridgeDraft') || 'null');
+  } catch {
+    payload = null;
+  }
+  if (!upsertBridgeRecord(payload)) return;
+  try {
+    localStorage.removeItem('skye.drive.bridgeDraft');
+  } catch {}
+}
+
 function render() {
   list.innerHTML = "";
   verifyIntegrityOnOpen();
@@ -313,6 +358,7 @@ document.getElementById('verifyNow').onclick = () => {
 };
 
 render();
+consumeBridgeDraft();
 </script>
 <button id="skye-tutorial-fab" type="button" style="position:fixed;right:16px;bottom:16px;z-index:10000;padding:10px 14px;border-radius:999px;border:1px solid rgba(191,238,255,.42);background:rgba(44,230,255,.2);color:#eff9ff;font-weight:700;cursor:pointer;">Start Tutorial</button>
 <div id="skye-tutorial-modal" style="display:none;position:fixed;inset:0;z-index:10001;background:rgba(2,6,23,.72);"></div>

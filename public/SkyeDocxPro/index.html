@@ -4156,6 +4156,88 @@
                 return launchUrl;
             }
 
+            function checksumText(value) {
+                const text = String(value || '');
+                let hash = 0;
+                for (let index = 0; index < text.length; index += 1) {
+                    hash = ((hash << 5) - hash) + text.charCodeAt(index);
+                    hash |= 0;
+                }
+                return `h${Math.abs(hash)}`;
+            }
+
+            function buildSkyeBlogLaunchUrl() {
+                const params = new URLSearchParams({ ws_id: wsId, bridge_import: '1', source: appId });
+                return `/SkyeBlog/index.html?${params.toString()}`;
+            }
+
+            function queueSkyeBlogDraft(payload) {
+                try {
+                    localStorage.setItem('skye.blog.bridgeDraft', JSON.stringify(payload));
+                } catch {}
+            }
+
+            function queueSkyeDriveDraft(payload) {
+                try {
+                    localStorage.setItem('skye.drive.bridgeDraft', JSON.stringify(payload));
+                } catch {}
+            }
+
+            function mirrorStandaloneDriveRecord(payload) {
+                try {
+                    const storageKey = `skye.drive.${wsId}`;
+                    const current = JSON.parse(localStorage.getItem(storageKey) || '[]');
+                    const list = Array.isArray(current) ? current : [];
+                    const next = list.filter((entry) => String(entry.record_id || '') !== String(payload.record_id || ''));
+                    next.unshift({
+                        name: payload.title,
+                        kind: payload.kind || 'doc',
+                        owner: payload.owner || 'owner@skye.local',
+                        version: 1,
+                        at: new Date().toISOString(),
+                        size: Number(payload.size || 0),
+                        checksum: checksumText(payload.text || payload.title || ''),
+                        versions: [{ version: 1, at: new Date().toISOString(), size: Number(payload.size || 0), checksum: checksumText(payload.text || payload.title || '') }],
+                        immutable: false,
+                        share: null,
+                        integrity_state: 'ok',
+                        integrity_hash: checksumText(JSON.stringify(payload)),
+                        record_id: payload.record_id || '',
+                        excerpt: payload.excerpt || '',
+                        source: payload.source || appId,
+                    });
+                    localStorage.setItem(storageKey, JSON.stringify(next.slice(0, 80)));
+                } catch {}
+            }
+
+            async function pushToSkyeBlog() {
+                await ensureSignedIn();
+                const { title, html, excerpt, text } = getDocSnapshot();
+                if (!html && !text) throw new Error('Cannot push an empty document into SkyeBlog.');
+                queueSkyeBlogDraft({
+                    title,
+                    html,
+                    text,
+                    excerpt,
+                    source: appId,
+                    ws_id: wsId,
+                    pushed_at: new Date().toISOString(),
+                });
+                publishBridgeEvent({
+                    kind: 'open-app',
+                    appId: 'SkyeBlog',
+                    note: `${appId} staged ${title} for SkyeBlog.`,
+                });
+                await recordSuiteIntent('open-app', 'completed', {
+                    targetApp: 'SkyeBlog',
+                    summary: 'Stage the active document in SkyeBlog.',
+                    detail: `${appId} pushed ${title} into SkyeBlog.`,
+                    payload: { title },
+                });
+                window.open(buildSkyeBlogLaunchUrl(), '_blank', 'noopener');
+                window.App.showToast(`Pushed ${title} into SkyeBlog.`);
+            }
+
             async function pushToSkyeChat() {
                 await ensureSignedIn();
                 const { title, excerpt, html, text } = getDocSnapshot();
@@ -4256,6 +4338,25 @@
                 });
                 const recordId = String(saved?.record_id || saved?.id || '').trim();
                 const bookxLaunchUrl = buildBookxLaunchUrl(recordId);
+                queueSkyeDriveDraft({
+                    record_id: recordId,
+                    title,
+                    excerpt,
+                    text,
+                    html,
+                    files,
+                    source: appId,
+                    ws_id: wsId,
+                    saved_at: new Date().toISOString(),
+                });
+                mirrorStandaloneDriveRecord({
+                    record_id: recordId,
+                    title,
+                    excerpt,
+                    text,
+                    size: files.reduce((sum, file) => sum + String(file.content || '').length, 0),
+                    source: appId,
+                });
                 publishBridgeEvent({
                     kind: 'open-app',
                     appId: 'SkyeDrive',
@@ -4340,6 +4441,11 @@
                 driveBtn.innerHTML = '<i data-lucide="cloud-arrow-up" style="width:16px;height:16px;"></i> Push Drive';
                 driveBtn.onclick = () => pushToSkyeDrive().catch((e) => window.App.showToast(e?.message || String(e)));
 
+                const blogBtn = document.createElement('button');
+                blogBtn.setAttribute('data-super-push', '1');
+                blogBtn.innerHTML = '<i data-lucide="pen-square" style="width:16px;height:16px;"></i> Push Blog';
+                blogBtn.onclick = () => pushToSkyeBlog().catch((e) => window.App.showToast(e?.message || String(e)));
+
                 const bookxBtn = document.createElement('button');
                 bookxBtn.setAttribute('data-super-push', '1');
                 bookxBtn.innerHTML = '<i data-lucide="book-open" style="width:16px;height:16px;"></i> Push BookX';
@@ -4353,6 +4459,7 @@
                 actions.prepend(deviceBtn);
                 actions.prepend(bookxBtn);
                 actions.prepend(driveBtn);
+                actions.prepend(blogBtn);
                 actions.prepend(mailBtn);
                 actions.prepend(chatBtn);
                 actions.prepend(aiBtn);
