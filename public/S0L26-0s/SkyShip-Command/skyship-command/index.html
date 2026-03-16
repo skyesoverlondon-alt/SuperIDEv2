@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SkyShip Command</title>
+  <link rel="stylesheet" href="./assets/app.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script defer src="./assets/app.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand-block">
+        <div class="brand-mark">✦</div>
+        <div>
+          <div class="eyebrow">ZIP-FIRST DEPLOY CONTROL</div>
+          <h1>SkyShip Command</h1>
+          <p class="brand-copy">Drop one full ZIP. Push to GitHub. Deploy to Netlify. Trigger Cloudflare Pages. Ask OpenAI what the hell to do next.</p>
+        </div>
+      </div>
+      <nav class="topnav">
+        <a href="#package-panel">Package</a>
+        <a href="#targets-panel">Targets</a>
+        <a href="#launch-panel">Launch</a>
+        <a href="#copilot-panel">Ask</a>
+      </nav>
+    </header>
+
+    <main class="dashboard-grid">
+      <section class="panel panel-hero" id="package-panel">
+        <div class="panel-head">
+          <div>
+            <span class="kicker">01 · Package intake</span>
+            <h2>Drop the repo ZIP once</h2>
+          </div>
+          <button id="reset-session-btn" class="ghost-btn" type="button">Reset session</button>
+        </div>
+
+        <label class="dropzone" id="dropzone" for="zip-input">
+          <input id="zip-input" type="file" accept=".zip,application/zip" hidden />
+          <div class="dropzone-icon">⬆</div>
+          <strong>Drop a full ZIP here</strong>
+          <p>Source ZIPs, built ZIPs, ugly little chaos goblin ZIPs — the app will inspect the file map and suggest what to ship.</p>
+          <span class="dropzone-note">No build step inside this tool. It ships what you give it.</span>
+        </label>
+
+        <div class="stats-grid" id="zip-stats">
+          <article class="stat-card">
+            <span class="stat-label">ZIP</span>
+            <strong id="stat-zip-name">No package loaded</strong>
+          </article>
+          <article class="stat-card">
+            <span class="stat-label">Files</span>
+            <strong id="stat-file-count">0</strong>
+          </article>
+          <article class="stat-card">
+            <span class="stat-label">Estimated deploy root</span>
+            <strong id="stat-deploy-root">—</strong>
+          </article>
+          <article class="stat-card">
+            <span class="stat-label">Top folders</span>
+            <strong id="stat-top-folders">—</strong>
+          </article>
+        </div>
+
+        <div class="form-grid roots-grid">
+          <label>
+            <span>Git root</span>
+            <input id="git-root" type="text" placeholder="Leave blank to push the whole ZIP" />
+            <small>Optional. Use this when the repo content lives inside a nested folder in the ZIP.</small>
+          </label>
+          <label>
+            <span>Deploy root</span>
+            <input id="deploy-root" type="text" placeholder="dist, build, out, public" />
+            <small>Used for Netlify deploys. Keep it blank to deploy from ZIP root.</small>
+          </label>
+        </div>
+
+        <div class="tree-panel">
+          <div class="subhead-row">
+            <h3>Package map</h3>
+            <span id="tree-meta">Load a ZIP to inspect the tree.</span>
+          </div>
+          <pre id="tree-preview" class="tree-preview">Waiting for a package…</pre>
+        </div>
+      </section>
+
+      <section class="panel" id="targets-panel">
+        <div class="panel-head">
+          <div>
+            <span class="kicker">02 · Targets</span>
+            <h2>One control surface for the lanes</h2>
+          </div>
+        </div>
+
+        <div class="targets-grid">
+          <article class="target-card">
+            <div class="target-top">
+              <div>
+                <h3>GitHub push</h3>
+                <p>Push the extracted ZIP contents into an existing repo branch using the Git database API.</p>
+              </div>
+              <label class="switch">
+                <input id="enable-github" type="checkbox" checked />
+                <span>Enable</span>
+              </label>
+            </div>
+            <div class="form-grid">
+              <label><span>GitHub token</span><input id="github-token" type="password" placeholder="ghp_… or fine-grained token" /></label>
+              <label><span>Owner</span><input id="github-owner" type="text" placeholder="your-user-or-org" /></label>
+              <label><span>Repo</span><input id="github-repo" type="text" placeholder="repo-name" /></label>
+              <label><span>Branch</span><input id="github-branch" type="text" value="main" /></label>
+              <label class="full-span"><span>Commit message</span><input id="github-message" type="text" placeholder="SkyShip Command update" /></label>
+            </div>
+          </article>
+
+          <article class="target-card">
+            <div class="target-top">
+              <div>
+                <h3>Netlify deploy</h3>
+                <p>Upload the selected deploy root as a manual deploy. Best for already-built output like <code>dist</code> or <code>build</code>.</p>
+              </div>
+              <label class="switch">
+                <input id="enable-netlify" type="checkbox" checked />
+                <span>Enable</span>
+              </label>
+            </div>
+            <div class="form-grid">
+              <label><span>Netlify token</span><input id="netlify-token" type="password" placeholder="nfp_…" /></label>
+              <label><span>Site ID</span><input id="netlify-site-id" type="text" placeholder="site id" /></label>
+              <label class="full-span"><span>Deploy title</span><input id="netlify-title" type="text" placeholder="Manual deploy from SkyShip Command" /></label>
+            </div>
+          </article>
+
+          <article class="target-card">
+            <div class="target-top">
+              <div>
+                <h3>Cloudflare Pages trigger</h3>
+                <p>Kick off a fresh Pages deployment for a Git-connected Pages project after your GitHub push lands.</p>
+              </div>
+              <label class="switch">
+                <input id="enable-cloudflare" type="checkbox" />
+                <span>Enable</span>
+              </label>
+            </div>
+            <div class="form-grid">
+              <label><span>Cloudflare API token</span><input id="cloudflare-token" type="password" placeholder="token with Pages Write" /></label>
+              <label><span>Account ID</span><input id="cloudflare-account-id" type="text" placeholder="account id" /></label>
+              <label><span>Pages project name</span><input id="cloudflare-project" type="text" placeholder="project-name" /></label>
+              <label><span>Branch</span><input id="cloudflare-branch" type="text" placeholder="main" /></label>
+            </div>
+            <p class="lane-note">This lane expects a Pages project already connected to Git. It triggers a new deployment from that repo/branch.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="panel" id="launch-panel">
+        <div class="panel-head">
+          <div>
+            <span class="kicker">03 · Launch</span>
+            <h2>Run the lanes without nonsense</h2>
+          </div>
+          <div class="button-row compact">
+            <button id="run-selected-btn" class="primary-btn" type="button">Run selected lanes</button>
+            <button id="github-only-btn" class="ghost-btn" type="button">Git only</button>
+            <button id="netlify-only-btn" class="ghost-btn" type="button">Netlify only</button>
+            <button id="cloudflare-only-btn" class="ghost-btn" type="button">Cloudflare only</button>
+          </div>
+        </div>
+
+        <div class="launch-grid">
+          <article class="status-card">
+            <div class="subhead-row">
+              <h3>Action log</h3>
+              <span id="run-state-badge" class="badge idle">Idle</span>
+            </div>
+            <div id="activity-log" class="activity-log"></div>
+          </article>
+          <article class="status-card">
+            <div class="subhead-row">
+              <h3>Latest results</h3>
+              <span class="pill">Structured</span>
+            </div>
+            <div id="result-cards" class="result-cards empty-state">Nothing has shipped yet.</div>
+          </article>
+        </div>
+      </section>
+
+      <section class="panel" id="copilot-panel">
+        <div class="panel-head">
+          <div>
+            <span class="kicker">04 · OpenAI deploy desk</span>
+            <h2>Ask directly inside the tool</h2>
+          </div>
+        </div>
+
+        <div class="copilot-grid">
+          <div class="copilot-settings">
+            <div class="form-grid">
+              <label><span>OpenAI API key</span><input id="openai-key" type="password" placeholder="sk-… or leave blank if server env is set" /></label>
+              <label><span>Model</span><input id="openai-model" type="text" value="gpt-5.4" /></label>
+            </div>
+            <div class="quick-pills">
+              <button class="pill-btn" data-prompt="Which folder in this ZIP should I deploy to Netlify?">Find deploy root</button>
+              <button class="pill-btn" data-prompt="What is the safest sequence to run for this package?">Best run order</button>
+              <button class="pill-btn" data-prompt="Explain why this deploy might fail before I run it.">Preflight risks</button>
+            </div>
+            <label>
+              <span>Question</span>
+              <textarea id="ai-question" rows="5" placeholder="Ask about the ZIP, the deploy root, the lane order, or a failing response."></textarea>
+            </label>
+            <div class="button-row">
+              <button id="ask-ai-btn" class="primary-btn" type="button">Ask OpenAI</button>
+            </div>
+          </div>
+          <div class="copilot-response" id="ai-response">The assistant response will land here.</div>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

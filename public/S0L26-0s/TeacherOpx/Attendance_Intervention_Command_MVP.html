@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Attendance Intervention Command MVP</title>
+<style>
+:root {
+  --bg:#090714;
+  --panel:#121028;
+  --panel-2:#171432;
+  --card:#1e1a3d;
+  --line:rgba(255,255,255,.12);
+  --text:#f5f2ff;
+  --muted:#b9afd8;
+  --gold:#f4c76b;
+  --purple:#7a5cff;
+  --pink:#d26bff;
+  --green:#53d49c;
+  --red:#ff6b7c;
+  --shadow:0 20px 60px rgba(0,0,0,.35);
+}
+* { box-sizing:border-box; }
+html,body { margin:0; min-height:100%; background:
+radial-gradient(circle at 20% 0%, rgba(122,92,255,.20), transparent 30%),
+radial-gradient(circle at 90% 10%, rgba(210,107,255,.13), transparent 25%),
+linear-gradient(180deg, #080611 0%, #0f0c20 45%, #090714 100%);
+color:var(--text); font-family: Inter, system-ui, Arial, sans-serif; }
+a { color:inherit; }
+body { padding:20px; }
+.wrap { max-width:1500px; margin:0 auto; }
+.topbar {
+  display:flex; gap:12px; align-items:center; justify-content:space-between; flex-wrap:wrap;
+  margin-bottom:18px;
+}
+.brand {
+  display:flex; align-items:center; gap:14px;
+}
+.logo {
+  width:54px; height:54px; border-radius:18px; display:grid; place-items:center;
+  background:linear-gradient(135deg, rgba(244,199,107,.28), rgba(122,92,255,.3));
+  box-shadow:0 0 28px rgba(244,199,107,.15), inset 0 0 18px rgba(255,255,255,.08);
+  font-weight:900; letter-spacing:.08em; color:var(--gold);
+}
+.title h1 { margin:0; font-size:clamp(1.4rem,2.5vw,2.4rem); line-height:1.05; }
+.title p { margin:.35rem 0 0; color:var(--muted); max-width:860px; }
+.nav {
+  display:flex; flex-wrap:wrap; gap:10px;
+}
+.nav a, .btn {
+  text-decoration:none; border:1px solid var(--line); background:rgba(255,255,255,.04);
+  color:var(--text); padding:10px 14px; border-radius:14px; cursor:pointer; font-weight:700;
+}
+.btn.primary, .nav a.primary {
+  background:linear-gradient(135deg, rgba(244,199,107,.22), rgba(122,92,255,.26));
+  border-color:rgba(244,199,107,.35);
+}
+.grid {
+  display:grid; grid-template-columns: 420px 1fr; gap:18px;
+}
+.panel {
+  background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.015));
+  border:1px solid var(--line); border-radius:24px; padding:18px; box-shadow:var(--shadow);
+  backdrop-filter: blur(10px);
+}
+.section-title {
+  display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:14px;
+}
+.section-title h2, .section-title h3 { margin:0; font-size:1rem; letter-spacing:.02em; }
+.kpis {
+  display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap:12px; margin-bottom:18px;
+}
+.kpi {
+  background:var(--panel-2); border:1px solid var(--line); border-radius:18px; padding:14px;
+}
+.kpi .label { color:var(--muted); font-size:.82rem; }
+.kpi .value { font-size:1.5rem; font-weight:800; margin-top:6px; }
+.form-grid { display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
+.form-grid.full { grid-template-columns: 1fr; }
+label { display:block; font-size:.84rem; color:var(--muted); margin-bottom:6px; }
+input, textarea, select {
+  width:100%; background:#0f0d21; border:1px solid var(--line); color:var(--text);
+  border-radius:14px; padding:12px 12px; outline:none;
+}
+textarea { min-height:92px; resize:vertical; }
+.row { display:flex; gap:10px; flex-wrap:wrap; }
+.small { font-size:.82rem; color:var(--muted); }
+.list {
+  display:grid; gap:12px;
+}
+.card {
+  background:var(--card); border:1px solid var(--line); border-radius:20px; padding:14px;
+}
+.card h4 { margin:0 0 8px; font-size:1rem; }
+.card p { margin:0; color:var(--muted); line-height:1.45; }
+.badges { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+.badge {
+  display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:999px;
+  background:rgba(255,255,255,.06); border:1px solid var(--line); font-size:.78rem; color:var(--text);
+}
+.table-wrap { overflow:auto; border-radius:18px; border:1px solid var(--line); }
+table { width:100%; border-collapse:collapse; min-width:820px; background:rgba(255,255,255,.02); }
+th, td { padding:12px 10px; text-align:left; border-bottom:1px solid var(--line); vertical-align:top; }
+th { color:var(--gold); background:rgba(244,199,107,.06); }
+tr:hover td { background:rgba(255,255,255,.03); }
+.toolbar { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
+.pill {
+  display:inline-flex; align-items:center; gap:6px; border-radius:999px; padding:6px 10px;
+  font-size:.78rem; border:1px solid var(--line); background:rgba(255,255,255,.04);
+}
+.footer-note { color:var(--muted); font-size:.82rem; margin-top:12px; }
+hr {
+  border:none; border-top:1px solid var(--line); margin:18px 0;
+}
+@media (max-width: 1100px) {
+  .grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 780px) {
+  body { padding:14px; }
+  .kpis { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .form-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div class="brand">
+      <div class="logo">T2</div>
+      <div class="title">
+        <h1>Attendance Intervention Command MVP</h1>
+        <p>Attendance patterns, family follow-up, and intervention tracking in one fast browser desk.</p>
+      </div>
+    </div>
+    <div class="nav">
+      <a class="primary" href="S0L26-0s_Teacher_Ops_Wave_2_Launcher.html">Wave 2 Launcher</a>
+      <a href="Attendance_Intervention_Command_MVP.html" onclick="event.preventDefault(); location.reload();">Refresh</a>
+      <a href="#" onclick="exportState(); return false;">Export JSON</a>
+      <a href="#" onclick="document.getElementById('importFile').click(); return false;">Import JSON</a>
+      <input id="importFile" type="file" accept=".json" style="display:none"/>
+    </div>
+  </div>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="grid">
+    <div class="panel">
+      <div class="section-title"><h2>Command Controls</h2><span class="small">Single-file browser MVP · local autosave</span></div>
+      
+<form id="studentForm">
+  <div class="section-title"><h3>Add Student</h3></div>
+  <div class="form-grid">
+    <div><label>Name</label><input name="name" placeholder="Student name" required></div>
+    <div><label>Grade</label><input name="grade" placeholder="5"></div>
+    <div><label>Homeroom</label><input name="homeroom" placeholder="River 12"></div>
+    <div><label>Family / Contact</label><input name="contact" placeholder="Parent/guardian"></div>
+  </div>
+  <div style="margin-top:12px"><label>Support Notes</label><textarea name="notes" placeholder="Intervention context, transportation patterns, reminders"></textarea></div>
+  <div class="row" style="margin-top:12px"><button class="btn primary" type="submit">Add to Roster</button></div>
+</form>
+<hr/>
+<form id="attendanceForm">
+  <div class="section-title"><h3>Log Attendance</h3></div>
+  <div class="form-grid">
+    <div><label>Date</label><input type="date" name="date" required></div>
+    <div><label>Student</label><select id="attendanceStudent" name="studentId"></select></div>
+    <div><label>Status</label><select name="status"><option>Present</option><option>Tardy</option><option>Absent</option></select></div>
+    <div><label>Reason</label><input name="reason" placeholder="Excused, bus delay, no call"></div>
+  </div>
+  <div style="margin-top:12px"><label>Follow-up / Family Action</label><textarea name="followUp" placeholder="Call home, attendance team referral, counselor check-in"></textarea></div>
+  <div class="row" style="margin-top:12px"><button class="btn primary" type="submit">Save Attendance Log</button></div>
+</form>
+
+      <div class="footer-note">Everything stays in-browser until you export. No backend goblins hiding under the desk.</div>
+    </div>
+    <div class="panel">
+      
+<div class="section-title"><h2>Roster + Intervention Board</h2><span class="small">Quick attendance command center</span></div>
+<div class="toolbar">
+  <span class="pill">Patterns visible</span>
+  <span class="pill">Family follow-up capture</span>
+  <span class="pill">Recent logs</span>
+</div>
+<div class="list" id="rosterList"></div>
+<hr/>
+<div class="section-title"><h3>Recent Attendance Logs</h3></div>
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>Date</th><th>Student</th><th>Status</th><th>Reason</th><th>Follow-up</th></tr></thead>
+    <tbody id="sessionTable"></tbody>
+  </table>
+</div>
+<hr/>
+<div class="section-title"><h3>Intervention Queue</h3></div>
+<div class="list" id="interventionList"></div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY = "teacher_ops_attendance_intervention_v1";
+
+const defaultState = {
+  students: [
+    {id:crypto.randomUUID(), name:'Amina Patel', grade:'5', homeroom:'River 12', contact:'Patel family', notes:'Reading intervention Tue/Thu'},
+    {id:crypto.randomUUID(), name:'Josiah Reed', grade:'5', homeroom:'River 12', contact:'Reed family', notes:'Transportation variability'},
+    {id:crypto.randomUUID(), name:'Luna Martinez', grade:'5', homeroom:'River 12', contact:'Martinez family', notes:'Excellent peer mentor'}
+  ],
+  sessions: [],
+  interventions: []
+};
+
+let state = loadState();
+
+function loadState(){
+  try{
+    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || structuredClone(defaultState);
+  }catch(e){
+    return structuredClone(defaultState);
+  }
+}
+function saveState(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); render(); }
+function boot(){
+  if(!state.sessions.length){
+    const today = new Date().toISOString().slice(0,10);
+    state.students.forEach((s,idx)=>{
+      state.sessions.push({id:crypto.randomUUID(), date:today, studentId:s.id, status: idx===1 ? 'Absent' : 'Present', reason: idx===1 ? 'No call yet' : '', followUp:''});
+    });
+  }
+  bind();
+  render();
+}
+function bind(){
+  document.getElementById('studentForm').addEventListener('submit', e=>{
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    state.students.unshift({
+      id:crypto.randomUUID(),
+      name:fd.get('name').trim(),
+      grade:fd.get('grade').trim(),
+      homeroom:fd.get('homeroom').trim(),
+      contact:fd.get('contact').trim(),
+      notes:fd.get('notes').trim()
+    });
+    e.target.reset(); saveState();
+  });
+  document.getElementById('attendanceForm').addEventListener('submit', e=>{
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    state.sessions.unshift({
+      id:crypto.randomUUID(),
+      date:fd.get('date'),
+      studentId:fd.get('studentId'),
+      status:fd.get('status'),
+      reason:fd.get('reason').trim(),
+      followUp:fd.get('followUp').trim()
+    });
+    const interventionNeeded = ['Absent','Tardy'].includes(fd.get('status')) && fd.get('followUp').trim();
+    if(interventionNeeded){
+      state.interventions.unshift({
+        id:crypto.randomUUID(),
+        studentId:fd.get('studentId'),
+        date:fd.get('date'),
+        action:fd.get('followUp').trim(),
+        owner:'Teacher',
+        status:'Open'
+      });
+    }
+    saveState();
+  });
+}
+function exportState(){
+  const blob = new Blob([JSON.stringify(state,null,2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'attendance-intervention-command.json';
+  a.click();
+}
+function importState(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      state = JSON.parse(reader.result);
+      saveState();
+    } catch(err){
+      alert('Could not import JSON.');
+    }
+  };
+  reader.readAsText(file);
+}
+function markQuick(studentId, status){
+  const today = new Date().toISOString().slice(0,10);
+  state.sessions.unshift({id:crypto.randomUUID(), date:today, studentId, status, reason:'Quick mark', followUp:''});
+  saveState();
+}
+function openCount(){ return state.interventions.filter(i=>i.status==='Open').length; }
+function studentById(id){ return state.students.find(s=>s.id===id) || {name:'Unknown'}; }
+function render(){
+  const absentCount = state.sessions.filter(s=>s.status==='Absent').length;
+  const tardyCount = state.sessions.filter(s=>s.status==='Tardy').length;
+  const presentCount = state.sessions.filter(s=>s.status==='Present').length;
+  document.getElementById('kpis').innerHTML = [
+    ['Roster', state.students.length],
+    ['Present Logs', presentCount],
+    ['Absences', absentCount],
+    ['Open Interventions', openCount()]
+  ].map(([label,value])=>`<div class="kpi"><div class="label">${label}</div><div class="value">${value}</div></div>`).join('');
+
+  const options = state.students.map(s=>`<option value="${s.id}">${s.name} · Grade ${s.grade}</option>`).join('');
+  document.getElementById('attendanceStudent').innerHTML = options;
+
+  document.getElementById('rosterList').innerHTML = state.students.map(s=>{
+    const logs = state.sessions.filter(x=>x.studentId===s.id);
+    const absences = logs.filter(x=>x.status==='Absent').length;
+    const tardies = logs.filter(x=>x.status==='Tardy').length;
+    return `<div class="card">
+      <h4>${s.name}</h4>
+      <p>Grade ${s.grade} · ${s.homeroom} · Contact: ${s.contact}</p>
+      <div class="badges">
+        <span class="badge">Absences ${absences}</span>
+        <span class="badge">Tardies ${tardies}</span>
+        <span class="badge">${s.notes || 'No notes'}</span>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn" onclick="markQuick('${s.id}','Present')">Present</button>
+        <button class="btn" onclick="markQuick('${s.id}','Tardy')">Tardy</button>
+        <button class="btn" onclick="markQuick('${s.id}','Absent')">Absent</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('sessionTable').innerHTML = state.sessions.slice(0,25).map(x=>`<tr>
+    <td>${x.date}</td>
+    <td>${studentById(x.studentId).name}</td>
+    <td>${x.status}</td>
+    <td>${x.reason || '—'}</td>
+    <td>${x.followUp || '—'}</td>
+  </tr>`).join('');
+
+  document.getElementById('interventionList').innerHTML = state.interventions.length ? state.interventions.map(i=>`<div class="card">
+    <h4>${studentById(i.studentId).name}</h4>
+    <p>${i.date} · ${i.action}</p>
+    <div class="badges">
+      <span class="badge">${i.owner}</span>
+      <span class="badge">${i.status}</span>
+    </div>
+  </div>`).join('') : `<div class="card"><h4>No intervention items yet</h4><p>Capture follow-ups from attendance entries to populate this board.</p></div>`;
+}
+
+document.getElementById('importFile').addEventListener('change', importState);
+boot();
+</script>
+</body>
+</html>

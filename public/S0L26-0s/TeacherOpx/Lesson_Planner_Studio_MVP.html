@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Lesson Planner Studio MVP</title>
+<style>
+:root{
+  --bg:#0b1020; --panel:rgba(16,21,41,.9); --panel2:rgba(23,28,52,.96); --line:rgba(255,255,255,.09);
+  --text:#f5f7fb; --muted:#aab4cf; --gold:#e8c36d; --violet:#7c5cff; --cyan:#4ad8ff;
+  --good:#22c55e; --warn:#f59e0b; --bad:#ef4444; --rose:#fb7185; --teal:#14b8a6;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--text);
+background:
+ radial-gradient(circle at top left, rgba(124,92,255,.16), transparent 24%),
+ radial-gradient(circle at top right, rgba(74,216,255,.12), transparent 22%),
+ linear-gradient(180deg,#0b1020,#101936 55%,#09111f)}
+a{color:inherit;text-decoration:none}
+button,input,select,textarea{font:inherit}
+.shell{max-width:1440px;margin:0 auto;padding:22px}
+.nav{
+  display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;
+  padding:16px 18px;border-radius:22px;background:var(--panel);border:1px solid var(--line);
+  position:sticky;top:10px;z-index:20;backdrop-filter:blur(12px)
+}
+.brand{font-weight:800;letter-spacing:.04em;display:flex;align-items:center;gap:12px}
+.brand .orb{width:14px;height:14px;border-radius:999px;background:linear-gradient(135deg,var(--gold),var(--violet));box-shadow:0 0 18px rgba(232,195,109,.45)}
+.navlinks{display:flex;gap:10px;flex-wrap:wrap}
+.navlinks a,.chip{padding:10px 14px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--muted)}
+.hero{
+  margin-top:18px;padding:26px;border:1px solid var(--line);border-radius:28px;
+  background:linear-gradient(135deg,rgba(124,92,255,.18),rgba(74,216,255,.08) 45%, rgba(232,195,109,.12));
+  box-shadow:0 30px 80px rgba(0,0,0,.2)
+}
+.hero h1{margin:0 0 8px;font-size:clamp(2rem,4vw,3.5rem)}
+.hero p{margin:0;color:var(--muted);max-width:1000px;line-height:1.55}
+.actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:18px}
+.btn{
+  border:none;cursor:pointer;padding:12px 16px;border-radius:16px;background:linear-gradient(135deg,var(--violet),#6246ea);color:#fff;font-weight:700;
+  box-shadow:0 12px 30px rgba(98,70,234,.28)
+}
+.btn.alt{background:rgba(255,255,255,.06);color:var(--text);border:1px solid var(--line);box-shadow:none}
+.btn.warn{background:linear-gradient(135deg,#f59e0b,#ef4444)}
+.grid{display:grid;gap:18px;margin-top:18px}
+.cards{grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}
+.main{grid-template-columns:1.15fr .85fr;align-items:start}
+@media (max-width:1040px){.main{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:24px;padding:18px;box-shadow:0 18px 50px rgba(0,0,0,.18)}
+.metric{font-size:1.9rem;font-weight:800;margin-top:10px}
+.muted{color:var(--muted)}
+.kicker{text-transform:uppercase;letter-spacing:.14em;font-size:.78rem;color:var(--gold)}
+.section-title{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+.section-title h2,.section-title h3{margin:0;font-size:1.12rem}
+.formgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.formgrid.three{grid-template-columns:repeat(3,minmax(0,1fr))}
+.formgrid.full{grid-template-columns:1fr}
+@media (max-width:820px){.formgrid,.formgrid.three{grid-template-columns:1fr}}
+label{display:flex;flex-direction:column;gap:6px;font-size:.95rem;color:var(--muted)}
+input,select,textarea{
+ width:100%;padding:12px 13px;border-radius:14px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.04);color:var(--text);outline:none
+}
+textarea{min-height:96px;resize:vertical}
+.tablewrap{overflow:auto;border-radius:18px;border:1px solid var(--line)}
+table{width:100%;border-collapse:collapse;min-width:920px}
+th,td{padding:12px 14px;text-align:left;border-bottom:1px solid rgba(255,255,255,.06);vertical-align:top}
+th{position:sticky;top:0;background:rgba(11,16,32,.96);font-size:.82rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.tag{display:inline-flex;align-items:center;gap:8px;border-radius:999px;padding:7px 10px;font-size:.82rem;border:1px solid var(--line);background:rgba(255,255,255,.04)}
+.good{color:var(--good)} .warntext{color:var(--warn)} .bad{color:var(--bad)} .rose{color:var(--rose)} .teal{color:var(--teal)}
+.list{display:grid;gap:10px}
+.item{padding:14px;border:1px solid var(--line);border-radius:16px;background:rgba(255,255,255,.03)}
+.item h4{margin:0 0 8px} .item p{margin:0;color:var(--muted);line-height:1.45}
+.footer{margin:24px 0 60px;color:var(--muted);text-align:center}
+.small{font-size:.88rem}
+.empty{padding:20px;border:1px dashed rgba(255,255,255,.12);border-radius:18px;color:var(--muted);text-align:center}
+.searchbar{display:flex;gap:10px;flex-wrap:wrap}
+.searchbar input,.searchbar select{flex:1 1 180px}
+.twoCol{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:820px){.twoCol{grid-template-columns:1fr}}
+.badge{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.05)}
+.progress{height:10px;border-radius:999px;background:rgba(255,255,255,.07);overflow:hidden}
+.progress > span{display:block;height:100%;background:linear-gradient(90deg,var(--cyan),var(--violet))}
+code.inline{padding:2px 6px;border-radius:8px;background:rgba(255,255,255,.08)}
+</style>
+</head>
+<body>
+  <div class="shell">
+    <nav class="nav">
+      <div class="brand"><span class="orb"></span><span>Lesson Planner Studio MVP</span></div>
+      <div class="navlinks">
+<a href="S0L26-0s_Teacher_Ops_Wave_1_Launcher.html">Teacher Wave 1</a>
+<a href="Lesson_Planner_Studio_MVP.html">Lesson Planner</a>
+<a href="Classroom_Behavior_Tracker_MVP.html">Behavior Tracker</a>
+<a href="Gradebook_Command_MVP.html">Gradebook Command</a>
+<a href="Student_Intervention_Board_MVP.html">Intervention Board</a>
+<a href="Parent_Conference_Prep_MVP.html">Parent Conference Prep</a>
+</div>
+    </nav>
+
+    <section class="hero">
+      <div class="kicker">S0L26-0s Teacher Ops · Wave 1</div>
+      <h1>Plan lessons like a functioning teaching mammal</h1>
+      <p>Build a reusable lesson bank with objectives, pacing, materials, and statuses so your week stops behaving like a bag of feral sticky notes.</p>
+      <div class="actions">
+        <button class="btn" id="seedBtn">Load Demo Data</button>
+        <button class="btn alt" id="exportBtn">Export JSON</button>
+        <label class="btn alt" style="cursor:pointer;display:inline-flex;align-items:center;gap:8px;">Import JSON<input type="file" id="importInput" accept="application/json" hidden /></label>
+        <button class="btn warn" id="resetBtn">Reset Workspace</button>
+      </div>
+    </section>
+
+    <section class="grid cards"><div class="card"><div class="kicker">Lessons Visible</div><div class="metric" id="metric_lessons">0</div><div class="muted small">filtered rows</div></div><div class="card"><div class="kicker">Due This Week</div><div class="metric" id="metric_week">0</div><div class="muted small">next 7 days</div></div><div class="card"><div class="kicker">Ready to Teach</div><div class="metric" id="metric_ready">0</div><div class="muted small">status set to Ready</div></div><div class="card"><div class="kicker">Minutes Planned</div><div class="metric" id="metric_minutes">0</div><div class="muted small">sum of durations</div></div></section>
+
+    <section class="grid main">
+      <div class="card">
+        <div class="section-title"><h2>Workspace Input</h2><span class="tag">autosaves locally</span></div>
+        
+<form id="entryForm" class="formgrid">
+  <label>Lesson Title<input name="title" placeholder="Fractions in Real Life" required /></label>
+  <label>Subject<select name="subject"><option>Math</option><option>ELA</option><option>Science</option><option>Social Studies</option><option>Art</option><option>Music</option><option>SEL</option></select></label>
+  <label>Grade Band<select name="grade"><option>K-2</option><option>3-5</option><option>6-8</option><option>9-12</option></select></label>
+  <label>Duration<select name="duration"><option>30 min</option><option>45 min</option><option>60 min</option><option>90 min</option></select></label>
+  <label>Standard / Objective<input name="objective" placeholder="Students compare fractions using models" /></label>
+  <label>Lesson Date<input type="date" name="date" /></label>
+  <label style="grid-column:1/-1">Materials<textarea name="materials" placeholder="Fraction strips, whiteboards, projector"></textarea></label>
+  <label style="grid-column:1/-1">Opening / Direct Teach<textarea name="opening" placeholder="Warm-up, mini lesson, think-aloud"></textarea></label>
+  <label style="grid-column:1/-1">Practice / Exit Ticket<textarea name="practice" placeholder="Guided practice, independent task, exit ticket"></textarea></label>
+  <div class="actions" style="grid-column:1/-1"><button class="btn" type="submit">Add Lesson</button></div>
+</form>
+      </div>
+      <div class="card">
+        
+<div class="section-title"><h3>Planning Notes</h3><span class="badge">pace • standards • materials</span></div>
+<div class="list">
+  <div class="item"><h4>Quick planning rhythm</h4><p>Drop in the objective, sequence the opening, guided practice, independent work, then give the exit ticket something to actually measure instead of just vibing uselessly.</p></div>
+  <div class="item"><h4>Use this board for</h4><p>Unit pacing, reusable lesson banks, standards alignment, and seeing where your week is secretly turning into chaos soup.</p></div>
+  <div class="item"><h4>Export lane</h4><p>JSON export makes it easy to snapshot a week, duplicate it, or move your plan pack into the next browser session without drama.</p></div>
+</div>
+      </div>
+    </section>
+
+    <section class="card" style="margin-top:18px;">
+      <div class="section-title">
+        <h2>Operating Board</h2>
+        <div class="searchbar">
+          <input id="searchInput" placeholder="Search names, subjects, notes, tags, or actions" />
+          <select id="statusFilter"><option value="">All filters</option></select>
+        </div>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Lesson</th><th>Subject</th><th>Grade</th><th>Duration</th><th>Date</th><th>Status</th><th>Materials</th><th>Actions</th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <div class="footer small">Single-file browser MVP. Classroom ops lane, not pretentious edtech vapor fog.</div>
+  </div>
+
+<script>
+
+function readStore(key, fallback){ try{ return JSON.parse(localStorage.getItem(key)) ?? fallback; }catch(e){ return fallback; } }
+function writeStore(key, value){ localStorage.setItem(key, JSON.stringify(value)); }
+function downloadJson(filename, data){
+  const blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 800);
+}
+function wireJsonImport(input, onData){
+  input.addEventListener('change', async (e)=>{
+    const file = e.target.files?.[0]; if(!file) return;
+    try { const text = await file.text(); onData(JSON.parse(text)); }
+    catch(err){ alert('Could not read JSON backup. Tiny browser goblin in the file.'); }
+    finally { input.value = ''; }
+  });
+}
+function fmtDate(v){ if(!v) return '—'; return new Date(v+'T00:00:00').toLocaleDateString(undefined,{month:'short', day:'numeric', year:'numeric'}); }
+function uid(){ return Math.random().toString(36).slice(2,10); }
+function esc(s){ return String(s ?? '').replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
+function daysUntil(v){ if(!v) return null; const ms = new Date(v+'T00:00:00').getTime() - new Date().setHours(0,0,0,0); return Math.ceil(ms/86400000); }
+function addFilterOptions(select, items, key){
+  const vals = [...new Set(items.map(x=>x[key]).filter(Boolean))].sort();
+  select.innerHTML = '<option value="">All filters</option>' + vals.map(s=>`<option>${esc(s)}</option>`).join('');
+}
+
+const STORAGE_KEY = 'lesson_planner_studio_mvp_mvp_store_v1';
+const seedItems = [{"id": "a1", "title": "Fractions in Real Life", "subject": "Math", "grade": "3-5", "duration": "45 min", "objective": "Compare fractions using area models", "date": "2026-03-17", "materials": "Fraction strips, whiteboards", "opening": "Notice and wonder with pizza models", "practice": "Pairs sort fraction cards; exit ticket with 3 comparisons", "status": "Planned"}, {"id": "a2", "title": "Main Idea Detectives", "subject": "ELA", "grade": "3-5", "duration": "60 min", "objective": "Identify the main idea and key details", "date": "2026-03-18", "materials": "Short passages, sticky notes", "opening": "Model a think-aloud on first paragraph", "practice": "Small groups annotate and defend evidence", "status": "Ready"}, {"id": "a3", "title": "Weather vs Climate", "subject": "Science", "grade": "6-8", "duration": "45 min", "objective": "Differentiate weather and climate with evidence", "date": "2026-03-19", "materials": "Slide deck, graph printouts", "opening": "Quick image sort", "practice": "Students build claims from climate graphs", "status": "Draft"}];
+const state = readStore(STORAGE_KEY, { items: seedItems.slice() });
+const el = {
+  rows: document.getElementById('rows'),
+  search: document.getElementById('searchInput'),
+  statusFilter: document.getElementById('statusFilter'),
+  seedBtn: document.getElementById('seedBtn'),
+  exportBtn: document.getElementById('exportBtn'),
+  importInput: document.getElementById('importInput'),
+  resetBtn: document.getElementById('resetBtn')
+};
+
+function persist(){ writeStore(STORAGE_KEY, state); render(); }
+wireJsonImport(el.importInput, (data)=>{
+  if(Array.isArray(data)) state.items = data;
+  else if(data && Array.isArray(data.items)) state.items = data.items;
+  else return alert('JSON shape unsupported. Need an array or {items:[...]}.');
+  persist();
+});
+el.exportBtn.addEventListener('click', ()=>downloadJson('lesson_planner_studio_mvp_backup.json', state));
+el.seedBtn.addEventListener('click', ()=>{ state.items = seedItems.map(x=>({...x,id:uid()})); persist(); });
+el.resetBtn.addEventListener('click', ()=>{ if(confirm('Reset this workspace?')){ state.items=[]; persist(); } });
+el.search.addEventListener('input', render);
+el.statusFilter.addEventListener('change', render);
+
+const form = document.getElementById('entryForm');
+form.addEventListener('submit', (e)=>{
+  e.preventDefault();
+  const fd = new FormData(form);
+  state.items.unshift({
+    id: uid(),
+    title: fd.get('title'),
+    subject: fd.get('subject'),
+    grade: fd.get('grade'),
+    duration: fd.get('duration'),
+    objective: fd.get('objective'),
+    date: fd.get('date'),
+    materials: fd.get('materials'),
+    opening: fd.get('opening'),
+    practice: fd.get('practice'),
+    status: 'Planned'
+  });
+  form.reset();
+  persist();
+});
+function render(){
+  const q = el.search.value.trim().toLowerCase();
+  addFilterOptions(el.statusFilter, state.items, 'status');
+  const status = el.statusFilter.value;
+  const items = state.items.filter(item=>{
+    const hay = [item.title,item.subject,item.grade,item.objective,item.materials,item.opening,item.practice].join(' ').toLowerCase();
+    return (!q || hay.includes(q)) && (!status || item.status === status);
+  });
+  document.getElementById('metric_lessons').textContent = items.length;
+  document.getElementById('metric_week').textContent = items.filter(x=>x.date && daysUntil(x.date) >= 0 && daysUntil(x.date) <= 7).length;
+  document.getElementById('metric_ready').textContent = items.filter(x=>x.status==='Ready').length;
+  const minutes = items.reduce((a,b)=>a + parseInt(String(b.duration||'0')) || a, 0);
+  document.getElementById('metric_minutes').textContent = minutes ? minutes + 'm' : '0m';
+  if(!items.length){ el.rows.innerHTML = '<tr><td colspan="8"><div class="empty">No lesson rows yet.</div></td></tr>'; return; }
+  el.rows.innerHTML = items.map(item=>`
+    <tr>
+      <td><strong>${esc(item.title)}</strong><div class="muted small">${esc(item.objective||'')}</div></td>
+      <td>${esc(item.subject)}</td>
+      <td>${esc(item.grade)}</td>
+      <td>${esc(item.duration)}</td>
+      <td>${fmtDate(item.date)}</td>
+      <td><span class="tag">${esc(item.status)}</span></td>
+      <td class="small">${esc(item.materials||'')}</td>
+      <td>
+        <button class="btn alt" onclick="cycleStatus('${item.id}')">Status</button>
+        <button class="btn alt" onclick="duplicateItem('${item.id}')">Duplicate</button>
+        <button class="btn warn" onclick="removeItem('${item.id}')">Delete</button>
+      </td>
+    </tr>`).join('');
+}
+function cycleStatus(id){
+  const order = ['Draft','Planned','Ready','Taught'];
+  const item = state.items.find(x=>x.id===id); if(!item) return;
+  const idx = order.indexOf(item.status); item.status = order[(idx+1)%order.length];
+  persist();
+}
+function duplicateItem(id){
+  const item = state.items.find(x=>x.id===id); if(!item) return;
+  state.items.unshift({...item, id:uid(), title:item.title + ' (Copy)', status:'Draft'});
+  persist();
+}
+function removeItem(id){ state.items = state.items.filter(x=>x.id!==id); persist(); }
+
+render();
+</script>
+</body>
+</html>

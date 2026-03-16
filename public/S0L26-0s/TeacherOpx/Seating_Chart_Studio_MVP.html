@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Seating Chart Studio MVP</title>
+<style>
+:root {
+  --bg:#090714;
+  --panel:#121028;
+  --panel-2:#171432;
+  --card:#1e1a3d;
+  --line:rgba(255,255,255,.12);
+  --text:#f5f2ff;
+  --muted:#b9afd8;
+  --gold:#f4c76b;
+  --purple:#7a5cff;
+  --pink:#d26bff;
+  --green:#53d49c;
+  --red:#ff6b7c;
+  --shadow:0 20px 60px rgba(0,0,0,.35);
+}
+* { box-sizing:border-box; }
+html,body { margin:0; min-height:100%; background:
+radial-gradient(circle at 20% 0%, rgba(122,92,255,.20), transparent 30%),
+radial-gradient(circle at 90% 10%, rgba(210,107,255,.13), transparent 25%),
+linear-gradient(180deg, #080611 0%, #0f0c20 45%, #090714 100%);
+color:var(--text); font-family: Inter, system-ui, Arial, sans-serif; }
+a { color:inherit; }
+body { padding:20px; }
+.wrap { max-width:1500px; margin:0 auto; }
+.topbar {
+  display:flex; gap:12px; align-items:center; justify-content:space-between; flex-wrap:wrap;
+  margin-bottom:18px;
+}
+.brand {
+  display:flex; align-items:center; gap:14px;
+}
+.logo {
+  width:54px; height:54px; border-radius:18px; display:grid; place-items:center;
+  background:linear-gradient(135deg, rgba(244,199,107,.28), rgba(122,92,255,.3));
+  box-shadow:0 0 28px rgba(244,199,107,.15), inset 0 0 18px rgba(255,255,255,.08);
+  font-weight:900; letter-spacing:.08em; color:var(--gold);
+}
+.title h1 { margin:0; font-size:clamp(1.4rem,2.5vw,2.4rem); line-height:1.05; }
+.title p { margin:.35rem 0 0; color:var(--muted); max-width:860px; }
+.nav {
+  display:flex; flex-wrap:wrap; gap:10px;
+}
+.nav a, .btn {
+  text-decoration:none; border:1px solid var(--line); background:rgba(255,255,255,.04);
+  color:var(--text); padding:10px 14px; border-radius:14px; cursor:pointer; font-weight:700;
+}
+.btn.primary, .nav a.primary {
+  background:linear-gradient(135deg, rgba(244,199,107,.22), rgba(122,92,255,.26));
+  border-color:rgba(244,199,107,.35);
+}
+.grid {
+  display:grid; grid-template-columns: 420px 1fr; gap:18px;
+}
+.panel {
+  background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.015));
+  border:1px solid var(--line); border-radius:24px; padding:18px; box-shadow:var(--shadow);
+  backdrop-filter: blur(10px);
+}
+.section-title {
+  display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:14px;
+}
+.section-title h2, .section-title h3 { margin:0; font-size:1rem; letter-spacing:.02em; }
+.kpis {
+  display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap:12px; margin-bottom:18px;
+}
+.kpi {
+  background:var(--panel-2); border:1px solid var(--line); border-radius:18px; padding:14px;
+}
+.kpi .label { color:var(--muted); font-size:.82rem; }
+.kpi .value { font-size:1.5rem; font-weight:800; margin-top:6px; }
+.form-grid { display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
+.form-grid.full { grid-template-columns: 1fr; }
+label { display:block; font-size:.84rem; color:var(--muted); margin-bottom:6px; }
+input, textarea, select {
+  width:100%; background:#0f0d21; border:1px solid var(--line); color:var(--text);
+  border-radius:14px; padding:12px 12px; outline:none;
+}
+textarea { min-height:92px; resize:vertical; }
+.row { display:flex; gap:10px; flex-wrap:wrap; }
+.small { font-size:.82rem; color:var(--muted); }
+.list {
+  display:grid; gap:12px;
+}
+.card {
+  background:var(--card); border:1px solid var(--line); border-radius:20px; padding:14px;
+}
+.card h4 { margin:0 0 8px; font-size:1rem; }
+.card p { margin:0; color:var(--muted); line-height:1.45; }
+.badges { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+.badge {
+  display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:999px;
+  background:rgba(255,255,255,.06); border:1px solid var(--line); font-size:.78rem; color:var(--text);
+}
+.table-wrap { overflow:auto; border-radius:18px; border:1px solid var(--line); }
+table { width:100%; border-collapse:collapse; min-width:820px; background:rgba(255,255,255,.02); }
+th, td { padding:12px 10px; text-align:left; border-bottom:1px solid var(--line); vertical-align:top; }
+th { color:var(--gold); background:rgba(244,199,107,.06); }
+tr:hover td { background:rgba(255,255,255,.03); }
+.toolbar { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
+.pill {
+  display:inline-flex; align-items:center; gap:6px; border-radius:999px; padding:6px 10px;
+  font-size:.78rem; border:1px solid var(--line); background:rgba(255,255,255,.04);
+}
+.footer-note { color:var(--muted); font-size:.82rem; margin-top:12px; }
+hr {
+  border:none; border-top:1px solid var(--line); margin:18px 0;
+}
+@media (max-width: 1100px) {
+  .grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 780px) {
+  body { padding:14px; }
+  .kpis { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .form-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div class="brand">
+      <div class="logo">T2</div>
+      <div class="title">
+        <h1>Seating Chart Studio MVP</h1>
+        <p>Build room layouts, regroup students, save seating variations, and track support notes.</p>
+      </div>
+    </div>
+    <div class="nav">
+      <a class="primary" href="S0L26-0s_Teacher_Ops_Wave_2_Launcher.html">Wave 2 Launcher</a>
+      <a href="Seating_Chart_Studio_MVP.html" onclick="event.preventDefault(); location.reload();">Refresh</a>
+      <a href="#" onclick="exportState(); return false;">Export JSON</a>
+      <a href="#" onclick="document.getElementById('importFile').click(); return false;">Import JSON</a>
+      <input id="importFile" type="file" accept=".json" style="display:none"/>
+    </div>
+  </div>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="grid">
+    <div class="panel">
+      <div class="section-title"><h2>Command Controls</h2><span class="small">Single-file browser MVP · local autosave</span></div>
+      
+<form id="rosterForm">
+  <div class="section-title"><h3>Add Student to Roster</h3></div>
+  <div class="row">
+    <input name="student" placeholder="Student name">
+    <button class="btn primary" type="submit">Add Student</button>
+    <button class="btn" type="button" onclick="swapStudents()">Random Seat Fill</button>
+  </div>
+</form>
+<hr/>
+<form id="layoutForm">
+  <div class="section-title"><h3>Save Current Layout</h3></div>
+  <div class="form-grid">
+    <div><label>Layout Name</label><input name="name" placeholder="Reading groups"></div>
+    <div><label>Objective</label><input name="objective" placeholder="Front-load support, lab day, testing mode"></div>
+  </div>
+  <div class="row" style="margin-top:12px"><button class="btn primary" type="submit">Save Layout Snapshot</button></div>
+</form>
+<hr/>
+<div class="section-title"><h3>Roster Pool</h3></div>
+<div class="badges" id="rosterPills"></div>
+
+      <div class="footer-note">Everything stays in-browser until you export. No backend goblins hiding under the desk.</div>
+    </div>
+    <div class="panel">
+      
+<div class="section-title"><h2>Seating Grid</h2><span class="small">Assign, regroup, save variations</span></div>
+<div class="toolbar">
+  <span class="pill">24 seats</span>
+  <span class="pill">Flexible groups</span>
+  <span class="pill">Behavior / support notes</span>
+</div>
+<div class="list" id="seatGrid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); display:grid;"></div>
+<hr/>
+<div class="section-title"><h3>Saved Layout Library</h3></div>
+<div class="list" id="layoutList"></div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY = "teacher_ops_seating_chart_studio_v1";
+
+const defaultState = {
+  students:['Amina','Josiah','Luna','Milo','Sofia','Ethan','Nadia','Caleb','Ivy','Noah','Zuri','Mateo'],
+  seats:Array.from({length:24}, (_,i)=>({id:i+1, label:`Seat ${i+1}`, student:'', group:'A', note:''})),
+  layouts:[]
+};
+let state = loadState();
+function loadState(){ try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || structuredClone(defaultState);} catch(e){ return structuredClone(defaultState);} }
+function saveState(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); render(); }
+function boot(){ bind(); render(); }
+function bind(){
+  document.getElementById('rosterForm').addEventListener('submit', e=>{
+    e.preventDefault();
+    const name = e.target.student.value.trim();
+    if(name) state.students.push(name);
+    e.target.reset(); saveState();
+  });
+  document.getElementById('layoutForm').addEventListener('submit', e=>{
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    state.layouts.unshift({
+      id:crypto.randomUUID(),
+      name:fd.get('name').trim() || 'Untitled layout',
+      objective:fd.get('objective').trim(),
+      timestamp:new Date().toLocaleString(),
+      seats:JSON.parse(JSON.stringify(state.seats))
+    });
+    saveState();
+  });
+}
+function exportState(){ const blob = new Blob([JSON.stringify(state,null,2)], {type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='seating-chart-studio.json'; a.click(); }
+function importState(event){ const f=event.target.files[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{ try{ state=JSON.parse(r.result); saveState(); }catch(e){ alert('Import failed'); } }; r.readAsText(f); }
+function updateSeat(id, field, value){ const seat = state.seats.find(s=>s.id===id); seat[field]=value; saveState(); }
+function applyLayout(id){ const layout = state.layouts.find(l=>l.id===id); if(layout){ state.seats = JSON.parse(JSON.stringify(layout.seats)); saveState(); } }
+function swapStudents(){
+  const assigned = state.students.slice().sort(()=>Math.random()-.5);
+  state.seats.forEach((seat, idx)=> seat.student = assigned[idx] || '');
+  saveState();
+}
+function render(){
+  const assignedCount = state.seats.filter(s=>s.student).length;
+  const groups = new Set(state.seats.map(s=>s.group)).size;
+  document.getElementById('kpis').innerHTML = [
+    ['Roster', state.students.length],
+    ['Assigned Seats', assignedCount],
+    ['Saved Layouts', state.layouts.length],
+    ['Table Groups', groups]
+  ].map(([l,v])=>`<div class="kpi"><div class="label">${l}</div><div class="value">${v}</div></div>`).join('');
+  document.getElementById('rosterPills').innerHTML = state.students.map(s=>`<span class="badge">${s}</span>`).join('');
+  document.getElementById('seatGrid').innerHTML = state.seats.map(seat=>`
+    <div class="card">
+      <h4>${seat.label}</h4>
+      <div class="form-grid full">
+        <div><label>Student</label><select onchange="updateSeat(${seat.id}, 'student', this.value)">
+          <option value="">Open seat</option>
+          ${state.students.map(s=>`<option ${seat.student===s?'selected':''}>${s}</option>`).join('')}
+        </select></div>
+        <div><label>Group</label><input value="${seat.group}" onchange="updateSeat(${seat.id}, 'group', this.value)"></div>
+        <div><label>Seat Note</label><input value="${seat.note}" onchange="updateSeat(${seat.id}, 'note', this.value)"></div>
+      </div>
+    </div>`).join('');
+  document.getElementById('layoutList').innerHTML = state.layouts.length ? state.layouts.map(l=>`<div class="card">
+    <h4>${l.name}</h4>
+    <p>${l.objective || 'No stated objective'} · ${l.timestamp}</p>
+    <div class="row" style="margin-top:10px"><button class="btn" onclick="applyLayout('${l.id}')">Load Layout</button></div>
+  </div>`).join('') : `<div class="card"><h4>No saved layouts yet</h4><p>Build a room plan, then save it for small groups, testing days, or intervention clusters.</p></div>`;
+}
+
+document.getElementById('importFile').addEventListener('change', importState);
+boot();
+</script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+{
+  "name": "skyship-command",
+  "private": true,
+  "version": "1.0.0",
+  "description": "ZIP-first deploy control surface for GitHub, Netlify, Cloudflare Pages, and OpenAI guidance.",
+  "scripts": {
+    "dev": "echo 'Static app. Serve the folder or deploy via Git to Netlify.'"
+  }
+}

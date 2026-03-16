@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Student Intervention Board MVP</title>
+<style>
+:root{
+  --bg:#0b1020; --panel:rgba(16,21,41,.9); --panel2:rgba(23,28,52,.96); --line:rgba(255,255,255,.09);
+  --text:#f5f7fb; --muted:#aab4cf; --gold:#e8c36d; --violet:#7c5cff; --cyan:#4ad8ff;
+  --good:#22c55e; --warn:#f59e0b; --bad:#ef4444; --rose:#fb7185; --teal:#14b8a6;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--text);
+background:
+ radial-gradient(circle at top left, rgba(124,92,255,.16), transparent 24%),
+ radial-gradient(circle at top right, rgba(74,216,255,.12), transparent 22%),
+ linear-gradient(180deg,#0b1020,#101936 55%,#09111f)}
+a{color:inherit;text-decoration:none}
+button,input,select,textarea{font:inherit}
+.shell{max-width:1440px;margin:0 auto;padding:22px}
+.nav{
+  display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;
+  padding:16px 18px;border-radius:22px;background:var(--panel);border:1px solid var(--line);
+  position:sticky;top:10px;z-index:20;backdrop-filter:blur(12px)
+}
+.brand{font-weight:800;letter-spacing:.04em;display:flex;align-items:center;gap:12px}
+.brand .orb{width:14px;height:14px;border-radius:999px;background:linear-gradient(135deg,var(--gold),var(--violet));box-shadow:0 0 18px rgba(232,195,109,.45)}
+.navlinks{display:flex;gap:10px;flex-wrap:wrap}
+.navlinks a,.chip{padding:10px 14px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--muted)}
+.hero{
+  margin-top:18px;padding:26px;border:1px solid var(--line);border-radius:28px;
+  background:linear-gradient(135deg,rgba(124,92,255,.18),rgba(74,216,255,.08) 45%, rgba(232,195,109,.12));
+  box-shadow:0 30px 80px rgba(0,0,0,.2)
+}
+.hero h1{margin:0 0 8px;font-size:clamp(2rem,4vw,3.5rem)}
+.hero p{margin:0;color:var(--muted);max-width:1000px;line-height:1.55}
+.actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:18px}
+.btn{
+  border:none;cursor:pointer;padding:12px 16px;border-radius:16px;background:linear-gradient(135deg,var(--violet),#6246ea);color:#fff;font-weight:700;
+  box-shadow:0 12px 30px rgba(98,70,234,.28)
+}
+.btn.alt{background:rgba(255,255,255,.06);color:var(--text);border:1px solid var(--line);box-shadow:none}
+.btn.warn{background:linear-gradient(135deg,#f59e0b,#ef4444)}
+.grid{display:grid;gap:18px;margin-top:18px}
+.cards{grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}
+.main{grid-template-columns:1.15fr .85fr;align-items:start}
+@media (max-width:1040px){.main{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:24px;padding:18px;box-shadow:0 18px 50px rgba(0,0,0,.18)}
+.metric{font-size:1.9rem;font-weight:800;margin-top:10px}
+.muted{color:var(--muted)}
+.kicker{text-transform:uppercase;letter-spacing:.14em;font-size:.78rem;color:var(--gold)}
+.section-title{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+.section-title h2,.section-title h3{margin:0;font-size:1.12rem}
+.formgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.formgrid.three{grid-template-columns:repeat(3,minmax(0,1fr))}
+.formgrid.full{grid-template-columns:1fr}
+@media (max-width:820px){.formgrid,.formgrid.three{grid-template-columns:1fr}}
+label{display:flex;flex-direction:column;gap:6px;font-size:.95rem;color:var(--muted)}
+input,select,textarea{
+ width:100%;padding:12px 13px;border-radius:14px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.04);color:var(--text);outline:none
+}
+textarea{min-height:96px;resize:vertical}
+.tablewrap{overflow:auto;border-radius:18px;border:1px solid var(--line)}
+table{width:100%;border-collapse:collapse;min-width:920px}
+th,td{padding:12px 14px;text-align:left;border-bottom:1px solid rgba(255,255,255,.06);vertical-align:top}
+th{position:sticky;top:0;background:rgba(11,16,32,.96);font-size:.82rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.tag{display:inline-flex;align-items:center;gap:8px;border-radius:999px;padding:7px 10px;font-size:.82rem;border:1px solid var(--line);background:rgba(255,255,255,.04)}
+.good{color:var(--good)} .warntext{color:var(--warn)} .bad{color:var(--bad)} .rose{color:var(--rose)} .teal{color:var(--teal)}
+.list{display:grid;gap:10px}
+.item{padding:14px;border:1px solid var(--line);border-radius:16px;background:rgba(255,255,255,.03)}
+.item h4{margin:0 0 8px} .item p{margin:0;color:var(--muted);line-height:1.45}
+.footer{margin:24px 0 60px;color:var(--muted);text-align:center}
+.small{font-size:.88rem}
+.empty{padding:20px;border:1px dashed rgba(255,255,255,.12);border-radius:18px;color:var(--muted);text-align:center}
+.searchbar{display:flex;gap:10px;flex-wrap:wrap}
+.searchbar input,.searchbar select{flex:1 1 180px}
+.twoCol{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:820px){.twoCol{grid-template-columns:1fr}}
+.badge{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.05)}
+.progress{height:10px;border-radius:999px;background:rgba(255,255,255,.07);overflow:hidden}
+.progress > span{display:block;height:100%;background:linear-gradient(90deg,var(--cyan),var(--violet))}
+code.inline{padding:2px 6px;border-radius:8px;background:rgba(255,255,255,.08)}
+</style>
+</head>
+<body>
+  <div class="shell">
+    <nav class="nav">
+      <div class="brand"><span class="orb"></span><span>Student Intervention Board MVP</span></div>
+      <div class="navlinks">
+<a href="S0L26-0s_Teacher_Ops_Wave_1_Launcher.html">Teacher Wave 1</a>
+<a href="Lesson_Planner_Studio_MVP.html">Lesson Planner</a>
+<a href="Classroom_Behavior_Tracker_MVP.html">Behavior Tracker</a>
+<a href="Gradebook_Command_MVP.html">Gradebook Command</a>
+<a href="Student_Intervention_Board_MVP.html">Intervention Board</a>
+<a href="Parent_Conference_Prep_MVP.html">Parent Conference Prep</a>
+</div>
+    </nav>
+
+    <section class="hero">
+      <div class="kicker">S0L26-0s Teacher Ops · Wave 1</div>
+      <h1>Keep support plans visible before they vanish into the district swamp</h1>
+      <p>Track intervention tiers, owners, review dates, and progress so academic, behavior, attendance, and SEL plans don’t dissolve into ceremonial paperwork mist.</p>
+      <div class="actions">
+        <button class="btn" id="seedBtn">Load Demo Data</button>
+        <button class="btn alt" id="exportBtn">Export JSON</button>
+        <label class="btn alt" style="cursor:pointer;display:inline-flex;align-items:center;gap:8px;">Import JSON<input type="file" id="importInput" accept="application/json" hidden /></label>
+        <button class="btn warn" id="resetBtn">Reset Workspace</button>
+      </div>
+    </section>
+
+    <section class="grid cards"><div class="card"><div class="kicker">Cases Visible</div><div class="metric" id="metric_cases">0</div><div class="muted small">filtered intervention rows</div></div><div class="card"><div class="kicker">Reviews Due Soon</div><div class="metric" id="metric_due">0</div><div class="muted small">within 7 days</div></div><div class="card"><div class="kicker">Urgent Cases</div><div class="metric" id="metric_urgent">0</div><div class="muted small">progress under 40%</div></div><div class="card"><div class="kicker">Avg Progress</div><div class="metric" id="metric_progress">0</div><div class="muted small">visible board average</div></div></section>
+
+    <section class="grid main">
+      <div class="card">
+        <div class="section-title"><h2>Workspace Input</h2><span class="tag">autosaves locally</span></div>
+        
+<form id="entryForm" class="formgrid">
+  <label>Student<input name="student" placeholder="Camila V." required /></label>
+  <label>Concern Area<select name="area"><option>Reading</option><option>Math</option><option>Behavior</option><option>Attendance</option><option>Executive Function</option><option>SEL</option></select></label>
+  <label>Tier<select name="tier"><option>Tier 1</option><option>Tier 2</option><option>Tier 3</option></select></label>
+  <label>Owner<input name="owner" placeholder="Ms. Patel / Counselor" /></label>
+  <label>Review Date<input type="date" name="reviewDate" /></label>
+  <label>Goal Progress<input type="number" name="progress" min="0" max="100" placeholder="55" /></label>
+  <label style="grid-column:1/-1">Intervention Plan<textarea name="plan" placeholder="Daily fluency practice, lunch check-ins, weekly attendance call"></textarea></label>
+  <label style="grid-column:1/-1">Evidence / Notes<textarea name="notes" placeholder="Benchmark data, observations, family communication, next move"></textarea></label>
+  <div class="actions" style="grid-column:1/-1"><button class="btn" type="submit">Add Intervention</button></div>
+</form>
+      </div>
+      <div class="card">
+        
+<div class="section-title"><h3>Intervention Notes</h3><span class="badge">tiers • progress • review cadence</span></div>
+<div class="list">
+  <div class="item"><h4>Why this board matters</h4><p>It keeps support plans visible: who owns them, when to review them, and whether they are actually moving the needle instead of merely existing as paperwork fossils.</p></div>
+  <div class="item"><h4>Progress signal</h4><p>Use the progress field ruthlessly. A plan at 10% for three weeks is not “fine,” it is a flare gun.</p></div>
+  <div class="item"><h4>Review dates</h4><p>Filter the board fast to find what needs a meeting, data pull, or family touchpoint this week.</p></div>
+</div>
+      </div>
+    </section>
+
+    <section class="card" style="margin-top:18px;">
+      <div class="section-title">
+        <h2>Operating Board</h2>
+        <div class="searchbar">
+          <input id="searchInput" placeholder="Search names, subjects, notes, tags, or actions" />
+          <select id="statusFilter"><option value="">All filters</option></select>
+        </div>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Student</th><th>Concern Area</th><th>Tier</th><th>Review Date</th><th>Goal Progress</th><th>Status</th><th>Plan</th><th>Actions</th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <div class="footer small">Single-file browser MVP. Classroom ops lane, not pretentious edtech vapor fog.</div>
+  </div>
+
+<script>
+
+function readStore(key, fallback){ try{ return JSON.parse(localStorage.getItem(key)) ?? fallback; }catch(e){ return fallback; } }
+function writeStore(key, value){ localStorage.setItem(key, JSON.stringify(value)); }
+function downloadJson(filename, data){
+  const blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 800);
+}
+function wireJsonImport(input, onData){
+  input.addEventListener('change', async (e)=>{
+    const file = e.target.files?.[0]; if(!file) return;
+    try { const text = await file.text(); onData(JSON.parse(text)); }
+    catch(err){ alert('Could not read JSON backup. Tiny browser goblin in the file.'); }
+    finally { input.value = ''; }
+  });
+}
+function fmtDate(v){ if(!v) return '—'; return new Date(v+'T00:00:00').toLocaleDateString(undefined,{month:'short', day:'numeric', year:'numeric'}); }
+function uid(){ return Math.random().toString(36).slice(2,10); }
+function esc(s){ return String(s ?? '').replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
+function daysUntil(v){ if(!v) return null; const ms = new Date(v+'T00:00:00').getTime() - new Date().setHours(0,0,0,0); return Math.ceil(ms/86400000); }
+function addFilterOptions(select, items, key){
+  const vals = [...new Set(items.map(x=>x[key]).filter(Boolean))].sort();
+  select.innerHTML = '<option value="">All filters</option>' + vals.map(s=>`<option>${esc(s)}</option>`).join('');
+}
+
+const STORAGE_KEY = 'student_intervention_board_mvp_mvp_store_v1';
+const seedItems = [{"id": "i1", "student": "Camila V.", "area": "Reading", "tier": "Tier 2", "owner": "Ms. Patel", "reviewDate": "2026-03-20", "progress": 55, "plan": "Daily fluency folder + partner reread", "notes": "WCPM improved 8 points over two weeks", "status": "Active"}, {"id": "i2", "student": "Diego H.", "area": "Attendance", "tier": "Tier 3", "owner": "Counselor", "reviewDate": "2026-03-18", "progress": 30, "plan": "Weekly check-in + transportation plan", "notes": "Family contact made; bus issue unresolved", "status": "Urgent"}, {"id": "i3", "student": "Riley S.", "area": "Math", "tier": "Tier 1", "owner": "Mr. Chen", "reviewDate": "2026-03-25", "progress": 78, "plan": "Small-group reteach Tuesdays/Thursdays", "notes": "Exit ticket accuracy trending up", "status": "Stable"}];
+const state = readStore(STORAGE_KEY, { items: seedItems.slice() });
+const el = {
+  rows: document.getElementById('rows'),
+  search: document.getElementById('searchInput'),
+  statusFilter: document.getElementById('statusFilter'),
+  seedBtn: document.getElementById('seedBtn'),
+  exportBtn: document.getElementById('exportBtn'),
+  importInput: document.getElementById('importInput'),
+  resetBtn: document.getElementById('resetBtn')
+};
+
+const form = document.getElementById('entryForm');
+form.addEventListener('submit', (e)=>{
+  e.preventDefault();
+  const fd = new FormData(form);
+  const progress = Number(fd.get('progress')||0);
+  state.items.unshift({
+    id: uid(),
+    student: fd.get('student'),
+    area: fd.get('area'),
+    tier: fd.get('tier'),
+    owner: fd.get('owner'),
+    reviewDate: fd.get('reviewDate'),
+    progress,
+    plan: fd.get('plan'),
+    notes: fd.get('notes'),
+    status: progress < 40 ? 'Urgent' : (progress < 75 ? 'Active' : 'Stable')
+  });
+  form.reset();
+  persist();
+});
+
+function persist(){ writeStore(STORAGE_KEY, state); render(); }
+wireJsonImport(el.importInput, (data)=>{
+  if(Array.isArray(data)) state.items = data;
+  else if(data && Array.isArray(data.items)) state.items = data.items;
+  else return alert('JSON shape unsupported. Need an array or {items:[...]}.');
+  persist();
+});
+el.exportBtn.addEventListener('click', ()=>downloadJson('student_intervention_board_mvp_backup.json', state));
+el.seedBtn.addEventListener('click', ()=>{ state.items = seedItems.map(x=>({...x,id:uid()})); persist(); });
+el.resetBtn.addEventListener('click', ()=>{ if(confirm('Reset this workspace?')){ state.items=[]; persist(); } });
+el.search.addEventListener('input', render);
+el.statusFilter.addEventListener('change', render);
+
+function render(){
+  const q = el.search.value.trim().toLowerCase();
+  addFilterOptions(el.statusFilter, state.items, 'tier');
+  const filter = el.statusFilter.value;
+  const items = state.items.filter(item=>{
+    const hay = [item.student,item.area,item.tier,item.owner,item.plan,item.notes,item.status].join(' ').toLowerCase();
+    return (!q || hay.includes(q)) && (!filter || item.tier === filter);
+  });
+  document.getElementById('metric_cases').textContent = items.length;
+  document.getElementById('metric_due').textContent = items.filter(x=>x.reviewDate && daysUntil(x.reviewDate) <= 7).length;
+  document.getElementById('metric_urgent').textContent = items.filter(x=>x.status==='Urgent').length;
+  const avg = items.length ? Math.round(items.reduce((a,b)=>a+Number(b.progress||0),0)/items.length) : 0;
+  document.getElementById('metric_progress').textContent = avg + '%';
+  if(!items.length){ el.rows.innerHTML = '<tr><td colspan="9"><div class="empty">No intervention cases yet.</div></td></tr>'; return; }
+  el.rows.innerHTML = items.map(item=>`
+    <tr>
+      <td><strong>${esc(item.student)}</strong><div class="muted small">${esc(item.owner||'')}</div></td>
+      <td>${esc(item.area)}</td>
+      <td>${esc(item.tier)}</td>
+      <td>${fmtDate(item.reviewDate)}</td>
+      <td style="min-width:180px"><div class="progress"><span style="width:${Number(item.progress||0)}%"></span></div><div class="muted small">${Number(item.progress||0)}%</div></td>
+      <td>${esc(item.status)}</td>
+      <td class="small">${esc(item.plan||'')}</td>
+      <td>
+        <button class="btn alt" onclick="nudge('${item.id}',10)">+10%</button>
+        <button class="btn alt" onclick="nudge('${item.id}',-10)">-10%</button>
+        <button class="btn warn" onclick="removeItem('${item.id}')">Delete</button>
+      </td>
+    </tr>`).join('');
+}
+function nudge(id, amt){
+  const item = state.items.find(x=>x.id===id); if(!item) return;
+  item.progress = Math.max(0, Math.min(100, Number(item.progress||0) + amt));
+  item.status = item.progress < 40 ? 'Urgent' : (item.progress < 75 ? 'Active' : 'Stable');
+  persist();
+}
+function removeItem(id){ state.items = state.items.filter(x=>x.id!==id); persist(); }
+
+render();
+</script>
+</body>
+</html>

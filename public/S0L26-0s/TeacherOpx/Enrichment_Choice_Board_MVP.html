@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Enrichment Choice Board MVP • S0L26-0s Teacher Ops</title>
+<style>
+
+:root {
+  --bg:#0a0f1f;
+  --bg2:#101935;
+  --panel:rgba(15,22,46,.82);
+  --line:rgba(255,255,255,.11);
+  --text:#f6f8ff;
+  --muted:#b7c0e6;
+  --gold:#f3c95b;
+  --violet:#8b5cf6;
+  --cyan:#5eead4;
+  --danger:#ff7a7a;
+  --good:#76e7a8;
+  --shadow:0 20px 50px rgba(0,0,0,.35);
+}
+* { box-sizing:border-box; }
+html,body { margin:0; min-height:100%; background:
+radial-gradient(circle at 20% 20%, rgba(139,92,246,.25), transparent 35%),
+radial-gradient(circle at 80% 0%, rgba(94,234,212,.18), transparent 28%),
+linear-gradient(180deg, #070b16 0%, #0d1330 100%); color:var(--text); font-family:Inter,system-ui,Segoe UI,Arial,sans-serif; }
+a { color:inherit; text-decoration:none; }
+.shell { max-width:1420px; margin:0 auto; padding:24px; }
+.topbar {
+  display:flex; justify-content:space-between; gap:16px; align-items:center; flex-wrap:wrap;
+  padding:16px 18px; border:1px solid var(--line); background:rgba(8,12,28,.65); backdrop-filter:blur(18px);
+  border-radius:20px; box-shadow:var(--shadow); position:sticky; top:14px; z-index:5;
+}
+.brand h1 { margin:0; font-size:1.3rem; letter-spacing:.02em; }
+.brand p { margin:.25rem 0 0; color:var(--muted); }
+.navlinks { display:flex; flex-wrap:wrap; gap:10px; }
+.navlinks a, .chip {
+  border:1px solid var(--line); background:rgba(255,255,255,.04); color:var(--muted);
+  padding:10px 12px; border-radius:999px; font-size:.92rem;
+}
+.hero { margin-top:20px; display:grid; grid-template-columns:1.5fr .95fr; gap:18px; }
+.card { background:var(--panel); border:1px solid var(--line); border-radius:24px; box-shadow:var(--shadow); }
+.hero-main { padding:28px; position:relative; overflow:hidden; }
+.hero-main::after {
+  content:""; position:absolute; inset:auto -80px -80px auto; width:220px; height:220px; border-radius:50%;
+  background:radial-gradient(circle, rgba(243,201,91,.25), transparent 62%);
+  filter:blur(8px);
+}
+.kicker { color:var(--gold); text-transform:uppercase; letter-spacing:.18em; font-size:.78rem; font-weight:700; }
+.hero h2 { font-size:2.2rem; margin:.4rem 0 .8rem; line-height:1.05; }
+.hero p { color:var(--muted); max-width:65ch; }
+.hero-actions { display:flex; gap:12px; flex-wrap:wrap; margin-top:16px; }
+button, .button {
+  border:none; cursor:pointer; border-radius:14px; padding:12px 16px; font-weight:700; font-size:.96rem;
+  background:linear-gradient(135deg, var(--violet), #5f8bff); color:white;
+  box-shadow:0 12px 25px rgba(91,99,255,.3);
+}
+button.secondary, .button.secondary {
+  background:rgba(255,255,255,.05); color:var(--text); border:1px solid var(--line); box-shadow:none;
+}
+button.warn { background:linear-gradient(135deg, #b81f4b, #e86f45); }
+.hero-side { padding:22px; display:grid; grid-template-columns:1fr 1fr; gap:12px; align-content:start; }
+.metric {
+  padding:16px; border:1px solid var(--line); border-radius:18px; background:rgba(255,255,255,.035);
+}
+.metric .label { color:var(--muted); font-size:.86rem; }
+.metric .value { margin-top:8px; font-size:1.6rem; font-weight:800; }
+.main { margin-top:18px; display:grid; grid-template-columns:420px 1fr; gap:18px; }
+.panel { padding:22px; }
+.panel h3 { margin:0 0 12px; font-size:1.08rem; }
+.grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.field { display:flex; flex-direction:column; gap:6px; }
+.field span { color:var(--muted); font-size:.88rem; }
+input, select, textarea {
+  width:100%; background:rgba(255,255,255,.04); border:1px solid var(--line); color:var(--text);
+  border-radius:14px; padding:12px 13px; font:inherit; outline:none;
+}
+textarea { min-height:120px; resize:vertical; }
+.actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; }
+.toolbar {
+  display:flex; flex-wrap:wrap; gap:10px; justify-content:space-between; align-items:center; margin-bottom:14px;
+}
+.toolbar .search { min-width:220px; flex:1; }
+.table-wrap { overflow:auto; border:1px solid var(--line); border-radius:18px; }
+table { width:100%; border-collapse:collapse; min-width:920px; }
+th, td { padding:12px 14px; border-bottom:1px solid rgba(255,255,255,.08); text-align:left; vertical-align:top; }
+th { position:sticky; top:0; background:#141d3e; color:#dfe6ff; font-size:.9rem; }
+tr:hover td { background:rgba(255,255,255,.03); }
+.tag {
+  display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border-radius:999px; font-size:.84rem;
+  border:1px solid var(--line); background:rgba(255,255,255,.04); color:var(--muted);
+}
+.muted { color:var(--muted); }
+.dual { margin-top:18px; display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+.note-list { display:grid; gap:10px; margin-top:12px; }
+.note { border:1px solid var(--line); border-radius:16px; background:rgba(255,255,255,.035); padding:14px; }
+.footer { margin:22px 0 12px; color:var(--muted); text-align:center; font-size:.9rem; }
+.small { font-size:.88rem; color:var(--muted); }
+@media (max-width: 1120px) { .hero, .main, .dual { grid-template-columns:1fr; } }
+@media (max-width: 700px) {
+  .shell { padding:14px; }
+  .hero h2 { font-size:1.72rem; }
+  .grid { grid-template-columns:1fr; }
+  .hero-side { grid-template-columns:1fr 1fr; }
+}
+
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="topbar card">
+    <div class="brand">
+      <h1>Enrichment Choice Board MVP</h1>
+      <p>S0L26-0s Teacher Ops • Single-file browser workspace</p>
+    </div>
+    <div class="navlinks">
+      <a href="S0L26-0s_Teacher_Ops_Wave_1_Launcher.html">Wave 1</a><a href="S0L26-0s_Teacher_Ops_Wave_2_Launcher.html">Wave 2</a><a href="S0L26-0s_Teacher_Ops_Wave_3_Launcher.html">Wave 3</a><a href="S0L26-0s_Teacher_Ops_Wave_4_Launcher.html">Wave 4</a>
+    </div>
+  </div>
+
+  <section class="hero">
+    <div class="hero-main card">
+      <div class="kicker">Teacher Ops • Wave 4</div>
+      <h2>Enrichment Choice Board</h2>
+      <p>Design student choice lanes, tag difficulty and modality, then track which options are actually getting traction.</p>
+      <div class="hero-actions">
+        <button id="seedBtn">Reload Sample Data</button>
+        <button class="secondary" id="exportBtn">Export JSON</button>
+        <label class="button secondary" for="importInput">Import JSON</label>
+        <input id="importInput" type="file" accept=".json" hidden />
+      </div>
+    </div>
+    <div class="hero-side card" id="metrics"></div>
+  </section>
+
+  <section class="main">
+    <div class="panel card">
+      <h3>Add / Update Record</h3>
+      <form id="entryForm">
+        <input type="hidden" name="id" />
+        <div class="grid">
+          
+        <label class="field">
+          <span>Choice Task</span>
+          <input type="text" name="task" placeholder="Build a one-minute explainer video" required />
+        </label>
+
+        <label class="field">
+          <span>Unit / Theme</span>
+          <input type="text" name="unit" placeholder="Ancient Civilizations" required />
+        </label>
+
+        <label class="field">
+          <span>Modality</span>
+          <select name="modality" required><option value="Writing">Writing</option><option value="Speaking">Speaking</option><option value="Making">Making</option><option value="Research">Research</option><option value="Collaboration">Collaboration</option><option value="Tech Build">Tech Build</option><option value="Art / Design">Art / Design</option></select>
+        </label>
+
+        <label class="field">
+          <span>Difficulty</span>
+          <select name="difficulty" required><option value="Core">Core</option><option value="Stretch">Stretch</option><option value="Challenge">Challenge</option></select>
+        </label>
+
+        <label class="field">
+          <span>Estimated Time</span>
+          <input type="text" name="time" placeholder="30–45 min" required />
+        </label>
+
+        <label class="field">
+          <span>Grouping</span>
+          <select name="grouping" required><option value="Solo">Solo</option><option value="Partner">Partner</option><option value="Small Group">Small Group</option><option value="Flexible">Flexible</option></select>
+        </label>
+
+        <label class="field">
+          <span>Materials</span>
+          <input type="text" name="materials" placeholder="Poster paper, markers, rubric" required />
+        </label>
+
+        <label class="field">
+          <span>Student Picks</span>
+          <input type="number" name="adoption" placeholder="8" required />
+        </label>
+
+        <label class="field">
+          <span>Board Status</span>
+          <select name="status" required><option value="Active">Active</option><option value="Refresh Soon">Refresh Soon</option><option value="Archived">Archived</option><option value="Pilot">Pilot</option></select>
+        </label>
+        </div>
+        
+        <label class="field" style="margin-top:12px;">
+          <span>Teacher Notes</span>
+          <textarea name="notes" placeholder="What worked, what flopped, what students loved for weird reasons."></textarea>
+        </label>
+        <div class="actions">
+          <button type="submit">Save Record</button>
+          <button type="button" class="secondary" id="resetBtn">Clear Form</button>
+          <button type="button" class="warn" id="wipeBtn">Wipe All</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="panel card">
+      <div class="toolbar">
+        <div class="search">
+          <input id="searchInput" type="text" placeholder="Search records..." />
+        </div>
+        <div class="tag"><span id="countLabel">0</span> records</div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Choice Task</th><th>Unit / Theme</th><th>Modality</th><th>Difficulty</th><th>Estimated Time</th><th>Grouping</th><th>Materials</th><th>Student Picks</th><th>Board Status</th><th>Teacher Notes</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="dual">
+    <div class="panel card">
+      <h3 id="leftTitle">Operational Notes</h3>
+      <div class="note-list" id="leftNotes"></div>
+    </div>
+    <div class="panel card">
+      <h3 id="rightTitle">Highlights</h3>
+      <div class="note-list" id="rightNotes"></div>
+    </div>
+  </section>
+
+  <div class="footer">Teacher Ops Wave 4 • Local autosave + JSON import/export • Offline-friendly launcher links baked into the file.</div>
+</div>
+
+<script>
+const STORAGE_KEY = 'teacher_enrichment_choice_board_wave4';
+const SAMPLE_DATA = [
+  {
+    "task": "Build a one-minute explainer video",
+    "unit": "Ancient Civilizations",
+    "modality": "Tech Build",
+    "difficulty": "Challenge",
+    "time": "45 min",
+    "grouping": "Partner",
+    "materials": "Tablet + storyboard sheet",
+    "adoption": "12",
+    "status": "Active",
+    "notes": "Students love voiceover + map overlays."
+  },
+  {
+    "task": "Museum label writing",
+    "unit": "Ancient Civilizations",
+    "modality": "Writing",
+    "difficulty": "Core",
+    "time": "20 min",
+    "grouping": "Solo",
+    "materials": "Artifact cards",
+    "adoption": "7",
+    "status": "Active",
+    "notes": "Good quiet option for focused students."
+  },
+  {
+    "task": "Mini debate circle",
+    "unit": "Government Systems",
+    "modality": "Speaking",
+    "difficulty": "Stretch",
+    "time": "30 min",
+    "grouping": "Small Group",
+    "materials": "Claim cards + evidence slips",
+    "adoption": "3",
+    "status": "Refresh Soon",
+    "notes": "Prompt framing needs tightening."
+  }
+];
+const SEARCH_FIELDS = ["task", "unit", "modality", "difficulty", "time", "grouping", "materials", "status", "notes"];
+const form = document.getElementById('entryForm');
+const tbody = document.getElementById('tbody');
+const metricsEl = document.getElementById('metrics');
+const searchInput = document.getElementById('searchInput');
+const countLabel = document.getElementById('countLabel');
+const importInput = document.getElementById('importInput');
+const leftNotes = document.getElementById('leftNotes');
+const rightNotes = document.getElementById('rightNotes');
+const leftTitle = document.getElementById('leftTitle');
+const rightTitle = document.getElementById('rightTitle');
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&','&amp;')
+    .replaceAll('<','&lt;')
+    .replaceAll('>','&gt;')
+    .replaceAll('"','&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+function uid() {
+  return 'id-' + Math.random().toString(36).slice(2, 10);
+}
+
+function loadRows() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return structuredClone(SAMPLE_DATA);
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : structuredClone(SAMPLE_DATA);
+  } catch (err) {
+    return structuredClone(SAMPLE_DATA);
+  }
+}
+
+function saveRows(rows) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
+}
+
+let rows = loadRows();
+if (!localStorage.getItem(STORAGE_KEY)) saveRows(rows);
+
+function renderMetrics(rows) {
+  const cards = (() => {
+    
+const totalPicks = rows.reduce((acc,r)=>acc+(Number(r.adoption)||0),0);
+const challenge = rows.filter(r => r.difficulty === 'Challenge').length;
+const active = rows.filter(r => r.status === 'Active').length;
+const modalities = new Set(rows.map(r => r.modality).filter(Boolean));
+return [
+  ['Choice Tasks', rows.length],
+  ['Student Picks', totalPicks],
+  ['Modalities', modalities.size],
+  ['Active / Challenge', `${active} / ${challenge}`]
+];
+
+  })();
+  metricsEl.innerHTML = cards.map(([label, value]) => `
+    <div class="metric">
+      <div class="label">${escapeHtml(label)}</div>
+      <div class="value">${escapeHtml(value)}</div>
+    </div>
+  `).join('');
+}
+
+function renderInsights(rows) {
+  const data = (() => {
+    
+const popular = rows.slice().sort((a,b)=>(Number(b.adoption)||0)-(Number(a.adoption)||0)).slice(0,5);
+const refresh = rows.filter(r => r.status === 'Refresh Soon' || r.status === 'Pilot');
+return {
+  leftTitle:'Most Selected Tasks',
+  leftItems: popular.length ? popular.map(r => `<strong>${escapeHtml(r.task)}</strong><br><span class="small">${escapeHtml(r.adoption)} picks • ${escapeHtml(r.modality)} • ${escapeHtml(r.difficulty)}</span>`) : ['No choices tracked yet.'],
+  rightTitle:'Refresh / Pilot Lane',
+  rightItems: refresh.length ? refresh.map(r => `<strong>${escapeHtml(r.task)}</strong><br><span class="small">${escapeHtml(r.status)} • ${escapeHtml(r.notes || 'No note added')}</span>`) : ['No refresh tasks yet.']
+};
+
+  })();
+  leftTitle.textContent = data.leftTitle;
+  rightTitle.textContent = data.rightTitle;
+  leftNotes.innerHTML = data.leftItems.map(item => `<div class="note">${item}</div>`).join('');
+  rightNotes.innerHTML = data.rightItems.map(item => `<div class="note">${item}</div>`).join('');
+}
+
+function renderTable() {
+  const q = searchInput.value.trim().toLowerCase();
+  const visible = rows.filter(item => !q || SEARCH_FIELDS.some(field => String(item[field] || '').toLowerCase().includes(q)));
+  countLabel.textContent = visible.length;
+  tbody.innerHTML = '';
+  visible.forEach(item => {
+    let html = '<tr>';
+    html += `<td>${escapeHtml(item.task || '')}</td>`;
+    html += `<td>${escapeHtml(item.unit || '')}</td>`;
+    html += `<td>${escapeHtml(item.modality || '')}</td>`;
+    html += `<td>${escapeHtml(item.difficulty || '')}</td>`;
+    html += `<td>${escapeHtml(item.time || '')}</td>`;
+    html += `<td>${escapeHtml(item.grouping || '')}</td>`;
+    html += `<td>${escapeHtml(item.materials || '')}</td>`;
+    html += `<td>${escapeHtml(item.adoption || '')}</td>`;
+    html += `<td>${escapeHtml(item.status || '')}</td>`;
+    html += `<td>${escapeHtml(item.notes || '')}</td>`;
+    html += `<td>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="secondary" data-edit="${item.id}">Edit</button>
+        <button class="warn" data-delete="${item.id}">Delete</button>
+      </div>
+    </td>`;
+    html += '</tr>';
+    tbody.insertAdjacentHTML('beforeend', html);
+  });
+  renderMetrics(rows);
+  renderInsights(rows);
+}
+
+function resetForm() {
+  form.reset();
+  form.elements.id.value = '';
+}
+
+function editRow(id) {
+  const item = rows.find(r => r.id === id);
+  if (!item) return;
+  form.elements.id.value = item.id;
+  form.elements['task'].value = item.task || '';
+  form.elements['unit'].value = item.unit || '';
+  form.elements['modality'].value = item.modality || '';
+  form.elements['difficulty'].value = item.difficulty || '';
+  form.elements['time'].value = item.time || '';
+  form.elements['grouping'].value = item.grouping || '';
+  form.elements['materials'].value = item.materials || '';
+  form.elements['adoption'].value = item.adoption || '';
+  form.elements['status'].value = item.status || '';
+  form.elements['notes'].value = item.notes || '';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function deleteRow(id) {
+  rows = rows.filter(r => r.id !== id);
+  saveRows(rows);
+  renderTable();
+}
+
+form.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const payload = {
+      task: form.elements['task'].value.trim(),
+      unit: form.elements['unit'].value.trim(),
+      modality: form.elements['modality'].value.trim(),
+      difficulty: form.elements['difficulty'].value.trim(),
+      time: form.elements['time'].value.trim(),
+      grouping: form.elements['grouping'].value.trim(),
+      materials: form.elements['materials'].value.trim(),
+      adoption: String(form.elements['adoption'].value || '').trim(),
+      status: form.elements['status'].value.trim(),
+      notes: form.elements['notes'].value.trim()
+  };
+  if (form.elements.id.value) {
+    payload.id = form.elements.id.value;
+    rows = rows.map(r => r.id === payload.id ? payload : r);
+  } else {
+    payload.id = uid();
+    rows.unshift(payload);
+  }
+  saveRows(rows);
+  renderTable();
+  resetForm();
+});
+
+document.getElementById('resetBtn').addEventListener('click', resetForm);
+document.getElementById('wipeBtn').addEventListener('click', () => {
+  if (!confirm('Wipe all local records for this app?')) return;
+  rows = structuredClone(SAMPLE_DATA).map(r => ({ ...r, id: uid() }));
+  saveRows(rows);
+  resetForm();
+  renderTable();
+});
+document.getElementById('seedBtn').addEventListener('click', () => {
+  rows = structuredClone(SAMPLE_DATA).map(r => ({ ...r, id: uid() }));
+  saveRows(rows);
+  resetForm();
+  renderTable();
+});
+document.getElementById('exportBtn').addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify(rows, null, 2)], { type:'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'Enrichment_Choice_Board_MVP.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+importInput.addEventListener('change', async (e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  try {
+    const text = await file.text();
+    const parsed = JSON.parse(text);
+    if (!Array.isArray(parsed)) throw new Error('Expected JSON array');
+    rows = parsed.map(item => ({ id: item.id || uid(), ...item }));
+    saveRows(rows);
+    renderTable();
+    resetForm();
+  } catch (err) {
+    alert('Import failed. Feed it a JSON array, not chaos dust.');
+  }
+  e.target.value = '';
+});
+
+searchInput.addEventListener('input', renderTable);
+tbody.addEventListener('click', (e) => {
+  const editId = e.target.getAttribute('data-edit');
+  const deleteId = e.target.getAttribute('data-delete');
+  if (editId) editRow(editId);
+  if (deleteId) deleteRow(deleteId);
+});
+
+rows = rows.map(r => ({ id: r.id || uid(), ...r }));
+saveRows(rows);
+renderTable();
+</script>
+</body>
+</html>

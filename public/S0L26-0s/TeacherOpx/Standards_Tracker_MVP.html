@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Standards Tracker • S0L26-0s Teacher Ops</title>
+<style>
+:root {
+  --bg:#0a0f1f;
+  --bg2:#101935;
+  --panel:rgba(15,22,46,.82);
+  --line:rgba(255,255,255,.11);
+  --text:#f6f8ff;
+  --muted:#b7c0e6;
+  --gold:#f3c95b;
+  --violet:#8b5cf6;
+  --cyan:#5eead4;
+  --danger:#ff7a7a;
+  --good:#76e7a8;
+  --shadow:0 20px 50px rgba(0,0,0,.35);
+}
+* { box-sizing:border-box; }
+html,body { margin:0; min-height:100%; background:
+radial-gradient(circle at 20% 20%, rgba(139,92,246,.25), transparent 35%),
+radial-gradient(circle at 80% 0%, rgba(94,234,212,.18), transparent 28%),
+linear-gradient(180deg, #070b16 0%, #0d1330 100%); color:var(--text); font-family:Inter,system-ui,Segoe UI,Arial,sans-serif; }
+a { color:inherit; text-decoration:none; }
+.shell { max-width:1420px; margin:0 auto; padding:24px; }
+.topbar {
+  display:flex; justify-content:space-between; gap:16px; align-items:center; flex-wrap:wrap;
+  padding:16px 18px; border:1px solid var(--line); background:rgba(8,12,28,.65); backdrop-filter:blur(18px);
+  border-radius:20px; box-shadow:var(--shadow); position:sticky; top:14px; z-index:5;
+}
+.brand h1 { margin:0; font-size:1.3rem; letter-spacing:.02em; }
+.brand p { margin:.25rem 0 0; color:var(--muted); }
+.navlinks { display:flex; flex-wrap:wrap; gap:10px; }
+.navlinks a, .chip {
+  border:1px solid var(--line); background:rgba(255,255,255,.04); color:var(--muted);
+  padding:10px 12px; border-radius:999px; font-size:.92rem;
+}
+.hero {
+  margin-top:20px; display:grid; grid-template-columns:1.5fr .95fr; gap:18px;
+}
+.card {
+  background:var(--panel); border:1px solid var(--line); border-radius:24px; box-shadow:var(--shadow);
+}
+.hero-main { padding:28px; position:relative; overflow:hidden; }
+.hero-main::after {
+  content:""; position:absolute; inset:auto -80px -80px auto; width:220px; height:220px; border-radius:50%;
+  background:radial-gradient(circle, rgba(243,201,91,.25), transparent 62%);
+  filter:blur(8px);
+}
+.kicker { color:var(--gold); text-transform:uppercase; letter-spacing:.18em; font-size:.78rem; font-weight:700; }
+.hero h2 { font-size:2.2rem; margin:.4rem 0 .8rem; line-height:1.05; }
+.hero p { color:var(--muted); max-width:65ch; }
+.hero-actions { display:flex; gap:12px; flex-wrap:wrap; margin-top:16px; }
+button, .button {
+  border:none; cursor:pointer; border-radius:14px; padding:12px 16px; font-weight:700; font-size:.96rem;
+  background:linear-gradient(135deg, var(--violet), #5f8bff); color:white;
+  box-shadow:0 12px 25px rgba(91,99,255,.3);
+}
+button.secondary, .button.secondary {
+  background:rgba(255,255,255,.05); color:var(--text); border:1px solid var(--line); box-shadow:none;
+}
+button.warn { background:linear-gradient(135deg, #b81f4b, #e86f45); }
+.hero-side { padding:22px; display:grid; grid-template-columns:1fr 1fr; gap:12px; align-content:start; }
+.metric {
+  padding:16px; border:1px solid var(--line); border-radius:18px; background:rgba(255,255,255,.035);
+}
+.metric .label { color:var(--muted); font-size:.86rem; }
+.metric .value { margin-top:8px; font-size:1.6rem; font-weight:800; }
+.main {
+  margin-top:18px; display:grid; grid-template-columns:420px 1fr; gap:18px;
+}
+.panel { padding:22px; }
+.panel h3 { margin:0 0 12px; font-size:1.08rem; }
+.grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.field { display:flex; flex-direction:column; gap:6px; }
+.field span { color:var(--muted); font-size:.88rem; }
+input, select, textarea {
+  width:100%; background:rgba(255,255,255,.04); border:1px solid var(--line); color:var(--text);
+  border-radius:14px; padding:12px 13px; font:inherit; outline:none;
+}
+textarea { min-height:120px; resize:vertical; }
+.actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; }
+.toolbar {
+  display:flex; flex-wrap:wrap; gap:10px; justify-content:space-between; align-items:center; margin-bottom:14px;
+}
+.toolbar .search {
+  min-width:220px; flex:1;
+}
+.table-wrap { overflow:auto; border:1px solid var(--line); border-radius:18px; }
+table { width:100%; border-collapse:collapse; min-width:820px; }
+th, td { padding:12px 14px; border-bottom:1px solid rgba(255,255,255,.08); text-align:left; vertical-align:top; }
+th { position:sticky; top:0; background:#141d3e; color:#dfe6ff; font-size:.9rem; }
+tr:hover td { background:rgba(255,255,255,.03); }
+.tag {
+  display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border-radius:999px; font-size:.84rem;
+  border:1px solid var(--line); background:rgba(255,255,255,.04); color:var(--muted);
+}
+.muted { color:var(--muted); }
+.dual {
+  margin-top:18px; display:grid; grid-template-columns:1fr 1fr; gap:18px;
+}
+.note-list {
+  display:grid; gap:10px; margin-top:12px;
+}
+.note {
+  border:1px solid var(--line); border-radius:16px; background:rgba(255,255,255,.035); padding:14px;
+}
+.footer {
+  margin:22px 0 12px; color:var(--muted); text-align:center; font-size:.9rem;
+}
+@media (max-width: 1120px) {
+  .hero, .main, .dual { grid-template-columns:1fr; }
+}
+@media (max-width: 700px) {
+  .shell { padding:14px; }
+  .hero h2 { font-size:1.72rem; }
+  .grid { grid-template-columns:1fr; }
+  .hero-side { grid-template-columns:1fr 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="topbar card">
+    <div class="brand">
+      <h1>Standards Tracker MVP</h1>
+      <p>S0L26-0s Teacher Ops • Single-file browser workspace</p>
+    </div>
+    <div class="navlinks">
+      <a href="S0L26-0s_Teacher_Ops_Wave_1_Launcher.html">Wave 1</a><a href="S0L26-0s_Teacher_Ops_Wave_2_Launcher.html">Wave 2</a><a href="S0L26-0s_Teacher_Ops_Wave_3_Launcher.html">Wave 3</a>
+    </div>
+  </div>
+
+  <section class="hero">
+    <div class="hero-main card">
+      <div class="kicker">Teacher Ops • Wave 3</div>
+      <h2>Standards Tracker</h2>
+      <p>Map standards, monitor coverage, and flag reteach needs across units.</p>
+      <div class="hero-actions">
+        <button id="seedBtn">Reload Sample Data</button>
+        <button class="secondary" id="exportBtn">Export JSON</button>
+        <label class="button secondary" for="importInput">Import JSON</label>
+        <input id="importInput" type="file" accept=".json" hidden />
+      </div>
+    </div>
+    <div class="hero-side card" id="metrics"></div>
+  </section>
+
+  <section class="main">
+    <div class="panel card">
+      <h3>Add / Update Standard</h3>
+      <form id="entryForm">
+        <input type="hidden" name="id" />
+        <div class="grid">
+          
+        <label class="field">
+          <span>Standard Code</span>
+          <input type="text" name="code" placeholder="ELA.5.RI.2" required />
+        </label>
+
+        <label class="field">
+          <span>Subject</span>
+          <select name="subject" required><option value="ELA">ELA</option><option value="Math">Math</option><option value="Science">Science</option><option value="Social Studies">Social Studies</option><option value="Elective">Elective</option></select>
+        </label>
+
+        <label class="field">
+          <span>Unit</span>
+          <input type="text" name="unit" placeholder="Argument Writing" required />
+        </label>
+
+        <label class="field">
+          <span>Coverage Status</span>
+          <select name="status" required><option value="Planned">Planned</option><option value="Introduced">Introduced</option><option value="Practiced">Practiced</option><option value="Mastery Check">Mastery Check</option><option value="Reteach Needed">Reteach Needed</option></select>
+        </label>
+
+        <label class="field">
+          <span>Class Mastery %</span>
+          <input type="number" name="mastery" placeholder="78" required />
+        </label>
+
+        <label class="field">
+          <span>Evidence / Assessment</span>
+          <input type="text" name="evidence" placeholder="Quiz 2 + exit ticket" required />
+        </label>
+        </div>
+        <label class="field" style="margin-top:12px;">
+          <span>Notes / Follow-up</span>
+          <textarea name="internalNotes" placeholder="Add context, action items, reminders, and weird little classroom realities."></textarea>
+        </label>
+        <div class="actions">
+          <button type="submit">Save Record</button>
+          <button type="button" class="secondary" id="resetBtn">Clear Form</button>
+          <button type="button" class="warn" id="wipeBtn">Wipe All</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="panel card">
+      <div class="toolbar">
+        <div class="search">
+          <input id="searchInput" type="text" placeholder="Search records..." />
+        </div>
+        <div class="tag"><span id="countLabel">0</span> records</div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Code</th><th>Subject</th><th>Unit</th><th>Status</th><th>Mastery %</th><th>Evidence</th>
+              <th>Notes</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="dual">
+    <div class="panel card">
+      <h3>Quick Ops Notes</h3>
+      <label class="field">
+        <span>Scratchpad</span>
+        <textarea id="scratchpad" placeholder="Bell schedule quirks, tomorrow's pivots, group reshuffles, conference reminders, and whatever else the school day hurls at your face."></textarea>
+      </label>
+      <div class="actions">
+        <button class="secondary" id="saveScratchBtn">Save Notes</button>
+      </div>
+    </div>
+    <div class="panel card">
+      <h3>Recent Items</h3>
+      <div class="note-list" id="recentList"></div>
+    </div>
+  </section>
+
+  <div class="footer">Built for offline review • local autosave enabled • JSON import/export included</div>
+</div>
+
+<script>
+const STORAGE_KEY = "s0l26_teacher_standards_tracker";
+const SCRATCH_KEY = STORAGE_KEY + "_scratch";
+const SAMPLE_ROWS = [{"code": "ELA.5.RI.2", "subject": "ELA", "unit": "Argument Writing", "status": "Practiced", "mastery": "76", "evidence": "Close read response"}, {"code": "MATH.5.NBT.7", "subject": "Math", "unit": "Decimal Operations", "status": "Mastery Check", "mastery": "84", "evidence": "Unit checkpoint"}, {"code": "SCI.5.PS1", "subject": "Science", "unit": "Matter & Reactions", "status": "Reteach Needed", "mastery": "61", "evidence": "Lab reflection"}];
+
+const form = document.getElementById('entryForm');
+const tbody = document.getElementById('tbody');
+const searchInput = document.getElementById('searchInput');
+const countLabel = document.getElementById('countLabel');
+const metricsEl = document.getElementById('metrics');
+const recentList = document.getElementById('recentList');
+const scratchpad = document.getElementById('scratchpad');
+
+let rows = [];
+
+function uid() {
+  return 'id-' + Math.random().toString(36).slice(2,9) + Date.now().toString(36);
+}
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
+}
+
+function load() {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  rows = raw ? JSON.parse(raw) : SAMPLE_ROWS.map(r => ({...r, id: uid(), createdAt: new Date().toISOString()}));
+  rows = rows.map(r => ({ createdAt: r.createdAt || new Date().toISOString(), ...r }));
+  if (!raw) save();
+}
+
+function saveScratch() {
+  localStorage.setItem(SCRATCH_KEY, scratchpad.value);
+}
+
+function loadScratch() {
+  scratchpad.value = localStorage.getItem(SCRATCH_KEY) || '';
+}
+
+function getMetrics() {
+  return [{label:'Tracked Standards', value: rows.length},{label:'Reteach Needed', value: rows.filter(r=>r.status==='Reteach Needed').length},{label:'Avg Mastery', value: rows.length? Math.round(rows.reduce((a,r)=>a+(parseFloat(r.mastery)||0),0)/rows.length)+'%':'0%'},{label:'Subjects Active', value: new Set(rows.map(r=>r.subject)).size}];
+}
+
+function renderMetrics() {
+  metricsEl.innerHTML = getMetrics().map(m => `
+    <div class="metric">
+      <div class="label">${m.label}</div>
+      <div class="value">${m.value}</div>
+    </div>
+  `).join('');
+}
+
+function escapeHtml(str) {
+  return String(str ?? '').replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
+}
+
+function filteredRows() {
+  const q = searchInput.value.trim().toLowerCase();
+  if (!q) return [...rows].sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
+  return rows.filter(r => Object.values(r).some(v => String(v ?? '').toLowerCase().includes(q)))
+             .sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
+}
+
+function renderRecent() {
+  const items = [...rows].sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).slice(0,5);
+  recentList.innerHTML = items.length ? items.map(item => `
+    <div class="note">
+      <strong>${escapeHtml(item["code"]) || 'Untitled'}</strong>
+      <div class="muted" style="margin-top:6px;">${escapeHtml(item["subject"] || item["unit"] || '')}</div>
+      <div style="margin-top:8px;">${escapeHtml(item.internalNotes || 'No notes yet.')}</div>
+    </div>
+  `).join('') : '<div class="note muted">No records yet. Add one and the recent list wakes up.</div>';
+}
+
+function renderTable() {
+  const data = filteredRows();
+  countLabel.textContent = data.length;
+  tbody.innerHTML = data.length ? data.map(item => `
+    <tr>
+      <td>${escapeHtml(item.code)}</td><td>${escapeHtml(item.subject)}</td><td>${escapeHtml(item.unit)}</td><td>${escapeHtml(item.status)}</td><td>${escapeHtml(item.mastery)}</td><td>${escapeHtml(item.evidence)}</td>
+      <td>${escapeHtml(item.internalNotes || '')}</td>
+      <td>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="secondary" onclick="editRow('${item.id}')">Edit</button>
+          <button class="warn" onclick="deleteRow('${item.id}')">Delete</button>
+        </div>
+      </td>
+    </tr>
+  `).join('') : `<tr><td colspan="8" class="muted">No matching records. The board is currently quieter than a copier at 6:02 AM.</td></tr>`;
+  renderMetrics();
+  renderRecent();
+}
+
+function formDataToRow(fd) {
+  const row = {};
+  for (const [k,v] of fd.entries()) row[k] = v.trim();
+  row.id = row.id || uid();
+  row.createdAt = row.createdAt || new Date().toISOString();
+  return row;
+}
+
+form.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const fd = new FormData(form);
+  const existingId = fd.get('id');
+  const existing = rows.find(r => r.id === existingId);
+  const next = formDataToRow(fd);
+  if (existing) next.createdAt = existing.createdAt;
+  rows = existing ? rows.map(r => r.id === next.id ? next : r) : [next, ...rows];
+  save();
+  renderTable();
+  form.reset();
+  form.elements.id.value = '';
+});
+
+document.getElementById('resetBtn').addEventListener('click', () => {
+  form.reset();
+  form.elements.id.value = '';
+});
+
+document.getElementById('wipeBtn').addEventListener('click', () => {
+  if (!confirm('Wipe all saved records for this app?')) return;
+  rows = [];
+  save();
+  renderTable();
+  form.reset();
+});
+
+document.getElementById('seedBtn').addEventListener('click', () => {
+  if (!confirm('Reload sample data and replace current records?')) return;
+  rows = SAMPLE_ROWS.map(r => ({...r, id: uid(), createdAt: new Date().toISOString()}));
+  save();
+  renderTable();
+});
+
+document.getElementById('exportBtn').addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify(rows, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = "Standards_Tracker_MVP.json";
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+
+document.getElementById('importInput').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  try {
+    const text = await file.text();
+    const parsed = JSON.parse(text);
+    if (!Array.isArray(parsed)) throw new Error('JSON must be an array');
+    rows = parsed.map(r => ({ id: r.id || uid(), createdAt: r.createdAt || new Date().toISOString(), ...r }));
+    save();
+    renderTable();
+  } catch (err) {
+    alert('Import failed: ' + err.message);
+  }
+  e.target.value = '';
+});
+
+searchInput.addEventListener('input', renderTable);
+document.getElementById('saveScratchBtn').addEventListener('click', saveScratch);
+scratchpad.addEventListener('input', () => {
+  clearTimeout(window.__scratchTimer);
+  window.__scratchTimer = setTimeout(saveScratch, 250);
+});
+
+window.editRow = function(id) {
+  const item = rows.find(r => r.id === id);
+  if (!item) return;
+  for (const [k,v] of Object.entries(item)) {
+    if (form.elements[k]) form.elements[k].value = v;
+  }
+  window.scrollTo({top:0, behavior:'smooth'});
+};
+
+window.deleteRow = function(id) {
+  if (!confirm('Delete this record?')) return;
+  rows = rows.filter(r => r.id !== id);
+  save();
+  renderTable();
+};
+
+load();
+loadScratch();
+renderTable();
+</script>
+</body>
+</html>
