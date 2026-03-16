@@ -1,0 +1,17 @@
+{
+  "name": "skye-mini-ops-suite",
+  "version": "11.0.0",
+  "private": true,
+  "description": "Offline-first mini ops suite with optional E2EE sync + RBAC + SSO/SCIM/WebAuthn + WORM audit anchors + signed update channel",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "pg": "^8.11.5",
+    "jose": "^5.10.0",
+    "samlify": "^2.10.0",
+    "@simplewebauthn/server": "^9.2.2",
+    "@aws-sdk/client-kms": "^3.540.0",
+    "fflate": "^0.8.2"
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "format": "skye-update-manifest/v1",
+  "product": "skye-mini-ops-suite",
+  "channel": "stable",
+  "version": "10",
+  "buildId": "20260222-100700-PHX",
+  "schemaVersion": 10,
+  "publishedAt": "2026-02-22T10:07:00-07:00",
+  "notes": "v10 enterprise security stack: optional OIDC + SAML SSO, SCIM provisioning (Users/Groups) with role + per-vault grant mapping, WebAuthn security key enrollment + step-up enforcement, WORM audit log (append-only) + KMS-signed daily audit anchors, and HSM/KMS update signing tooling.",
+  "assets": [
+    {
+      "path": "/assets/shell.js",
+      "sha256": "1FQBNDbcSxDg8MAMW1BeT2jwGImv9kBB7EqEiVzlEL8="
+    },
+    {
+      "path": "/assets/suite.js",
+      "sha256": "mZ6kGXyxURFHO4x6o2EBOP5bZAbYvys6NR+koGbU4KA="
+    },
+    {
+      "path": "/assets/app.css",
+      "sha256": "EXOwXKBbei7sZjd1YVFI0Z1CPHt8tGH8ELK8zfPRfCo="
+    },
+    {
+      "path": "/index.html",
+      "sha256": "kCXoWYK/zMDiPLbeAG/jBQN7Rv5VTzHI6znG7ewKyTg="
+    },
+    {
+      "path": "/sw.js",
+      "sha256": "hhDMF68u1N4qtsKc9dbkn1LZC2lZhhkLbNSJBKY47QM="
+    },
+    {
+      "path": "/sync/app.js",
+      "sha256": "w3l/SQuFbI7xKLg5rtWs/jZPDACVF5ELTrFrqOPSZJQ="
+    },
+    {
+      "path": "/sync/index.html",
+      "sha256": "bWq75y3Z3mljpeOA2lLRxpuxQEorsiK2plasIbBRSrQ="
+    },
+    {
+      "path": "/sso/oidc-callback.html",
+      "sha256": "yymg2wDe3DKwYZuK95i2V1xdxr8lL/LJhWmFrQsANLY="
+    },
+    {
+      "path": "/sso/oidc-callback.js",
+      "sha256": "WqfG0aAjPe+Rj9oPraN2vytg7eVGnlGY62fZ4t7XnGE="
+    },
+    {
+      "path": "/sso/saml-acs.js",
+      "sha256": "sr8bQJKNWxkFrGQhq3MN6KCfU9ufI77BF/tnn7sqcIc="
+    }
+  ]
+}

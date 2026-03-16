@@ -1,0 +1,117 @@
+{
+  "defaultWorkspaces": [
+    {
+      "id": "skyepdf-forge",
+      "label": "SkyePDF Forge",
+      "href": "/S0L26-0s/SkyePDF-Forge/index.html",
+      "summary": "PDF generation and conversion lane inside the local operating system cluster."
+    },
+    {
+      "id": "skyecloud",
+      "label": "SkyeCloud",
+      "href": "/S0L26-0s/SkyeCloud/index.html",
+      "summary": "Cloud operations lane for deploy, assets, prompts, and orchestration."
+    },
+    {
+      "id": "superide",
+      "label": "SuperIDE",
+      "href": "/",
+      "summary": "Main IDE runtime when the operator needs the full shell."
+    }
+  ],
+  "externalLinks": [
+    "https://skyesol.netlify.app/",
+    "https://skyeletix.netlify.app/",
+    "https://northstarofficexaccounting.netlify.app/",
+    "https://valleyverified-v1.netlify.app/",
+    "https://sole-nexus.netlify.app/",
+    "https://solenterprisesnexusconnect.netlify.app/",
+    "https://skyefamilyhub.netlify.app/",
+    "https://sentinelwebauthority.netlify.app/",
+    "https://solenteaiskyes.netlify.app/",
+    "https://familycommand.netlify.app/",
+    "https://skyecode-nexus.netlify.app/",
+    "https://skyesoverlondon.netlify.app/",
+    "https://solenterprises.org/pages/skyeweb"
+  ],
+  "sections": [
+    {
+      "id": "apps",
+      "kicker": "Core Apps",
+      "title": "Apps And Execution Surfaces",
+      "description": "Primary work apps and operational lanes that make up the day-to-day operating system.",
+      "items": [
+        { "id": "superide-root", "label": "SuperIDE", "href": "/", "summary": "Full runtime shell and global operating environment." },
+        { "id": "skyedocxpro", "label": "SkyeDocxPro", "href": "/SkyeDocxPro/index.html", "summary": "Document production, letters, packets, and polished output." },
+        { "id": "skydex", "label": "SkyDex 4.6", "href": "/SkyDex4.6/index.html", "summary": "Operational workspace with recall, bridge, and release-lane visibility." },
+        { "id": "skyemail", "label": "SkyeMail", "href": "/SkyeMail/index.html", "summary": "Mail execution surface for inbox, templates, campaigns, and sender-health operations." },
+        { "id": "skyechat", "label": "SkyeChat", "href": "/SkyeChat/index.html", "summary": "Social and communication execution surface for creator, command, and messenger lanes." },
+        { "id": "skyedrive", "label": "SkyeDrive", "href": "/SkyeDrive/index.html", "summary": "Asset storage and retrieval surface across the operating system." },
+        { "id": "skyeblog", "label": "SkyeBlog", "href": "/SkyeBlog/index.html", "summary": "Publishing and bridge-compatible writing surface." },
+        { "id": "skyepdf-forge", "label": "SkyePDF Forge", "href": "/S0L26-0s/SkyePDF-Forge/index.html", "summary": "PDF generation and document conversion surface in the S0L26 lane." },
+        { "id": "time-hour-logger", "label": "Skye Time Hour Logger", "href": "/S0L26-0s/SkyeTimeHourLogger/public/index.html", "summary": "Time logging and work tracking surface." },
+        { "id": "solecontractor-addon", "label": "Sole Contractor Addon", "href": "/S0L26-0s/solecontractorapp-0s%20addon/index.html", "summary": "Local contractor-focused addon surface in the S0L26 lane." }
+      ]
+    },
+    {
+      "id": "platforms",
+      "kicker": "Platforms",
+      "title": "Platform Families",
+      "description": "Larger suite-level surfaces and grouped platform launchers.",
+      "items": [
+        { "id": "neural-space-pro", "label": "Neural Space Pro", "href": "/Neural-Space-Pro/index.html", "summary": "AI workspace and suite launcher with embedded command surfaces." },
+        { "id": "kaixu-platform", "label": "kAIxU Platform", "href": "/kAIxU/index.html", "summary": "Platform front door for the kAIxU family and product tracks." },
+        { "id": "gbp-rescue-suite", "label": "GBP Rescue Suite", "href": "/GBPRescueSuite/index.html", "summary": "Google Business Profile rescue command launcher and linked lanes." },
+        { "id": "contractor-workflow", "label": "Contractor Workflow Suite", "href": "/ContractorWorkflowSuite/index.html", "summary": "Contractor routing, verification, outreach, and final packet flow." },
+        { "id": "skyecloud-local", "label": "SkyeCloud", "href": "/S0L26-0s/SkyeCloud/index.html", "summary": "S0L26 cloud lane with deploy, vault, data, and prompt tools." },
+        { "id": "mini-ops-suite", "label": "Mini Ops Suite", "href": "/S0L26-0s/Mini-Ops-SUite/public/index.html", "summary": "Compact operations suite for notes, sync, focus, and cash utilities." },
+        { "id": "demon-lead-forge", "label": "DemonLeadForge", "href": "/S0L26-0s/DemonLeadForge/public/index.html", "summary": "Lead-generation lane inside the local operating system group." }
+      ]
+    },
+    {
+      "id": "admin-tools",
+      "kicker": "Admin And Control",
+      "title": "Admin Menus, Dashboards, And Control Surfaces",
+      "description": "The control layer for admin access, founder-level command, identity, and operational dashboards.",
+      "items": [
+        { "id": "skyeadmin", "label": "SkyeAdmin", "href": "/SkyeAdmin/index.html", "summary": "Administrative command center for runtime-level oversight." },
+        { "id": "skye-id", "label": "Skye ID", "href": "/Skye-ID/index.html", "summary": "Sign-in, identity, and account entry surface." },
+        { "id": "skyeplatinum", "label": "Skye Platinum", "href": "/SkyePlatinum/index.html", "summary": "Executive command, clients, and command-tier operational oversight." },
+        { "id": "skyevault-pro", "label": "SkyeVault Pro", "href": "/SkyeVault-Pro-v4.46/index.html", "summary": "Vault and founder-side storage control surface." },
+        { "id": "sovereign-variables", "label": "Sovereign Variables", "href": "/SovereignVariables/index.html", "summary": "Governance and system-level variable management surface." }
+      ]
+    },
+    {
+      "id": "api-tools",
+      "kicker": "Developer Tools",
+      "title": "API And Builder Surfaces",
+      "description": "Direct access to technical tools, playgrounds, and builder environments.",
+      "items": [
+        { "id": "api-playground", "label": "API Playground", "href": "/API-Playground/index.html", "summary": "Inspect and test API flows from a dedicated surface." },
+        { "id": "react2html", "label": "React2HTML", "href": "/REACT2HTML/index.html", "summary": "Builder utility for React-to-HTML surface work." },
+        { "id": "neural-bridge", "label": "Neural Space Pro", "href": "/Neural-Space-Pro/index.html", "summary": "AI build surface when development work needs the larger prompt and command environment." }
+      ]
+    },
+    {
+      "id": "external-sites",
+      "kicker": "External Properties",
+      "title": "Other Websites And Public Properties",
+      "description": "Standalone sites that should still be reachable from the central operating-system front door.",
+      "items": [
+        { "id": "ext-skyesol", "label": "SkyeSol", "href": "https://skyesol.netlify.app/", "summary": "Standalone external property.", "external": true },
+        { "id": "ext-skyeletix", "label": "Skyeletix", "href": "https://skyeletix.netlify.app/", "summary": "Standalone external property.", "external": true },
+        { "id": "ext-northstar-office", "label": "Northstar Office X Accounting", "href": "https://northstarofficexaccounting.netlify.app/", "summary": "Standalone external property.", "external": true },
+        { "id": "ext-valleyverified", "label": "Valley Verified", "href": "https://valleyverified-v1.netlify.app/", "summary": "Standalone external property.", "external": true },
+        { "id": "ext-sole-nexus", "label": "SOLE Nexus", "href": "https://sole-nexus.netlify.app", "summary": "Standalone external property.", "external": true },
+        { "id": "ext-nexus-connect", "label": "SOLE Enterprises Nexus Connect", "href": "https://solenterprisesnexusconnect.netlify.app/", "summary": "Standalone external property.", "external": true },
+        { "id": "ext-familyhub", "label": "Skye Family Hub", "href": "https://skyefamilyhub.netlify.app/", "summary": "Standalone external property.", "external": true },
+        { "id": "ext-sentinel", "label": "Sentinel Web Authority", "href": "https://sentinelwebauthority.netlify.app/", "summary": "Standalone external property.", "external": true },
+        { "id": "ext-solentea", "label": "SOLenteaiSkyes", "href": "https://solenteaiskyes.netlify.app/", "summary": "Standalone external property.", "external": true },
+        { "id": "ext-familycommand", "label": "Family Command", "href": "https://familycommand.netlify.app/", "summary": "Standalone external property.", "external": true },
+        { "id": "ext-skyecode", "label": "SkyeCode Nexus", "href": "https://skyecode-nexus.netlify.app/", "summary": "Standalone external property.", "external": true },
+        { "id": "ext-skyesoverlondon", "label": "Skyes Over London", "href": "https://skyesoverlondon.netlify.app/", "summary": "Standalone external property.", "external": true },
+        { "id": "ext-skyeweb", "label": "SkyeWeb", "href": "https://solenterprises.org/pages/skyeweb", "summary": "Standalone external property.", "external": true }
+      ]
+    }
+  ]
+}

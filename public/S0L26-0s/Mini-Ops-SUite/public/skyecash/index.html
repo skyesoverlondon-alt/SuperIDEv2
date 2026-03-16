@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>SkyeCash Ledger</title>
+  <meta name="description" content="Offline-first income/expense ledger with filters, monthly KPIs, CSV export, and optional encryption."/>
+  <meta name="theme-color" content="#120a1f"/>
+  <link rel="manifest" href="../manifest.webmanifest"/>
+  <link rel="icon" href="../assets/logo.png"/>
+  <link rel="stylesheet" href="../assets/app.css"/>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div class="brand">
+        <img class="logo" src="../assets/logo.png" alt="logo"/>
+        <div>
+          <h1>SkyeCash Ledger</h1>
+          <p>Local-only ledger. IndexedDB storage. Optional encryption. Export CSV for accounting.</p>
+        </div>
+      </div>
+      <div class="nav">
+        <a class="btn secondary" href="../sync/#vault=skyecash_ledger">☁️ Sync</a>
+        <span class="badge mono" id="buildBadge">build</span>
+        <a class="btn secondary" href="../">🏠 Suite</a>
+        <button class="btn secondary" id="btnSecurity">🛡️ Security</button>
+        <button class="btn secondary" id="btnExport">⬇️ Export</button>
+        <label class="btn secondary" for="fileImport" style="cursor:pointer">⬆️ Import</label>
+        <input id="fileImport" type="file" accept="application/json" style="display:none">
+        <button class="btn" id="btnReset">🧨 Reset</button>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <div class="row" style="justify-content:space-between">
+          <div class="badge" style="cursor:default">💸 Add transaction</div>
+          <div class="badge mono" style="cursor:default" id="count">0</div>
+        </div>
+        <div class="hr"></div>
+
+        <div class="row">
+          <div class="field" style="min-width:140px">
+            <label>Date</label>
+            <input id="date" type="date">
+          </div>
+          <div class="field" style="min-width:140px">
+            <label>Type</label>
+            <select id="type"><option value="income">Income</option><option value="expense">Expense</option></select>
+          </div>
+          <div class="field">
+            <label>Category</label>
+            <input id="cat" placeholder="Fuel, Food, Client Payment">
+          </div>
+        </div>
+
+        <div class="row" style="margin-top:10px">
+          <div class="field" style="min-width:160px">
+            <label>Amount</label>
+            <input id="amt" type="number" step="0.01" placeholder="0.00">
+          </div>
+          <div class="field">
+            <label>Notes</label>
+            <input id="note" placeholder="optional">
+          </div>
+        </div>
+
+        <div class="row" style="margin-top:10px;justify-content:space-between">
+          <button class="btn" id="add">➕ Add</button>
+          <button class="btn secondary" id="csv">📄 Export CSV</button>
+        </div>
+
+        <div class="hr"></div>
+        <div class="row">
+          <div class="field">
+            <label>Filters</label>
+            <div class="row" style="gap:8px">
+              <input id="q" placeholder="search category/notes" style="flex:2;min-width:180px">
+              <select id="ft" style="flex:1;min-width:140px"><option value="">All</option><option value="income">Income</option><option value="expense">Expense</option></select>
+            </div>
+          </div>
+        </div>
+
+        <div class="row" style="margin-top:10px">
+          <div class="field" style="min-width:160px">
+            <label>From</label>
+            <input id="from" type="date">
+          </div>
+          <div class="field" style="min-width:160px">
+            <label>To</label>
+            <input id="to" type="date">
+          </div>
+          <div style="align-self:flex-end">
+            <button class="btn secondary" id="clear">🧽 Clear</button>
+          </div>
+        </div>
+
+        <div class="hr"></div>
+        <div class="row" style="gap:10px">
+          <div class="card" style="padding:10px;flex:1">
+            <p>Income (this month)</p>
+            <p class="mono" style="font-size:16px;margin-top:6px" id="kInc">$0.00</p>
+          </div>
+          <div class="card" style="padding:10px;flex:1">
+            <p>Expenses (this month)</p>
+            <p class="mono" style="font-size:16px;margin-top:6px" id="kExp">$0.00</p>
+          </div>
+          <div class="card" style="padding:10px;flex:1">
+            <p>Net (this month)</p>
+            <p class="mono" style="font-size:16px;margin-top:6px" id="kNet">$0.00</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="row" style="justify-content:space-between">
+          <div class="badge" style="cursor:default">🧾 Ledger</div>
+          <div class="badge" style="cursor:default">click Edit (no prompts)</div>
+        </div>
+        <div class="hr"></div>
+        <div class="tableWrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Type</th>
+                <th>Category</th>
+                <th class="right">Amount</th>
+                <th>Notes</th>
+                <th class="right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+        <div class="hr"></div>
+        <p>Export CSV for accounting. Use JSON export/import for backups. Enable encryption for sensitive finances.</p>
+      </div>
+    </div>
+  </div>
+
+  <img class="wm" src="../assets/logo.png" alt=""/>
+
+  <!-- Shared modal -->
+  <div class="modalBack" id="modalBack" hidden>
+    <div class="modal" role="dialog" aria-modal="true">
+      <h2 id="modalTitle">Dialog</h2>
+      <div id="modalText"></div>
+      <div class="hr"></div>
+      <div class="field">
+        <label class="small">Input</label>
+        <input id="modalInput" type="text" autocomplete="off"/>
+      </div>
+      <div class="field field2 hidden" style="margin-top:10px">
+        <label class="small">Confirm</label>
+        <input id="modalInput2" type="password" autocomplete="off"/>
+      </div>
+      <div class="row" style="justify-content:flex-end;margin-top:12px">
+        <button class="btn secondary" id="modalCancel">Cancel</button>
+        <button class="btn" id="modalOk">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cash edit modal -->
+  <div class="modalBack" id="editBack" hidden>
+    <div class="modal" role="dialog" aria-modal="true">
+      <h2>Edit transaction</h2>
+      <p class="small">Changes are local-only until you export/backup.</p>
+      <div class="hr"></div>
+      <div class="row">
+        <div class="field" style="min-width:140px">
+          <label>Date</label>
+          <input id="e_date" type="date">
+        </div>
+        <div class="field" style="min-width:140px">
+          <label>Type</label>
+          <select id="e_type"><option value="income">Income</option><option value="expense">Expense</option></select>
+        </div>
+      </div>
+      <div class="field" style="margin-top:10px">
+        <label>Category</label>
+        <input id="e_cat" placeholder="Category">
+      </div>
+      <div class="row" style="margin-top:10px">
+        <div class="field" style="min-width:160px">
+          <label>Amount</label>
+          <input id="e_amt" type="number" step="0.01">
+        </div>
+        <div class="field">
+          <label>Notes</label>
+          <input id="e_note" placeholder="optional">
+        </div>
+      </div>
+      <div class="row" style="justify-content:flex-end;margin-top:12px">
+        <button class="btn secondary" id="e_cancel">Cancel</button>
+        <button class="btn" id="e_save">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="../assets/shell.js" defer></script>
+  <script src="../assets/pwa.js" defer></script>
+  <script src="./app.js" defer></script>
+</body>
+</html>

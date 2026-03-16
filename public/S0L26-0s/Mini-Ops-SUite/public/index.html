@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Skye Mini Ops Suite (Offline‑First)</title>
+  <meta name="description" content="Offline-first mini ops suite: notes, cash ledger, and focus log. Hardened PWA with encrypted vault option and suite backups."/>
+  <meta name="theme-color" content="#120a1f"/>
+  <link rel="manifest" href="manifest.webmanifest"/>
+  <link rel="icon" href="assets/logo.png"/>
+  <link rel="stylesheet" href="assets/app.css"/>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div class="brand">
+        <img class="logo" src="assets/logo.png" alt="logo"/>
+        <div>
+          <h1>Skye Mini Ops Suite</h1>
+          <p>Offline-first. Installable PWA. Local vaults with optional encryption. Suite-level backup/restore.</p>
+        </div>
+      </div>
+      <div class="nav">
+        <a class="btn secondary" href="sync/">☁️ Sync</a>
+        <span class="badge mono" id="buildBadge">build</span>
+        <button class="btn secondary" id="suiteSecurity">🛡️ Security</button>
+        <button class="btn secondary" id="suiteExport">⬇️ Export suite</button>
+        <label class="btn secondary" for="suiteImport" style="cursor:pointer">⬆️ Import suite</label>
+        <input id="suiteImport" type="file" accept="application/json" style="display:none">
+      </div>
+    </div>
+
+    <div class="grid3">
+      <div class="card">
+        <h1 style="font-size:15px;margin:0">SkyeNote Vault</h1>
+        <p>Notes + tags + search + pin + TXT export + hardened import/export + optional encryption.</p>
+        <div class="hr"></div>
+        <a class="btn" href="skyenote/">Open SkyeNote</a>
+      </div>
+
+      <div class="card">
+        <h1 style="font-size:15px;margin:0">SkyeCash Ledger</h1>
+        <p>Income/expense ledger + filters + monthly KPIs + CSV export + edit modal + optional encryption.</p>
+        <div class="hr"></div>
+        <a class="btn" href="skyecash/">Open SkyeCash</a>
+      </div>
+
+      <div class="card">
+        <h1 style="font-size:15px;margin:0">SkyeFocus Log</h1>
+        <p>Pomodoro timer + sessions log + stats + CSV export + resilient timer restore + optional encryption.</p>
+        <div class="hr"></div>
+        <a class="btn" href="skyefocus/">Open SkyeFocus</a>
+      </div>
+    </div>
+
+    <div class="note">
+      <div><strong>PWA install:</strong> in Chrome/Edge, open the site menu and choose <span class="mono">Install app</span>. Once installed, it runs like a desktop/mobile app and stays usable offline after the first load.</div>
+      <div style="margin-top:6px"><strong>Data safety:</strong> everything is stored locally in your browser (IndexedDB). Use <span class="mono">Export suite</span> regularly. Enable vault encryption for sensitive notes/finance.</div>
+      <div style="margin-top:6px"><strong>Logo:</strong> replace <span class="mono">assets/logo.png</span> with your own image if desired.</div>
+    </div>
+  </div>
+
+  <img class="wm" src="assets/logo.png" alt=""/>
+
+  <!-- Shared modal (used by all pages) -->
+  <div class="modalBack" id="modalBack" hidden>
+    <div class="modal" role="dialog" aria-modal="true">
+      <h2 id="modalTitle">Dialog</h2>
+      <div id="modalText"></div>
+      <div class="hr"></div>
+      <div class="field">
+        <label class="small">Input</label>
+        <input id="modalInput" type="text" autocomplete="off"/>
+      </div>
+      <div class="field field2 hidden" style="margin-top:10px">
+        <label class="small">Confirm</label>
+        <input id="modalInput2" type="password" autocomplete="off"/>
+      </div>
+      <div class="row" style="justify-content:flex-end;margin-top:12px">
+        <button class="btn secondary" id="modalCancel">Cancel</button>
+        <button class="btn" id="modalOk">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="assets/shell.js" defer></script>
+  <script src="assets/pwa.js" defer></script>
+  <script src="assets/suite.js" defer></script>
+</body>
+</html>

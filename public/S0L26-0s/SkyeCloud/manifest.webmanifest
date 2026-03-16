@@ -1,0 +1,15 @@
+{
+  "name": "SkyeCloud",
+  "short_name": "SkyeCloud",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#08101d",
+  "theme_color": "#08101d",
+  "icons": [
+    {
+      "src": "assets/skyecloud-logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

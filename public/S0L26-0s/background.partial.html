@@ -1,0 +1,73 @@
+<style>
+  .s0l26-background-layer {
+    position: absolute;
+    inset: 0;
+  }
+
+  .s0l26-background-layer::before,
+  .s0l26-background-layer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+  }
+
+  .s0l26-background-layer::before {
+    background:
+      linear-gradient(125deg, rgba(0, 0, 0, 0.54), rgba(0, 0, 0, 0.1) 42%, rgba(0, 0, 0, 0.5)),
+      radial-gradient(circle at 18% 18%, rgba(159, 95, 255, 0.26), transparent 26%),
+      radial-gradient(circle at 82% 14%, rgba(243, 202, 103, 0.18), transparent 20%),
+      radial-gradient(circle at 46% 78%, rgba(255, 255, 255, 0.06), transparent 18%);
+    mix-blend-mode: screen;
+  }
+
+  .s0l26-background-layer::after {
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+    background-size: 120px 120px;
+    mask-image: radial-gradient(circle at center, black, transparent 76%);
+    opacity: 0.22;
+  }
+
+  .s0l26-background-orb {
+    position: absolute;
+    border-radius: 999px;
+    filter: blur(18px);
+    opacity: 0.7;
+  }
+
+  .s0l26-background-orb.orb-a {
+    width: 28vw;
+    height: 28vw;
+    min-width: 260px;
+    min-height: 260px;
+    top: -4vw;
+    left: -6vw;
+    background: radial-gradient(circle, rgba(159, 95, 255, 0.34), transparent 68%);
+  }
+
+  .s0l26-background-orb.orb-b {
+    width: 22vw;
+    height: 22vw;
+    min-width: 220px;
+    min-height: 220px;
+    right: -4vw;
+    top: 12vh;
+    background: radial-gradient(circle, rgba(243, 202, 103, 0.28), transparent 68%);
+  }
+
+  .s0l26-background-orb.orb-c {
+    width: 36vw;
+    height: 36vw;
+    min-width: 340px;
+    min-height: 340px;
+    left: 28vw;
+    bottom: -12vw;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.09), transparent 70%);
+  }
+</style>
+<div class="s0l26-background-layer">
+  <div class="s0l26-background-orb orb-a"></div>
+  <div class="s0l26-background-orb orb-b"></div>
+  <div class="s0l26-background-orb orb-c"></div>
+</div>

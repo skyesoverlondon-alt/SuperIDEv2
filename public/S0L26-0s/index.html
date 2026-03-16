@@ -1,0 +1,645 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>S0L26-0s | Operating System Hub</title>
+    <meta name="theme-color" content="#110d1d" />
+    <meta name="description" content="Operating system launcher hub for SuperIDE surfaces, platforms, admin tools, and external properties." />
+    <style>
+        :root {
+            --bg: #07050d;
+            --bg-panel: rgba(18, 13, 33, 0.78);
+            --bg-panel-strong: rgba(20, 15, 38, 0.92);
+            --line: rgba(255, 215, 122, 0.16);
+            --line-strong: rgba(255, 215, 122, 0.34);
+            --text: #f7f2ff;
+            --muted: #b9b0cf;
+            --gold: #f3ca67;
+            --shadow: 0 24px 70px rgba(0, 0, 0, 0.46);
+            --radius-xl: 30px;
+            --radius-lg: 22px;
+            --workspace-height: min(76vh, 980px);
+            --font-display: "Georgia", "Times New Roman", serif;
+            --font-ui: Inter, Arial, sans-serif;
+        }
+
+        * { box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            color: var(--text);
+            font: 15px/1.55 var(--font-ui);
+            background:
+                radial-gradient(circle at 14% 18%, rgba(159, 95, 255, 0.18), transparent 24%),
+                radial-gradient(circle at 82% 10%, rgba(243, 202, 103, 0.14), transparent 24%),
+                radial-gradient(circle at 72% 76%, rgba(159, 95, 255, 0.12), transparent 28%),
+                linear-gradient(180deg, #090611 0%, #07050d 100%);
+            overflow-x: hidden;
+        }
+
+        a { color: inherit; text-decoration: none; }
+        button { font: inherit; }
+
+        .background-root {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            overflow: hidden;
+            pointer-events: none;
+        }
+
+        .background-fallback {
+            position: absolute;
+            inset: 0;
+            background:
+                linear-gradient(135deg, rgba(0, 0, 0, 0.2), transparent 38%),
+                radial-gradient(circle at 18% 20%, rgba(159, 95, 255, 0.2), transparent 32%),
+                radial-gradient(circle at 80% 15%, rgba(243, 202, 103, 0.14), transparent 22%),
+                radial-gradient(circle at 50% 88%, rgba(255, 255, 255, 0.06), transparent 20%);
+        }
+
+        .app-shell {
+            position: relative;
+            z-index: 1;
+            max-width: 1560px;
+            margin: 0 auto;
+            padding: 28px;
+        }
+
+        .surface {
+            border: 1px solid var(--line);
+            background: var(--bg-panel);
+            backdrop-filter: blur(24px);
+            box-shadow: var(--shadow);
+        }
+
+        .hero {
+            display: grid;
+            grid-template-columns: 1.15fr 0.85fr;
+            gap: 20px;
+            padding: 28px;
+            border-radius: var(--radius-xl);
+        }
+
+        .eyebrow {
+            color: var(--gold);
+            text-transform: uppercase;
+            letter-spacing: 0.26em;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        h1, h2, h3 {
+            margin: 0;
+            font-family: var(--font-display);
+            font-weight: 700;
+            letter-spacing: 0.01em;
+        }
+
+        h1 {
+            margin-top: 10px;
+            font-size: clamp(2.7rem, 5vw, 5.5rem);
+            line-height: 0.96;
+        }
+
+        .hero-copy, .panel-copy, .support-copy, .workspace-caption, .directory-note, .empty-state {
+            color: var(--muted);
+        }
+
+        .hero-copy {
+            max-width: 68ch;
+            margin: 18px 0 0;
+            font-size: 1.02rem;
+        }
+
+        .hero-actions, .workspace-actions, .directory-actions, .meta-strip, .support-actions, .frame-toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .btn, .pill, .action-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            min-height: 44px;
+            padding: 11px 16px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            background: rgba(255, 255, 255, 0.04);
+            color: var(--text);
+            transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+            cursor: pointer;
+        }
+
+        .btn:hover, .pill:hover, .action-link:hover, .btn:focus-visible, .pill:focus-visible, .action-link:focus-visible {
+            transform: translateY(-1px);
+            border-color: var(--line-strong);
+            background: rgba(255, 255, 255, 0.08);
+            box-shadow: 0 0 0 3px rgba(243, 202, 103, 0.08);
+            outline: none;
+        }
+
+        .btn-primary {
+            border-color: rgba(243, 202, 103, 0.44);
+            background: linear-gradient(135deg, rgba(159, 95, 255, 0.26), rgba(243, 202, 103, 0.2));
+        }
+
+        .status-panel, .support-panel, .directory-panel, .workspace-panel, .control-panel {
+            border-radius: var(--radius-lg);
+            background: var(--bg-panel-strong);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .status-panel, .support-panel, .control-panel { padding: 18px; }
+        .hero-side { display: grid; gap: 14px; align-content: start; }
+        .status-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
+
+        .status-cell {
+            padding: 14px;
+            border-radius: 18px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .status-cell span {
+            display: block;
+            color: var(--muted);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+        }
+
+        .status-cell strong { display: block; margin-top: 8px; font-size: 1.45rem; }
+        .meta-strip { margin-top: 18px; }
+        .pill { min-height: 38px; padding: 8px 14px; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1.05fr) minmax(360px, 0.95fr);
+            gap: 20px;
+            margin-top: 20px;
+            align-items: start;
+        }
+
+        .launcher-column, .directory-grid { display: grid; gap: 20px; }
+        .control-panel { display: grid; gap: 14px; }
+
+        .control-head, .directory-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+        }
+
+        .control-head p, .directory-head p { margin: 8px 0 0; }
+        .workspace-toggle-group { display: flex; flex-wrap: wrap; gap: 10px; }
+
+        .workspace-chip {
+            min-height: 40px;
+            padding: 9px 14px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--text);
+            cursor: pointer;
+        }
+
+        .workspace-chip.active {
+            border-color: rgba(243, 202, 103, 0.44);
+            color: var(--gold);
+            background: rgba(243, 202, 103, 0.12);
+        }
+
+        .workspace-stack {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            min-height: var(--workspace-height);
+            border-radius: var(--radius-xl);
+            overflow: hidden;
+        }
+
+        .workspace-panel {
+            position: relative;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .workspace-panel:last-child { border-right: 0; }
+        .workspace-panel.focused { box-shadow: inset 0 0 0 1px rgba(243, 202, 103, 0.28); z-index: 2; }
+        .workspace-stack.single-mode { grid-template-columns: 1fr; }
+        .workspace-stack.single-mode .workspace-panel { display: none; border-right: 0; }
+        .workspace-stack.single-mode .workspace-panel.focused { display: flex; }
+
+        .frame-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            padding: 14px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
+        }
+
+        .frame-title { min-width: 0; }
+        .frame-kicker { color: var(--gold); text-transform: uppercase; letter-spacing: 0.16em; font-size: 11px; }
+        .frame-title h3 { margin-top: 6px; font-size: 1.2rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .frame-subtitle { margin-top: 4px; color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .frame-toolbar { justify-content: flex-end; }
+        .frame-toolbar button, .frame-toolbar a { min-height: 36px; padding: 8px 12px; font-size: 12px; border-radius: 999px; }
+        .frame-viewport { position: relative; flex: 1; min-height: 0; background: rgba(8, 6, 14, 0.8); }
+        .frame-viewport iframe { width: 100%; height: 100%; border: 0; background: #08060f; }
+        .workspace-caption { margin-top: 14px; font-size: 0.96rem; }
+
+        .directory-panel { padding: 18px; }
+        .directory-count {
+            min-width: 44px;
+            height: 44px;
+            display: grid;
+            place-items: center;
+            border-radius: 50%;
+            border: 1px solid rgba(243, 202, 103, 0.3);
+            color: var(--gold);
+            background: rgba(243, 202, 103, 0.08);
+            font-weight: 700;
+        }
+
+        .directory-list { display: grid; gap: 10px; }
+        .directory-item {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 12px;
+            align-items: center;
+            padding: 14px;
+            border-radius: 18px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .directory-item strong { display: block; font-size: 0.99rem; }
+        .directory-item span { display: block; color: var(--muted); margin-top: 4px; font-size: 13px; }
+        .directory-actions { justify-content: flex-end; }
+
+        .mini-btn {
+            min-height: 34px;
+            padding: 7px 11px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            background: rgba(255, 255, 255, 0.04);
+            color: var(--text);
+            cursor: pointer;
+        }
+
+        .support-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .support-panel h2 { font-size: 1.5rem; margin-top: 8px; }
+        .support-panel ul { margin: 14px 0 0; padding-left: 18px; color: var(--muted); }
+        .support-panel li { margin-bottom: 10px; }
+        .support-actions { margin-top: 18px; }
+
+        @media (max-width: 1320px) {
+            .hero, .main-grid, .support-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 1100px) {
+            .workspace-stack { grid-template-columns: 1fr; }
+            .workspace-panel { border-right: 0; border-bottom: 1px solid rgba(255, 255, 255, 0.08); min-height: 72vh; }
+            .workspace-panel:last-child { border-bottom: 0; }
+        }
+
+        @media (max-width: 720px) {
+            .app-shell { padding: 16px; }
+            .hero, .control-panel, .directory-panel, .support-panel, .status-panel { padding: 16px; }
+            h1 { font-size: 2.5rem; }
+            .status-grid, .support-grid { grid-template-columns: 1fr; }
+            .directory-item { grid-template-columns: 1fr; }
+            .directory-actions { justify-content: flex-start; }
+        }
+    </style>
+</head>
+<body data-app-id="S0L26-0s">
+    <div id="background-root" class="background-root" aria-hidden="true">
+        <div class="background-fallback"></div>
+    </div>
+
+    <div class="app-shell">
+        <section class="hero surface">
+            <div>
+                <div class="eyebrow">Operating System Entry Point</div>
+                <h1>S0L26-0s Launch Hub</h1>
+                <p class="hero-copy">This page is the central entry surface for the operating system: sign-in handoff, app and platform routing, admin access, API playground access, and a three-workspace launcher that can run full apps side by side without the old stacked menu chrome on top.</p>
+                <div class="hero-actions" style="margin-top:20px;">
+                    <a class="btn btn-primary carry-link" href="/">Open SuperIDE</a>
+                    <a class="btn carry-link" href="/Skye-ID/index.html">Open Sign-In Surface</a>
+                    <a class="btn carry-link" href="/API-Playground/index.html">Open API Playground</a>
+                    <button class="btn" type="button" data-scroll-target="#launcher-workspaces">Jump To Workspaces</button>
+                </div>
+                <div class="meta-strip">
+                    <div class="pill">Three Vertical Workspaces</div>
+                    <div class="pill">Registry Driven Links</div>
+                    <div class="pill">Background Partial Ready</div>
+                    <div class="pill">SkyeDocxPro Visual Language</div>
+                </div>
+            </div>
+
+            <div class="hero-side">
+                <div class="status-panel">
+                    <div class="eyebrow">Launch Status</div>
+                    <div class="status-grid">
+                        <div class="status-cell"><span>Directories</span><strong id="stat-directory-count">0</strong></div>
+                        <div class="status-cell"><span>Workspace Frames</span><strong>3</strong></div>
+                        <div class="status-cell"><span>External Properties</span><strong id="stat-external-count">0</strong></div>
+                        <div class="status-cell"><span>Registry Mode</span><strong>Live</strong></div>
+                    </div>
+                </div>
+
+                <div class="support-panel">
+                    <div class="eyebrow">Support</div>
+                    <h2>Direct Contact</h2>
+                    <p class="support-copy">Operator routing and contact handoff live here so this page can act as the real front door instead of only a static landing page.</p>
+                    <div class="support-actions">
+                        <a class="action-link" href="tel:+14804695416">(480) 469-5416</a>
+                        <a class="action-link" href="mailto:SkyesOverLondonLC@SOLEnterprises.org">SkyesOverLondonLC@SOLEnterprises.org</a>
+                        <a class="action-link" href="mailto:SkyesOverLondon@gmail.com">SkyesOverLondon@gmail.com</a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="main-grid">
+            <div class="launcher-column">
+                <section class="control-panel surface" id="launcher-workspaces">
+                    <div class="control-head">
+                        <div>
+                            <div class="eyebrow">Launcher Overlay</div>
+                            <h2>Three Vertical Workspaces</h2>
+                            <p class="panel-copy">Each workspace hosts a full app surface inside the launcher. Keep all three visible or focus one frame when the operator needs a full-screen working view.</p>
+                        </div>
+                        <div class="workspace-actions">
+                            <button class="btn" type="button" id="show-all-workspaces">Show All</button>
+                            <button class="btn" type="button" id="refresh-workspaces">Refresh Frames</button>
+                        </div>
+                    </div>
+
+                    <div id="workspace-chip-group" class="workspace-toggle-group" aria-label="Workspace frame selectors"></div>
+                    <div id="workspace-stack" class="workspace-stack surface"></div>
+                    <p class="workspace-caption">Thin separators keep the workspace boundaries visible while the actual launcher chrome stays outside the app UIs. Full-screen controls are available per frame and through the focus chips above.</p>
+                </section>
+            </div>
+
+            <div class="directory-grid" id="directory-grid"></div>
+        </section>
+
+        <section class="support-grid">
+            <div class="support-panel surface">
+                <div class="eyebrow">Build Rules</div>
+                <h2>How To Add Or Remove Surfaces</h2>
+                <ul>
+                    <li>Drop a new app or platform folder anywhere it should live in the public tree.</li>
+                    <li>Add one entry to the local registry file for the new route, label, category, and summary.</li>
+                    <li>Remove the entry from the same registry file when a surface should disappear from the hub.</li>
+                    <li>Update the default workspace list if the new surface should open directly inside one of the three launcher frames.</li>
+                </ul>
+                <div class="support-actions">
+                    <a class="action-link" href="./README.md">Open Maintenance Notes</a>
+                    <a class="action-link" href="./hub-registry.json">Open Hub Registry</a>
+                    <a class="action-link" href="./background.partial.html">Open Background Partial</a>
+                </div>
+            </div>
+
+            <div class="support-panel surface">
+                <div class="eyebrow">Routing Promise</div>
+                <h2>Single Hub, Shared Runtime</h2>
+                <p class="support-copy">This page stays static and safe: it does not invent a second backend or obscure route layer. It simply gives the operating system a premium entry point with data-driven navigation, workspace query carry-through, and a launcher shell that can evolve by editing one registry file.</p>
+                <div class="support-actions">
+                    <a class="action-link carry-link" href="/">Open Public Home</a>
+                    <a class="action-link carry-link" href="/SkyeDocxPro/index.html">Open SkyeDocxPro</a>
+                    <a class="action-link carry-link" href="/Neural-Space-Pro/index.html">Open Neural Space Pro</a>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        (function () {
+            const REGISTRY_URL = './hub-registry.json';
+            const BACKGROUND_PARTIAL_URL = './background.partial.html';
+            const directoryGrid = document.getElementById('directory-grid');
+            const workspaceStack = document.getElementById('workspace-stack');
+            const workspaceChipGroup = document.getElementById('workspace-chip-group');
+            const carryQueryKeys = ['ws_id', 'workspace_id', 'org_id'];
+            let activeWorkspaceIndex = -1;
+            let registryCache = null;
+
+            function getCarryParams() {
+                const current = new URL(window.location.href);
+                return carryQueryKeys.reduce((params, key) => {
+                    const value = current.searchParams.get(key);
+                    if (value) params[key] = value;
+                    return params;
+                }, {});
+            }
+
+            function withCarry(path) {
+                const params = getCarryParams();
+                const url = new URL(path, window.location.origin);
+                const isExternal = url.origin !== window.location.origin;
+                Object.entries(params).forEach(([key, value]) => {
+                    if (!isExternal && !url.searchParams.has(key)) url.searchParams.set(key, value);
+                });
+                return isExternal ? url.toString() : url.pathname + url.search + url.hash;
+            }
+
+            function applyCarryLinks() {
+                document.querySelectorAll('.carry-link').forEach((node) => {
+                    const href = node.getAttribute('href');
+                    if (!href) return;
+                    node.setAttribute('href', withCarry(href));
+                });
+            }
+
+            function escapeHtml(value) {
+                return String(value || '')
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/\"/g, '&quot;')
+                    .replace(/'/g, '&#39;');
+            }
+
+            function scrollToTarget(selector) {
+                const target = document.querySelector(selector);
+                if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+
+            async function loadBackgroundPartial() {
+                try {
+                    const response = await fetch(BACKGROUND_PARTIAL_URL, { credentials: 'same-origin' });
+                    if (!response.ok) return;
+                    const markup = await response.text();
+                    if (!markup.trim()) return;
+                    document.getElementById('background-root').insertAdjacentHTML('beforeend', markup);
+                } catch {
+                }
+            }
+
+            function buildDirectoryItem(item) {
+                const safeLabel = escapeHtml(item.label);
+                const safeSummary = escapeHtml(item.summary || '');
+                const openHref = escapeHtml(withCarry(item.href));
+                const openAttrs = item.external ? ' target="_blank" rel="noreferrer"' : '';
+                const workspaceButton = item.external ? '' : '<button class="mini-btn" type="button" data-launch-workspace="' + escapeHtml(item.id) + '">Use In Workspace</button>';
+                return [
+                    '<div class="directory-item">',
+                    '<div><strong>' + safeLabel + '</strong><span>' + safeSummary + '</span></div>',
+                    '<div class="directory-actions">' + workspaceButton + '<a class="mini-btn" href="' + openHref + '"' + openAttrs + '>Open</a></div>',
+                    '</div>'
+                ].join('');
+            }
+
+            function renderDirectories(registry) {
+                const sections = Array.isArray(registry.sections) ? registry.sections : [];
+                document.getElementById('stat-directory-count').textContent = String(sections.length);
+                document.getElementById('stat-external-count').textContent = String((registry.externalLinks || []).length || 0);
+                directoryGrid.innerHTML = sections.map((section) => {
+                    const items = Array.isArray(section.items) ? section.items : [];
+                    return [
+                        '<section class="directory-panel surface">',
+                        '<div class="directory-head"><div><div class="eyebrow">' + escapeHtml(section.kicker || 'Directory') + '</div><h2>' + escapeHtml(section.title || 'Untitled Section') + '</h2><p class="directory-note">' + escapeHtml(section.description || '') + '</p></div><div class="directory-count">' + items.length + '</div></div>',
+                        '<div class="directory-list">' + items.map(buildDirectoryItem).join('') + '</div>',
+                        '</section>'
+                    ].join('');
+                }).join('');
+                if (!sections.length) directoryGrid.innerHTML = '<section class="directory-panel surface"><div class="eyebrow">Directory</div><h2>Registry Missing</h2><p class="empty-state">No sections were found in the local hub registry.</p></section>';
+            }
+
+            function createWorkspacePanel(definition, index) {
+                const panel = document.createElement('article');
+                panel.className = 'workspace-panel';
+                panel.dataset.workspaceIndex = String(index);
+                const frameSrc = withCarry(definition.href);
+                panel.innerHTML = [
+                    '<div class="frame-header">',
+                    '<div class="frame-title"><div class="frame-kicker">Workspace ' + String(index + 1).padStart(2, '0') + '</div><h3>' + escapeHtml(definition.label) + '</h3><div class="frame-subtitle">' + escapeHtml(definition.summary || definition.href) + '</div></div>',
+                    '<div class="frame-toolbar"><button type="button" class="mini-btn" data-focus-workspace="' + index + '">Focus</button><button type="button" class="mini-btn" data-fullscreen-workspace="' + index + '">Fullscreen</button><a class="mini-btn" href="' + escapeHtml(frameSrc) + '" target="_blank" rel="noreferrer">Open</a></div>',
+                    '</div>',
+                    '<div class="frame-viewport"><iframe loading="lazy" title="' + escapeHtml(definition.label) + '" src="' + escapeHtml(frameSrc) + '"></iframe></div>'
+                ].join('');
+                return panel;
+            }
+
+            function workspaceDefinitionsFromDom() {
+                return Array.from(workspaceStack.querySelectorAll('.workspace-panel')).map((panel, index) => ({
+                    label: panel.querySelector('h3') ? panel.querySelector('h3').textContent : 'Workspace ' + String(index + 1),
+                    summary: panel.querySelector('.frame-subtitle') ? panel.querySelector('.frame-subtitle').textContent : ''
+                }));
+            }
+
+            function renderWorkspaceChips(definitions) {
+                workspaceChipGroup.innerHTML = definitions.map((definition, index) => '<button type="button" class="workspace-chip" data-focus-workspace="' + index + '">' + escapeHtml(definition.label) + '</button>').join('');
+            }
+
+            function setActiveWorkspace(index) {
+                activeWorkspaceIndex = index;
+                const panels = Array.from(workspaceStack.querySelectorAll('.workspace-panel'));
+                const chips = Array.from(workspaceChipGroup.querySelectorAll('.workspace-chip'));
+                panels.forEach((panel, panelIndex) => panel.classList.toggle('focused', panelIndex === index));
+                chips.forEach((chip, chipIndex) => chip.classList.toggle('active', chipIndex === index));
+                workspaceStack.classList.toggle('single-mode', index >= 0 && window.innerWidth > 1100);
+            }
+
+            function showAllWorkspaces() {
+                activeWorkspaceIndex = -1;
+                workspaceStack.classList.remove('single-mode');
+                workspaceStack.querySelectorAll('.workspace-panel').forEach((panel) => panel.classList.remove('focused'));
+                workspaceChipGroup.querySelectorAll('.workspace-chip').forEach((chip) => chip.classList.remove('active'));
+            }
+
+            function renderWorkspaceStack(registry) {
+                const definitions = Array.isArray(registry.defaultWorkspaces) ? registry.defaultWorkspaces : [];
+                workspaceStack.innerHTML = '';
+                definitions.forEach((definition, index) => workspaceStack.appendChild(createWorkspacePanel(definition, index)));
+                renderWorkspaceChips(definitions);
+                showAllWorkspaces();
+            }
+
+            function refreshFrames() {
+                workspaceStack.querySelectorAll('iframe').forEach((frame) => {
+                    const current = frame.getAttribute('src');
+                    frame.setAttribute('src', current || 'about:blank');
+                });
+            }
+
+            function replaceWorkspaceWithItem(itemId) {
+                if (!registryCache) return;
+                const allItems = (registryCache.sections || []).flatMap((section) => section.items || []);
+                const item = allItems.find((entry) => entry.id === itemId && !entry.external);
+                if (!item) return;
+                const panels = Array.from(workspaceStack.querySelectorAll('.workspace-panel'));
+                const targetIndex = activeWorkspaceIndex >= 0 ? activeWorkspaceIndex : 0;
+                const target = panels[targetIndex];
+                if (!target) return;
+                target.replaceWith(createWorkspacePanel(item, targetIndex));
+                renderWorkspaceChips(workspaceDefinitionsFromDom());
+                setActiveWorkspace(targetIndex);
+            }
+
+            async function loadRegistry() {
+                const response = await fetch(REGISTRY_URL, { credentials: 'same-origin' });
+                if (!response.ok) throw new Error('Hub registry could not be loaded.');
+                return response.json();
+            }
+
+            function wireEvents() {
+                document.addEventListener('click', (event) => {
+                    const scrollTrigger = event.target.closest('[data-scroll-target]');
+                    if (scrollTrigger) return scrollToTarget(scrollTrigger.getAttribute('data-scroll-target'));
+                    const focusTrigger = event.target.closest('[data-focus-workspace]');
+                    if (focusTrigger) return setActiveWorkspace(Number(focusTrigger.getAttribute('data-focus-workspace')));
+                    const launchTrigger = event.target.closest('[data-launch-workspace]');
+                    if (launchTrigger) {
+                        replaceWorkspaceWithItem(launchTrigger.getAttribute('data-launch-workspace'));
+                        return scrollToTarget('#launcher-workspaces');
+                    }
+                    const fullscreenTrigger = event.target.closest('[data-fullscreen-workspace]');
+                    if (fullscreenTrigger) {
+                        const index = Number(fullscreenTrigger.getAttribute('data-fullscreen-workspace'));
+                        const panel = workspaceStack.querySelector('.workspace-panel[data-workspace-index="' + index + '"]');
+                        if (panel && panel.requestFullscreen) panel.requestFullscreen().catch(() => {});
+                    }
+                });
+
+                document.getElementById('show-all-workspaces').addEventListener('click', showAllWorkspaces);
+                document.getElementById('refresh-workspaces').addEventListener('click', refreshFrames);
+                window.addEventListener('resize', () => { if (window.innerWidth <= 1100) workspaceStack.classList.remove('single-mode'); });
+            }
+
+            async function init() {
+                applyCarryLinks();
+                wireEvents();
+                await loadBackgroundPartial();
+                try {
+                    registryCache = await loadRegistry();
+                    renderDirectories(registryCache);
+                    renderWorkspaceStack(registryCache);
+                } catch (error) {
+                    directoryGrid.innerHTML = '<section class="directory-panel surface"><div class="eyebrow">Registry Error</div><h2>Launcher Data Failed</h2><p class="empty-state">' + escapeHtml(error.message || 'Unknown error') + '</p></section>';
+                }
+            }
+
+            init();
+        })();
+    </script>
+</body>
+</html>
+

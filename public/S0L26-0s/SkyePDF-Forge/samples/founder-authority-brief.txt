@@ -1,0 +1,40 @@
+# Founder Authority Brief
+
+NOTE: This draft was generated inside SkyePDF Forge. Paste raw copy in, keep moving, and let the engine do the pretty part.
+
+## Executive Positioning
+
+Skyes Over London is operating a branded document lane built for turning dense text into polished deliverables without rebuilding the wheel every single time.
+
+The goal is simple: drop in the words, preserve the brand, export the PDF, and stop babysitting layout goblins.
+
+## Core Utility
+
+- Turn pasted text into a branded multi-page PDF.
+- Keep a cover page, watermark, page numbers, and document headers.
+- Save reusable document states into the local vault.
+- Export the current state as JSON for reuse or import later.
+
+## Example Metrics
+
+SPEED: Raw copy to branded draft in minutes
+FORMAT: A4 or Letter
+EXPORT: PDF + JSON state
+INTRO: Branded cinematic entry layer
+
+## Delivery Notes
+
+CALLOUT: Use short headings, double line breaks, and clean bullets for the best looking export.
+
+[PAGEBREAK]
+
+# Second Page Marker
+
+This forced page break shows how you can deliberately segment a longer report.
+
+## Suggested Paste Pattern
+
+- Use # for large sections.
+- Use ## for sub-sections.
+- Use NOTE: or CALLOUT: for important callouts.
+- Use [PAGEBREAK] when you want a hard page transition.

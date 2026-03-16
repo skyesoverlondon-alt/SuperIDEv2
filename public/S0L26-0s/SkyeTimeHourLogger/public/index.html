@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#050814" />
+  <title>SkyeTime: Hour Logger</title>
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="icon" type="image/png" href="/assets/img/skye-logo.png" />
+  <link rel="stylesheet" href="/assets/css/styles.css" />
+</head>
+<body>
+  <div id="intro-shell" class="intro-shell" aria-hidden="false">
+    <div id="cinematic-stage">
+      <canvas id="lightning-layer"></canvas>
+      <canvas id="rain-layer"></canvas>
+      <canvas id="lens-layer"></canvas>
+      <div class="ambient-fog"></div>
+      <div class="ambient-fog secondary"></div>
+      <div class="vignette"></div>
+
+      <div class="branding-container">
+        <div class="subtitle" id="subtitle">Operator Evidence System</div>
+        <h1 class="main-title" id="main-title">SkyeTime</h1>
+        <img src="/assets/img/skye-logo.png" id="company-logo" alt="SkyeTime logo" />
+        <div class="tagline" id="tagline">Hour Logger</div>
+      </div>
+
+      <button id="skip-btn" type="button">Skip Intro</button>
+    </div>
+
+    <div id="post-intro-stage">
+      <h2 class="architect-text" id="architect-text">Track every second.</h2>
+      <div class="potential-text" id="potential-text">Prove every hour.</div>
+      <img src="/assets/img/skye-logo.png" id="kaixu-logo" alt="SkyeTime logo glow" />
+      <button id="enter-app" class="enter-app-button" type="button">Enter SkyeTime</button>
+    </div>
+  </div>
+
+  <div id="app" class="app-shell hidden">
+    <header class="topbar">
+      <div class="brand-lockup">
+        <img src="/assets/img/skye-logo.png" class="floating-logo" alt="SkyeTime logo" />
+        <div>
+          <p class="eyebrow">Skyes Over London LC</p>
+          <h1>SkyeTime: Hour Logger</h1>
+          <p class="subcopy">Daily operator timing, notes, receipts, and proof exports.</p>
+        </div>
+      </div>
+      <div class="status-strip">
+        <div class="status-pill" id="network-pill">Checking connection…</div>
+        <div class="status-pill" id="sync-pill">Sync idle</div>
+        <div class="status-pill" id="chain-pill">Proof chain warming up</div>
+      </div>
+    </header>
+
+    <nav class="section-nav" aria-label="Primary">
+      <button class="nav-chip active" data-tab-target="dashboard">Dashboard</button>
+      <button class="nav-chip" data-tab-target="sessions">Sessions</button>
+      <button class="nav-chip" data-tab-target="notes">Notes</button>
+      <button class="nav-chip" data-tab-target="logs">Operator Log</button>
+      <button class="nav-chip" data-tab-target="expenses">Expenses</button>
+      <button class="nav-chip" data-tab-target="exports">Exports</button>
+      <button class="nav-chip" data-tab-target="settings">Settings</button>
+    </nav>
+
+    <main class="main-grid">
+      <section class="tab-panel active" data-tab-panel="dashboard">
+        <div class="grid two-col">
+          <article class="panel hero-panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Live session</p>
+                <h2>Second-accurate operator timer</h2>
+              </div>
+              <div class="proof-chip" id="active-session-label">No session running</div>
+            </div>
+
+            <div class="timer-display" id="timer-display">00:00:00</div>
+
+            <div class="field-grid compact">
+              <label>
+                <span>Work title</span>
+                <input id="session-title" type="text" placeholder="Client portal patch" maxlength="120" />
+              </label>
+              <label>
+                <span>Client</span>
+                <input id="session-client" type="text" placeholder="NorthStar Office &amp; Accounting" maxlength="120" />
+              </label>
+              <label>
+                <span>Project</span>
+                <input id="session-project" type="text" placeholder="SkyeTime rollout" maxlength="120" />
+              </label>
+              <label>
+                <span>Task type</span>
+                <input id="session-task-type" type="text" placeholder="Build / Admin / Calls / Support" maxlength="80" />
+              </label>
+              <label class="full-span">
+                <span>Session notes</span>
+                <textarea id="session-notes" rows="3" placeholder="What are you working on right now?"></textarea>
+              </label>
+            </div>
+
+            <div class="button-row">
+              <button class="primary-button" id="start-timer" type="button">Start timer</button>
+              <button class="danger-button" id="stop-timer" type="button" disabled>Stop &amp; save</button>
+              <button class="ghost-button" id="log-checkpoint" type="button">Checkpoint note</button>
+            </div>
+          </article>
+
+          <article class="panel metrics-panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Daily pulse</p>
+                <h2>Operator snapshot</h2>
+              </div>
+            </div>
+            <div class="metric-grid">
+              <div class="metric-card">
+                <span>Today</span>
+                <strong id="metric-today-hours">0.00h</strong>
+                <small>Logged time</small>
+              </div>
+              <div class="metric-card">
+                <span>This week</span>
+                <strong id="metric-week-hours">0.00h</strong>
+                <small>Seven-day total</small>
+              </div>
+              <div class="metric-card">
+                <span>Expenses</span>
+                <strong id="metric-expenses">$0.00</strong>
+                <small>Current week</small>
+              </div>
+              <div class="metric-card">
+                <span>Pending sync</span>
+                <strong id="metric-pending">0</strong>
+                <small>Local changes</small>
+              </div>
+            </div>
+
+            <div class="timeline-card">
+              <div class="panel-head slim">
+                <h3>Today timeline</h3>
+                <button class="ghost-link" id="open-manual-session" type="button">Add manual entry</button>
+              </div>
+              <div id="today-timeline" class="timeline-list empty-state">No activity yet today.</div>
+            </div>
+          </article>
+        </div>
+
+        <div class="grid two-col">
+          <article class="panel quick-note-panel">
+            <div class="panel-head slim">
+              <h3>Quick note</h3>
+              <div class="proof-chip">Stamped instantly</div>
+            </div>
+            <label>
+              <span>Title</span>
+              <input id="quick-note-title" type="text" placeholder="What happened?" maxlength="140" />
+            </label>
+            <label>
+              <span>Body</span>
+              <textarea id="quick-note-body" rows="5" placeholder="Capture calls, field work, build progress, approvals, weirdness, all of it."></textarea>
+            </label>
+            <div class="button-row">
+              <button class="primary-button" id="save-quick-note" type="button">Save note</button>
+              <button class="ghost-button" id="save-quick-log" type="button">Save as operator log</button>
+            </div>
+          </article>
+
+          <article class="panel receipt-panel">
+            <div class="panel-head slim">
+              <h3>Fast expense capture</h3>
+              <div class="proof-chip">Receipt + hash</div>
+            </div>
+            <div class="field-grid compact">
+              <label>
+                <span>Vendor</span>
+                <input id="expense-vendor" type="text" placeholder="Office Depot" maxlength="160" />
+              </label>
+              <label>
+                <span>Amount (USD)</span>
+                <input id="expense-amount" type="number" step="0.01" min="0" placeholder="0.00" />
+              </label>
+              <label>
+                <span>Category</span>
+                <select id="expense-category">
+                  <option>General</option>
+                  <option>Fuel</option>
+                  <option>Meals</option>
+                  <option>Supplies</option>
+                  <option>Software</option>
+                  <option>Travel</option>
+                  <option>Equipment</option>
+                  <option>Phone</option>
+                  <option>Internet</option>
+                </select>
+              </label>
+              <label>
+                <span>Occurred at</span>
+                <input id="expense-date" type="datetime-local" />
+              </label>
+              <label class="full-span">
+                <span>Notes</span>
+                <textarea id="expense-notes" rows="3" placeholder="Why this was purchased or how it connects to the work."></textarea>
+              </label>
+              <label class="full-span upload-dropzone">
+                <span>Receipt image</span>
+                <input id="expense-receipt" type="file" accept="image/*" capture="environment" />
+                <small>Camera capture works on mobile. Receipt hashes are included in proof exports.</small>
+              </label>
+            </div>
+            <div id="receipt-preview" class="receipt-preview empty-state">No receipt selected.</div>
+            <div class="button-row">
+              <button class="primary-button" id="save-expense" type="button">Save expense</button>
+              <button class="ghost-button" id="clear-expense" type="button">Clear</button>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="tab-panel" data-tab-panel="sessions">
+        <article class="panel">
+          <div class="panel-head slim">
+            <div>
+              <p class="eyebrow">All sessions</p>
+              <h2>Recorded work blocks</h2>
+            </div>
+            <input id="session-search" class="search-input" type="search" placeholder="Search title, client, project, notes…" />
+          </div>
+          <div id="session-list" class="stack-list empty-state">No sessions recorded yet.</div>
+        </article>
+      </section>
+
+      <section class="tab-panel" data-tab-panel="notes">
+        <article class="panel">
+          <div class="panel-head slim">
+            <div>
+              <p class="eyebrow">Notes</p>
+              <h2>Field notes and memos</h2>
+            </div>
+            <input id="note-search" class="search-input" type="search" placeholder="Search notes…" />
+          </div>
+          <div id="notes-list" class="card-list empty-state">No notes yet.</div>
+        </article>
+      </section>
+
+      <section class="tab-panel" data-tab-panel="logs">
+        <article class="panel">
+          <div class="panel-head slim">
+            <div>
+              <p class="eyebrow">Operator log</p>
+              <h2>Stamped activity trail</h2>
+            </div>
+          </div>
+          <div id="logs-list" class="timeline-list empty-state">No operator logs yet.</div>
+        </article>
+      </section>
+
+      <section class="tab-panel" data-tab-panel="expenses">
+        <article class="panel">
+          <div class="panel-head slim">
+            <div>
+              <p class="eyebrow">Expenses</p>
+              <h2>Receipts, categories, and totals</h2>
+            </div>
+            <input id="expense-search" class="search-input" type="search" placeholder="Search vendor, category, notes…" />
+          </div>
+          <div id="expense-list" class="card-list empty-state">No expenses recorded yet.</div>
+        </article>
+      </section>
+
+      <section class="tab-panel" data-tab-panel="exports">
+        <div class="grid two-col">
+          <article class="panel">
+            <div class="panel-head slim">
+              <div>
+                <p class="eyebrow">Proof exports</p>
+                <h2>Branded PDF evidence packs</h2>
+              </div>
+            </div>
+            <div class="field-grid compact">
+              <label>
+                <span>Range start</span>
+                <input id="export-start" type="date" />
+              </label>
+              <label>
+                <span>Range end</span>
+                <input id="export-end" type="date" />
+              </label>
+            </div>
+            <div class="button-row">
+              <button class="primary-button" id="export-pdf" type="button">Export branded PDF</button>
+              <button class="ghost-button" id="export-csv" type="button">Export CSV</button>
+              <button class="ghost-button" id="export-json" type="button">Backup JSON</button>
+            </div>
+            <div class="export-facts">
+              <div>
+                <span>Manifest hash</span>
+                <strong id="export-manifest-preview">Will be generated on export</strong>
+              </div>
+              <div>
+                <span>Proof chain head</span>
+                <strong id="export-chain-preview">Waiting for sync</strong>
+              </div>
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-head slim">
+              <div>
+                <p class="eyebrow">History</p>
+                <h2>Recent PDF exports</h2>
+              </div>
+            </div>
+            <div id="export-history" class="stack-list empty-state">No exports yet.</div>
+          </article>
+        </div>
+      </section>
+
+      <section class="tab-panel" data-tab-panel="settings">
+        <article class="panel">
+          <div class="panel-head slim">
+            <div>
+              <p class="eyebrow">Settings</p>
+              <h2>Workspace identity and sync</h2>
+            </div>
+          </div>
+          <div class="field-grid compact">
+            <label>
+              <span>Brand name</span>
+              <input id="settings-brand-name" type="text" maxlength="120" placeholder="SkyeTime: Hour Logger" />
+            </label>
+            <label>
+              <span>Timezone</span>
+              <input id="settings-timezone" type="text" maxlength="80" placeholder="America/Phoenix" />
+            </label>
+            <label>
+              <span>Currency</span>
+              <input id="settings-currency" type="text" maxlength="8" placeholder="USD" />
+            </label>
+            <label class="full-span">
+              <span>API shared secret</span>
+              <input id="settings-token" type="password" maxlength="240" placeholder="Optional. Matches API_SHARED_SECRET in your Worker env." />
+            </label>
+          </div>
+          <div class="button-row">
+            <button class="primary-button" id="save-settings" type="button">Save settings</button>
+            <button class="ghost-button" id="force-sync" type="button">Force sync now</button>
+          </div>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <template id="session-item-template">
+    <article class="stack-item session-item">
+      <div class="stack-item-head">
+        <div>
+          <h3 data-field="title"></h3>
+          <p data-field="meta"></p>
+        </div>
+        <div class="proof-chip" data-field="duration"></div>
+      </div>
+      <p class="body-copy" data-field="notes"></p>
+      <div class="hash-row">
+        <span>Hash</span>
+        <code data-field="hash"></code>
+      </div>
+    </article>
+  </template>
+
+  <template id="note-item-template">
+    <article class="note-card">
+      <div class="stack-item-head">
+        <div>
+          <h3 data-field="title"></h3>
+          <p data-field="meta"></p>
+        </div>
+      </div>
+      <p class="body-copy" data-field="body"></p>
+      <div class="hash-row">
+        <span>Hash</span>
+        <code data-field="hash"></code>
+      </div>
+    </article>
+  </template>
+
+  <template id="log-item-template">
+    <article class="timeline-item">
+      <div class="timeline-dot"></div>
+      <div class="timeline-content">
+        <h3 data-field="title"></h3>
+        <p data-field="meta"></p>
+        <p class="body-copy" data-field="body"></p>
+        <div class="hash-row">
+          <span>Hash</span>
+          <code data-field="hash"></code>
+        </div>
+      </div>
+    </article>
+  </template>
+
+  <template id="expense-item-template">
+    <article class="expense-card">
+      <div class="stack-item-head">
+        <div>
+          <h3 data-field="vendor"></h3>
+          <p data-field="meta"></p>
+        </div>
+        <div class="proof-chip" data-field="amount"></div>
+      </div>
+      <p class="body-copy" data-field="notes"></p>
+      <div class="receipt-meta" data-field="receipt"></div>
+      <div class="hash-row">
+        <span>Hash</span>
+        <code data-field="hash"></code>
+      </div>
+    </article>
+  </template>
+
+  <template id="export-item-template">
+    <article class="stack-item export-item">
+      <div class="stack-item-head">
+        <div>
+          <h3 data-field="title"></h3>
+          <p data-field="meta"></p>
+        </div>
+        <button class="ghost-button small" type="button" data-field="download">Download</button>
+      </div>
+      <div class="hash-row">
+        <span>PDF hash</span>
+        <code data-field="hash"></code>
+      </div>
+    </article>
+  </template>
+
+  <dialog id="manual-session-dialog" class="modal-shell">
+    <form method="dialog" class="modal-card" id="manual-session-form">
+      <div class="panel-head slim">
+        <h3>Add manual session</h3>
+      </div>
+      <div class="field-grid compact">
+        <label>
+          <span>Title</span>
+          <input name="title" type="text" maxlength="120" required />
+        </label>
+        <label>
+          <span>Client</span>
+          <input name="client_name" type="text" maxlength="120" />
+        </label>
+        <label>
+          <span>Project</span>
+          <input name="project_name" type="text" maxlength="120" />
+        </label>
+        <label>
+          <span>Task type</span>
+          <input name="task_type" type="text" maxlength="80" />
+        </label>
+        <label>
+          <span>Start</span>
+          <input name="started_at" type="datetime-local" required />
+        </label>
+        <label>
+          <span>End</span>
+          <input name="ended_at" type="datetime-local" required />
+        </label>
+        <label class="full-span">
+          <span>Notes</span>
+          <textarea name="notes" rows="4"></textarea>
+        </label>
+      </div>
+      <div class="button-row modal-actions">
+        <button class="primary-button" value="save" type="submit">Save session</button>
+        <button class="ghost-button" value="cancel" type="button" id="close-manual-session">Cancel</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script type="module" src="/assets/js/intro.js"></script>
+  <script type="module" src="/assets/js/app.js"></script>
+</body>
+</html>

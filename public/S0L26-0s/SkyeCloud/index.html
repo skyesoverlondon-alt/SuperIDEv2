@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SkyeCloud · Creative Environment Suite</title>
+  <meta name="theme-color" content="#08101d">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+  <div class="layout">
+    
+<nav class="topnav">
+  <a class="brand" href="index.html">
+    <img src="assets/skyecloud-logo.png" alt="SkyeCloud logo">
+    <div>
+      <strong>SkyeCloud</strong>
+      <span>Creative Environment Suite</span>
+    </div>
+  </a>
+  <div class="navlinks">
+    <a href="index.html">Home</a>
+    <a href="apps/cloudcode/index.html">CloudCode IDE</a>
+    <a href="apps/doclab/index.html">DocLab</a>
+    <a href="apps/dataforge/index.html">DataForge</a>
+    <a href="apps/flowboard/index.html">FlowBoard</a>
+    <a href="apps/snippetvault/index.html">SnippetVault</a>
+    <a href="apps/promptstudio/index.html">PromptStudio</a>
+    <a href="apps/assetvault/index.html">AssetVault</a>
+    <a href="apps/brandboard/index.html">BrandBoard</a>
+    <a href="apps/deploydesk/index.html">DeployDesk</a>
+    <a href="apps/kaixu/index.html">kAIxU Console</a>
+  </div>
+</nav>
+
+    
+<section class="hero">
+  <article class="hero-card">
+    <div class="eyebrow">SkyeCloud · heavier dedicated app surfaces</div>
+    <h1>One suite. Multiple serious production lanes.</h1>
+    <p>SkyeCloud is a from-scratch creative environment split into dedicated surfaces instead of one cramped command room. You get a real CloudCode IDE, writing and data lanes, planning lanes, asset handling, deployment tooling, and a server-side kAIxU console.</p>
+    <div class="cta-row">
+      <a class="btn" href="apps/cloudcode/index.html">Open CloudCode IDE</a>
+      <a class="ghost" href="apps/deploydesk/index.html">Open DeployDesk</a>
+      <a class="ghost" href="apps/kaixu/index.html">Open kAIxU Console</a>
+    </div>
+    <p id="brief" class="muted" style="margin-top:18px">Loading suite metrics…</p>
+  </article>
+  <aside class="hero-card">
+    <div class="hero-metrics">
+      <div class="metric"><span>Projects</span><strong id="metric-projects">0</strong><div class="muted">CloudCode workspaces</div></div>
+      <div class="metric"><span>Documents</span><strong id="metric-docs">0</strong><div class="muted">DocLab records</div></div>
+      <div class="metric"><span>Assets</span><strong id="metric-assets">0</strong><div class="muted">IndexedDB asset vault</div></div>
+      <div class="metric"><span>AI lane</span><strong id="metric-ai">idle</strong><div class="muted" id="health-meta">Checking runtime…</div></div>
+    </div>
+  </aside>
+</section>
+
+<section class="section-title">
+  <div>
+    <h2>Suite surfaces</h2>
+    <p>Each app surface does a focused job instead of pretending one pane can be every tool in the universe.</p>
+  </div>
+</section>
+<section class="grid-3">
+  <article class="surface"><h3>CloudCode IDE</h3><p>Multi-file project editing, instant preview, project import/export, starter packs, and file-level control.</p><div class="meta"><span class="badge">HTML/CSS/JS</span><span class="badge">Preview</span></div><div class="cta-row"><a class="btn" href="apps/cloudcode/index.html">Open</a></div></article>
+  <article class="surface"><h3>DocLab</h3><p>Structured markdown notes with live preview, quick exports, and document-level persistence.</p><div class="meta"><span class="badge">Markdown</span><span class="badge">Notes</span></div><div class="cta-row"><a class="btn" href="apps/doclab/index.html">Open</a></div></article>
+  <article class="surface"><h3>DataForge</h3><p>CSV editing, import/export, and quick spreadsheet-like operations for structured data lanes.</p><div class="meta"><span class="badge">CSV</span><span class="badge">Grid</span></div><div class="cta-row"><a class="btn" href="apps/dataforge/index.html">Open</a></div></article>
+  <article class="surface"><h3>FlowBoard</h3><p>Build queues, lane movement, and release planning without turning your workflow into soup.</p><div class="meta"><span class="badge">Kanban</span><span class="badge">Tasks</span></div><div class="cta-row"><a class="btn" href="apps/flowboard/index.html">Open</a></div></article>
+  <article class="surface"><h3>SnippetVault</h3><p>Store reusable code fragments, search them fast, and copy them when the job calls for it.</p><div class="meta"><span class="badge">Code</span><span class="badge">Search</span></div><div class="cta-row"><a class="btn" href="apps/snippetvault/index.html">Open</a></div></article>
+  <article class="surface"><h3>PromptStudio</h3><p>Prompt cards, systems, categories, and direct runs into the kAIxU server lane when configured.</p><div class="meta"><span class="badge">Prompts</span><span class="badge">AI</span></div><div class="cta-row"><a class="btn" href="apps/promptstudio/index.html">Open</a></div></article>
+  <article class="surface"><h3>AssetVault</h3><p>Client-side asset holding with IndexedDB-backed previews so small uploads stop vanishing into the void.</p><div class="meta"><span class="badge">Images</span><span class="badge">IndexedDB</span></div><div class="cta-row"><a class="btn" href="apps/assetvault/index.html">Open</a></div></article>
+  <article class="surface"><h3>BrandBoard</h3><p>Keep company identity, palette, contact blocks, and headline framing in one sharp lane.</p><div class="meta"><span class="badge">Brand</span><span class="badge">Profile</span></div><div class="cta-row"><a class="btn" href="apps/brandboard/index.html">Open</a></div></article>
+  <article class="surface"><h3>DeployDesk</h3><p>Release notes, runbooks, health checks, and deployment rituals so launches stop being goblin ceremonies.</p><div class="meta"><span class="badge">Deploy</span><span class="badge">Runbook</span></div><div class="cta-row"><a class="btn" href="apps/deploydesk/index.html">Open</a></div></article>
+</section>
+
+    <div class="footer-note">SkyeCloud is a from-scratch creative environment with heavier dedicated app surfaces. Built to be deployed as one suite, used as many lanes.</div>
+  </div>
+  <script type="module" src="assets/page-home.js"></script>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+    }
+  </script>
+</body>
+</html>

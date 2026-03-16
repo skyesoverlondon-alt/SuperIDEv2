@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SkyeCloud · PromptStudio</title>
+  <meta name="theme-color" content="#08101d">
+  <link rel="manifest" href="../../manifest.webmanifest">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../assets/styles.css">
+</head>
+<body>
+  <div class="layout">
+    
+<nav class="topnav">
+  <a class="brand" href="../../index.html">
+    <img src="../../assets/skyecloud-logo.png" alt="SkyeCloud logo">
+    <div>
+      <strong>SkyeCloud</strong>
+      <span>Creative Environment Suite</span>
+    </div>
+  </a>
+  <div class="navlinks">
+    <a href="../../index.html">Home</a>
+    <a href="../cloudcode/index.html">CloudCode IDE</a>
+    <a href="../doclab/index.html">DocLab</a>
+    <a href="../dataforge/index.html">DataForge</a>
+    <a href="../flowboard/index.html">FlowBoard</a>
+    <a href="../snippetvault/index.html">SnippetVault</a>
+    <a href="../promptstudio/index.html">PromptStudio</a>
+    <a href="../assetvault/index.html">AssetVault</a>
+    <a href="../brandboard/index.html">BrandBoard</a>
+    <a href="../deploydesk/index.html">DeployDesk</a>
+    <a href="../kaixu/index.html">kAIxU Console</a>
+  </div>
+</nav>
+
+    
+<section class="section-title">
+  <div><h2>PromptStudio</h2><p>Shape reusable prompt cards and send work into the kAIxU lane when the server function is configured.</p></div>
+  <div class="statline"><span class="statpill" id="prompt-status">Ready</span><button class="btn" id="new-prompt">New prompt</button></div>
+</section>
+<section class="two-pane">
+  <aside class="workspace-panel">
+    <div id="prompt-list" class="list"></div>
+  </aside>
+  <section class="workspace-panel">
+    <div class="split">
+      <div>
+        <label class="kicker">Title</label>
+        <input id="prompt-title" placeholder="Prompt title">
+      </div>
+      <div>
+        <label class="kicker">Category</label>
+        <input id="prompt-category" placeholder="Category">
+      </div>
+    </div>
+    <div style="margin-top:14px">
+      <label class="kicker">System</label>
+      <textarea id="prompt-system" class="code-editor" style="min-height:140px;border-radius:18px"></textarea>
+    </div>
+    <div style="margin-top:14px">
+      <label class="kicker">User template</label>
+      <textarea id="prompt-user" class="code-editor" style="min-height:140px;border-radius:18px"></textarea>
+    </div>
+    <div style="margin-top:14px">
+      <label class="kicker">Task</label>
+      <textarea id="prompt-task" class="code-editor" style="min-height:110px;border-radius:18px"></textarea>
+    </div>
+    <div class="action-row" style="margin-top:14px"><button class="btn" id="run-prompt">Run through kAIxU</button></div>
+    <div class="response-box" id="prompt-response" style="margin-top:14px">Response output appears here.</div>
+  </section>
+</section>
+
+    <div class="footer-note">SkyeCloud is a from-scratch creative environment with heavier dedicated app surfaces. Built to be deployed as one suite, used as many lanes.</div>
+  </div>
+  <script type="module" src="../../assets/page-prompts.js"></script>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => navigator.serviceWorker.register('../../sw.js').catch(() => {}));
+    }
+  </script>
+</body>
+</html>

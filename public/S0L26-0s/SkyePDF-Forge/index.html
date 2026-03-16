@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SkyePDF Forge</title>
+  <meta name="theme-color" content="#0a0814" />
+  <meta name="description" content="Skyes Over London branded PDF generator." />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="stylesheet" href="app.css" />
+</head>
+<body>
+  <div id="introOverlay" aria-hidden="true">
+    <div class="intro-stars"></div>
+    <div class="intro-scan"></div>
+    <div class="intro-vignette"></div>
+    <div class="intro-stage">
+      <img id="introLogo" class="floating-logo" alt="Skyes Over London logo" />
+      <div class="intro-kicker">Skyes Over London LC</div>
+      <h1 class="intro-title">SkyePDF Forge</h1>
+      <p class="intro-tag">The Creative Environment Eco-System</p>
+      <button id="skipIntroBtn" class="ghost-btn" type="button">Enter Forge</button>
+    </div>
+  </div>
+
+  <div id="app" class="app-shell">
+    <header class="topbar">
+      <div class="brandmark">
+        <img id="brandLogo" class="floating-logo brand-logo" alt="Skyes Over London logo" />
+        <div>
+          <div class="brand-kicker">Skyes Over London LC</div>
+          <div class="brand-title">SkyePDF Forge</div>
+        </div>
+      </div>
+      <nav class="main-nav" aria-label="Primary">
+        <a href="#composer">Composer</a>
+        <a href="#branding">Brand</a>
+        <a href="#previewSection">Preview</a>
+        <a href="#vaultSection">Vault</a>
+        <a href="#helpSection">Syntax</a>
+      </nav>
+      <div class="topbar-actions">
+        <button id="sampleBtn" class="ghost-btn" type="button">Load Sample</button>
+        <button id="exportPdfBtn" class="primary-btn" type="button">Export PDF</button>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <section class="control-column" id="composer">
+        <div class="panel hero-panel">
+          <div class="panel-kicker">PDF engine</div>
+          <h2>Drop in words. Get a branded PDF back.</h2>
+          <p>Paste the raw text blob, tune the brand lane, preview it live, then export the PDF.</p>
+          <div class="stats-row">
+            <div class="stat-chip"><span id="statusLabel">Ready</span></div>
+            <div class="stat-chip"><span id="pageCountLabel">0 pages</span></div>
+            <div class="stat-chip"><span id="wordCountLabel">0 words</span></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-kicker">Document setup</div>
+          <div class="form-grid two-col">
+            <label>
+              <span>Document title</span>
+              <input id="docTitle" type="text" placeholder="Executive Authority Report" />
+            </label>
+            <label>
+              <span>Subtitle</span>
+              <input id="docSubtitle" type="text" placeholder="Strategic brief / proposal / valuation / notes" />
+            </label>
+            <label>
+              <span>Document type</span>
+              <select id="docType">
+                <option>Branded Report</option>
+                <option>Executive Brief</option>
+                <option>Proposal</option>
+                <option>Valuation Binder</option>
+                <option>Client Packet</option>
+                <option>Memo</option>
+              </select>
+            </label>
+            <label>
+              <span>Prepared for</span>
+              <input id="preparedFor" type="text" placeholder="Client / internal lane / cohort / operator" />
+            </label>
+            <label>
+              <span>Prepared by</span>
+              <input id="preparedBy" type="text" placeholder="Skyes Over London" />
+            </label>
+            <label>
+              <span>Page size</span>
+              <select id="pageSize">
+                <option value="A4">A4</option>
+                <option value="LETTER">Letter</option>
+              </select>
+            </label>
+          </div>
+          <div class="toggle-row">
+            <label class="toggle"><input id="showCover" type="checkbox" checked /><span>Cover page</span></label>
+            <label class="toggle"><input id="showWatermark" type="checkbox" checked /><span>Watermark logo</span></label>
+            <label class="toggle"><input id="showPageNumbers" type="checkbox" checked /><span>Page numbers</span></label>
+          </div>
+        </div>
+
+        <div class="panel" id="branding">
+          <div class="panel-kicker">Brand lane</div>
+          <div class="form-grid two-col">
+            <label>
+              <span>Brand / org name</span>
+              <input id="brandName" type="text" placeholder="Skyes Over London LC" />
+            </label>
+            <label>
+              <span>Tagline</span>
+              <input id="brandTagline" type="text" placeholder="The Creative Environment Eco-System" />
+            </label>
+            <label>
+              <span>Footer left</span>
+              <input id="footerLeft" type="text" placeholder="Brand lane / contact / website" />
+            </label>
+            <label>
+              <span>Footer right</span>
+              <input id="footerRight" type="text" placeholder="Internal use / public issue / revision" />
+            </label>
+            <label>
+              <span>Accent gold</span>
+              <input id="accentGold" type="color" />
+            </label>
+            <label>
+              <span>Accent purple</span>
+              <input id="accentPurple" type="color" />
+            </label>
+            <label>
+              <span>Accent cyan</span>
+              <input id="accentCyan" type="color" />
+            </label>
+            <label>
+              <span>Watermark strength</span>
+              <input id="watermarkOpacity" type="range" min="0" max="20" step="1" />
+            </label>
+          </div>
+          <div class="action-row">
+            <button id="uploadLogoBtn" class="ghost-btn" type="button">Upload Logo</button>
+            <button id="resetLogoBtn" class="ghost-btn" type="button">Reset Logo</button>
+            <span class="microcopy">Default logo is already loaded into the forge.</span>
+          </div>
+        </div>
+
+        <div class="panel text-panel">
+          <div class="panel-kicker">Source text</div>
+          <textarea id="sourceText" spellcheck="true" placeholder="# Title section
+
+Paste your mass blob of text here.
+
+## Section heading
+
+- Bullet one
+- Bullet two
+
+NOTE: This line becomes a branded callout."></textarea>
+          <div class="action-row">
+            <button id="refreshPreviewBtn" class="ghost-btn" type="button">Refresh Preview</button>
+            <button id="clearDocBtn" class="ghost-btn" type="button">Clear</button>
+            <button id="downloadJsonBtn" class="ghost-btn" type="button">Export JSON</button>
+            <button id="importJsonBtn" class="ghost-btn" type="button">Import JSON</button>
+          </div>
+        </div>
+
+        <div class="panel" id="vaultSection">
+          <div class="panel-kicker">Vault</div>
+          <div class="action-row">
+            <button id="saveSnapshotBtn" class="ghost-btn" type="button">Save Snapshot</button>
+            <button id="wipeVaultBtn" class="ghost-btn" type="button">Wipe Vault</button>
+          </div>
+          <div id="snapshotList" class="snapshot-list"></div>
+        </div>
+
+        <div class="panel" id="helpSection">
+          <div class="panel-kicker">Syntax lane</div>
+          <ul class="syntax-list">
+            <li><code># Heading</code> creates a large section header.</li>
+            <li><code>## Subheading</code> creates a medium subheader.</li>
+            <li><code>- item</code> builds bullet lists.</li>
+            <li><code>NOTE:</code> or <code>CALLOUT:</code> creates a branded callout box.</li>
+            <li><code>[PAGEBREAK]</code> forces a new page.</li>
+            <li>Blank lines split paragraphs into cleaner blocks.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="preview-column" id="previewSection">
+        <div class="preview-toolbar">
+          <div>
+            <div class="panel-kicker">Live PDF preview</div>
+            <h2>What exports is what you see here.</h2>
+          </div>
+          <div class="preview-actions">
+            <button id="printBtn" class="ghost-btn" type="button">Print</button>
+            <button id="cloneBtn" class="ghost-btn" type="button">Duplicate State</button>
+          </div>
+        </div>
+        <div id="previewScroll" class="preview-scroll">
+          <div id="pdfCapture" class="pdf-capture"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <input id="logoUploadInput" type="file" accept="image/*" hidden />
+  <input id="jsonImportInput" type="file" accept="application/json" hidden />
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

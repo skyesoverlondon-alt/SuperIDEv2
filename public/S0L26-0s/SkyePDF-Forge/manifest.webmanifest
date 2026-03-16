@@ -1,0 +1,16 @@
+{
+  "name": "SkyePDF Forge",
+  "short_name": "PDF Forge",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#06070c",
+  "theme_color": "#0a0814",
+  "icons": [
+    {
+      "src": "assets/logo-optimized.png",
+      "sizes": "900x602",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#6d28ff" />
+  <meta name="description" content="SOLE Sales App — Standalone PWA (Firebase Auth + Firestore)." />
+  <title>SOLE Sales App</title>
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="icon" href="./assets/icon-192.png" />
+  <link rel="apple-touch-icon" href="./assets/icon-192.png" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body data-view="pipeline">
+  <div class="app" id="appRoot">
+
+    <header class="topbar">
+      <div class="topbar__inner">
+        <div class="brand" aria-label="Brand">
+          <div class="brand__logo" aria-hidden="true">
+            <img id="brandLogo" src="./assets/logo.png" alt="" />
+          </div>
+          <div class="brand__txt">
+            <div class="brand__name">SOLE Sales App</div>
+            <div class="brand__sub" id="brandSub">Secure pipeline • White Neon UI • v5.0.0</div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <span class="chip">User: <b id="me">—</b></span>
+          <a class="btn btn--ghost" id="portalLink" href="./portal.html">Contractor Portal</a>
+          <button class="btn btn--ghost" id="installBtn" type="button">Install Tips</button>
+          <button class="btn btn--ghost" id="templatesBtn" type="button">Scripts</button>
+          <button class="btn btn--ghost" id="exportBtn" type="button">Export</button>
+          <button class="btn btn--primary" id="newBtn" type="button">New Lead</button>
+          <button class="btn btn--ghost" id="lockBtn" type="button" title="Lock device + sign out">Lock</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- PIN Gate -->
+    <section class="panel" id="pinGate" aria-label="PIN gate" style="max-width: 720px; margin: 16px auto; width: calc(100% - 32px);">
+      <div class="panel__head">
+        <div class="panel__title"><span class="trim-dot"></span> Contractor Access</div>
+        <div class="panel__meta">PIN required</div>
+      </div>
+      <div class="panel__body">
+        <div class="field">
+          <label>Contractor PIN</label>
+          <input id="pinInput" type="password" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" placeholder="••••" autocomplete="one-time-code" />
+          <div class="keypad" id="pinKeypad" aria-label="PIN keypad">
+            <button class="key" type="button" data-k="1">1</button>
+            <button class="key" type="button" data-k="2">2</button>
+            <button class="key" type="button" data-k="3">3</button>
+            <button class="key" type="button" data-k="4">4</button>
+            <button class="key" type="button" data-k="5">5</button>
+            <button class="key" type="button" data-k="6">6</button>
+            <button class="key" type="button" data-k="7">7</button>
+            <button class="key" type="button" data-k="8">8</button>
+            <button class="key" type="button" data-k="9">9</button>
+            <button class="key key--wide" type="button" data-k="clear">Clear</button>
+            <button class="key" type="button" data-k="0">0</button>
+            <button class="key" type="button" data-k="back">⌫</button>
+          </div>
+
+          <div class="help" style="margin-top:8px">After unlocking, this device stays unlocked for several hours.</div>
+        </div>
+        <div class="rowBtns">
+          <button class="btn btn--primary" id="pinUnlockBtn" type="button">Unlock</button>
+          <button class="btn" id="pinClearBtn" type="button">Clear</button>
+        </div>
+        <div id="pinMsg" class="help" style="margin-top:10px"></div>
+      </div>
+    </section>
+
+    <!-- Firebase Auth -->
+    <section class="panel" id="auth" aria-label="Firebase login" style="max-width: 720px; margin: 16px auto; width: calc(100% - 32px);" hidden>
+      <div class="panel__head">
+        <div class="panel__title"><span class="trim-dot"></span> Sign In</div>
+        <div class="panel__meta">Email + Password (Firebase)</div>
+      </div>
+      <div class="panel__body">
+        <div class="field">
+          <label>Email</label>
+          <input id="authEmail" type="email" placeholder="rep@company.com" autocomplete="username" />
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <input id="authPass" type="password" placeholder="••••••••" autocomplete="current-password" />
+        </div>
+        <div class="rowBtns">
+          <button class="btn btn--primary" id="authBtn" type="button">Sign In</button>
+          <button class="btn" id="authClearBtn" type="button">Clear</button>
+        </div>
+        <div id="authMsg" class="help" style="margin-top:10px"></div>
+      </div>
+    </section>
+
+    <!-- App Layout -->
+    <main class="main" id="main" hidden>
+      <!-- Control -->
+      <aside class="panel" id="panelControl" aria-label="Control panel">
+        <div class="panel__head">
+          <div class="panel__title">Control</div>
+          <div class="panel__meta"><span class="chip">Every lead gets a next step</span></div>
+        </div>
+        <div class="panel__body">
+          <div class="field">
+            <label>Search</label>
+            <input id="q" placeholder="Business / city / niche / contact..." />
+          </div>
+
+          <div class="field">
+            <label>Stage Filter</label>
+            <select id="stageFilter"></select>
+          </div>
+
+          <div class="field">
+            <label>Rules (non-negotiable)</label>
+            <div class="help">
+              Proposal Sent → schedule decision call within 48 hours.<br/>
+              Demo Completed → proposal same day.<br/>
+              No response → log attempts + set a next step time.
+            </div>
+          </div>
+
+          <div class="kpiGrid">
+            <div class="kpi"><b id="kTotal">0</b><span>Total Leads</span></div>
+            <div class="kpi"><b id="kHot">0</b><span>Hot (Proposal+)</span></div>
+          </div>
+
+          <div class="rowBtns" style="margin-top:12px">
+            <button class="btn btn--ghost" id="refreshBtn" type="button">Refresh</button>
+            <button class="btn btn--gold" id="seedBtn" type="button" title="Seed scripts into Firestore templates">Seed Scripts</button>
+          </div>
+
+          <div class="help" style="margin-top:10px">
+            Tip: Install on phone (Home Screen) for full-screen app mode.
+          </div>
+        </div>
+      </aside>
+
+      <!-- Pipeline -->
+      <section class="panel" id="panelPipeline" aria-label="Pipeline">
+        <div class="panel__head">
+          <div class="panel__title">Pipeline</div>
+          <div class="panel__meta"><span class="chip">Drag to move (desktop). Tap to open (mobile).</span></div>
+        </div>
+        <div class="panel__body kanbanWrap">
+          <div class="kanban" id="kanban"></div>
+        </div>
+      </section>
+
+      <!-- Lead -->
+      <aside class="panel" id="panelLead" aria-label="Lead detail">
+        <div class="panel__head">
+          <div class="panel__title" id="dtTitle">Lead</div>
+          <div class="panel__meta">
+            <button class="btn btn--ghost" id="discardBtn" type="button">Discard</button>
+            <button class="btn btn--primary" id="saveBtn" type="button">Save</button>
+          </div>
+        </div>
+        <div class="panel__body">
+          <div id="leadEmpty" class="help">
+            Select a lead to view and edit details.<br/>
+            On mobile: Pipeline → tap a lead → switch to Lead tab.
+          </div>
+
+          <div id="leadForm" hidden>
+            <div class="field">
+              <label>Business (required)</label>
+              <input id="businessName" />
+            </div>
+
+            <div class="field">
+              <label>Contact</label>
+              <input id="contactName" />
+            </div>
+
+            <div class="field">
+              <label>Phone</label>
+              <input id="phone" inputmode="tel" />
+            </div>
+
+            <div class="field">
+              <label>Email</label>
+              <input id="email" type="email" />
+            </div>
+
+            <div class="field">
+              <label>Instagram</label>
+              <input id="instagram" placeholder="@handle" />
+            </div>
+
+            <div class="field">
+              <label>Website</label>
+              <input id="website" placeholder="https://..." />
+            </div>
+
+            <div class="field">
+              <label>City</label>
+              <input id="city" />
+            </div>
+
+            <div class="field">
+              <label>Niche</label>
+              <input id="niche" />
+            </div>
+
+            <div class="field">
+              <label>Stage</label>
+              <select id="stage"></select>
+            </div>
+
+            <div class="field">
+              <label>Next Step (local time)</label>
+              <input id="nextStepLocal" type="datetime-local" />
+              <div id="nextStepWarn" class="warn" style="margin-top:8px" hidden>
+                Every active lead must have a Next Step. Set a time or this lead will stall.
+              </div>
+            </div>
+
+            <div class="field">
+              <label>Recommended Package</label>
+              <select id="recommendedPackage">
+                <option value=""></option>
+                <option>Launch 5 ($25k)</option>
+                <option>Signature 5-Page ($45k)</option>
+                <option>Ecosystem ($85k+)</option>
+                <option>Brand+Web System ($200k+)</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label>Production Interest</label>
+              <select id="productionInterest">
+                <option value=""></option>
+                <option>None</option>
+                <option>Photo Kit ($6.5k)</option>
+                <option>Video Kit ($12.5k)</option>
+                <option>Full Content Day ($22.5k)</option>
+                <option>Studio Upgrade (+$2.5k)</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label>Notes</label>
+              <textarea id="notes"></textarea>
+            </div>
+
+            <div class="rowBtns">
+              <button class="btn btn--ghost" id="logCallBtn" type="button">Log Call</button>
+              <button class="btn btn--ghost" id="logTextBtn" type="button">Log Text</button>
+              <button class="btn btn--ghost" id="logDMBtn" type="button">Log IG DM</button>
+            </div>
+            <div class="rowBtns">
+              <button class="btn btn--gold" id="icsBtn" type="button">Add to Calendar (.ics)</button>
+            </div>
+
+            <div class="panel" style="margin-top:12px">
+              <div class="panel__head">
+                <div class="panel__title">Activity</div>
+                <div class="panel__meta"><span class="chip" id="lastTouch">—</span></div>
+              </div>
+              <div class="panel__body">
+                <div class="timeline" id="activityList"></div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </aside>
+    </main>
+
+    <!-- Mobile bottom nav -->
+    <nav class="bottomNav" aria-label="Mobile navigation">
+      <div class="bottomNav__inner">
+        <button class="navBtn" id="navPipeline" type="button" data-active="1">Pipeline</button>
+        <button class="navBtn" id="navLead" type="button" data-active="0">Lead</button>
+        <button class="navBtn" id="navControl" type="button" data-active="0">Control</button>
+      </div>
+    </nav>
+
+    <!-- Toast -->
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <!-- Modals -->
+    <div class="backdrop" id="modalBackdrop" hidden onclick="this.hidden=true;document.getElementById('installModal').hidden=true;document.getElementById('templatesModal').hidden=true;"></div>
+
+    <div class="modal" id="installModal" hidden aria-modal="true" role="dialog">
+      <div class="modalCard" id="installCard">
+        <div class="modalHead">
+          <div>
+            <h2>Install to Home Screen</h2>
+            <p>Make it behave like a real app (full-screen, quick access).</p>
+          </div>
+          <button class="iconBtn" id="installClose" type="button" aria-label="Close" onclick="document.getElementById('installModal').hidden=true;document.getElementById('modalBackdrop').hidden=true;">✕</button>
+        </div>
+        <div class="modalBody">
+          <div class="modalGrid">
+            <div>
+              <b>iPhone (Safari)</b>
+              <ol class="small">
+                <li>Tap Share (square with arrow).</li>
+                <li>Tap “Add to Home Screen”.</li>
+                <li>Name it “SOLE Sales”.</li>
+                <li>Tap Add.</li>
+              </ol>
+            </div>
+            <div>
+              <b>Android (Chrome)</b>
+              <ol class="small">
+                <li>Tap ⋮ menu.</li>
+                <li>Tap “Install app” or “Add to Home screen”.</li>
+                <li>Confirm install.</li>
+              </ol>
+            </div>
+          </div>
+          <div class="modalActions">
+            <button class="btn btn--primary" id="installDismiss" type="button">Got it</button>
+            <button class="btn btn--ghost" id="installNever" type="button">Don’t show again</button>
+          </div>
+          <div class="small" style="margin-top:10px">This screen closes by ✕, backdrop tap, ESC, or swipe down.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal" id="templatesModal" hidden aria-modal="true" role="dialog">
+      <div class="modalCard" id="templatesCard">
+        <div class="modalHead">
+          <div>
+            <h2>Scripts</h2>
+            <p>Copy/paste scripts for calls, DM, texts, objections, and closes.</p>
+          </div>
+          <button class="iconBtn" id="templatesClose" type="button" aria-label="Close">✕</button>
+        </div>
+        <div class="modalBody">
+          <div class="field">
+            <label>Category</label>
+            <select id="tplCategory">
+              <option value="DM">DM</option>
+              <option value="SMS">SMS</option>
+              <option value="CALL">Call</option>
+              <option value="OBJECTIONS">Objections</option>
+              <option value="CLOSE">Close</option>
+            </select>
+          </div>
+          <div id="tplList"></div>
+          <div class="modalActions">
+            <button class="btn btn--primary" id="templatesDone" type="button">Done</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Firebase (Compat SDK) -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+  <script src="./app.js"></script>
+</body>
+</html>

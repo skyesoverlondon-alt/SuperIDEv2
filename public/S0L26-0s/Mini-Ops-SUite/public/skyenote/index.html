@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>SkyeNote Vault</title>
+  <meta name="description" content="Offline-first notes vault with tags, search, pin, export/import, and optional encryption."/>
+  <meta name="theme-color" content="#120a1f"/>
+  <link rel="manifest" href="../manifest.webmanifest"/>
+  <link rel="icon" href="../assets/logo.png"/>
+  <link rel="stylesheet" href="../assets/app.css"/>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div class="brand">
+        <img class="logo" src="../assets/logo.png" alt="logo"/>
+        <div>
+          <h1>SkyeNote Vault</h1>
+          <p>Local-only notes. IndexedDB storage. Optional encryption. Back up if it matters.</p>
+        </div>
+      </div>
+      <div class="nav">
+        <a class="btn secondary" href="../sync/#vault=skyenote_vault">☁️ Sync</a>
+        <span class="badge mono" id="buildBadge">build</span>
+        <a class="btn secondary" href="../">🏠 Suite</a>
+        <button class="btn secondary" id="btnSecurity">🛡️ Security</button>
+        <button class="btn secondary" id="btnExport">⬇️ Export</button>
+        <label class="btn secondary" for="fileImport" style="cursor:pointer">⬆️ Import</label>
+        <input id="fileImport" type="file" accept="application/json" style="display:none">
+        <button class="btn" id="btnReset">🧨 Reset</button>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <div class="row" style="justify-content:space-between">
+          <div class="badge" style="cursor:default">🗂️ Notes</div>
+          <div class="badge mono" style="cursor:default" id="count">0</div>
+        </div>
+        <div class="hr"></div>
+        <div class="row">
+          <div class="field">
+            <label>Search</label>
+            <input id="q" placeholder="search title/body/tags..." />
+          </div>
+          <div class="field" style="min-width:140px;max-width:220px">
+            <label>Tag</label>
+            <select id="tag"><option value="">All</option></select>
+          </div>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <button class="btn" id="new">➕ New</button>
+          <button class="btn secondary" id="pin">📌 Pin</button>
+          <button class="btn secondary" id="dup">🧬 Duplicate</button>
+          <button class="btn secondary" id="del">🗑️ Delete</button>
+          <button class="btn secondary" id="txt">🧾 Export TXT</button>
+        </div>
+        <div class="list" id="list"></div>
+        <div class="hr"></div>
+        <p class="mono" style="opacity:.8"><kbd>Ctrl</kbd>/<kbd>Cmd</kbd>+<kbd>S</kbd> saves.</p>
+      </div>
+
+      <div class="card">
+        <div class="row" style="justify-content:space-between">
+          <div class="badge" style="cursor:default">✍️ Editor</div>
+          <div class="badge" style="cursor:default" id="status">Saved</div>
+        </div>
+        <div class="hr"></div>
+        <div class="field">
+          <label>Title</label>
+          <input id="title" placeholder="Note title..." />
+        </div>
+        <div class="field" style="margin-top:10px">
+          <label>Tags (comma-separated)</label>
+          <input id="tags" placeholder="ops, ideas, calls" />
+        </div>
+        <div class="field" style="margin-top:10px">
+          <label>Body</label>
+          <textarea id="body" placeholder="Write it down before it escapes..."></textarea>
+        </div>
+        <div class="row" style="justify-content:space-between;margin-top:10px">
+          <p id="meta" class="mono" style="opacity:.8">—</p>
+          <button class="btn" id="save">💾 Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <img class="wm" src="../assets/logo.png" alt=""/>
+
+  <!-- Shared modal -->
+  <div class="modalBack" id="modalBack" hidden>
+    <div class="modal" role="dialog" aria-modal="true">
+      <h2 id="modalTitle">Dialog</h2>
+      <div id="modalText"></div>
+      <div class="hr"></div>
+      <div class="field">
+        <label class="small">Input</label>
+        <input id="modalInput" type="text" autocomplete="off"/>
+      </div>
+      <div class="field field2 hidden" style="margin-top:10px">
+        <label class="small">Confirm</label>
+        <input id="modalInput2" type="password" autocomplete="off"/>
+      </div>
+      <div class="row" style="justify-content:flex-end;margin-top:12px">
+        <button class="btn secondary" id="modalCancel">Cancel</button>
+        <button class="btn" id="modalOk">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="../assets/shell.js" defer></script>
+  <script src="../assets/pwa.js" defer></script>
+  <script src="./app.js" defer></script>
+</body>
+</html>

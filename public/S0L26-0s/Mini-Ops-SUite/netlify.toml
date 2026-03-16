@@ -1,0 +1,48 @@
+[build]
+  command = "npm install"
+  publish = "public"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+# Clean enterprise URLs (rewrite to functions)
+[[redirects]]
+  from = "/scim/v2/Users"
+  to = "/.netlify/functions/scim-users"
+  status = 200
+
+[[redirects]]
+  from = "/scim/v2/Users/*"
+  to = "/.netlify/functions/scim-users"
+  status = 200
+
+[[redirects]]
+  from = "/scim/v2/Groups"
+  to = "/.netlify/functions/scim-groups"
+  status = 200
+
+[[redirects]]
+  from = "/scim/v2/Groups/*"
+  to = "/.netlify/functions/scim-groups"
+  status = 200
+
+[[redirects]]
+  from = "/sso/saml/metadata"
+  to = "/.netlify/functions/sso-saml-metadata"
+  status = 200
+
+[[redirects]]
+  from = "/sso/saml/acs"
+  to = "/.netlify/functions/sso-saml-acs"
+  status = 200
+
+[[redirects]]
+  from = "/sso/saml/login"
+  to = "/.netlify/functions/sso-saml-login"
+  status = 200
+
+[[redirects]]
+  from = "/sso/oidc/callback"
+  to = "/sso/oidc-callback.html"
+  status = 200

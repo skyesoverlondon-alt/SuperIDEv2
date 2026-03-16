@@ -1,0 +1,5 @@
+[build]
+  command = ""
+  publish = "public"
+
+# Offline-only: you can omit functions entirely.

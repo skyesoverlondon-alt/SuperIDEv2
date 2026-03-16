@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Demon Lead Forge</title>
+    <meta name="description" content="Lead scraping, AI targeting, sheet comparison, and admin intelligence in one command deck." />
+    <link rel="stylesheet" href="styles.css" />
+    <script defer src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+    <script type="module" defer src="app.js"></script>
+  </head>
+  <body>
+    <canvas id="starfield" aria-hidden="true"></canvas>
+
+    <header class="topbar">
+      <div class="brand-wrap">
+        <div class="brand-mark">⛧</div>
+        <div>
+          <p class="eyebrow">Skyes Over London · Lead Intelligence Runtime</p>
+          <h1>Demon Lead Forge</h1>
+        </div>
+      </div>
+      <nav class="menu" aria-label="Main">
+        <a href="index.html">Command Deck</a>
+        <a href="success.html">Forms Success</a>
+      </nav>
+      <div class="top-actions">
+        <button id="loginBtn" class="ghost-btn">Log In</button>
+        <button id="logoutBtn" class="ghost-btn hidden">Log Out</button>
+        <button id="adminOpenBtn" class="gold-btn">Admin Vault</button>
+      </div>
+    </header>
+
+    <main class="app-shell">
+      <aside class="sidebar panel">
+        <section>
+          <p class="section-kicker">Operator</p>
+          <div id="userCard" class="user-card">
+            <p class="muted">Not logged in yet.</p>
+            <p class="tiny">Use Netlify Identity to unlock saved sheets, chat history, and persistence.</p>
+          </div>
+        </section>
+
+        <section>
+          <div class="section-head">
+            <p class="section-kicker">Projects</p>
+            <span class="tiny" id="projectCount">0</span>
+          </div>
+          <div id="projectList" class="stack-list"></div>
+        </section>
+
+        <section>
+          <div class="section-head">
+            <p class="section-kicker">Sheets</p>
+            <span class="tiny" id="sheetCount">0</span>
+          </div>
+          <div id="sheetList" class="stack-list"></div>
+        </section>
+
+        <section>
+          <div class="section-head">
+            <p class="section-kicker">Threads</p>
+            <span class="tiny" id="threadCount">0</span>
+          </div>
+          <div id="threadList" class="stack-list"></div>
+        </section>
+      </aside>
+
+      <section class="main-column">
+        <div class="hero panel glow">
+          <div>
+            <p class="section-kicker">Fortune-500-style lead plumbing</p>
+            <h2>Scrape public business contacts, turn them into sheets, compare them side-by-side, and use AI to steer the hunt.</h2>
+            <p class="muted">
+              This runtime uses Netlify Identity, Forms, Blobs, and serverless functions with Neon Postgres underneath. The hidden admin vault is separately unlocked with your BEMON key.
+            </p>
+          </div>
+          <div class="hero-stats">
+            <div class="stat-box">
+              <span class="stat-label">Health</span>
+              <strong id="healthStatus">Checking…</strong>
+            </div>
+            <div class="stat-box">
+              <span class="stat-label">Saved Sheets</span>
+              <strong id="savedSheetsMetric">0</strong>
+            </div>
+            <div class="stat-box">
+              <span class="stat-label">Saved Threads</span>
+              <strong id="savedThreadsMetric">0</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-two">
+          <section class="panel">
+            <div class="section-head compact">
+              <div>
+                <p class="section-kicker">Lead Scraper</p>
+                <h3>Pull public contacts into a new sheet</h3>
+              </div>
+            </div>
+            <form id="scrapeForm" class="form-grid">
+              <label>
+                <span>Target URL</span>
+                <input id="scrapeUrl" name="url" type="url" placeholder="https://example.com/directory" required />
+              </label>
+              <label>
+                <span>Sheet title</span>
+                <input id="scrapeTitle" name="title" type="text" placeholder="Phoenix Jan 2026 Sheet" />
+              </label>
+              <label>
+                <span>Max pages</span>
+                <input id="scrapePages" name="maxPages" type="number" min="1" max="30" value="12" />
+              </label>
+              <div class="form-actions">
+                <button class="gold-btn" type="submit">Scrape Into Sheet</button>
+              </div>
+            </form>
+            <div id="scrapeStatus" class="status-box muted">Waiting for a target.</div>
+            <div id="scrapePreview" class="table-wrap compact-table"></div>
+          </section>
+
+          <section class="panel">
+            <div class="section-head compact">
+              <div>
+                <p class="section-kicker">AI Command Deck</p>
+                <h3>Regular chat or targeted lead operations</h3>
+              </div>
+            </div>
+            <div id="chatLog" class="chat-log"></div>
+            <form id="chatForm" class="chat-form">
+              <textarea id="chatInput" placeholder="Example: Combine the selected sheets and tell me which rows have email + phone. Or: scrape https://example.com and summarize the lead quality." required></textarea>
+              <div class="chat-controls">
+                <button class="gold-btn" type="submit">Send</button>
+                <p class="tiny muted">Tip: select sheets below, then tell the AI to merge or dedupe them.</p>
+              </div>
+            </form>
+          </section>
+        </div>
+
+        <div class="grid-two">
+          <section class="panel">
+            <div class="section-head compact">
+              <div>
+                <p class="section-kicker">Sheet Preview</p>
+                <h3>Open and export a saved sheet</h3>
+              </div>
+              <div class="button-row">
+                <button id="refreshWorkspaceBtn" class="ghost-btn" type="button">Refresh</button>
+                <button id="downloadSheetBtn" class="ghost-btn" type="button">Download CSV</button>
+              </div>
+            </div>
+            <div id="sheetMeta" class="muted">Pick a sheet from the sidebar.</div>
+            <div id="sheetPreview" class="table-wrap"></div>
+          </section>
+
+          <section class="panel">
+            <div class="section-head compact">
+              <div>
+                <p class="section-kicker">Compare + Combine</p>
+                <h3>Load two sheets side by side, then merge them</h3>
+              </div>
+            </div>
+            <div class="compare-controls">
+              <label>
+                <span>Left sheet</span>
+                <select id="compareLeft"></select>
+              </label>
+              <label>
+                <span>Right sheet</span>
+                <select id="compareRight"></select>
+              </label>
+              <div class="button-row wrap">
+                <button id="loadCompareBtn" class="ghost-btn" type="button">Load Compare View</button>
+                <button id="combineSheetsBtn" class="gold-btn" type="button">Combine Into New Sheet</button>
+              </div>
+            </div>
+            <div class="compare-grid">
+              <div>
+                <h4 id="compareLeftTitle">Left sheet</h4>
+                <div id="compareLeftTable" class="table-wrap compact-table"></div>
+              </div>
+              <div>
+                <h4 id="compareRightTitle">Right sheet</h4>
+                <div id="compareRightTable" class="table-wrap compact-table"></div>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <section class="panel">
+          <div class="section-head compact">
+            <div>
+              <p class="section-kicker">Feedback</p>
+              <h3>Netlify Form-powered audit trail</h3>
+            </div>
+          </div>
+          <form id="feedbackForm" class="form-grid two-up">
+            <label>
+              <span>Your email</span>
+              <input id="feedbackEmail" name="email" type="email" placeholder="operator@example.com" />
+            </label>
+            <label>
+              <span>Topic</span>
+              <input id="feedbackTopic" name="topic" type="text" placeholder="Scraper issue / feature request" />
+            </label>
+            <label class="full-span">
+              <span>Message</span>
+              <textarea id="feedbackMessage" name="message" placeholder="Tell the runtime what broke or what you want next."></textarea>
+            </label>
+            <div class="form-actions full-span">
+              <button class="ghost-btn" type="submit">Send Feedback Form</button>
+              <span id="feedbackStatus" class="tiny muted"></span>
+            </div>
+          </form>
+        </section>
+      </section>
+    </main>
+
+    <section id="adminModal" class="modal hidden" aria-hidden="true">
+      <div class="modal-card panel glow">
+        <div class="section-head compact">
+          <div>
+            <p class="section-kicker">Hidden Admin Vault</p>
+            <h3>BEMON-gated control surface</h3>
+          </div>
+          <button id="adminCloseBtn" class="ghost-btn" type="button">Close</button>
+        </div>
+
+        <div class="admin-unlock-row">
+          <input id="adminKeyInput" type="password" placeholder="Enter BEMON key" />
+          <button id="adminUnlockBtn" class="gold-btn" type="button">Unlock</button>
+        </div>
+        <p id="adminStatus" class="tiny muted">Admin vault locked.</p>
+
+        <div class="admin-metrics" id="adminMetrics"></div>
+        <div class="grid-two admin-grid">
+          <div>
+            <h4>Tracked Users</h4>
+            <div id="adminUsers" class="table-wrap compact-table"></div>
+          </div>
+          <div>
+            <h4>Audit Events</h4>
+            <div id="adminEvents" class="table-wrap compact-table"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <form name="scrape-request" data-netlify="true" netlify-hidden hidden>
+      <input type="hidden" name="form-name" value="scrape-request" />
+      <input type="text" name="url" />
+      <input type="text" name="title" />
+      <input type="text" name="maxPages" />
+      <input type="text" name="operatorEmail" />
+    </form>
+
+    <form name="leadforge-feedback" data-netlify="true" netlify-hidden hidden>
+      <input type="hidden" name="form-name" value="leadforge-feedback" />
+      <input type="email" name="email" />
+      <input type="text" name="topic" />
+      <textarea name="message"></textarea>
+    </form>
+  </body>
+</html>

@@ -1,0 +1,21 @@
+{
+  "name": "demon-lead-forge",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Lead scraping, sheet comparison, AI-assisted enrichment, Netlify Identity, Neon Postgres, Netlify Blobs, and gated admin control surface.",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "dev": "netlify dev",
+    "build": "echo 'Static app: no build step required'",
+    "start": "netlify dev"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^0.10.4",
+    "@netlify/blobs": "^9.0.5",
+    "cheerio": "^1.0.0",
+    "openai": "^6.6.0"
+  }
+}

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SkyeCloud · CloudCode IDE</title>
+  <meta name="theme-color" content="#08101d">
+  <link rel="manifest" href="../../manifest.webmanifest">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../assets/styles.css">
+</head>
+<body>
+  <div class="layout">
+    
+<nav class="topnav">
+  <a class="brand" href="../../index.html">
+    <img src="../../assets/skyecloud-logo.png" alt="SkyeCloud logo">
+    <div>
+      <strong>SkyeCloud</strong>
+      <span>Creative Environment Suite</span>
+    </div>
+  </a>
+  <div class="navlinks">
+    <a href="../../index.html">Home</a>
+    <a href="../cloudcode/index.html">CloudCode IDE</a>
+    <a href="../doclab/index.html">DocLab</a>
+    <a href="../dataforge/index.html">DataForge</a>
+    <a href="../flowboard/index.html">FlowBoard</a>
+    <a href="../snippetvault/index.html">SnippetVault</a>
+    <a href="../promptstudio/index.html">PromptStudio</a>
+    <a href="../assetvault/index.html">AssetVault</a>
+    <a href="../brandboard/index.html">BrandBoard</a>
+    <a href="../deploydesk/index.html">DeployDesk</a>
+    <a href="../kaixu/index.html">kAIxU Console</a>
+  </div>
+</nav>
+
+    
+<section class="section-title">
+  <div><h2>CloudCode IDE</h2><p>Build multi-file front-end projects with instant preview and persistent local project storage.</p></div>
+  <div class="statline"><span class="statpill" id="project-meta">Loading project…</span><span class="statpill" id="save-status">Not saved yet</span></div>
+</section>
+<section class="editor-panel tall">
+  <div class="editor-header">
+    <div>
+      <div class="kicker">Project workspace</div>
+      <h3 style="margin:4px 0 0">Build lane</h3>
+    </div>
+    <div class="action-row">
+      <button class="ghost" id="new-project">New project</button>
+      <button class="ghost" id="new-file">Add file</button>
+      <button class="ghost" id="starter-basic">Load starter</button>
+      <button class="btn" id="export-project">Export project</button>
+      <label class="ghost" style="display:inline-flex;align-items:center;gap:8px">Import JSON<input id="import-project" type="file" accept=".json" class="hide"></label>
+    </div>
+  </div>
+  <div class="editor-shell">
+    <aside class="file-tree">
+      <h3>Projects</h3>
+      <div id="projects" class="list"></div>
+      <hr style="border-color:rgba(255,255,255,.06);margin:16px 0">
+      <h3>Files</h3>
+      <div id="files"></div>
+    </aside>
+    <div class="editor-wrap">
+      <div class="editor-tools">
+        <input id="project-name" placeholder="Project name" style="min-width:220px">
+        <input id="file-name" placeholder="File name" style="min-width:220px">
+      </div>
+      <textarea id="code-editor" class="code-editor" spellcheck="false"></textarea>
+      <iframe id="preview" class="preview-frame" title="Live preview"></iframe>
+    </div>
+  </div>
+</section>
+
+    <div class="footer-note">SkyeCloud is a from-scratch creative environment with heavier dedicated app surfaces. Built to be deployed as one suite, used as many lanes.</div>
+  </div>
+  <script type="module" src="../../assets/page-ide.js"></script>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => navigator.serviceWorker.register('../../sw.js').catch(() => {}));
+    }
+  </script>
+</body>
+</html>

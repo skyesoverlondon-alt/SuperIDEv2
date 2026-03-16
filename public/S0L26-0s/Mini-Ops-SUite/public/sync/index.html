@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>SkyeSync Console</title>
+  <meta name="description" content="Optional multi-device sync console (end-to-end encrypted) with role-based sharing and signed update channel checks."/>
+  <meta name="theme-color" content="#120a1f"/>
+  <link rel="manifest" href="../manifest.webmanifest"/>
+  <link rel="icon" href="../assets/logo.png"/>
+  <link rel="stylesheet" href="../assets/app.css"/>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div class="brand">
+        <img class="logo" src="../assets/logo.png" alt="logo"/>
+        <div>
+          <h1>SkyeSync Console</h1>
+          <p>Optional multi-device sync (end-to-end encrypted) + team roles. Offline suite still works with sync disabled.</p>
+        </div>
+      </div>
+      <div class="nav">
+        <span class="badge mono" id="buildBadge">build</span>
+        <a class="btn secondary" href="../">🏠 Suite</a>
+        <button class="btn secondary" id="btnUnlock">🔓 Unlock Sync Session</button>
+        <button class="btn secondary" id="btnLock">🔒 Lock</button>
+        <button class="btn secondary" id="btnDisable">⛔ Disable Sync</button>
+      </div>
+    </div>
+
+    <div class="grid" style="margin-top:12px">
+      <div class="card">
+        <div class="row" style="justify-content:space-between">
+          <div class="badge" id="syncStatus">☁️ Sync: —</div>
+          <div class="badge" id="netStatus">🌐 —</div>
+        </div>
+        <div class="hr"></div>
+
+        <div class="field">
+          <label>Sync server base URL (optional)</label>
+          <input id="baseUrl" placeholder="(blank = same site)"/>
+          <p style="margin-top:6px">Leave blank if you deployed the built-in Netlify sync functions with this site. Use a full URL if you host the sync API elsewhere.</p>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <button class="btn secondary" id="saveBase">Save</button>
+          <button class="btn secondary" id="testConn">Test</button>
+          <button class="btn secondary" id="checkUpdates">✅ Check signed updates</button>
+        </div>
+        <div class="hr"></div>
+
+        <div class="field">
+          <label>Current identity</label>
+          <div class="row">
+            <input id="orgId" placeholder="Org ID" readonly/>
+            <input id="userId" placeholder="User ID" readonly/>
+          </div>
+          <div class="row" style="margin-top:8px">
+            <input id="role" placeholder="Role" readonly/>
+            <input id="keyModel" placeholder="Key model" readonly/>
+          </div>
+          <div class="row" style="margin-top:8px">
+            <input id="remoteSalt" placeholder="Org salt (legacy)" readonly/>
+            <input id="dekStatus" placeholder="Key status" readonly/>
+          </div>
+          <div class="row" style="margin-top:8px">
+            <input id="orgEpoch" placeholder="Org epoch" readonly/>
+            <input id="tokenVersion" placeholder="Token version" readonly/>
+          </div>
+          <div class="row" style="margin-top:10px">
+            <button class="btn secondary" id="copyOrg">Copy Org ID</button>
+            <button class="btn secondary" id="copyUser">Copy User ID</button>
+          </div>
+          <p style="margin-top:6px">This device has its own encryption keypair. The team <span class="mono">Epoch Key (EDEK)</span> is stored on the server only as ciphertext wrapped to each member. That epoch key wraps per‑vault <span class="mono">Vault Keys (VDEKs)</span>, so you can restrict access per vault and rotate keys without re‑encrypting vault blobs.</p>
+          <div class="hr"></div>
+          <div class="row" style="justify-content:space-between;gap:10px;flex-wrap:wrap">
+            <div>
+              <p class="t" style="margin:0">🔁 Key rotation (owner)</p>
+              <p class="s" style="margin:6px 0 0">Fast mode: rotate epoch + generate a new epoch key + re-wrap for remaining active members + re-wrap vault keys (no vault blob re-encryption).</p>
+            </div>
+            <button class="btn" id="btnRotateKey">Rotate org key</button>
+          </div>
+
+          <div class="hr"></div>
+          <div class="row" style="justify-content:space-between;gap:10px;flex-wrap:wrap">
+            <div>
+              <p class="t" style="margin:0">🧬 Migrate legacy org</p>
+              <p class="s" style="margin:6px 0 0">If this org is <span class="mono">passphrase-v1</span>, migrate to <span class="mono">wrapped-dek-v1</span> (per-member key wraps).</p>
+            </div>
+            <button class="btn secondary" id="btnMigrate">Migrate to wrapped DEK</button>
+          </div>
+
+<div class="hr"></div>
+<div class="row" style="justify-content:space-between;gap:10px;flex-wrap:wrap">
+  <div>
+    <p class="t" style="margin:0">🔑 Upgrade org to per‑vault keys</p>
+    <p class="s" style="margin:6px 0 0">One-time upgrade for <span class="mono">wrapped-dek-v1</span> orgs: generates per‑vault keys, re-encrypts vault blobs once, then switches to <span class="mono">wrapped-epoch-vault-v1</span>.</p>
+  </div>
+  <button class="btn secondary" id="btnUpgradeVaultKeys">Upgrade to per‑vault keys</button>
+</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="row" style="justify-content:space-between">
+          <div class="badge">👥 Team</div>
+          <div class="badge mono" id="memberCount">0</div>
+        </div>
+        <div class="hr"></div>
+
+        <div class="row">
+          <div class="field">
+            <label>Create invite (owner/admin)</label>
+            <select id="inviteRole">
+              <option value="viewer">viewer (pull only)</option>
+              <option value="editor">editor (push/pull)</option>
+              <option value="admin">admin (invite/manage)</option>
+            </select>
+          </div>
+          <div class="field" style="max-width:140px">
+            <label>Expires (hours)</label>
+            <input id="inviteHours" type="number" min="1" max="720" value="72"/>
+          </div>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <button class="btn" id="btnInvite">🎟️ Create invite</button>
+          <button class="btn secondary" id="btnMembers">↻ Refresh members</button>
+        </div>
+        <div class="hr"></div>
+
+        <div class="row">
+          <div class="field">
+            <label>SSO sign-in (OIDC/SAML)</label>
+            <input id="ssoOrgId" placeholder="Org ID"/>
+          </div>
+          <div class="field">
+            <label>Device label (optional)</label>
+            <input id="ssoDeviceLabel" placeholder="e.g. Kaixu-Laptop-01"/>
+          </div>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <button class="btn" id="btnOidcLogin">🔐 Sign in with OIDC</button>
+          <button class="btn secondary" id="btnSamlLogin">🔐 Sign in with SAML</button>
+          <button class="btn secondary" id="btnWebAuthnEnroll">🪪 Enroll security key</button>
+        </div>
+        <p class="s" style="margin:8px 0 0">After SSO, your device keys are uploaded automatically. If the org requires WebAuthn, you'll be prompted during sign-in or token refresh.</p>
+
+        <div class="hr"></div>
+
+        <div class="row">
+          <div class="field">
+            <label>Join org (invite code)</label>
+            <input id="joinCode" placeholder="Invite code"/>
+          </div>
+          <div class="field">
+            <label>Your name</label>
+            <input id="joinName" placeholder="Device / person name"/>
+          </div>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <button class="btn" id="btnJoin">➕ Join with invite</button>
+        </div>
+        <div class="hr"></div>
+
+        <div class="row">
+          <div class="field">
+            <label>Create new org (owner)</label>
+            <input id="newOrg" placeholder="Org name"/>
+          </div>
+          <div class="field">
+            <label>Your name</label>
+            <input id="newName" placeholder="Owner name"/>
+          </div>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <button class="btn" id="btnCreate">🏗️ Create org</button>
+        </div>
+
+        <div class="hr"></div>
+        <div class="list" id="memberList"></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:12px">
+      <div class="row" style="justify-content:space-between">
+        <div class="badge">📦 Vault Sync</div>
+        <div class="row">
+          <button class="btn secondary" id="btnPullAll">⬇️ Pull all</button>
+          <button class="btn secondary" id="btnPushAll">⬆️ Push dirty</button>
+          <button class="btn" id="btnSyncAll">🔁 Sync all</button>
+        </div>
+      </div>
+      <div class="hr"></div>
+      <div class="tableWrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Vault</th>
+              <th class="right">Remote rev</th>
+              <th>Dirty</th>
+              <th>Last push</th>
+              <th>Last pull</th>
+              <th class="right">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="vaultRows"></tbody>
+        </table>
+      </div>
+      <p style="margin-top:10px">Conflict rule: CRDT-style merge by default (LWW + tombstones). If local vault encryption is enabled, auto-merge is disabled and a conflict snapshot is stored locally.</p>
+    </div>
+
+    <div class="grid" style="margin-top:12px">
+      <div class="card">
+        <div class="row" style="justify-content:space-between">
+          <div class="badge">🏛️ Enterprise Policy</div>
+          <div class="row" style="gap:8px">
+            <button class="btn secondary" id="btnPolicyLoad">↻ Load</button>
+            <button class="btn" id="btnPolicySave">Save policy</button>
+          </div>
+        </div>
+        <div class="hr"></div>
+        <p class="s" style="margin:0 0 10px">These controls are enforced server-side (Enterprise hardening). Owners set them; admins can view them.</p>
+
+        <div class="row" style="flex-wrap:wrap">
+          <div class="field" style="min-width:240px">
+            <label>Session TTL (seconds)</label>
+            <input id="polSessionTtl" type="number" min="300" max="2592000" placeholder="86400"/>
+            <p class="s" style="margin-top:6px">Shorter TTL reduces token exposure. New logins honor this immediately.</p>
+          </div>
+          <div class="field" style="min-width:240px">
+            <label>Max ciphertext bytes (vault push)</label>
+            <input id="polMaxCipher" type="number" min="1000000" max="20000000" placeholder="5500000"/>
+            <p class="s" style="margin-top:6px">Caps payload size to protect infra and prevent accidental mega pushes.</p>
+          </div>
+        </div>
+
+        <div class="row" style="flex-wrap:wrap">
+          <label class="pick"><input id="polRequireDevice" type="checkbox"> <span>Require deviceId at login</span></label>
+          <label class="pick"><input id="polAuditReads" type="checkbox"> <span>Audit vault reads (pulls)</span></label>
+          <label class="pick"><input id="polRequireIp" type="checkbox"> <span>Require IP allowlist</span></label>
+        </div>
+
+        <div class="field" style="margin-top:10px">
+          <label>IP allowlist (one per line; supports CIDR)</label>
+          <textarea id="polIpAllow" rows="6" placeholder="10.0.0.0/8\n192.168.0.0/16\n2001:db8::/64"></textarea>
+        </div>
+
+        <div class="hr"></div>
+        <div class="row" style="justify-content:space-between;gap:10px;flex-wrap:wrap">
+          <div>
+            <p class="t" style="margin:0">📤 Encrypted org export (owner)</p>
+            <p class="s" style="margin:6px 0 0">Exports only ciphertext + metadata + key wraps for disaster recovery. Server cannot decrypt content.</p>
+          </div>
+          <button class="btn secondary" id="btnOrgExport">Export org</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="row" style="justify-content:space-between">
+          <div class="badge">🧾 Audit Log</div>
+          <div class="row" style="gap:8px">
+            <button class="btn secondary" id="btnAuditLoad">↻ Load</button>
+            <button class="btn secondary" id="btnAuditMore">More</button>
+            <button class="btn secondary" id="btnAuditProof">Proof Pack (ZIP)</button>
+            <button class="btn" id="btnAuditExport">Export JSON</button>
+          </div>
+        </div>
+        <div class="hr"></div>
+        <div class="field">
+          <label>Filter by action prefix (optional)</label>
+          <input id="auditFilter" placeholder="vault."/>
+        </div>
+        <div class="hr"></div>
+        <div class="list" id="auditList"></div>
+      </div>
+    </div>
+
+    <div class="note">
+      <div><strong>What the server can see:</strong> your org + users + roles + encrypted vault blobs + revision numbers + per‑member wrapped epoch key blobs + wrapped per‑vault keys + per‑vault access list. It cannot read vault content.</div>
+      <div style="margin-top:6px"><strong>What can still break you:</strong> clearing browser storage (loses your device keys) or losing suite backups. If you wipe storage, re-join and ask an owner to grant access again.</div>
+    </div>
+  </div>
+
+  <img class="wm" src="../assets/logo.png" alt=""/>
+
+  <!-- Shared modal -->
+  <div class="modalBack" id="modalBack" hidden>
+    <div class="modal" role="dialog" aria-modal="true">
+      <h2 id="modalTitle">Dialog</h2>
+      <div id="modalText"></div>
+      <div class="hr"></div>
+      <div class="field">
+        <label class="small">Input</label>
+        <input id="modalInput" type="text" autocomplete="off"/>
+      </div>
+      <div class="field field2 hidden" style="margin-top:10px">
+        <label class="small">Confirm</label>
+        <input id="modalInput2" type="password" autocomplete="off"/>
+      </div>
+      <div class="row" style="justify-content:flex-end;margin-top:12px">
+        <button class="btn secondary" id="modalCancel">Cancel</button>
+        <button class="btn" id="modalOk">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="../assets/shell.js" defer></script>
+  <script src="../assets/pwa.js" defer></script>
+  <script src="./app.js" defer></script>
+</body>
+</html>

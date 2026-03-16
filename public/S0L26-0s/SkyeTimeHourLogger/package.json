@@ -1,0 +1,18 @@
+{
+  "name": "skyetime-hour-logger",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Cloudflare-native operator hour logger with offline IndexedDB, proof-chain exports, receipt storage, and branded PDF evidence packs.",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:migrate:local": "wrangler d1 migrations apply DB --local",
+    "db:migrate:remote": "wrangler d1 migrations apply DB --remote",
+    "check:js": "node --check src/index.js && node --check public/assets/js/app.js && node --check public/assets/js/intro.js && node --check public/sw.js",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}

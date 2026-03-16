@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#ffffff" />
+  <meta name="description" content="SOLE Contractor Portal — create your login and access the SOLE Sales App." />
+  <title>SOLE Contractor Portal</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <style>
+    body{ overflow:auto; }
+    .portalWrap{ max-width:1100px; margin:0 auto; padding:18px 16px 70px; }
+    .portalGrid{ display:grid; grid-template-columns: 1.15fr .85fr; gap:16px; align-items:start; }
+    .cardX{ background: rgba(255,255,255,.86); border:1px solid rgba(0,0,0,.10); border-radius: 22px; box-shadow: 0 18px 46px rgba(0,0,0,.12); overflow:hidden; }
+    .heroCard{ padding:18px; }
+    .heroTop{ display:flex; gap:14px; align-items:center; }
+    .logoBox{ width:58px; height:58px; border-radius: 18px; background: rgba(255,255,255,.75); border:1px solid rgba(0,0,0,.10); display:flex; align-items:center; justify-content:center; overflow:hidden; box-shadow: 0 14px 40px rgba(177,76,255,.12); }
+    .logoBox img{ width:100%; height:100%; object-fit:contain; padding:8px; background:#fff; }
+    .heroTitle{ margin:0; font-size: 22px; font-weight: 950; letter-spacing:.2px; color: rgba(0,0,0,.88); }
+    .heroSub{ margin-top:6px; color: rgba(0,0,0,.62); font-size: 13px; line-height: 1.45; }
+    .pillRow{ display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+    .pill{ padding:6px 10px; border-radius:999px; border:1px solid rgba(177,76,255,.22); background: linear-gradient(135deg, rgba(177,76,255,.12), rgba(247,210,122,.12)); color: rgba(0,0,0,.72); font-size: 12px; font-weight: 800; }
+    .steps{ margin-top:14px; display:grid; gap:10px; }
+    .step{ display:flex; gap:10px; align-items:flex-start; padding:10px 12px; border-radius: 18px; background: rgba(0,0,0,.035); border:1px solid rgba(0,0,0,.08); }
+    .stepNum{ width:28px; height:28px; border-radius: 11px; background: rgba(177,76,255,.14); border:1px solid rgba(177,76,255,.24); color: rgba(60,0,120,.92); display:flex; align-items:center; justify-content:center; font-weight: 950; flex:0 0 auto; }
+    .stepText{ color: rgba(0,0,0,.72); font-size: 13px; line-height: 1.45; }
+    .portalCard{ padding:16px; }
+    .tabs{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
+    .tab{ border:1px solid rgba(0,0,0,.14); background: rgba(255,255,255,.85); color: rgba(0,0,0,.82); padding:8px 10px; border-radius:999px; cursor:pointer; font-weight: 900; font-size: 12px; }
+    .tab.active{ background: linear-gradient(135deg, rgba(177,76,255,.18), rgba(247,210,122,.18)); border-color: rgba(177,76,255,.32); }
+    .field{ margin-bottom: 10px; }
+    label{ display:block; margin: 0 0 6px 0; font-size: 12px; color: rgba(0,0,0,.60); font-weight: 800; }
+    input{ width:100%; padding: 11px 12px; border-radius: 14px; border:1px solid rgba(0,0,0,.14); background: rgba(255,255,255,.92); color: rgba(0,0,0,.86); outline:none; }
+    input:focus{ border-color: rgba(177,76,255,.55); box-shadow: 0 0 0 3px rgba(177,76,255,.18); }
+    .btnRow{ display:flex; gap:10px; flex-wrap:wrap; margin-top: 10px; }
+    .pbtn{ border:1px solid rgba(0,0,0,.14); background: rgba(255,255,255,.90); color: rgba(0,0,0,.86); padding: 10px 12px; border-radius: 14px; cursor:pointer; font-weight: 950; flex: 1 1 auto; }
+    .pbtn.primary{ background: linear-gradient(135deg, rgba(177,76,255,.88), rgba(247,210,122,.78)); border-color: rgba(177,76,255,.25); color: rgba(0,0,0,.92); }
+    .pbtn.ghost{ background: rgba(0,0,0,.045); }
+    .msg{ margin-top: 10px; padding: 10px 12px; border-radius: 14px; border:1px solid rgba(0,0,0,.12); background: rgba(255,255,255,.85); color: rgba(0,0,0,.76); font-size: 12.5px; line-height: 1.45; }
+    .msg.ok{ border-color: rgba(39,180,120,.35); background: rgba(39,180,120,.10); }
+    .msg.bad{ border-color: rgba(240,90,140,.35); background: rgba(240,90,140,.10); }
+    .mutedLine{ color: rgba(0,0,0,.55); font-size: 12px; margin-top:10px; line-height: 1.45; }
+    .tiny{ font-size: 11.5px; color: rgba(0,0,0,.55); }
+    .linkA{ color: rgba(90,0,160,.92); font-weight: 950; text-decoration:none; }
+    .linkA:hover{ text-decoration:underline; }
+    @media(max-width: 980px){ .portalGrid{ grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="noise"></div>
+
+  <div class="portalWrap">
+    <div class="portalGrid">
+      <section class="cardX heroCard">
+        <div class="heroTop">
+          <div class="logoBox" aria-hidden="true">
+            <img src="https://cdn1.sharemyimage.com/2025/12/30/SkyesOverLondonLC_logo_transparent_clean_tight.png" alt="Skyes Over London LC" onerror="this.src='./assets/logo.png';" />
+          </div>
+          <div>
+            <h1 class="heroTitle">Contractor Portal</h1>
+            <div class="heroSub">
+              Create your login (one time) or sign in to access the SOLE Sales App pipeline.
+              This portal is tied to <b>solenterprises-58215</b>.
+            </div>
+          </div>
+        </div>
+
+        <div class="pillRow">
+          <span class="pill">White Neon UI</span>
+          <span class="pill">Firebase Auth</span>
+          <span class="pill">Profile + role tracking</span>
+          <span class="pill">Optional Invite Code</span>
+        </div>
+
+        <div class="steps">
+          <div class="step">
+            <div class="stepNum">1</div>
+            <div class="stepText">
+              <b>Sign Up</b> once with your email + password (and the Contractor Invite Code, if required).
+            </div>
+          </div>
+          <div class="step">
+            <div class="stepNum">2</div>
+            <div class="stepText">
+              <b>Open the Sales App</b> and log in. If your team uses a PIN gate, enter the PIN after login.
+            </div>
+          </div>
+          <div class="step">
+            <div class="stepNum">3</div>
+            <div class="stepText">
+              <b>Bookmark it like an app</b>: on iPhone tap Share → “Add to Home Screen”. On Android tap ⋮ → “Add to Home screen”.
+            </div>
+          </div>
+        </div>
+
+        <div class="mutedLine">
+          Already signed in? <span id="signedInAs">Checking…</span>
+        </div>
+
+        <div class="btnRow">
+          <a class="pbtn primary" href="./index.html">Open SOLE Sales App</a>
+          <button class="pbtn ghost" id="signOutBtn" type="button" style="display:none">Sign out</button>
+        </div>
+
+        <div class="mutedLine tiny">
+          If the Sales App still looks like an old version: refresh the Sales App page and ensure you’re opening the latest link (v5.0.0).
+        </div>
+      </section>
+
+      <section class="cardX portalCard">
+        <div class="tabs">
+          <button class="tab active" id="tabSignIn" type="button">Sign In</button>
+          <button class="tab" id="tabSignUp" type="button">Sign Up</button>
+          <button class="tab" id="tabReset" type="button">Reset</button>
+        </div>
+
+        <div id="panelSignIn">
+          <div class="field">
+            <label>Email</label>
+            <input id="inEmail" type="email" placeholder="name@domain.com" autocomplete="email" />
+          </div>
+          <div class="field">
+            <label>Password</label>
+            <input id="inPass" type="password" placeholder="••••••••" autocomplete="current-password" />
+          </div>
+          <div class="btnRow">
+            <button class="pbtn primary" id="signInBtn" type="button">Sign In</button>
+            <a class="pbtn ghost" href="./index.html">Go to App</a>
+          </div>
+          <div class="msg" id="msgSignIn" style="display:none"></div>
+        </div>
+
+        <div id="panelSignUp" style="display:none">
+          <div class="field">
+            <label>Email</label>
+            <input id="upEmail" type="email" placeholder="name@domain.com" autocomplete="email" />
+          </div>
+          <div class="field">
+            <label>Password (8+ chars)</label>
+            <input id="upPass" type="password" placeholder="Create a password" autocomplete="new-password" />
+          </div>
+          <div class="field">
+            <label>Contractor Invite Code (if required)</label>
+            <input id="upCode" type="text" placeholder="Provided by your manager" autocomplete="off" />
+          </div>
+          <div class="btnRow">
+            <button class="pbtn primary" id="signUpBtn" type="button">Create Account</button>
+            <button class="pbtn ghost" id="clearUpBtn" type="button">Clear</button>
+          </div>
+          <div class="msg" id="msgSignUp" style="display:none"></div>
+          <div class="mutedLine tiny">
+            If your team is using approval: after signup, you may see “Pending approval” in the Sales App until your manager approves your profile.
+          </div>
+        </div>
+
+        <div id="panelReset" style="display:none">
+          <div class="field">
+            <label>Email</label>
+            <input id="reEmail" type="email" placeholder="name@domain.com" autocomplete="email" />
+          </div>
+          <div class="btnRow">
+            <button class="pbtn primary" id="resetBtn" type="button">Send Reset Email</button>
+          </div>
+          <div class="msg" id="msgReset" style="display:none"></div>
+        </div>
+
+        <div class="mutedLine">
+          Build: <b>v5.0.0</b> • Project: <b>solenterprises-58215</b>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="./portal.js"></script>
+</body>
+</html>

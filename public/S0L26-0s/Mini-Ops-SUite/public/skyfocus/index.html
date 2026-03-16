@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>SkyeFocus Log</title>
+  <meta name="description" content="Offline-first pomodoro + sessions log with stats, CSV export, resilient timer restore, and optional encryption."/>
+  <meta name="theme-color" content="#120a1f"/>
+  <link rel="manifest" href="../manifest.webmanifest"/>
+  <link rel="icon" href="../assets/logo.png"/>
+  <link rel="stylesheet" href="../assets/app.css"/>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div class="brand">
+        <img class="logo" src="../assets/logo.png" alt="logo"/>
+        <div>
+          <h1>SkyeFocus Log</h1>
+          <p>Pomodoro + project sessions. IndexedDB storage. Optional encryption. Timer resumes correctly after refresh.</p>
+        </div>
+      </div>
+      <div class="nav">
+        <a class="btn secondary" href="../sync/#vault=skyefocus_log">☁️ Sync</a>
+        <span class="badge mono" id="buildBadge">build</span>
+        <a class="btn secondary" href="../">🏠 Suite</a>
+        <button class="btn secondary" id="btnSecurity">🛡️ Security</button>
+        <button class="btn secondary" id="btnExport">⬇️ Export</button>
+        <label class="btn secondary" for="fileImport" style="cursor:pointer">⬆️ Import</label>
+        <input id="fileImport" type="file" accept="application/json" style="display:none">
+        <button class="btn" id="btnReset">🧨 Reset</button>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <div class="row" style="justify-content:space-between">
+          <div class="badge" style="cursor:default">⏱️ Pomodoro</div>
+          <div class="badge mono" style="cursor:default" id="mode">WORK</div>
+        </div>
+        <div class="hr"></div>
+
+        <div class="card" style="padding:10px">
+          <p>Time left</p>
+          <p class="mono" style="font-size:30px;margin-top:6px" id="left">25:00</p>
+        </div>
+
+        <div class="row" style="margin-top:10px">
+          <button class="btn" id="start">▶️ Start</button>
+          <button class="btn secondary" id="pause">⏸️ Pause</button>
+          <button class="btn secondary" id="resetT">🔄 Reset</button>
+          <button class="btn secondary" id="skip">⏭️ Skip</button>
+        </div>
+
+        <div class="hr"></div>
+        <div class="row">
+          <div class="field" style="min-width:120px">
+            <label>Work (min)</label>
+            <input id="work" type="number" min="5" max="180" step="1">
+          </div>
+          <div class="field" style="min-width:120px">
+            <label>Break (min)</label>
+            <input id="break" type="number" min="1" max="60" step="1">
+          </div>
+          <div class="field">
+            <label>Active project</label>
+            <select id="proj"></select>
+          </div>
+        </div>
+
+        <div class="field" style="margin-top:10px">
+          <label>Session note (logged when a WORK block completes)</label>
+          <input id="note" placeholder="optional note">
+        </div>
+
+        <div class="hr"></div>
+        <div class="row" style="gap:10px">
+          <div class="card" style="padding:10px;flex:1">
+            <p>Today (min)</p><p class="mono" style="font-size:16px;margin-top:6px" id="sToday">0</p>
+          </div>
+          <div class="card" style="padding:10px;flex:1">
+            <p>7 days (min)</p><p class="mono" style="font-size:16px;margin-top:6px" id="sWeek">0</p>
+          </div>
+          <div class="card" style="padding:10px;flex:1">
+            <p>Total sessions</p><p class="mono" style="font-size:16px;margin-top:6px" id="sCount">0</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="row" style="justify-content:space-between">
+          <div class="badge" style="cursor:default">🗃️ Projects + Sessions</div>
+          <button class="btn secondary" id="csv">📄 Export CSV</button>
+        </div>
+
+        <div class="hr"></div>
+        <div class="row">
+          <div class="field">
+            <label>New project</label>
+            <input id="newP" placeholder="Outreach, Music, Ops...">
+          </div>
+          <div style="align-self:flex-end">
+            <button class="btn" id="addP">➕ Add</button>
+          </div>
+        </div>
+
+        <div class="hr"></div>
+        <p>Recent sessions</p>
+        <div class="list" id="sessions"></div>
+        <div class="hr"></div>
+        <p>Completing a WORK block logs a session automatically. Break blocks do not log.</p>
+      </div>
+    </div>
+  </div>
+
+  <img class="wm" src="../assets/logo.png" alt=""/>
+
+  <!-- Shared modal -->
+  <div class="modalBack" id="modalBack" hidden>
+    <div class="modal" role="dialog" aria-modal="true">
+      <h2 id="modalTitle">Dialog</h2>
+      <div id="modalText"></div>
+      <div class="hr"></div>
+      <div class="field">
+        <label class="small">Input</label>
+        <input id="modalInput" type="text" autocomplete="off"/>
+      </div>
+      <div class="field field2 hidden" style="margin-top:10px">
+        <label class="small">Confirm</label>
+        <input id="modalInput2" type="password" autocomplete="off"/>
+      </div>
+      <div class="row" style="justify-content:flex-end;margin-top:12px">
+        <button class="btn secondary" id="modalCancel">Cancel</button>
+        <button class="btn" id="modalOk">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="../assets/shell.js" defer></script>
+  <script src="../assets/pwa.js" defer></script>
+  <script src="./app.js" defer></script>
+</body>
+</html>

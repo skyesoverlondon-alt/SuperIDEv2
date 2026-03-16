@@ -1,0 +1,7 @@
+{
+  "name": "Skye Mini Ops Suite",
+  "buildId": "20260222-100700-PHX",
+  "schemaVersion": 10,
+  "createdAt": "2026-02-22T10:07:00-07:00",
+  "notes": "v10 enterprise security stack: optional OIDC + SAML SSO, SCIM provisioning (Users/Groups) with role + per-vault grant mapping, WebAuthn security key enrollment + step-up enforcement, WORM audit log (append-only) + KMS-signed daily audit anchors, and HSM/KMS update signing tooling."
+}
