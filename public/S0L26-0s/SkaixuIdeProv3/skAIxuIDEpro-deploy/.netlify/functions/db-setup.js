@@ -1,0 +1,1 @@
+module.exports = require('./skAIxuIDEpro-deploy/netlify/functions/db-setup.js')

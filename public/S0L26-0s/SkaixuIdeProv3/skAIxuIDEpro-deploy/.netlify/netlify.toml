@@ -1,0 +1,36 @@
+functionsDirectory = "/home/lordkaixu/skAIxuIDEpro-deploy/netlify/functions"
+functionsDirectoryOrigin = "config-v1"
+plugins = []
+headers = []
+redirects = []
+
+[build]
+publish = "/home/lordkaixu/skAIxuIDEpro-deploy"
+publishOrigin = "config"
+base = "/home/lordkaixu/skAIxuIDEpro-deploy"
+functions = "/home/lordkaixu/skAIxuIDEpro-deploy/netlify/functions"
+
+[build.environment]
+
+[build.processing]
+
+[build.processing.css]
+
+[build.processing.html]
+
+[build.processing.images]
+
+[build.processing.js]
+
+[build.services]
+
+[dev]
+command = "npx serve . -l 5500 --no-clipboard"
+targetPort = 5500.0
+port = 8080.0
+autoLaunch = false
+
+[functions]
+
+[functions."*"]
+node_bundler = "esbuild"

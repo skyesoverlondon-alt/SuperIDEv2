@@ -1,0 +1,56 @@
+
+import {createRequire as ___nfyCreateRequire} from "module";
+import {fileURLToPath as ___nfyFileURLToPath} from "url";
+import {dirname as ___nfyPathDirname} from "path";
+let __filename=___nfyFileURLToPath(import.meta.url);
+let __dirname=___nfyPathDirname(___nfyFileURLToPath(import.meta.url));
+let require=___nfyCreateRequire(import.meta.url);
+
+
+// netlify/functions/admin-key-verify.ts
+import crypto from "crypto";
+
+// netlify/functions/_shared/response.ts
+function json(statusCode, body, extraHeaders = {}) {
+  return {
+    statusCode,
+    headers: {
+      "Content-Type": "application/json",
+      ...extraHeaders
+    },
+    body: JSON.stringify(body ?? {})
+  };
+}
+
+// netlify/functions/admin-key-verify.ts
+function timingSafeMatches(left, right) {
+  const leftBuf = Buffer.from(left);
+  const rightBuf = Buffer.from(right);
+  if (leftBuf.length !== rightBuf.length) return false;
+  return crypto.timingSafeEqual(leftBuf, rightBuf);
+}
+var admin_key_verify_default = async (request) => {
+  if (request.method !== "POST") {
+    return json(405, { error: "Method not allowed." });
+  }
+  const expectedKey = String(process.env.ADMIN_KEY || "").trim();
+  const expectedPassword = String(process.env.ADMIN_PASSWORD || "").trim();
+  if (!expectedKey && !expectedPassword) {
+    return json(503, { error: "Neither ADMIN_KEY nor ADMIN_PASSWORD is configured." });
+  }
+  const body = await request.json().catch(() => ({}));
+  const providedKey = String(body?.key || "").trim();
+  const matchesAdminKey = providedKey && expectedKey ? timingSafeMatches(providedKey, expectedKey) : false;
+  const matchesAdminPassword = providedKey && expectedPassword ? timingSafeMatches(providedKey, expectedPassword) : false;
+  if (!providedKey || !matchesAdminKey && !matchesAdminPassword) {
+    return json(401, { error: "Invalid admin board credential." });
+  }
+  return json(200, {
+    ok: true,
+    credential_type: matchesAdminKey ? "ADMIN_KEY" : "ADMIN_PASSWORD"
+  });
+};
+export {
+  admin_key_verify_default as default
+};
+//# sourceMappingURL=data:application/json;base64,ewogICJ2ZXJzaW9uIjogMywKICAic291cmNlcyI6IFsibmV0bGlmeS9mdW5jdGlvbnMvYWRtaW4ta2V5LXZlcmlmeS50cyIsICJuZXRsaWZ5L2Z1bmN0aW9ucy9fc2hhcmVkL3Jlc3BvbnNlLnRzIl0sCiAgInNvdXJjZXNDb250ZW50IjogWyJpbXBvcnQgY3J5cHRvIGZyb20gXCJjcnlwdG9cIjtcbmltcG9ydCB7IGpzb24gfSBmcm9tIFwiLi9fc2hhcmVkL3Jlc3BvbnNlXCI7XG5cbmZ1bmN0aW9uIHRpbWluZ1NhZmVNYXRjaGVzKGxlZnQ6IHN0cmluZywgcmlnaHQ6IHN0cmluZykge1xuICBjb25zdCBsZWZ0QnVmID0gQnVmZmVyLmZyb20obGVmdCk7XG4gIGNvbnN0IHJpZ2h0QnVmID0gQnVmZmVyLmZyb20ocmlnaHQpO1xuICBpZiAobGVmdEJ1Zi5sZW5ndGggIT09IHJpZ2h0QnVmLmxlbmd0aCkgcmV0dXJuIGZhbHNlO1xuICByZXR1cm4gY3J5cHRvLnRpbWluZ1NhZmVFcXVhbChsZWZ0QnVmLCByaWdodEJ1Zik7XG59XG5cbmV4cG9ydCBkZWZhdWx0IGFzeW5jIChyZXF1ZXN0OiBSZXF1ZXN0KSA9PiB7XG4gIGlmIChyZXF1ZXN0Lm1ldGhvZCAhPT0gXCJQT1NUXCIpIHtcbiAgICByZXR1cm4ganNvbig0MDUsIHsgZXJyb3I6IFwiTWV0aG9kIG5vdCBhbGxvd2VkLlwiIH0pO1xuICB9XG5cbiAgY29uc3QgZXhwZWN0ZWRLZXkgPSBTdHJpbmcocHJvY2Vzcy5lbnYuQURNSU5fS0VZIHx8IFwiXCIpLnRyaW0oKTtcbiAgY29uc3QgZXhwZWN0ZWRQYXNzd29yZCA9IFN0cmluZyhwcm9jZXNzLmVudi5BRE1JTl9QQVNTV09SRCB8fCBcIlwiKS50cmltKCk7XG4gIGlmICghZXhwZWN0ZWRLZXkgJiYgIWV4cGVjdGVkUGFzc3dvcmQpIHtcbiAgICByZXR1cm4ganNvbig1MDMsIHsgZXJyb3I6IFwiTmVpdGhlciBBRE1JTl9LRVkgbm9yIEFETUlOX1BBU1NXT1JEIGlzIGNvbmZpZ3VyZWQuXCIgfSk7XG4gIH1cblxuICBjb25zdCBib2R5ID0gYXdhaXQgcmVxdWVzdC5qc29uKCkuY2F0Y2goKCkgPT4gKHt9KSk7XG4gIGNvbnN0IHByb3ZpZGVkS2V5ID0gU3RyaW5nKChib2R5IGFzIHsga2V5PzogdW5rbm93biB9KT8ua2V5IHx8IFwiXCIpLnRyaW0oKTtcbiAgY29uc3QgbWF0Y2hlc0FkbWluS2V5ID0gcHJvdmlkZWRLZXkgJiYgZXhwZWN0ZWRLZXkgPyB0aW1pbmdTYWZlTWF0Y2hlcyhwcm92aWRlZEtleSwgZXhwZWN0ZWRLZXkpIDogZmFsc2U7XG4gIGNvbnN0IG1hdGNoZXNBZG1pblBhc3N3b3JkID0gcHJvdmlkZWRLZXkgJiYgZXhwZWN0ZWRQYXNzd29yZCA/IHRpbWluZ1NhZmVNYXRjaGVzKHByb3ZpZGVkS2V5LCBleHBlY3RlZFBhc3N3b3JkKSA6IGZhbHNlO1xuICBpZiAoIXByb3ZpZGVkS2V5IHx8ICghbWF0Y2hlc0FkbWluS2V5ICYmICFtYXRjaGVzQWRtaW5QYXNzd29yZCkpIHtcbiAgICByZXR1cm4ganNvbig0MDEsIHsgZXJyb3I6IFwiSW52YWxpZCBhZG1pbiBib2FyZCBjcmVkZW50aWFsLlwiIH0pO1xuICB9XG5cbiAgcmV0dXJuIGpzb24oMjAwLCB7XG4gICAgb2s6IHRydWUsXG4gICAgY3JlZGVudGlhbF90eXBlOiBtYXRjaGVzQWRtaW5LZXkgPyBcIkFETUlOX0tFWVwiIDogXCJBRE1JTl9QQVNTV09SRFwiLFxuICB9KTtcbn07IiwgIi8qKlxuICogSGVscGVyIHRvIGJ1aWxkIEpTT04gcmVzcG9uc2VzIGZyb20gTmV0bGlmeSBmdW5jdGlvbnMuICBBdHRhY2hlc1xuICogc3RhbmRhcmQgaGVhZGVycyBhbmQgc3RyaW5naWZpZXMgdGhlIGJvZHkuICBBZGRpdGlvbmFsIGhlYWRlcnNcbiAqIGNhbiBiZSBwcm92aWRlZCB2aWEgdGhlIHRoaXJkIGFyZ3VtZW50LlxuICovXG5leHBvcnQgZnVuY3Rpb24ganNvbihcbiAgc3RhdHVzQ29kZTogbnVtYmVyLFxuICBib2R5OiBhbnksXG4gIGV4dHJhSGVhZGVyczogUmVjb3JkPHN0cmluZywgc3RyaW5nPiA9IHt9XG4pIHtcbiAgcmV0dXJuIHtcbiAgICBzdGF0dXNDb2RlLFxuICAgIGhlYWRlcnM6IHtcbiAgICAgIFwiQ29udGVudC1UeXBlXCI6IFwiYXBwbGljYXRpb24vanNvblwiLFxuICAgICAgLi4uZXh0cmFIZWFkZXJzLFxuICAgIH0sXG4gICAgYm9keTogSlNPTi5zdHJpbmdpZnkoYm9keSA/PyB7fSksXG4gIH07XG59Il0sCiAgIm1hcHBpbmdzIjogIjs7Ozs7Ozs7OztBQUFBLE9BQU8sWUFBWTs7O0FDS1osU0FBUyxLQUNkLFlBQ0EsTUFDQSxlQUF1QyxDQUFDLEdBQ3hDO0FBQ0EsU0FBTztBQUFBLElBQ0w7QUFBQSxJQUNBLFNBQVM7QUFBQSxNQUNQLGdCQUFnQjtBQUFBLE1BQ2hCLEdBQUc7QUFBQSxJQUNMO0FBQUEsSUFDQSxNQUFNLEtBQUssVUFBVSxRQUFRLENBQUMsQ0FBQztBQUFBLEVBQ2pDO0FBQ0Y7OztBRGZBLFNBQVMsa0JBQWtCLE1BQWMsT0FBZTtBQUN0RCxRQUFNLFVBQVUsT0FBTyxLQUFLLElBQUk7QUFDaEMsUUFBTSxXQUFXLE9BQU8sS0FBSyxLQUFLO0FBQ2xDLE1BQUksUUFBUSxXQUFXLFNBQVMsT0FBUSxRQUFPO0FBQy9DLFNBQU8sT0FBTyxnQkFBZ0IsU0FBUyxRQUFRO0FBQ2pEO0FBRUEsSUFBTywyQkFBUSxPQUFPLFlBQXFCO0FBQ3pDLE1BQUksUUFBUSxXQUFXLFFBQVE7QUFDN0IsV0FBTyxLQUFLLEtBQUssRUFBRSxPQUFPLHNCQUFzQixDQUFDO0FBQUEsRUFDbkQ7QUFFQSxRQUFNLGNBQWMsT0FBTyxRQUFRLElBQUksYUFBYSxFQUFFLEVBQUUsS0FBSztBQUM3RCxRQUFNLG1CQUFtQixPQUFPLFFBQVEsSUFBSSxrQkFBa0IsRUFBRSxFQUFFLEtBQUs7QUFDdkUsTUFBSSxDQUFDLGVBQWUsQ0FBQyxrQkFBa0I7QUFDckMsV0FBTyxLQUFLLEtBQUssRUFBRSxPQUFPLHNEQUFzRCxDQUFDO0FBQUEsRUFDbkY7QUFFQSxRQUFNLE9BQU8sTUFBTSxRQUFRLEtBQUssRUFBRSxNQUFNLE9BQU8sQ0FBQyxFQUFFO0FBQ2xELFFBQU0sY0FBYyxPQUFRLE1BQTRCLE9BQU8sRUFBRSxFQUFFLEtBQUs7QUFDeEUsUUFBTSxrQkFBa0IsZUFBZSxjQUFjLGtCQUFrQixhQUFhLFdBQVcsSUFBSTtBQUNuRyxRQUFNLHVCQUF1QixlQUFlLG1CQUFtQixrQkFBa0IsYUFBYSxnQkFBZ0IsSUFBSTtBQUNsSCxNQUFJLENBQUMsZUFBZ0IsQ0FBQyxtQkFBbUIsQ0FBQyxzQkFBdUI7QUFDL0QsV0FBTyxLQUFLLEtBQUssRUFBRSxPQUFPLGtDQUFrQyxDQUFDO0FBQUEsRUFDL0Q7QUFFQSxTQUFPLEtBQUssS0FBSztBQUFBLElBQ2YsSUFBSTtBQUFBLElBQ0osaUJBQWlCLGtCQUFrQixjQUFjO0FBQUEsRUFDbkQsQ0FBQztBQUNIOyIsCiAgIm5hbWVzIjogW10KfQo=
