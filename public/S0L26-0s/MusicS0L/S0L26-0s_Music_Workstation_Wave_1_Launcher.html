@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>S0L26-0s Music Workstation Wave — Wave 1 MVP</title>
+  <style>
+    :root{
+      --bg:#050816;
+      --panel:rgba(12,18,38,.74);
+      --panel-2:rgba(20,27,56,.72);
+      --border:rgba(144,170,255,.18);
+      --text:#f6f7fb;
+      --muted:#94a3b8;
+      --blue:#56a6ff;
+      --violet:#9b7bff;
+      --cyan:#5ef2ff;
+      --gold:#ffd76a;
+      --danger:#ff6b8a;
+      --good:#4ade80;
+      --shadow:0 18px 60px rgba(0,0,0,.35);
+      --radius:24px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      background:
+        radial-gradient(circle at 20% 20%, rgba(86,166,255,.14), transparent 26%),
+        radial-gradient(circle at 80% 30%, rgba(155,123,255,.14), transparent 24%),
+        radial-gradient(circle at 50% 80%, rgba(94,242,255,.08), transparent 22%),
+        linear-gradient(180deg, #040611 0%, #070b18 42%, #050816 100%);
+      color:var(--text);
+      font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      min-height:100%;
+      overflow-x:hidden;
+    }
+    #bgCanvas{position:fixed; inset:0; width:100%; height:100%; z-index:0}
+    .app{position:relative; z-index:1; padding:16px; display:grid; gap:16px}
+    .topbar{
+      display:grid;
+      grid-template-columns:1.25fr .95fr;
+      gap:16px;
+      align-items:stretch;
+    }
+    .brand, .statusbar, .panel {
+      border:1px solid var(--border);
+      background:linear-gradient(180deg, rgba(16,24,52,.86), rgba(10,16,32,.82));
+      box-shadow:var(--shadow);
+      border-radius:var(--radius);
+      backdrop-filter: blur(18px);
+    }
+    .brand {
+      padding:18px 20px;
+      display:flex;
+      justify-content:space-between;
+      gap:16px;
+      align-items:center;
+    }
+    .brand h1{margin:0; font-size:clamp(1.25rem, 2vw, 2rem); letter-spacing:.02em}
+    .brand p{margin:6px 0 0; color:var(--muted)}
+    .navchips{display:flex; flex-wrap:wrap; gap:8px; justify-content:flex-end}
+    .navchips a, .pill, button, .seg button, select, input[type="range"], input[type="text"], input[type="number"], textarea {
+      border:1px solid var(--border);
+      background:rgba(255,255,255,.05);
+      color:var(--text);
+      border-radius:14px;
+      text-decoration:none;
+      transition:.2s ease;
+    }
+    .navchips a, button, .pill {
+      padding:10px 12px; font-weight:600; font-size:.92rem; cursor:pointer;
+    }
+    button:hover, .navchips a:hover, .seg button:hover, .card:hover {
+      transform:translateY(-1px);
+      border-color:rgba(255,255,255,.28);
+      background:rgba(255,255,255,.09);
+    }
+    button.primary{background:linear-gradient(135deg, rgba(86,166,255,.25), rgba(155,123,255,.28)); border-color:rgba(94,242,255,.25)}
+    button.good{background:linear-gradient(135deg, rgba(74,222,128,.18), rgba(86,166,255,.22))}
+    button.warn{background:linear-gradient(135deg, rgba(255,215,106,.18), rgba(155,123,255,.24))}
+    button.danger{background:linear-gradient(135deg, rgba(255,107,138,.18), rgba(155,123,255,.24))}
+    .statusbar{padding:14px 16px; display:grid; gap:10px}
+    .statusgrid{display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:10px}
+    .stat{padding:10px 12px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.05); border-radius:18px}
+    .stat b{display:block; font-size:.8rem; color:var(--muted); margin-bottom:4px}
+    .stat span{font-size:1.05rem; font-weight:700}
+    .maingrid{display:grid; grid-template-columns:1.15fr .85fr; gap:16px}
+    .panel{padding:16px}
+    .panel h2, .panel h3{margin:0 0 10px}
+    .sub{color:var(--muted); font-size:.92rem; margin-top:4px}
+    .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+    .stack{display:grid; gap:12px}
+    .controls{display:grid; gap:14px}
+    .control{display:grid; gap:7px}
+    label{font-size:.88rem; color:var(--muted)}
+    input[type="range"]{width:100%; padding:0; height:10px}
+    input[type="text"], input[type="number"], select, textarea{padding:10px 12px; width:100%}
+    textarea{min-height:90px; resize:vertical}
+    .seg{display:flex; flex-wrap:wrap; gap:8px}
+    .seg button.active, .toggle.active, .pad.active, .step.active, .slot.active {
+      background:linear-gradient(135deg, rgba(94,242,255,.26), rgba(86,166,255,.24));
+      border-color:rgba(94,242,255,.45);
+      box-shadow:0 0 0 1px rgba(94,242,255,.16), 0 10px 28px rgba(86,166,255,.18);
+    }
+    .mini{font-size:.8rem; color:var(--muted)}
+    .grid2{display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:12px}
+    .grid3{display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:12px}
+    .grid4{display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:12px}
+    .card{padding:14px; border-radius:18px; border:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.04)}
+    .meter{height:10px; border-radius:999px; background:rgba(255,255,255,.06); overflow:hidden}
+    .meter > span{display:block; height:100%; background:linear-gradient(90deg, var(--cyan), var(--blue), var(--violet)); width:40%}
+    canvas.scope, canvas.field, canvas.wave, canvas.chart{width:100%; min-height:220px; border-radius:18px; border:1px solid rgba(255,255,255,.08); background:rgba(2,6,18,.55)}
+    .footerNote{padding:8px 4px 20px; color:var(--muted); font-size:.88rem; text-align:center}
+    .toast{
+      position:fixed; right:18px; bottom:18px; z-index:5;
+      padding:12px 14px; border-radius:16px; color:var(--text);
+      background:linear-gradient(180deg, rgba(18,26,54,.92), rgba(8,14,30,.92));
+      border:1px solid var(--border); box-shadow:var(--shadow); opacity:0; transform:translateY(12px); transition:.25s ease; pointer-events:none;
+    }
+    .toast.show{opacity:1; transform:translateY(0)}
+    .hidden{display:none !important}
+    @media (max-width: 1080px){
+      .topbar, .maingrid{grid-template-columns:1fr}
+      .statusgrid{grid-template-columns:repeat(2, minmax(0,1fr))}
+    }
+    @media (max-width: 720px){
+      .grid2,.grid3,.grid4{grid-template-columns:1fr}
+      .statusgrid{grid-template-columns:1fr 1fr}
+      .brand{align-items:flex-start; flex-direction:column}
+      .navchips{justify-content:flex-start}
+    }
+  </style>
+  
+</head>
+<body>
+  <canvas id="bgCanvas"></canvas>
+  <div class="app">
+    <div class="topbar">
+      <section class="brand">
+        <div>
+          <h1>S0L26-0s Music Workstation Wave</h1>
+          <p>Launcher for five browser-native creative MVP apps with shared visual lane and offline-friendly file links.</p>
+        </div>
+        <nav class="navchips"><a href="index.html">Wave Launcher</a><a href="beat-foundry.html">Beat Foundry</a><a href="chord-architect.html">Chord Architect</a><a href="spatial-fx-playground.html">Spatial FX Playground</a><a href="ambient-scene-engine.html">Ambient Scene Engine</a><a href="melody-reactor.html">Melody Reactor</a></nav>
+      </section>
+      <section class="statusbar">
+        <div class="row">
+          <button id="powerBtn" class="primary">Power / Audio</button>
+          <button id="saveBtn" class="good">Save</button>
+          <button id="exportBtn" class="warn">Export JSON</button>
+          <label class="pill">Import JSON <input id="importInput" type="file" accept="application/json" class="hidden"></label>
+        </div>
+        <div class="statusgrid" id="statusGrid"></div>
+      </section>
+    </div>
+    
+<main class="maingrid" style="grid-template-columns:1fr;">
+  <section class="panel stack">
+    <div>
+      <h2>Wave 1 • Browser Music Workstation Suite</h2>
+      <p class="sub">Five standalone single-file apps in the same lane as the synth interface: sequencer, harmony lab, spatial FX rig, ambient engine, and melody generator. Everything runs client-side and autosaves locally.</p>
+    </div>
+    <div class="grid3">
+      <a class="card" href="beat-foundry.html" style="text-decoration:none;color:inherit">
+        <h3>Beat Foundry</h3>
+        <p class="sub">Drum machine with kit lanes, scenes, transport, randomize, and groove control.</p>
+      </a>
+      <a class="card" href="chord-architect.html" style="text-decoration:none;color:inherit">
+        <h3>Chord Architect</h3>
+        <p class="sub">Harmony workstation with key/scale logic, progression slots, voicing, and audition.</p>
+      </a>
+      <a class="card" href="spatial-fx-playground.html" style="text-decoration:none;color:inherit">
+        <h3>Spatial FX Playground</h3>
+        <p class="sub">Drag a sound source through a stereo field with delay, filter, reverb, and motion paths.</p>
+      </a>
+      <a class="card" href="ambient-scene-engine.html" style="text-decoration:none;color:inherit">
+        <h3>Ambient Scene Engine</h3>
+        <p class="sub">Build evolving mood beds from drones, textures, weather, shimmer, and motion.</p>
+      </a>
+      <a class="card" href="melody-reactor.html" style="text-decoration:none;color:inherit">
+        <h3>Melody Reactor</h3>
+        <p class="sub">Scale-locked melody generator with contour logic, piano-roll editing, mutation, and playback.</p>
+      </a>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <h3>What this bundle is</h3>
+        <p class="sub">A wave pack you can use as product seeds, demo surfaces, or donor lanes for a bigger creator suite. Each app is isolated, clean, and real enough to play with immediately.</p>
+      </div>
+      <div class="card">
+        <h3>Next wave targets</h3>
+        <p class="sub">Loop Forge, Bass Lab, Sample Chop Station, Performance Pad Deck, and Ambient Scene variants. This first wave is the strongest browser-native cluster to get moving fast.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+    <div class="footerNote">Single-file browser MVP • local autosave • no backend required • optimized for fast idea proving</div>
+  </div>
+  <div id="toast" class="toast"></div>
+  <script>
+  const AppUI = (() => {
+    const toast = document.getElementById('toast');
+    const bg = document.getElementById('bgCanvas');
+    const ctx = bg.getContext('2d');
+    let particles = Array.from({length:64}, (_,i)=>({
+      x: Math.random()*window.innerWidth,
+      y: Math.random()*window.innerHeight,
+      r: 0.8 + Math.random()*2.2,
+      dx: -0.35 + Math.random()*0.7,
+      dy: -0.35 + Math.random()*0.7,
+      hue: [190,210,250][i%3]
+    }));
+    function resizeBG() {
+      bg.width = window.innerWidth * devicePixelRatio;
+      bg.height = window.innerHeight * devicePixelRatio;
+      bg.style.width = window.innerWidth + 'px';
+      bg.style.height = window.innerHeight + 'px';
+      ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+    }
+    resizeBG();
+    window.addEventListener('resize', resizeBG);
+    function loop() {
+      const w = window.innerWidth, h = window.innerHeight;
+      ctx.clearRect(0,0,w,h);
+      const g1 = ctx.createRadialGradient(w*.25,h*.2,10,w*.25,h*.2,w*.55);
+      g1.addColorStop(0,'rgba(86,166,255,.17)');
+      g1.addColorStop(1,'rgba(86,166,255,0)');
+      const g2 = ctx.createRadialGradient(w*.8,h*.3,10,w*.8,h*.3,w*.45);
+      g2.addColorStop(0,'rgba(155,123,255,.13)');
+      g2.addColorStop(1,'rgba(155,123,255,0)');
+      ctx.fillStyle = g1; ctx.fillRect(0,0,w,h);
+      ctx.fillStyle = g2; ctx.fillRect(0,0,w,h);
+      particles.forEach(p => {
+        p.x += p.dx; p.y += p.dy;
+        if(p.x < -10) p.x = w + 10; if(p.x > w + 10) p.x = -10;
+        if(p.y < -10) p.y = h + 10; if(p.y > h + 10) p.y = -10;
+        ctx.beginPath();
+        ctx.fillStyle = `hsla(${p.hue}, 100%, 72%, 0.32)`;
+        ctx.shadowColor = `hsla(${p.hue}, 100%, 72%, 0.6)`;
+        ctx.shadowBlur = 18;
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      });
+      requestAnimationFrame(loop);
+    }
+    loop();
+    return {
+      toast(msg) {
+        toast.textContent = msg;
+        toast.classList.add('show');
+        clearTimeout(toast._t);
+        toast._t = setTimeout(() => toast.classList.remove('show'), 1800);
+      },
+      download(name, data) {
+        const blob = new Blob([data], {type:'application/json'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = name; a.click();
+        setTimeout(()=>URL.revokeObjectURL(url), 1500);
+      },
+      fillStatus(items) {
+        const grid = document.getElementById('statusGrid');
+        grid.innerHTML = items.map(item => `<div class="stat"><b>${item.label}</b><span>${item.value}</span></div>`).join('');
+      },
+      clamp(v, a, b) { return Math.min(b, Math.max(a, v)); },
+      choice(arr) { return arr[Math.floor(Math.random()*arr.length)] },
+      rand(min,max) { return min + Math.random()*(max-min); },
+      uid() { return Math.random().toString(36).slice(2,9); },
+    };
+  })();
+  
+const storageKey = 'skye-wave-launcher-v1';
+const status = [
+  {label:'Bundle', value:'Wave 1 / 5 apps'},
+  {label:'Format', value:'Single-file HTML'},
+  {label:'Save Mode', value:'Local autosave'},
+  {label:'Lane', value:'Music creator MVPs'}
+];
+AppUI.fillStatus(status);
+document.getElementById('powerBtn').textContent = 'Visuals Live';
+document.getElementById('powerBtn').disabled = true;
+document.getElementById('saveBtn').addEventListener('click', ()=>AppUI.toast('Launcher has no mutable state.'));
+document.getElementById('exportBtn').addEventListener('click', ()=>AppUI.download('wave1-index.json', JSON.stringify({apps:['Beat Foundry','Chord Architect','Spatial FX Playground','Ambient Scene Engine','Melody Reactor']}, null, 2)));
+document.getElementById('importInput').addEventListener('change', ()=>AppUI.toast('No import needed for the launcher.'));
+
+  </script>
+</body>
+</html>

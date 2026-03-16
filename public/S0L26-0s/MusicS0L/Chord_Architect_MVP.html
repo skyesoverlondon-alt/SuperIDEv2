@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chord Architect — Wave 1 MVP</title>
+  <style>
+    :root{
+      --bg:#050816;
+      --panel:rgba(12,18,38,.74);
+      --panel-2:rgba(20,27,56,.72);
+      --border:rgba(144,170,255,.18);
+      --text:#f6f7fb;
+      --muted:#94a3b8;
+      --blue:#56a6ff;
+      --violet:#9b7bff;
+      --cyan:#5ef2ff;
+      --gold:#ffd76a;
+      --danger:#ff6b8a;
+      --good:#4ade80;
+      --shadow:0 18px 60px rgba(0,0,0,.35);
+      --radius:24px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      background:
+        radial-gradient(circle at 20% 20%, rgba(86,166,255,.14), transparent 26%),
+        radial-gradient(circle at 80% 30%, rgba(155,123,255,.14), transparent 24%),
+        radial-gradient(circle at 50% 80%, rgba(94,242,255,.08), transparent 22%),
+        linear-gradient(180deg, #040611 0%, #070b18 42%, #050816 100%);
+      color:var(--text);
+      font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      min-height:100%;
+      overflow-x:hidden;
+    }
+    #bgCanvas{position:fixed; inset:0; width:100%; height:100%; z-index:0}
+    .app{position:relative; z-index:1; padding:16px; display:grid; gap:16px}
+    .topbar{
+      display:grid;
+      grid-template-columns:1.25fr .95fr;
+      gap:16px;
+      align-items:stretch;
+    }
+    .brand, .statusbar, .panel {
+      border:1px solid var(--border);
+      background:linear-gradient(180deg, rgba(16,24,52,.86), rgba(10,16,32,.82));
+      box-shadow:var(--shadow);
+      border-radius:var(--radius);
+      backdrop-filter: blur(18px);
+    }
+    .brand {
+      padding:18px 20px;
+      display:flex;
+      justify-content:space-between;
+      gap:16px;
+      align-items:center;
+    }
+    .brand h1{margin:0; font-size:clamp(1.25rem, 2vw, 2rem); letter-spacing:.02em}
+    .brand p{margin:6px 0 0; color:var(--muted)}
+    .navchips{display:flex; flex-wrap:wrap; gap:8px; justify-content:flex-end}
+    .navchips a, .pill, button, .seg button, select, input[type="range"], input[type="text"], input[type="number"], textarea {
+      border:1px solid var(--border);
+      background:rgba(255,255,255,.05);
+      color:var(--text);
+      border-radius:14px;
+      text-decoration:none;
+      transition:.2s ease;
+    }
+    .navchips a, button, .pill {
+      padding:10px 12px; font-weight:600; font-size:.92rem; cursor:pointer;
+    }
+    button:hover, .navchips a:hover, .seg button:hover, .card:hover {
+      transform:translateY(-1px);
+      border-color:rgba(255,255,255,.28);
+      background:rgba(255,255,255,.09);
+    }
+    button.primary{background:linear-gradient(135deg, rgba(86,166,255,.25), rgba(155,123,255,.28)); border-color:rgba(94,242,255,.25)}
+    button.good{background:linear-gradient(135deg, rgba(74,222,128,.18), rgba(86,166,255,.22))}
+    button.warn{background:linear-gradient(135deg, rgba(255,215,106,.18), rgba(155,123,255,.24))}
+    button.danger{background:linear-gradient(135deg, rgba(255,107,138,.18), rgba(155,123,255,.24))}
+    .statusbar{padding:14px 16px; display:grid; gap:10px}
+    .statusgrid{display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:10px}
+    .stat{padding:10px 12px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.05); border-radius:18px}
+    .stat b{display:block; font-size:.8rem; color:var(--muted); margin-bottom:4px}
+    .stat span{font-size:1.05rem; font-weight:700}
+    .maingrid{display:grid; grid-template-columns:1.15fr .85fr; gap:16px}
+    .panel{padding:16px}
+    .panel h2, .panel h3{margin:0 0 10px}
+    .sub{color:var(--muted); font-size:.92rem; margin-top:4px}
+    .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+    .stack{display:grid; gap:12px}
+    .controls{display:grid; gap:14px}
+    .control{display:grid; gap:7px}
+    label{font-size:.88rem; color:var(--muted)}
+    input[type="range"]{width:100%; padding:0; height:10px}
+    input[type="text"], input[type="number"], select, textarea{padding:10px 12px; width:100%}
+    textarea{min-height:90px; resize:vertical}
+    .seg{display:flex; flex-wrap:wrap; gap:8px}
+    .seg button.active, .toggle.active, .pad.active, .step.active, .slot.active {
+      background:linear-gradient(135deg, rgba(94,242,255,.26), rgba(86,166,255,.24));
+      border-color:rgba(94,242,255,.45);
+      box-shadow:0 0 0 1px rgba(94,242,255,.16), 0 10px 28px rgba(86,166,255,.18);
+    }
+    .mini{font-size:.8rem; color:var(--muted)}
+    .grid2{display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:12px}
+    .grid3{display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:12px}
+    .grid4{display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:12px}
+    .card{padding:14px; border-radius:18px; border:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.04)}
+    .meter{height:10px; border-radius:999px; background:rgba(255,255,255,.06); overflow:hidden}
+    .meter > span{display:block; height:100%; background:linear-gradient(90deg, var(--cyan), var(--blue), var(--violet)); width:40%}
+    canvas.scope, canvas.field, canvas.wave, canvas.chart{width:100%; min-height:220px; border-radius:18px; border:1px solid rgba(255,255,255,.08); background:rgba(2,6,18,.55)}
+    .footerNote{padding:8px 4px 20px; color:var(--muted); font-size:.88rem; text-align:center}
+    .toast{
+      position:fixed; right:18px; bottom:18px; z-index:5;
+      padding:12px 14px; border-radius:16px; color:var(--text);
+      background:linear-gradient(180deg, rgba(18,26,54,.92), rgba(8,14,30,.92));
+      border:1px solid var(--border); box-shadow:var(--shadow); opacity:0; transform:translateY(12px); transition:.25s ease; pointer-events:none;
+    }
+    .toast.show{opacity:1; transform:translateY(0)}
+    .hidden{display:none !important}
+    @media (max-width: 1080px){
+      .topbar, .maingrid{grid-template-columns:1fr}
+      .statusgrid{grid-template-columns:repeat(2, minmax(0,1fr))}
+    }
+    @media (max-width: 720px){
+      .grid2,.grid3,.grid4{grid-template-columns:1fr}
+      .statusgrid{grid-template-columns:1fr 1fr}
+      .brand{align-items:flex-start; flex-direction:column}
+      .navchips{justify-content:flex-start}
+    }
+  </style>
+  
+</head>
+<body>
+  <canvas id="bgCanvas"></canvas>
+  <div class="app">
+    <div class="topbar">
+      <section class="brand">
+        <div>
+          <h1>Chord Architect</h1>
+          <p>A harmony workstation MVP for building progressions, auditioning voicings, and mapping tension across a song lane.</p>
+        </div>
+        <nav class="navchips"><a href="index.html">Wave Launcher</a><a href="beat-foundry.html">Beat Foundry</a><a href="chord-architect.html">Chord Architect</a><a href="spatial-fx-playground.html">Spatial FX Playground</a><a href="ambient-scene-engine.html">Ambient Scene Engine</a><a href="melody-reactor.html">Melody Reactor</a></nav>
+      </section>
+      <section class="statusbar">
+        <div class="row">
+          <button id="powerBtn" class="primary">Power / Audio</button>
+          <button id="saveBtn" class="good">Save</button>
+          <button id="exportBtn" class="warn">Export JSON</button>
+          <label class="pill">Import JSON <input id="importInput" type="file" accept="application/json" class="hidden"></label>
+        </div>
+        <div class="statusgrid" id="statusGrid"></div>
+      </section>
+    </div>
+    
+<main class="maingrid">
+  <section class="panel stack">
+    <div class="row" style="justify-content:space-between">
+      <div>
+        <h2>Progression Builder</h2>
+        <p class="sub">Eight slots, key-aware harmony, voicing modes, and instant audition. Click a slot, then assign a degree.</p>
+      </div>
+      <div class="row">
+        <button id="playProgression" class="primary">Play Progression</button>
+        <button id="playChord">Play Slot</button>
+        <button id="suggestBtn" class="warn">Suggest Next</button>
+        <button id="generateBtn" class="good">Generate Progression</button>
+      </div>
+    </div>
+    <div id="slotWrap" class="grid4"></div>
+    <div class="grid2">
+      <div class="card stack">
+        <h3>Degree Palette</h3>
+        <div id="degreePalette" class="grid4"></div>
+      </div>
+      <div class="card stack">
+        <h3>Progression Readout</h3>
+        <div id="readout" class="sub"></div>
+        <div class="meter"><span id="tensionMeter"></span></div>
+        <canvas id="tensionChart" class="chart" width="600" height="220"></canvas>
+      </div>
+    </div>
+  </section>
+  <section class="stack">
+    <section class="panel controls">
+      <div>
+        <h3>Harmony Engine</h3>
+        <p class="sub">Switch scale logic, feel, and timing. This one is a chord goblin with manners.</p>
+      </div>
+      <div class="grid2">
+        <div class="control"><label>Key</label><select id="keySelect"></select></div>
+        <div class="control"><label>Mode</label><select id="modeSelect"></select></div>
+      </div>
+      <div class="grid2">
+        <div class="control"><label>Voicing</label><select id="voicingSelect"></select></div>
+        <div class="control"><label>Feel</label><select id="feelSelect"></select></div>
+      </div>
+      <div class="control"><label>Tempo <span id="tempoVal"></span></label><input id="tempo" type="range" min="60" max="160" value="96"></div>
+      <div class="control"><label>Chord Length <span id="lengthVal"></span></label><input id="length" type="range" min="1" max="4" value="2"></div>
+      <div class="control"><label>Custom Notes / Notes To Self</label><textarea id="notes"></textarea></div>
+    </section>
+    <section class="panel stack">
+      <div>
+        <h3>Harmonic DNA</h3>
+        <p class="sub">Suggestions react to common gravity: tonic, predominant, dominant, return.</p>
+      </div>
+      <div id="suggestionWrap" class="grid2"></div>
+      <div class="card">
+        <div class="mini" id="analysisText"></div>
+      </div>
+    </section>
+  </section>
+</main>
+
+    <div class="footerNote">Single-file browser MVP • local autosave • no backend required • optimized for fast idea proving</div>
+  </div>
+  <div id="toast" class="toast"></div>
+  <script>
+  const AppUI = (() => {
+    const toast = document.getElementById('toast');
+    const bg = document.getElementById('bgCanvas');
+    const ctx = bg.getContext('2d');
+    let particles = Array.from({length:64}, (_,i)=>({
+      x: Math.random()*window.innerWidth,
+      y: Math.random()*window.innerHeight,
+      r: 0.8 + Math.random()*2.2,
+      dx: -0.35 + Math.random()*0.7,
+      dy: -0.35 + Math.random()*0.7,
+      hue: [190,210,250][i%3]
+    }));
+    function resizeBG() {
+      bg.width = window.innerWidth * devicePixelRatio;
+      bg.height = window.innerHeight * devicePixelRatio;
+      bg.style.width = window.innerWidth + 'px';
+      bg.style.height = window.innerHeight + 'px';
+      ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+    }
+    resizeBG();
+    window.addEventListener('resize', resizeBG);
+    function loop() {
+      const w = window.innerWidth, h = window.innerHeight;
+      ctx.clearRect(0,0,w,h);
+      const g1 = ctx.createRadialGradient(w*.25,h*.2,10,w*.25,h*.2,w*.55);
+      g1.addColorStop(0,'rgba(86,166,255,.17)');
+      g1.addColorStop(1,'rgba(86,166,255,0)');
+      const g2 = ctx.createRadialGradient(w*.8,h*.3,10,w*.8,h*.3,w*.45);
+      g2.addColorStop(0,'rgba(155,123,255,.13)');
+      g2.addColorStop(1,'rgba(155,123,255,0)');
+      ctx.fillStyle = g1; ctx.fillRect(0,0,w,h);
+      ctx.fillStyle = g2; ctx.fillRect(0,0,w,h);
+      particles.forEach(p => {
+        p.x += p.dx; p.y += p.dy;
+        if(p.x < -10) p.x = w + 10; if(p.x > w + 10) p.x = -10;
+        if(p.y < -10) p.y = h + 10; if(p.y > h + 10) p.y = -10;
+        ctx.beginPath();
+        ctx.fillStyle = `hsla(${p.hue}, 100%, 72%, 0.32)`;
+        ctx.shadowColor = `hsla(${p.hue}, 100%, 72%, 0.6)`;
+        ctx.shadowBlur = 18;
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      });
+      requestAnimationFrame(loop);
+    }
+    loop();
+    return {
+      toast(msg) {
+        toast.textContent = msg;
+        toast.classList.add('show');
+        clearTimeout(toast._t);
+        toast._t = setTimeout(() => toast.classList.remove('show'), 1800);
+      },
+      download(name, data) {
+        const blob = new Blob([data], {type:'application/json'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = name; a.click();
+        setTimeout(()=>URL.revokeObjectURL(url), 1500);
+      },
+      fillStatus(items) {
+        const grid = document.getElementById('statusGrid');
+        grid.innerHTML = items.map(item => `<div class="stat"><b>${item.label}</b><span>${item.value}</span></div>`).join('');
+      },
+      clamp(v, a, b) { return Math.min(b, Math.max(a, v)); },
+      choice(arr) { return arr[Math.floor(Math.random()*arr.length)] },
+      rand(min,max) { return min + Math.random()*(max-min); },
+      uid() { return Math.random().toString(36).slice(2,9); },
+    };
+  })();
+  
+(() => {
+  const STORAGE = 'chord-architect-wave1-v1';
+  const NOTES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+  const MODES = {
+    major: {name:'Major / Ionian', intervals:[0,2,4,5,7,9,11], qualities:['maj7','min7','min7','maj7','7','min7','m7b5'], gravity:[1,4,3,2,5,3,1]},
+    minor: {name:'Natural Minor', intervals:[0,2,3,5,7,8,10], qualities:['min7','m7b5','maj7','min7','min7','maj7','7'], gravity:[1,2,4,3,5,2,4]},
+    dorian: {name:'Dorian', intervals:[0,2,3,5,7,9,10], qualities:['min7','min7','maj7','7','min7','m7b5','maj7'], gravity:[2,3,4,5,2,1,3]},
+    lydian: {name:'Lydian', intervals:[0,2,4,6,7,9,11], qualities:['maj7','7','min7','m7b5','maj7','min7','min7'], gravity:[1,3,2,5,4,2,3]}
+  };
+  const VOICINGS = {
+    close: {name:'Close', spread:[0,12,12,24]},
+    wide: {name:'Wide', spread:[0,12,24,36]},
+    open: {name:'Open Fifth Space', spread:[0,19,24,36]},
+    glass: {name:'Glass Stack', spread:[0,12,19,31]}
+  };
+  const FEELS = {
+    smooth: {offsets:[0,0.04,0.08,0.11], gain:0.28},
+    staccato: {offsets:[0,0.012,0.025,0.04], gain:0.18},
+    bloom: {offsets:[0,0.06,0.13,0.2], gain:0.32}
+  };
+  const defaultState = () => ({
+    key:'C',
+    mode:'major',
+    voicing:'wide',
+    feel:'smooth',
+    tempo:96,
+    chordLength:2,
+    selectedSlot:0,
+    notes:'',
+    progression:Array.from({length:8}, (_,i)=>({degree:[1,5,6,4,2,5,1,1][i], extension:'base'}))
+  });
+  let state = load() || defaultState();
+  let ctx, master, analyser;
+  const dom = {
+    slotWrap: document.getElementById('slotWrap'),
+    degreePalette: document.getElementById('degreePalette'),
+    readout: document.getElementById('readout'),
+    tensionMeter: document.getElementById('tensionMeter'),
+    tensionChart: document.getElementById('tensionChart'),
+    keySelect: document.getElementById('keySelect'),
+    modeSelect: document.getElementById('modeSelect'),
+    voicingSelect: document.getElementById('voicingSelect'),
+    feelSelect: document.getElementById('feelSelect'),
+    tempo: document.getElementById('tempo'),
+    tempoVal: document.getElementById('tempoVal'),
+    length: document.getElementById('length'),
+    lengthVal: document.getElementById('lengthVal'),
+    notes: document.getElementById('notes'),
+    suggestionWrap: document.getElementById('suggestionWrap'),
+    analysisText: document.getElementById('analysisText'),
+    playProgression: document.getElementById('playProgression'),
+    playChord: document.getElementById('playChord'),
+    suggestBtn: document.getElementById('suggestBtn'),
+    generateBtn: document.getElementById('generateBtn'),
+    saveBtn: document.getElementById('saveBtn'),
+    exportBtn: document.getElementById('exportBtn'),
+    importInput: document.getElementById('importInput'),
+    powerBtn: document.getElementById('powerBtn'),
+  };
+  const chart = dom.tensionChart.getContext('2d');
+
+  function load() { try { return JSON.parse(localStorage.getItem(STORAGE)); } catch { return null; } }
+  function persist() {
+    localStorage.setItem(STORAGE, JSON.stringify(state));
+    render();
+  }
+  function ensureAudio() {
+    if (ctx) return;
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    master = ctx.createGain();
+    analyser = ctx.createAnalyser();
+    analyser.fftSize = 512;
+    master.gain.value = 0.85;
+    master.connect(analyser);
+    analyser.connect(ctx.destination);
+  }
+  function noteIndex(name){ return NOTES.indexOf(name); }
+  function modeData(){ return MODES[state.mode]; }
+  function buildDegree(degree) {
+    const data = modeData();
+    const root = noteIndex(state.key);
+    const baseIdx = (degree - 1) % 7;
+    const rootMidi = 48 + root + data.intervals[baseIdx];
+    const thirdMidi = 48 + root + data.intervals[(baseIdx + 2) % 7] + (baseIdx + 2 >= 7 ? 12 : 0);
+    const fifthMidi = 48 + root + data.intervals[(baseIdx + 4) % 7] + (baseIdx + 4 >= 7 ? 12 : 0);
+    const seventhMidi = 48 + root + data.intervals[(baseIdx + 6) % 7] + (baseIdx + 6 >= 7 ? 12 : 0);
+    const spread = VOICINGS[state.voicing].spread;
+    return {
+      degree,
+      quality:data.qualities[baseIdx],
+      name:`${NOTES[(root + data.intervals[baseIdx]) % 12]} ${roman(degree)} ${data.qualities[baseIdx]}`,
+      gravity:data.gravity[baseIdx],
+      notes:[rootMidi + spread[0], thirdMidi + spread[1], fifthMidi + spread[2], seventhMidi + spread[3]]
+    };
+  }
+  function roman(d) {
+    return ['I','II','III','IV','V','VI','VII'][d-1];
+  }
+  function midiToFreq(midi){ return 440 * Math.pow(2, (midi - 69) / 12); }
+  function playChord(slotIndex, when = 0) {
+    ensureAudio();
+    if (ctx.state === 'suspended') ctx.resume();
+    const chord = buildDegree(state.progression[slotIndex].degree);
+    const feel = FEELS[state.feel];
+    chord.notes.forEach((midi, idx) => {
+      const osc = ctx.createOscillator();
+      const filter = ctx.createBiquadFilter();
+      const gain = ctx.createGain();
+      osc.type = idx % 2 === 0 ? 'triangle' : 'sine';
+      osc.frequency.setValueAtTime(midiToFreq(midi), ctx.currentTime + when);
+      filter.type = 'lowpass';
+      filter.frequency.value = 2300 - idx * 190;
+      gain.gain.setValueAtTime(0.0001, ctx.currentTime + when + feel.offsets[idx]);
+      gain.gain.exponentialRampToValueAtTime(feel.gain, ctx.currentTime + when + feel.offsets[idx] + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + when + state.chordLength * 0.52);
+      osc.connect(filter).connect(gain).connect(master);
+      osc.start(ctx.currentTime + when + feel.offsets[idx]);
+      osc.stop(ctx.currentTime + when + state.chordLength * 0.55);
+    });
+  }
+  async function playProgression() {
+    ensureAudio();
+    if (ctx.state === 'suspended') await ctx.resume();
+    const beat = 60 / state.tempo;
+    state.progression.forEach((slot, idx) => playChord(idx, idx * beat * state.chordLength));
+  }
+
+  function suggestionsFrom(slotDegree) {
+    const gravity = {
+      1:[4,5,6,2], 2:[5,7,4,1], 3:[6,4,2,5], 4:[5,1,2,6],
+      5:[1,6,4,3], 6:[4,2,5,1], 7:[1,3,6,5]
+    };
+    return gravity[slotDegree] || [1,4,5,6];
+  }
+  function renderSlots() {
+    dom.slotWrap.innerHTML = state.progression.map((slot, idx) => {
+      const chord = buildDegree(slot.degree);
+      return `<button class="slot card ${state.selectedSlot === idx ? 'active' : ''}" data-slot="${idx}" style="text-align:left">
+        <div class="mini">Slot ${idx + 1}</div>
+        <h3 style="margin:6px 0 4px">${roman(slot.degree)}</h3>
+        <div>${chord.name}</div>
+        <div class="sub">Gravity ${chord.gravity}/5</div>
+      </button>`;
+    }).join('');
+    dom.slotWrap.querySelectorAll('[data-slot]').forEach(btn => btn.addEventListener('click', () => {
+      state.selectedSlot = +btn.dataset.slot;
+      render();
+    }));
+  }
+  function renderDegreePalette() {
+    dom.degreePalette.innerHTML = Array.from({length:7}, (_,i) => {
+      const degree = i + 1;
+      const chord = buildDegree(degree);
+      return `<button class="${state.progression[state.selectedSlot].degree === degree ? 'active' : ''}" data-degree="${degree}" style="min-height:82px">
+        <div>${roman(degree)}</div>
+        <div class="mini">${chord.quality}</div>
+      </button>`;
+    }).join('');
+    dom.degreePalette.querySelectorAll('[data-degree]').forEach(btn => btn.addEventListener('click', () => {
+      state.progression[state.selectedSlot].degree = +btn.dataset.degree;
+      persist();
+    }));
+  }
+  function renderSuggestions() {
+    const degree = state.progression[state.selectedSlot].degree;
+    dom.suggestionWrap.innerHTML = suggestionsFrom(degree).map(d => {
+      const chord = buildDegree(d);
+      return `<button data-suggest="${d}" class="card" style="text-align:left">
+        <strong>${roman(d)} · ${chord.name.split(' ')[0]}</strong>
+        <div class="sub">${chord.quality} • gravity ${chord.gravity}</div>
+      </button>`;
+    }).join('');
+    dom.suggestionWrap.querySelectorAll('[data-suggest]').forEach(btn => btn.addEventListener('click', () => {
+      state.progression[Math.min(state.selectedSlot + 1, state.progression.length - 1)].degree = +btn.dataset.suggest;
+      persist();
+      AppUI.toast('Suggestion dropped into the next slot.');
+    }));
+  }
+  function renderReadout() {
+    const names = state.progression.map(slot => `${roman(slot.degree)} (${buildDegree(slot.degree).name.split(' ')[0]})`);
+    dom.readout.innerHTML = names.join(' → ');
+    const avgGravity = state.progression.reduce((acc, slot) => acc + buildDegree(slot.degree).gravity, 0) / state.progression.length;
+    dom.tensionMeter.style.width = `${20 + avgGravity / 5 * 80}%`;
+    dom.analysisText.innerHTML = `
+      Tonic weight leans <b>${Math.round((state.progression.filter(s=>s.degree===1).length / state.progression.length) * 100)}%</b> toward home base.
+      Dominant pull appears <b>${state.progression.filter(s=>s.degree===5).length}</b> times.
+      Current selected slot is <b>${state.selectedSlot + 1}</b>, with likely exits to <b>${suggestionsFrom(state.progression[state.selectedSlot].degree).map(roman).join(', ')}</b>.
+    `;
+    drawChart();
+  }
+  function drawChart() {
+    const vals = state.progression.map(slot => buildDegree(slot.degree).gravity);
+    const {width:w,height:h} = dom.tensionChart;
+    chart.clearRect(0,0,w,h);
+    chart.strokeStyle = 'rgba(255,255,255,.08)';
+    chart.lineWidth = 1;
+    for (let i = 0; i <= 5; i++) {
+      chart.beginPath(); chart.moveTo(0, i/5*h); chart.lineTo(w, i/5*h); chart.stroke();
+    }
+    chart.beginPath();
+    chart.lineWidth = 3;
+    const grad = chart.createLinearGradient(0,0,w,0);
+    grad.addColorStop(0, '#5ef2ff'); grad.addColorStop(0.5, '#56a6ff'); grad.addColorStop(1, '#ffd76a');
+    chart.strokeStyle = grad;
+    vals.forEach((v, i) => {
+      const x = i / (vals.length - 1) * (w - 40) + 20;
+      const y = h - (v / 5) * (h - 30) - 15;
+      if (i === 0) chart.moveTo(x, y); else chart.lineTo(x, y);
+    });
+    chart.stroke();
+    vals.forEach((v, i) => {
+      const x = i / (vals.length - 1) * (w - 40) + 20;
+      const y = h - (v / 5) * (h - 30) - 15;
+      chart.fillStyle = '#ffd76a';
+      chart.beginPath(); chart.arc(x,y,6,0,Math.PI*2); chart.fill();
+      chart.fillStyle = '#94a3b8';
+      chart.fillText(roman(state.progression[i].degree), x - 5, h - 6);
+    });
+  }
+  function generateProgression() {
+    const seeds = [
+      [1,5,6,4,2,5,1,1],
+      [1,4,2,5,6,4,5,1],
+      [6,4,1,5,2,5,1,1],
+      [1,3,6,4,2,5,1,4]
+    ];
+    const pick = seeds[Math.floor(Math.random() * seeds.length)];
+    state.progression = pick.map(degree => ({degree, extension:'base'}));
+    persist();
+    AppUI.toast('New progression grown from the harmonic greenhouse.');
+  }
+
+  function renderControls() {
+    if (!dom.keySelect.options.length) {
+      dom.keySelect.innerHTML = NOTES.map(n => `<option value="${n}">${n}</option>`).join('');
+      dom.modeSelect.innerHTML = Object.entries(MODES).map(([k,v]) => `<option value="${k}">${v.name}</option>`).join('');
+      dom.voicingSelect.innerHTML = Object.entries(VOICINGS).map(([k,v]) => `<option value="${k}">${v.name}</option>`).join('');
+      dom.feelSelect.innerHTML = Object.entries(FEELS).map(([k,v]) => `<option value="${k}">${k}</option>`).join('');
+    }
+    dom.keySelect.value = state.key;
+    dom.modeSelect.value = state.mode;
+    dom.voicingSelect.value = state.voicing;
+    dom.feelSelect.value = state.feel;
+    dom.tempo.value = state.tempo;
+    dom.length.value = state.chordLength;
+    dom.notes.value = state.notes;
+    dom.tempoVal.textContent = `${state.tempo} BPM`;
+    dom.lengthVal.textContent = `${state.chordLength} beats`;
+  }
+  function updateStatus() {
+    AppUI.fillStatus([
+      {label:'Key', value:`${state.key} ${modeData().name}`},
+      {label:'Voicing', value:VOICINGS[state.voicing].name},
+      {label:'Feel', value:state.feel},
+      {label:'Slots', value:`${state.progression.length}`}
+    ]);
+  }
+  function render() {
+    renderControls();
+    renderSlots();
+    renderDegreePalette();
+    renderSuggestions();
+    renderReadout();
+    updateStatus();
+  }
+
+  dom.keySelect.addEventListener('change', () => { state.key = dom.keySelect.value; persist(); });
+  dom.modeSelect.addEventListener('change', () => { state.mode = dom.modeSelect.value; persist(); });
+  dom.voicingSelect.addEventListener('change', () => { state.voicing = dom.voicingSelect.value; persist(); });
+  dom.feelSelect.addEventListener('change', () => { state.feel = dom.feelSelect.value; persist(); });
+  dom.tempo.addEventListener('input', () => { state.tempo = +dom.tempo.value; persist(); });
+  dom.length.addEventListener('input', () => { state.chordLength = +dom.length.value; persist(); });
+  dom.notes.addEventListener('input', () => { state.notes = dom.notes.value; persist(); });
+  dom.playChord.addEventListener('click', () => playChord(state.selectedSlot));
+  dom.playProgression.addEventListener('click', playProgression);
+  dom.generateBtn.addEventListener('click', generateProgression);
+  dom.suggestBtn.addEventListener('click', () => {
+    const next = suggestionsFrom(state.progression[state.selectedSlot].degree)[0];
+    state.progression[Math.min(state.selectedSlot + 1, state.progression.length - 1)].degree = next;
+    persist();
+    AppUI.toast(`Suggested ${roman(next)} into the next slot.`);
+  });
+  dom.powerBtn.addEventListener('click', () => { ensureAudio(); ctx.resume(); AppUI.toast('Harmony engine awake.'); });
+  dom.saveBtn.addEventListener('click', () => { persist(); AppUI.toast('Chord session saved.'); });
+  dom.exportBtn.addEventListener('click', () => AppUI.download('chord-architect-session.json', JSON.stringify(state, null, 2)));
+  dom.importInput.parentElement.addEventListener('click', () => dom.importInput.click());
+  dom.importInput.addEventListener('change', async () => {
+    const file = dom.importInput.files[0];
+    if (!file) return;
+    state = Object.assign(defaultState(), JSON.parse(await file.text()));
+    persist();
+    AppUI.toast('Chord session imported.');
+  });
+  render();
+})();
+
+  </script>
+</body>
+</html>

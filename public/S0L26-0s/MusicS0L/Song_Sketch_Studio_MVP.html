@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Song Sketch Studio MVP</title>
+  <style>
+    :root{
+      --bg:#050816;
+      --panel:rgba(12,18,38,.74);
+      --panel-2:rgba(20,27,56,.72);
+      --border:rgba(144,170,255,.18);
+      --text:#f6f7fb;
+      --muted:#94a3b8;
+      --blue:#56a6ff;
+      --violet:#9b7bff;
+      --cyan:#5ef2ff;
+      --gold:#ffd76a;
+      --danger:#ff6b8a;
+      --good:#4ade80;
+      --shadow:0 18px 60px rgba(0,0,0,.35);
+      --radius:24px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      background:
+        radial-gradient(circle at 20% 20%, rgba(86,166,255,.14), transparent 26%),
+        radial-gradient(circle at 80% 30%, rgba(155,123,255,.14), transparent 24%),
+        radial-gradient(circle at 50% 80%, rgba(94,242,255,.08), transparent 22%),
+        linear-gradient(180deg, #040611 0%, #070b18 42%, #050816 100%);
+      color:var(--text);
+      font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      min-height:100%;
+      overflow-x:hidden;
+    }
+    #bgCanvas{position:fixed; inset:0; width:100%; height:100%; z-index:0}
+    .app{position:relative; z-index:1; padding:16px; display:grid; gap:16px}
+    .topbar{
+      display:grid;
+      grid-template-columns:1.2fr .9fr;
+      gap:16px;
+      align-items:stretch;
+    }
+    .brand, .statusbar, .panel {
+      border:1px solid var(--border);
+      background:linear-gradient(180deg, rgba(16,24,52,.86), rgba(10,16,32,.82));
+      box-shadow:var(--shadow);
+      border-radius:var(--radius);
+      backdrop-filter: blur(18px);
+    }
+    .brand {
+      padding:18px 20px;
+      display:flex;
+      justify-content:space-between;
+      gap:16px;
+      align-items:center;
+    }
+    .brand h1{margin:0; font-size:clamp(1.25rem, 2vw, 2rem); letter-spacing:.02em}
+    .brand p{margin:6px 0 0; color:var(--muted)}
+    .navchips{display:flex; flex-wrap:wrap; gap:8px; justify-content:flex-end}
+    .navchips a, .pill, button, .seg button, select, input[type="range"], input[type="text"], input[type="number"], textarea {
+      border:1px solid var(--border);
+      background:rgba(255,255,255,.05);
+      color:var(--text);
+      border-radius:14px;
+      text-decoration:none;
+      transition:.2s ease;
+    }
+    .navchips a, button, .pill {
+      padding:10px 12px; font-weight:600; font-size:.92rem; cursor:pointer;
+    }
+    .navchips a.active{
+      background:linear-gradient(135deg, rgba(94,242,255,.24), rgba(86,166,255,.24));
+      border-color:rgba(94,242,255,.4);
+    }
+    button:hover, .navchips a:hover, .seg button:hover, .card:hover, .step:hover, .pad:hover, .chip:hover, .laneCard:hover, .sectionCard:hover {
+      transform:translateY(-1px);
+      border-color:rgba(255,255,255,.28);
+      background:rgba(255,255,255,.09);
+    }
+    button.primary{background:linear-gradient(135deg, rgba(86,166,255,.25), rgba(155,123,255,.28)); border-color:rgba(94,242,255,.25)}
+    button.good{background:linear-gradient(135deg, rgba(74,222,128,.18), rgba(86,166,255,.22))}
+    button.warn{background:linear-gradient(135deg, rgba(255,215,106,.18), rgba(155,123,255,.24))}
+    button.danger{background:linear-gradient(135deg, rgba(255,107,138,.18), rgba(155,123,255,.24))}
+    button.tiny{padding:7px 10px; font-size:.82rem; border-radius:12px}
+    .statusbar{padding:14px 16px; display:grid; gap:10px}
+    .statusgrid{display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:10px}
+    .stat{padding:10px 12px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.05); border-radius:18px}
+    .stat b{display:block; font-size:.8rem; color:var(--muted); margin-bottom:4px}
+    .stat span{font-size:1.05rem; font-weight:700}
+    .maingrid{display:grid; grid-template-columns:1.12fr .88fr; gap:16px}
+    .panel{padding:16px}
+    .panel h2, .panel h3{margin:0 0 10px}
+    .sub{color:var(--muted); font-size:.92rem; margin-top:4px}
+    .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+    .stack{display:grid; gap:12px}
+    .controls{display:grid; gap:14px}
+    .control{display:grid; gap:7px}
+    label{font-size:.88rem; color:var(--muted)}
+    input[type="range"]{width:100%; padding:0; height:10px}
+    input[type="text"], input[type="number"], select, textarea{padding:10px 12px; width:100%}
+    textarea{min-height:90px; resize:vertical}
+    .seg{display:flex; flex-wrap:wrap; gap:8px}
+    .seg button.active, .toggle.active, .pad.active, .step.active, .slot.active, .chip.active, .laneCard.active, .sectionCard.active, .miniKey.active {
+      background:linear-gradient(135deg, rgba(94,242,255,.26), rgba(86,166,255,.24));
+      border-color:rgba(94,242,255,.45);
+      box-shadow:0 0 0 1px rgba(94,242,255,.16), 0 10px 28px rgba(86,166,255,.18);
+    }
+    .mini{font-size:.8rem; color:var(--muted)}
+    .grid2{display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:12px}
+    .grid3{display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:12px}
+    .grid4{display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:12px}
+    .card, .laneCard, .pad, .chip, .sectionCard{
+      padding:14px; border-radius:18px; border:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.04)
+    }
+    .laneCard, .sectionCard{display:grid; gap:10px}
+    .meter{height:10px; border-radius:999px; background:rgba(255,255,255,.06); overflow:hidden}
+    .meter > span{display:block; height:100%; background:linear-gradient(90deg, var(--cyan), var(--blue), var(--violet)); width:40%}
+    canvas.scope, canvas.field, canvas.wave, canvas.chart{
+      width:100%; min-height:220px; border-radius:18px; border:1px solid rgba(255,255,255,.08); background:rgba(2,6,18,.55)
+    }
+    .footerNote{padding:8px 4px 20px; color:var(--muted); font-size:.88rem; text-align:center}
+    .toast{
+      position:fixed; right:18px; bottom:18px; z-index:5;
+      padding:12px 14px; border-radius:16px; color:var(--text);
+      background:linear-gradient(180deg, rgba(18,26,54,.92), rgba(8,14,30,.92));
+      border:1px solid var(--border); box-shadow:var(--shadow); opacity:0; transform:translateY(12px); transition:.25s ease; pointer-events:none;
+    }
+    .toast.show{opacity:1; transform:translateY(0)}
+    .hidden{display:none !important}
+    .stepgrid{display:grid; gap:8px}
+    .steps16{grid-template-columns:repeat(16, minmax(0,1fr))}
+    .steps12{grid-template-columns:repeat(12, minmax(0,1fr))}
+    .steps8{grid-template-columns:repeat(8, minmax(0,1fr))}
+    .step,.slot,.pad,.clipPad,.chip,.miniKey{
+      min-height:44px; display:flex; align-items:center; justify-content:center; text-align:center; cursor:pointer; user-select:none;
+    }
+    .step.playing,.slot.playing,.pad.playing,.clipPad.playing,.chip.playing,.sectionCard.playing{
+      outline:2px solid rgba(255,215,106,.75);
+      transform:translateY(-1px) scale(1.02);
+    }
+    .clipPad{padding:12px; border-radius:16px; border:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.04); display:grid; gap:6px; justify-items:start}
+    .clipPad small{color:var(--muted)}
+    .timeline{display:grid; gap:8px}
+    .timelineItem{display:grid; grid-template-columns:96px 1fr; gap:12px; align-items:start; padding:10px 12px; border:1px solid rgba(255,255,255,.08); border-radius:16px; background:rgba(255,255,255,.03)}
+    .waveWrap{position:relative}
+    .marker{
+      position:absolute; top:0; bottom:0; width:2px; background:linear-gradient(180deg,var(--gold),transparent); pointer-events:none;
+    }
+    .pill input[type="file"]{display:none}
+    .kbd{padding:2px 8px; border-radius:10px; border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.05); font-size:.8rem}
+    .miniKeys{display:grid; grid-template-columns:repeat(12,minmax(0,1fr)); gap:6px}
+    .miniKey{padding:10px; border-radius:12px; border:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.04)}
+    .pillTag{padding:6px 10px; border-radius:999px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.08); font-size:.82rem}
+    @media (max-width: 1080px){
+      .topbar, .maingrid{grid-template-columns:1fr}
+      .statusgrid{grid-template-columns:repeat(2, minmax(0,1fr))}
+    }
+    @media (max-width: 720px){
+      .grid2,.grid3,.grid4{grid-template-columns:1fr}
+      .statusgrid{grid-template-columns:1fr 1fr}
+      .brand{align-items:flex-start; flex-direction:column}
+      .navchips{justify-content:flex-start}
+      .timelineItem{grid-template-columns:1fr}
+      .steps16{grid-template-columns:repeat(8,minmax(0,1fr))}
+      .steps12{grid-template-columns:repeat(6,minmax(0,1fr))}
+      .miniKeys{grid-template-columns:repeat(6,minmax(0,1fr))}
+    }
+</style>
+</head>
+<body>
+  <canvas id="bgCanvas"></canvas>
+  <div class="app">
+    <div class="topbar">
+      <section class="brand">
+        <div>
+          <h1>Song Sketch Studio MVP</h1>
+          <p>S0L26-0s browser-native arrangement desk with sections, lyrics, chord loops, and preview.</p>
+        </div>
+        <nav class="navchips"><a href="S0L26-0s_Music_Workstation_Wave_3_Launcher.html" class="">Wave 3 Launcher</a><a href="DJ_Transition_Trainer_MVP.html" class="">DJ Transition Trainer</a><a href="Cinematic_Tension_Designer_MVP.html" class="">Cinematic Tension Designer</a><a href="Song_Sketch_Studio_MVP.html" class="active">Song Sketch Studio</a><a href="Rhythm_Polyrhythm_Lab_MVP.html" class="">Rhythm Polyrhythm Lab</a><a href="Synth_Patch_Codex_MVP.html" class="">Synth Patch Codex</a></nav>
+      </section>
+      <section class="statusbar">
+        <div class="row">
+          <button id="powerBtn" class="primary">Power / Audio</button>
+          <button id="saveBtn" class="good">Save</button>
+          <button id="exportBtn" class="warn">Export JSON</button>
+          <label class="pill">Import JSON <input id="importInput" type="file" accept="application/json"></label>
+        </div>
+        <div class="statusgrid" id="statusGrid"></div>
+      </section>
+    </div>
+    
+<main class="maingrid">
+  <section class="panel stack">
+    <div>
+      <h2>Arrangement workspace</h2>
+      <p class="sub">Section planner, lyric scratchpad, chord map, energy graph, and simple preview transport. Less shiny synth goblin, more serious songwriting desk.</p>
+    </div>
+    <canvas id="energyCanvas" class="chart"></canvas>
+    <div class="row">
+      <button id="addSectionBtn" class="primary">Add Section</button>
+      <button id="duplicateBtn" class="tiny">Duplicate</button>
+      <button id="moveUpBtn" class="tiny">Move Up</button>
+      <button id="moveDownBtn" class="tiny">Move Down</button>
+      <button id="removeBtn" class="danger tiny">Remove</button>
+      <button id="previewBtn" class="warn tiny">Preview Arrangement</button>
+    </div>
+    <div id="sectionsList" class="timeline"></div>
+  </section>
+  <aside class="panel stack">
+    <div>
+      <h2>Section editor</h2>
+      <p class="sub">Edit the selected block. Build the song like a civilized gremlin architect.</p>
+    </div>
+    <div class="control"><label>Song title</label><input id="songTitle" type="text"></div>
+    <div class="grid2">
+      <div class="control"><label>Key</label><select id="songKey"></select></div>
+      <div class="control"><label>BPM</label><input id="bpm" type="range" min="60" max="180" step="1"></div>
+    </div>
+    <div class="control"><label>Section name</label><input id="sectionName" type="text"></div>
+    <div class="grid2">
+      <div class="control"><label>Bars</label><input id="sectionBars" type="number" min="1" max="64"></div>
+      <div class="control"><label>Energy</label><input id="sectionEnergy" type="range" min="0.1" max="1" step="0.01"></div>
+    </div>
+    <div class="control"><label>Chord loop</label><input id="sectionChords" type="text"></div>
+    <div class="control"><label>Production notes</label><textarea id="sectionNotes"></textarea></div>
+    <div class="control"><label>Lyrics / hook fragments</label><textarea id="sectionLyrics"></textarea></div>
+    <div class="card">
+      <h3>Global concept</h3>
+      <textarea id="masterNotes"></textarea>
+    </div>
+  </aside>
+</main>
+
+    <div class="footerNote">Browser goblin note: tap <span class="kbd">Power / Audio</span> once before playback if Chrome wants a ritual gesture.</div>
+  </div>
+  <div class="toast" id="toast"></div>
+  <script>
+  const STORAGE_KEY = "sol26_wave3_song_sketch";
+  
+  const $ = (sel,root=document)=>root.querySelector(sel);
+  const $$ = (sel,root=document)=>Array.from(root.querySelectorAll(sel));
+  let audioCtx = null, masterGain = null, noiseBuffer = null, analyser = null;
+  let toastTimer = null, bgTick = 0;
+  function toast(msg){
+    const el = $('#toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=>el.classList.remove('show'), 1800);
+  }
+  async function ensureAudio(){
+    if(audioCtx) return audioCtx;
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    masterGain = audioCtx.createGain();
+    masterGain.gain.value = 0.78;
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 1024;
+    masterGain.connect(analyser);
+    analyser.connect(audioCtx.destination);
+
+    noiseBuffer = audioCtx.createBuffer(1, audioCtx.sampleRate*2, audioCtx.sampleRate);
+    const data = noiseBuffer.getChannelData(0);
+    for(let i=0;i<data.length;i++) data[i] = (Math.random()*2-1) * Math.pow(1-(i/data.length), .15);
+    toast('Audio engine ready');
+    return audioCtx;
+  }
+  function now(){ return audioCtx ? audioCtx.currentTime : 0; }
+  function noteToFreq(note){
+    const map = {'C':0,'C#':1,'Db':1,'D':2,'D#':3,'Eb':3,'E':4,'F':5,'F#':6,'Gb':6,'G':7,'G#':8,'Ab':8,'A':9,'A#':10,'Bb':10,'B':11};
+    const m = String(note).match(/^([A-G][b#]?)(-?\d)$/);
+    if(!m) return 220;
+    const pitch = map[m[1]];
+    const octave = Number(m[2]);
+    const midi = pitch + ((octave+1)*12);
+    return 440 * Math.pow(2, (midi-69)/12);
+  }
+  function playTone(freq, opts={}){
+    if(!audioCtx) return;
+    const {
+      type='sine', gain=.12, dur=.18, when=0, attack=.005, decay=.08,
+      sustain=.25, release=.09, detune=0, cutoff=9000, pan=0, glideTo=null,
+      lfoRate=0, lfoDepth=0
+    } = opts;
+    const start = audioCtx.currentTime + when;
+    const stop = start + Math.max(.02, dur + release);
+    const osc = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+    const filter = audioCtx.createBiquadFilter();
+    const panner = audioCtx.createStereoPanner();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(Math.max(60, cutoff), start);
+    osc.type = type;
+    osc.frequency.setValueAtTime(Math.max(20, freq), start);
+    if(glideTo) osc.frequency.linearRampToValueAtTime(Math.max(20, glideTo), start + dur);
+    osc.detune.value = detune;
+    gainNode.gain.setValueAtTime(0.0001, start);
+    gainNode.gain.linearRampToValueAtTime(gain, start + attack);
+    gainNode.gain.linearRampToValueAtTime(gain * sustain, start + attack + decay);
+    gainNode.gain.setValueAtTime(gain * sustain, start + dur);
+    gainNode.gain.linearRampToValueAtTime(0.0001, stop);
+    panner.pan.setValueAtTime(pan, start);
+    if(lfoRate > 0 && lfoDepth > 0){
+      const lfo = audioCtx.createOscillator();
+      const lfoGain = audioCtx.createGain();
+      lfo.frequency.value = lfoRate;
+      lfoGain.gain.value = lfoDepth;
+      lfo.connect(lfoGain);
+      lfoGain.connect(osc.frequency);
+      lfo.start(start);
+      lfo.stop(stop);
+    }
+    osc.connect(filter);
+    filter.connect(gainNode);
+    gainNode.connect(panner);
+    panner.connect(masterGain);
+    osc.start(start);
+    osc.stop(stop);
+  }
+  function playNoise(opts={}){
+    if(!audioCtx) return;
+    const {gain=.14, dur=.14, when=0, cutoff=12000, pan=0, band='highpass'} = opts;
+    const start = audioCtx.currentTime + when;
+    const stop = start + dur;
+    const src = audioCtx.createBufferSource();
+    src.buffer = noiseBuffer;
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = band;
+    filter.frequency.setValueAtTime(cutoff, start);
+    const gainNode = audioCtx.createGain();
+    const panner = audioCtx.createStereoPanner();
+    panner.pan.setValueAtTime(pan, start);
+    gainNode.gain.setValueAtTime(gain, start);
+    gainNode.gain.exponentialRampToValueAtTime(0.0001, stop);
+    src.connect(filter);
+    filter.connect(gainNode);
+    gainNode.connect(panner);
+    panner.connect(masterGain);
+    src.start(start);
+    src.stop(stop);
+  }
+  function softKick(when=0, amp=.28, pitch=58){
+    playTone(pitch,{type:'sine',gain:amp,dur:.18,release:.12,glideTo:30,cutoff:500});
+  }
+  function softSnare(when=0, amp=.16){
+    playNoise({gain:amp,dur:.12,cutoff:1800,band:'bandpass'});
+    playTone(180,{type:'triangle',gain:amp*.35,dur:.06,cutoff:2400});
+  }
+  function softHat(when=0, amp=.06, pan=0){
+    playNoise({gain:amp,dur:.04,cutoff:6000,band:'highpass',pan});
+  }
+  function drawBackground(){
+    const c = $('#bgCanvas');
+    if(!c) return;
+    const dpr = window.devicePixelRatio || 1;
+    const w = c.clientWidth = innerWidth;
+    const h = c.clientHeight = innerHeight;
+    c.width = w*dpr; c.height = h*dpr;
+    const ctx = c.getContext('2d');
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.clearRect(0,0,w,h);
+    ctx.fillStyle = '#040811';
+    ctx.fillRect(0,0,w,h);
+    bgTick += 0.008;
+    for(let i=0;i<48;i++){
+      const x = (Math.sin(bgTick*0.8 + i*0.91)*0.5+0.5)*w;
+      const y = (Math.cos(bgTick*0.56 + i*0.63)*0.5+0.5)*h;
+      const r = 1.5 + (i%4);
+      ctx.beginPath();
+      ctx.fillStyle = i%3===0 ? 'rgba(94,242,255,.18)' : i%3===1 ? 'rgba(86,166,255,.15)' : 'rgba(155,123,255,.16)';
+      ctx.arc(x,y,r,0,Math.PI*2);
+      ctx.fill();
+    }
+    requestAnimationFrame(drawBackground);
+  }
+  window.addEventListener('resize', ()=>{});
+
+  
+  const KEYS = ['C Major','G Major','D Major','A Major','E Major','A Minor','E Minor','B Minor','D Minor','G Minor'];
+  let state = {
+    songTitle:'Untitled Skye Sketch',
+    key:'A Minor',
+    bpm:112,
+    masterNotes:'A sleek late-night build that grows from restraint into lift.',
+    selected:0,
+    isPreviewing:false,
+    sections:[
+      {name:'Intro', bars:4, energy:.28, chords:'Am • F', notes:'Sparse pulse, filtered texture.', lyrics:'', color:'rgba(94,242,255,.2)'},
+      {name:'Verse', bars:8, energy:.44, chords:'Am • C • G • F', notes:'Keep drums lean, leave room for the lead.', lyrics:'Flicker in the window / signal in the rain', color:'rgba(86,166,255,.2)'},
+      {name:'Chorus', bars:8, energy:.78, chords:'F • C • G • Am', notes:'Open the width and stack the hook.', lyrics:'Hold the line / bring the skyline back to life', color:'rgba(155,123,255,.22)'}
+    ]
+  };
+  let previewTimer = null, previewBeat = 0, previewSection = 0;
+
+  function saveState(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); toast('Saved'); }
+  function loadState(){ try{ const raw = JSON.parse(localStorage.getItem(STORAGE_KEY)||'null'); if(raw) state = {...state,...raw}; }catch(e){} }
+  function exportState(){ const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='song-sketch-studio.json'; a.click(); URL.revokeObjectURL(a.href); }
+  function importState(file){ const fr=new FileReader(); fr.onload=()=>{ try{ state={...state,...JSON.parse(fr.result)}; render(); toast('Imported'); }catch(e){toast('Import failed');} }; fr.readAsText(file);}
+  function populateKeys(){
+    $('#songKey').innerHTML = KEYS.map(k=>`<option value="${k}">${k}</option>`).join('');
+    $('#songKey').value = state.key;
+    $('#songKey').onchange = e=>{ state.key = e.target.value; renderStatus(); };
+  }
+  function selectedSection(){ return state.sections[state.selected] || state.sections[0]; }
+  function renderSections(){
+    $('#sectionsList').innerHTML = state.sections.map((s,i)=>`
+      <button class="sectionCard ${i===state.selected?'active':''} ${state.isPreviewing && i===previewSection?'playing':''}" data-i="${i}">
+        <div class="row"><strong>${s.name}</strong><span class="pillTag">${s.bars} bars</span><span class="pillTag">${Math.round(s.energy*100)}%</span></div>
+        <div class="mini">${s.chords}</div>
+        <div class="mini">${s.notes || 'No notes yet.'}</div>
+      </button>`).join('');
+    $$('#sectionsList .sectionCard').forEach(btn=>btn.onclick=()=>{ state.selected = Number(btn.dataset.i); renderEditor(); renderSections(); });
+  }
+  function renderEditor(){
+    const s = selectedSection();
+    $('#songTitle').value = state.songTitle;
+    $('#songTitle').oninput = e=>{ state.songTitle = e.target.value; };
+    $('#bpm').value = state.bpm;
+    $('#bpm').oninput = e=>{ state.bpm = Number(e.target.value); renderStatus(); if(state.isPreviewing) restartPreview(); };
+    $('#sectionName').value = s.name;
+    $('#sectionBars').value = s.bars;
+    $('#sectionEnergy').value = s.energy;
+    $('#sectionChords').value = s.chords;
+    $('#sectionNotes').value = s.notes;
+    $('#sectionLyrics').value = s.lyrics;
+    $('#masterNotes').value = state.masterNotes;
+    $('#sectionName').oninput = e=>{ s.name = e.target.value; renderSections(); drawEnergy(); };
+    $('#sectionBars').oninput = e=>{ s.bars = Math.max(1, Number(e.target.value)||1); renderSections(); drawEnergy(); renderStatus(); };
+    $('#sectionEnergy').oninput = e=>{ s.energy = Number(e.target.value); renderSections(); drawEnergy(); renderStatus(); };
+    $('#sectionChords').oninput = e=>{ s.chords = e.target.value; renderSections(); };
+    $('#sectionNotes').oninput = e=>{ s.notes = e.target.value; renderSections(); };
+    $('#sectionLyrics').oninput = e=>{ s.lyrics = e.target.value; };
+    $('#masterNotes').oninput = e=>{ state.masterNotes = e.target.value; };
+  }
+  function addSection(){
+    state.sections.push({name:'New Section', bars:4, energy:.5, chords:'Am • F', notes:'', lyrics:'', color:'rgba(255,215,106,.18)'});
+    state.selected = state.sections.length - 1;
+    render();
+  }
+  function duplicateSection(){
+    const s = selectedSection();
+    state.sections.splice(state.selected+1, 0, JSON.parse(JSON.stringify(s)));
+    state.selected += 1; render();
+  }
+  function moveSection(dir){
+    const i = state.selected, j = i + dir;
+    if(j < 0 || j >= state.sections.length) return;
+    const tmp = state.sections[i]; state.sections[i] = state.sections[j]; state.sections[j] = tmp;
+    state.selected = j; render();
+  }
+  function removeSection(){
+    if(state.sections.length <= 1) return;
+    state.sections.splice(state.selected,1);
+    state.selected = Math.max(0, state.selected-1); render();
+  }
+  function totalBars(){ return state.sections.reduce((sum,s)=>sum + Number(s.bars||0),0); }
+  function estDuration(){ return ((totalBars()*4) * (60/state.bpm)); }
+  function drawEnergy(){
+    const c = $('#energyCanvas'), ctx = c.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    c.width = c.clientWidth*dpr; c.height = c.clientHeight*dpr;
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    const w = c.clientWidth, h = c.clientHeight;
+    ctx.clearRect(0,0,w,h); ctx.fillStyle='rgba(3,8,18,.82)'; ctx.fillRect(0,0,w,h);
+    let total = totalBars();
+    let x = 24;
+    state.sections.forEach((s,i)=>{
+      const width = (w-48) * (s.bars/total);
+      const height = (h-64) * s.energy;
+      ctx.fillStyle = s.color || 'rgba(94,242,255,.18)';
+      ctx.fillRect(x, h-26-height, width-6, height);
+      if(i===state.selected){
+        ctx.strokeStyle='rgba(255,215,106,.9)'; ctx.lineWidth=2; ctx.strokeRect(x, h-26-height, width-6, height);
+      }
+      if(state.isPreviewing && i===previewSection){
+        const px = x + ((previewBeat % Math.max(1,s.bars*4)) / Math.max(1,s.bars*4)) * Math.max(10,width-6);
+        ctx.strokeStyle='rgba(255,255,255,.85)'; ctx.beginPath(); ctx.moveTo(px,18); ctx.lineTo(px,h-18); ctx.stroke();
+      }
+      ctx.fillStyle='#f6f7fb'; ctx.font='600 13px Inter, sans-serif'; ctx.fillText(s.name, x+6, 28);
+      x += width;
+    });
+  }
+  function renderStatus(){
+    $('#statusGrid').innerHTML = [
+      ['Sections', state.sections.length],
+      ['Total Bars', totalBars()],
+      ['Est. Duration', `${Math.round(estDuration())} sec`],
+      ['Key / BPM', `${state.key} • ${state.bpm}`]
+    ].map(([k,v])=>`<div class="stat"><b>${k}</b><span>${v}</span></div>`).join('');
+  }
+  function sectionPitch(section){
+    const map = {'C Major':'C3','G Major':'G2','D Major':'D3','A Major':'A2','E Major':'E3','A Minor':'A2','E Minor':'E2','B Minor':'B2','D Minor':'D3','G Minor':'G2'};
+    return noteToFreq(map[state.key] || 'A2') * (1 + section.energy*.35);
+  }
+  function restartPreview(){ clearInterval(previewTimer); if(state.isPreviewing) startPreview(); }
+  function startPreview(){
+    const msBeat = 60000 / state.bpm;
+    clearInterval(previewTimer);
+    previewBeat = 0; previewSection = 0;
+    previewTimer = setInterval(()=>{
+      if(!state.isPreviewing || !audioCtx) return;
+      const s = state.sections[previewSection];
+      const beatInSection = previewBeat % Math.max(1,s.bars*4);
+      if(beatInSection % 4 === 0){
+        playTone(sectionPitch(s),{type:'triangle',gain:.08 + s.energy*.08,dur:.16,release:.09,cutoff:900 + s.energy*2200});
+        playTone(sectionPitch(s)*1.5,{type:'sine',gain:.03 + s.energy*.03,dur:.12,release:.05,cutoff:2600});
+      } else {
+        playNoise({gain:.02 + s.energy*.02,dur:.02,cutoff:5200,band:'highpass'});
+      }
+      previewBeat++;
+      if(previewBeat >= s.bars*4){
+        previewBeat = 0;
+        previewSection = (previewSection + 1) % state.sections.length;
+      }
+      drawEnergy(); renderSections();
+    }, msBeat);
+  }
+
+  $('#powerBtn').onclick = ensureAudio;
+  $('#saveBtn').onclick = saveState;
+  $('#exportBtn').onclick = exportState;
+  $('#importInput').onchange = e=>e.target.files[0] && importState(e.target.files[0]);
+  $('#addSectionBtn').onclick = addSection;
+  $('#duplicateBtn').onclick = duplicateSection;
+  $('#moveUpBtn').onclick = ()=>moveSection(-1);
+  $('#moveDownBtn').onclick = ()=>moveSection(1);
+  $('#removeBtn').onclick = removeSection;
+  $('#previewBtn').onclick = async ()=>{
+    await ensureAudio();
+    state.isPreviewing = !state.isPreviewing;
+    if(state.isPreviewing) startPreview(); else clearInterval(previewTimer);
+    $('#previewBtn').textContent = state.isPreviewing ? 'Stop Preview' : 'Preview Arrangement';
+    drawEnergy(); renderSections();
+  };
+
+  loadState(); populateKeys(); renderSections(); renderEditor(); renderStatus(); drawEnergy();
+
+  drawBackground();
+  </script>
+</body>
+</html>

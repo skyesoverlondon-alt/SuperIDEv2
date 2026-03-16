@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Beat Foundry — Wave 1 MVP</title>
+  <style>
+    :root{
+      --bg:#050816;
+      --panel:rgba(12,18,38,.74);
+      --panel-2:rgba(20,27,56,.72);
+      --border:rgba(144,170,255,.18);
+      --text:#f6f7fb;
+      --muted:#94a3b8;
+      --blue:#56a6ff;
+      --violet:#9b7bff;
+      --cyan:#5ef2ff;
+      --gold:#ffd76a;
+      --danger:#ff6b8a;
+      --good:#4ade80;
+      --shadow:0 18px 60px rgba(0,0,0,.35);
+      --radius:24px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      background:
+        radial-gradient(circle at 20% 20%, rgba(86,166,255,.14), transparent 26%),
+        radial-gradient(circle at 80% 30%, rgba(155,123,255,.14), transparent 24%),
+        radial-gradient(circle at 50% 80%, rgba(94,242,255,.08), transparent 22%),
+        linear-gradient(180deg, #040611 0%, #070b18 42%, #050816 100%);
+      color:var(--text);
+      font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      min-height:100%;
+      overflow-x:hidden;
+    }
+    #bgCanvas{position:fixed; inset:0; width:100%; height:100%; z-index:0}
+    .app{position:relative; z-index:1; padding:16px; display:grid; gap:16px}
+    .topbar{
+      display:grid;
+      grid-template-columns:1.25fr .95fr;
+      gap:16px;
+      align-items:stretch;
+    }
+    .brand, .statusbar, .panel {
+      border:1px solid var(--border);
+      background:linear-gradient(180deg, rgba(16,24,52,.86), rgba(10,16,32,.82));
+      box-shadow:var(--shadow);
+      border-radius:var(--radius);
+      backdrop-filter: blur(18px);
+    }
+    .brand {
+      padding:18px 20px;
+      display:flex;
+      justify-content:space-between;
+      gap:16px;
+      align-items:center;
+    }
+    .brand h1{margin:0; font-size:clamp(1.25rem, 2vw, 2rem); letter-spacing:.02em}
+    .brand p{margin:6px 0 0; color:var(--muted)}
+    .navchips{display:flex; flex-wrap:wrap; gap:8px; justify-content:flex-end}
+    .navchips a, .pill, button, .seg button, select, input[type="range"], input[type="text"], input[type="number"], textarea {
+      border:1px solid var(--border);
+      background:rgba(255,255,255,.05);
+      color:var(--text);
+      border-radius:14px;
+      text-decoration:none;
+      transition:.2s ease;
+    }
+    .navchips a, button, .pill {
+      padding:10px 12px; font-weight:600; font-size:.92rem; cursor:pointer;
+    }
+    button:hover, .navchips a:hover, .seg button:hover, .card:hover {
+      transform:translateY(-1px);
+      border-color:rgba(255,255,255,.28);
+      background:rgba(255,255,255,.09);
+    }
+    button.primary{background:linear-gradient(135deg, rgba(86,166,255,.25), rgba(155,123,255,.28)); border-color:rgba(94,242,255,.25)}
+    button.good{background:linear-gradient(135deg, rgba(74,222,128,.18), rgba(86,166,255,.22))}
+    button.warn{background:linear-gradient(135deg, rgba(255,215,106,.18), rgba(155,123,255,.24))}
+    button.danger{background:linear-gradient(135deg, rgba(255,107,138,.18), rgba(155,123,255,.24))}
+    .statusbar{padding:14px 16px; display:grid; gap:10px}
+    .statusgrid{display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:10px}
+    .stat{padding:10px 12px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.05); border-radius:18px}
+    .stat b{display:block; font-size:.8rem; color:var(--muted); margin-bottom:4px}
+    .stat span{font-size:1.05rem; font-weight:700}
+    .maingrid{display:grid; grid-template-columns:1.15fr .85fr; gap:16px}
+    .panel{padding:16px}
+    .panel h2, .panel h3{margin:0 0 10px}
+    .sub{color:var(--muted); font-size:.92rem; margin-top:4px}
+    .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+    .stack{display:grid; gap:12px}
+    .controls{display:grid; gap:14px}
+    .control{display:grid; gap:7px}
+    label{font-size:.88rem; color:var(--muted)}
+    input[type="range"]{width:100%; padding:0; height:10px}
+    input[type="text"], input[type="number"], select, textarea{padding:10px 12px; width:100%}
+    textarea{min-height:90px; resize:vertical}
+    .seg{display:flex; flex-wrap:wrap; gap:8px}
+    .seg button.active, .toggle.active, .pad.active, .step.active, .slot.active {
+      background:linear-gradient(135deg, rgba(94,242,255,.26), rgba(86,166,255,.24));
+      border-color:rgba(94,242,255,.45);
+      box-shadow:0 0 0 1px rgba(94,242,255,.16), 0 10px 28px rgba(86,166,255,.18);
+    }
+    .mini{font-size:.8rem; color:var(--muted)}
+    .grid2{display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:12px}
+    .grid3{display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:12px}
+    .grid4{display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:12px}
+    .card{padding:14px; border-radius:18px; border:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.04)}
+    .meter{height:10px; border-radius:999px; background:rgba(255,255,255,.06); overflow:hidden}
+    .meter > span{display:block; height:100%; background:linear-gradient(90deg, var(--cyan), var(--blue), var(--violet)); width:40%}
+    canvas.scope, canvas.field, canvas.wave, canvas.chart{width:100%; min-height:220px; border-radius:18px; border:1px solid rgba(255,255,255,.08); background:rgba(2,6,18,.55)}
+    .footerNote{padding:8px 4px 20px; color:var(--muted); font-size:.88rem; text-align:center}
+    .toast{
+      position:fixed; right:18px; bottom:18px; z-index:5;
+      padding:12px 14px; border-radius:16px; color:var(--text);
+      background:linear-gradient(180deg, rgba(18,26,54,.92), rgba(8,14,30,.92));
+      border:1px solid var(--border); box-shadow:var(--shadow); opacity:0; transform:translateY(12px); transition:.25s ease; pointer-events:none;
+    }
+    .toast.show{opacity:1; transform:translateY(0)}
+    .hidden{display:none !important}
+    @media (max-width: 1080px){
+      .topbar, .maingrid{grid-template-columns:1fr}
+      .statusgrid{grid-template-columns:repeat(2, minmax(0,1fr))}
+    }
+    @media (max-width: 720px){
+      .grid2,.grid3,.grid4{grid-template-columns:1fr}
+      .statusgrid{grid-template-columns:1fr 1fr}
+      .brand{align-items:flex-start; flex-direction:column}
+      .navchips{justify-content:flex-start}
+    }
+  </style>
+  
+</head>
+<body>
+  <canvas id="bgCanvas"></canvas>
+  <div class="app">
+    <div class="topbar">
+      <section class="brand">
+        <div>
+          <h1>Beat Foundry</h1>
+          <p>A drum workstation MVP with four scenes, pattern chaining, groove control, synthesis drums, and local session memory.</p>
+        </div>
+        <nav class="navchips"><a href="index.html">Wave Launcher</a><a href="beat-foundry.html">Beat Foundry</a><a href="chord-architect.html">Chord Architect</a><a href="spatial-fx-playground.html">Spatial FX Playground</a><a href="ambient-scene-engine.html">Ambient Scene Engine</a><a href="melody-reactor.html">Melody Reactor</a></nav>
+      </section>
+      <section class="statusbar">
+        <div class="row">
+          <button id="powerBtn" class="primary">Power / Audio</button>
+          <button id="saveBtn" class="good">Save</button>
+          <button id="exportBtn" class="warn">Export JSON</button>
+          <label class="pill">Import JSON <input id="importInput" type="file" accept="application/json" class="hidden"></label>
+        </div>
+        <div class="statusgrid" id="statusGrid"></div>
+      </section>
+    </div>
+    
+<main class="maingrid">
+  <section class="panel stack">
+    <div class="row" style="justify-content:space-between">
+      <div>
+        <h2>Sequencer Grid</h2>
+        <p class="sub">Five drum lanes, four scenes, swing, and instant mutation. Tap cells to program the pattern.</p>
+      </div>
+      <div class="row">
+        <button id="playBtn" class="primary">Play</button>
+        <button id="stopBtn">Stop</button>
+        <button id="randomBtn" class="warn">Randomize</button>
+        <button id="clearBtn" class="danger">Clear</button>
+      </div>
+    </div>
+    <div class="row" id="sceneRow"></div>
+    <div id="gridWrap" class="stack"></div>
+  </section>
+  <section class="stack">
+    <section class="panel controls">
+      <div>
+        <h3>Transport + Groove</h3>
+        <p class="sub">Dial the engine, then let the tiny percussion goblins do their thing.</p>
+      </div>
+      <div class="control"><label>Tempo <span id="tempoVal"></span></label><input id="tempo" type="range" min="70" max="172" value="118"></div>
+      <div class="control"><label>Swing <span id="swingVal"></span></label><input id="swing" type="range" min="0" max="45" value="12"></div>
+      <div class="control"><label>Master Drive <span id="driveVal"></span></label><input id="drive" type="range" min="0" max="100" value="28"></div>
+      <div class="control"><label>Chain Order</label><input id="chain" type="text" value="AABC" maxlength="8"></div>
+      <div class="seg" id="presetRow"></div>
+    </section>
+    <section class="panel stack">
+      <div>
+        <h3>Track Mix</h3>
+        <p class="sub">Mute, accent, and sculpt each lane.</p>
+      </div>
+      <div id="mixWrap" class="stack"></div>
+    </section>
+    <section class="panel stack">
+      <div>
+        <h3>Pattern Readout</h3>
+        <p class="sub">Quick summary of the current scene.</p>
+      </div>
+      <div class="card">
+        <div class="mini" id="summaryText"></div>
+      </div>
+      <canvas id="scope" class="scope" width="600" height="240"></canvas>
+    </section>
+  </section>
+</main>
+
+    <div class="footerNote">Single-file browser MVP • local autosave • no backend required • optimized for fast idea proving</div>
+  </div>
+  <div id="toast" class="toast"></div>
+  <script>
+  const AppUI = (() => {
+    const toast = document.getElementById('toast');
+    const bg = document.getElementById('bgCanvas');
+    const ctx = bg.getContext('2d');
+    let particles = Array.from({length:64}, (_,i)=>({
+      x: Math.random()*window.innerWidth,
+      y: Math.random()*window.innerHeight,
+      r: 0.8 + Math.random()*2.2,
+      dx: -0.35 + Math.random()*0.7,
+      dy: -0.35 + Math.random()*0.7,
+      hue: [190,210,250][i%3]
+    }));
+    function resizeBG() {
+      bg.width = window.innerWidth * devicePixelRatio;
+      bg.height = window.innerHeight * devicePixelRatio;
+      bg.style.width = window.innerWidth + 'px';
+      bg.style.height = window.innerHeight + 'px';
+      ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+    }
+    resizeBG();
+    window.addEventListener('resize', resizeBG);
+    function loop() {
+      const w = window.innerWidth, h = window.innerHeight;
+      ctx.clearRect(0,0,w,h);
+      const g1 = ctx.createRadialGradient(w*.25,h*.2,10,w*.25,h*.2,w*.55);
+      g1.addColorStop(0,'rgba(86,166,255,.17)');
+      g1.addColorStop(1,'rgba(86,166,255,0)');
+      const g2 = ctx.createRadialGradient(w*.8,h*.3,10,w*.8,h*.3,w*.45);
+      g2.addColorStop(0,'rgba(155,123,255,.13)');
+      g2.addColorStop(1,'rgba(155,123,255,0)');
+      ctx.fillStyle = g1; ctx.fillRect(0,0,w,h);
+      ctx.fillStyle = g2; ctx.fillRect(0,0,w,h);
+      particles.forEach(p => {
+        p.x += p.dx; p.y += p.dy;
+        if(p.x < -10) p.x = w + 10; if(p.x > w + 10) p.x = -10;
+        if(p.y < -10) p.y = h + 10; if(p.y > h + 10) p.y = -10;
+        ctx.beginPath();
+        ctx.fillStyle = `hsla(${p.hue}, 100%, 72%, 0.32)`;
+        ctx.shadowColor = `hsla(${p.hue}, 100%, 72%, 0.6)`;
+        ctx.shadowBlur = 18;
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      });
+      requestAnimationFrame(loop);
+    }
+    loop();
+    return {
+      toast(msg) {
+        toast.textContent = msg;
+        toast.classList.add('show');
+        clearTimeout(toast._t);
+        toast._t = setTimeout(() => toast.classList.remove('show'), 1800);
+      },
+      download(name, data) {
+        const blob = new Blob([data], {type:'application/json'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = name; a.click();
+        setTimeout(()=>URL.revokeObjectURL(url), 1500);
+      },
+      fillStatus(items) {
+        const grid = document.getElementById('statusGrid');
+        grid.innerHTML = items.map(item => `<div class="stat"><b>${item.label}</b><span>${item.value}</span></div>`).join('');
+      },
+      clamp(v, a, b) { return Math.min(b, Math.max(a, v)); },
+      choice(arr) { return arr[Math.floor(Math.random()*arr.length)] },
+      rand(min,max) { return min + Math.random()*(max-min); },
+      uid() { return Math.random().toString(36).slice(2,9); },
+    };
+  })();
+  
+(() => {
+  const STORAGE = 'beat-foundry-wave1-v1';
+  const trackDefs = [
+    {id:'kick', name:'Kick', tone:'#56a6ff'},
+    {id:'snare', name:'Snare', tone:'#ff9f6e'},
+    {id:'hat', name:'Hat', tone:'#5ef2ff'},
+    {id:'clap', name:'Clap', tone:'#ffd76a'},
+    {id:'perc', name:'Perc', tone:'#9b7bff'}
+  ];
+  const presets = {
+    'Night Drive': {
+      A: [[1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0],[0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[0,0,0,1,0,0,0,1,0,0,0,1,0,0,1,0],[0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0]],
+      B: [[1,0,0,1,1,0,0,0,1,0,0,1,1,0,0,0],[0,0,1,0,0,1,1,0,0,0,1,0,0,0,1,1],[1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1],[0,0,0,1,0,0,0,1,0,0,0,1,0,1,0,1],[0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0]],
+      C: [[1,0,0,0,0,0,1,0,1,0,0,0,0,0,1,0],[0,0,1,0,0,0,1,0,0,1,1,0,0,0,1,0],[1,0,1,1,1,1,0,1,1,0,1,1,1,1,0,1],[0,0,0,1,0,0,1,0,0,0,0,1,0,0,1,0],[0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0]],
+      D: [[1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0],[0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0],[1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,0],[0,0,0,1,0,1,0,1,0,0,0,1,0,1,0,1],[0,1,0,0,1,0,0,1,0,1,0,0,1,0,0,1]]
+    },
+    'Broken Gold': {
+      A: [[1,0,0,1,0,0,0,0,1,0,1,0,0,0,0,0],[0,0,1,0,0,1,0,0,0,0,1,0,0,1,0,0],[1,0,1,0,1,0,1,1,1,0,1,0,1,1,1,0],[0,0,0,1,0,0,0,0,0,0,0,1,0,0,1,0],[0,0,0,0,1,0,0,1,0,0,1,0,1,0,0,0]],
+      B: [[1,0,0,0,1,0,0,1,1,0,0,0,1,0,0,1],[0,0,1,0,0,0,1,0,0,1,1,0,0,0,1,0],[1,1,0,1,1,1,0,1,1,1,0,1,1,1,0,1],[0,0,0,1,0,0,1,0,0,0,0,1,0,1,0,0],[0,1,0,0,0,1,0,0,1,0,0,0,0,1,0,0]],
+      C: [[1,0,0,0,1,0,1,0,1,0,0,0,1,0,1,0],[0,0,1,0,0,1,0,0,0,0,1,0,0,1,0,0],[1,1,1,0,1,1,1,0,1,1,1,0,1,1,1,0],[0,0,0,0,0,1,0,0,0,0,0,1,0,0,1,0],[1,0,0,1,0,0,1,0,1,0,0,1,0,0,0,0]],
+      D: [[1,0,1,0,1,0,0,0,1,0,1,0,1,0,0,0],[0,0,1,0,0,0,1,1,0,0,1,0,0,0,1,0],[1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1],[0,0,0,1,0,0,0,1,0,1,0,1,0,0,0,1],[0,1,0,0,0,0,1,0,0,1,0,0,1,0,0,1]]
+    }
+  };
+
+  const defaultState = () => ({
+    tempo: 118,
+    swing: 12,
+    drive: 28,
+    chain: 'AABC',
+    activeScene: 'A',
+    scenes: Object.fromEntries(['A','B','C','D'].map(letter => [letter, trackDefs.map(()=>Array(16).fill(0))])),
+    mix: trackDefs.map(()=>({mute:false, gain:0.8, accent:0.35}))
+  });
+
+  let state = load() || defaultState();
+  const dom = {
+    tempo: document.getElementById('tempo'),
+    tempoVal: document.getElementById('tempoVal'),
+    swing: document.getElementById('swing'),
+    swingVal: document.getElementById('swingVal'),
+    drive: document.getElementById('drive'),
+    driveVal: document.getElementById('driveVal'),
+    chain: document.getElementById('chain'),
+    sceneRow: document.getElementById('sceneRow'),
+    gridWrap: document.getElementById('gridWrap'),
+    mixWrap: document.getElementById('mixWrap'),
+    presetRow: document.getElementById('presetRow'),
+    summaryText: document.getElementById('summaryText'),
+    scope: document.getElementById('scope'),
+    playBtn: document.getElementById('playBtn'),
+    stopBtn: document.getElementById('stopBtn'),
+    randomBtn: document.getElementById('randomBtn'),
+    clearBtn: document.getElementById('clearBtn'),
+    saveBtn: document.getElementById('saveBtn'),
+    exportBtn: document.getElementById('exportBtn'),
+    importInput: document.getElementById('importInput'),
+    powerBtn: document.getElementById('powerBtn'),
+  };
+
+  let ctx, master, comp, scopeAnalyser, noiseBuffer;
+  let timer = null, stepIndex = 0, chainPos = 0, playing = false;
+  const scopeCtx = dom.scope.getContext('2d');
+  const sceneLetters = ['A','B','C','D'];
+
+  function load() {
+    try { return JSON.parse(localStorage.getItem(STORAGE)); } catch { return null; }
+  }
+  function persist() {
+    localStorage.setItem(STORAGE, JSON.stringify(state));
+    updateSummary();
+  }
+  function ensureAudio() {
+    if (ctx) return;
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    master = ctx.createGain();
+    comp = ctx.createDynamicsCompressor();
+    scopeAnalyser = ctx.createAnalyser();
+    scopeAnalyser.fftSize = 1024;
+    comp.threshold.value = -22;
+    comp.knee.value = 18;
+    comp.ratio.value = 5;
+    comp.attack.value = 0.003;
+    comp.release.value = 0.15;
+    master.gain.value = 0.92;
+    master.connect(comp);
+    comp.connect(scopeAnalyser);
+    scopeAnalyser.connect(ctx.destination);
+    noiseBuffer = createNoiseBuffer();
+    renderScope();
+  }
+  function createNoiseBuffer() {
+    const buffer = ctx.createBuffer(1, ctx.sampleRate * 1, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / data.length * 0.2);
+    return buffer;
+  }
+
+  function triggerKick(time, velocity, accent) {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(145, time);
+    osc.frequency.exponentialRampToValueAtTime(42, time + 0.18);
+    gain.gain.setValueAtTime(0.0001, time);
+    gain.gain.exponentialRampToValueAtTime(0.95 * velocity + accent * 0.25, time + 0.006);
+    gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.26);
+    osc.connect(gain).connect(master);
+    osc.start(time);
+    osc.stop(time + 0.28);
+  }
+  function triggerSnare(time, velocity, accent) {
+    const noise = ctx.createBufferSource();
+    const hp = ctx.createBiquadFilter();
+    const gain = ctx.createGain();
+    hp.type = 'highpass';
+    hp.frequency.value = 1300;
+    noise.buffer = noiseBuffer;
+    gain.gain.setValueAtTime(0.0001, time);
+    gain.gain.exponentialRampToValueAtTime(0.55 * velocity + accent * 0.18, time + 0.002);
+    gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.16);
+    noise.connect(hp).connect(gain).connect(master);
+    noise.start(time);
+    noise.stop(time + 0.18);
+
+    const body = ctx.createOscillator();
+    const bodyGain = ctx.createGain();
+    body.type = 'triangle';
+    body.frequency.setValueAtTime(180, time);
+    bodyGain.gain.setValueAtTime(0.0001, time);
+    bodyGain.gain.exponentialRampToValueAtTime(0.22 * velocity, time + 0.004);
+    bodyGain.gain.exponentialRampToValueAtTime(0.0001, time + 0.12);
+    body.connect(bodyGain).connect(master);
+    body.start(time);
+    body.stop(time + 0.14);
+  }
+  function triggerHat(time, velocity, accent) {
+    const noise = ctx.createBufferSource();
+    noise.buffer = noiseBuffer;
+    const hp = ctx.createBiquadFilter();
+    hp.type = 'highpass';
+    hp.frequency.value = 6200;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, time);
+    gain.gain.exponentialRampToValueAtTime(0.16 + velocity * 0.22 + accent * 0.08, time + 0.001);
+    gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.06);
+    noise.connect(hp).connect(gain).connect(master);
+    noise.start(time);
+    noise.stop(time + 0.08);
+  }
+  function triggerClap(time, velocity, accent) {
+    [0, 0.018, 0.034].forEach(offset => {
+      const noise = ctx.createBufferSource();
+      noise.buffer = noiseBuffer;
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.value = 1700;
+      bp.Q.value = 0.7;
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0.0001, time + offset);
+      gain.gain.exponentialRampToValueAtTime(0.22 + velocity * 0.18 + accent * 0.09, time + offset + 0.002);
+      gain.gain.exponentialRampToValueAtTime(0.0001, time + offset + 0.085);
+      noise.connect(bp).connect(gain).connect(master);
+      noise.start(time + offset);
+      noise.stop(time + offset + 0.09);
+    });
+  }
+  function triggerPerc(time, velocity, accent) {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(360, time);
+    osc.frequency.exponentialRampToValueAtTime(210, time + 0.06);
+    gain.gain.setValueAtTime(0.0001, time);
+    gain.gain.exponentialRampToValueAtTime(0.22 + velocity * 0.23 + accent * 0.1, time + 0.004);
+    gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.11);
+    osc.connect(gain).connect(master);
+    osc.start(time);
+    osc.stop(time + 0.12);
+  }
+
+  function triggerTrack(idx, time, step) {
+    const mix = state.mix[idx];
+    if (mix.mute) return;
+    const velocity = mix.gain;
+    const accent = step % 4 === 0 ? mix.accent : 0;
+    const driveBoost = state.drive / 100 * 0.12;
+    const t = time + driveBoost * (idx * 0.001);
+    [triggerKick, triggerSnare, triggerHat, triggerClap, triggerPerc][idx](t, velocity, accent);
+  }
+
+  function currentPattern() {
+    return state.scenes[state.activeScene];
+  }
+  function patternFor(sceneLetter) {
+    return state.scenes[sceneLetter];
+  }
+
+  function stepDuration() {
+    return (60 / state.tempo) / 4;
+  }
+  function currentSceneFromChain() {
+    const chars = state.chain.toUpperCase().replace(/[^ABCD]/g, '').split('');
+    if (!chars.length) return state.activeScene;
+    return chars[chainPos % chars.length];
+  }
+  function scheduleStep() {
+    const sceneLetter = currentSceneFromChain();
+    if (sceneLetter !== state.activeScene) {
+      state.activeScene = sceneLetter;
+      renderGrid();
+      renderScenes();
+      updateSummary();
+    }
+    const pattern = currentPattern();
+    const swingOffset = (stepIndex % 2 === 1 ? state.swing / 100 * stepDuration() * 0.35 : 0);
+    const now = ctx.currentTime + 0.03 + swingOffset;
+    pattern.forEach((row, idx) => {
+      if (row[stepIndex]) triggerTrack(idx, now, stepIndex);
+    });
+    highlightStep(stepIndex);
+    stepIndex = (stepIndex + 1) % 16;
+    if (stepIndex === 0) chainPos++;
+  }
+  function start() {
+    ensureAudio();
+    if (ctx.state === 'suspended') ctx.resume();
+    if (playing) return;
+    playing = true;
+    stepIndex = 0;
+    scheduleStep();
+    timer = setInterval(scheduleStep, stepDuration() * 1000);
+    dom.playBtn.textContent = 'Playing';
+    updateStatus();
+  }
+  function stop() {
+    playing = false;
+    clearInterval(timer);
+    timer = null;
+    highlightStep(-1);
+    dom.playBtn.textContent = 'Play';
+    updateStatus();
+  }
+  function renderScenes() {
+    dom.sceneRow.innerHTML = sceneLetters.map(letter => `<button class="${state.activeScene === letter ? 'active' : ''}" data-scene="${letter}">Scene ${letter}</button>`).join('');
+    dom.sceneRow.querySelectorAll('button').forEach(btn => btn.addEventListener('click', () => {
+      state.activeScene = btn.dataset.scene;
+      renderScenes(); renderGrid(); persist();
+    }));
+  }
+  function renderGrid() {
+    const patt = currentPattern();
+    dom.gridWrap.innerHTML = trackDefs.map((track, trackIdx) => `
+      <div class="card stack">
+        <div class="row" style="justify-content:space-between">
+          <div class="row"><span class="pill" style="border-color:${track.tone}; color:${track.tone}">${track.name}</span><span class="mini">${patt[trackIdx].reduce((a,b)=>a+b,0)} hits</span></div>
+          <div class="mini">${track.id.toUpperCase()}</div>
+        </div>
+        <div class="row" style="flex-wrap:nowrap; overflow:auto; padding-bottom:4px">
+          ${patt[trackIdx].map((on, step) => `<button class="step ${on ? 'active' : ''}" data-track="${trackIdx}" data-step="${step}" style="min-width:42px; height:46px; position:relative">${step + 1}</button>`).join('')}
+        </div>
+      </div>`).join('');
+    dom.gridWrap.querySelectorAll('.step').forEach(btn => btn.addEventListener('click', () => {
+      const t = +btn.dataset.track, s = +btn.dataset.step;
+      patt[t][s] = patt[t][s] ? 0 : 1;
+      renderGrid();
+      persist();
+    }));
+    highlightStep(playing ? stepIndex : -1);
+  }
+  function highlightStep(current) {
+    dom.gridWrap.querySelectorAll('.step').forEach(btn => {
+      const active = +btn.dataset.step === current;
+      btn.style.outline = active ? '2px solid rgba(255,215,106,.9)' : 'none';
+      btn.style.transform = active ? 'translateY(-2px)' : '';
+      btn.style.boxShadow = active ? '0 0 0 1px rgba(255,215,106,.25), 0 0 24px rgba(255,215,106,.16)' : '';
+    });
+  }
+  function renderMix() {
+    dom.mixWrap.innerHTML = state.mix.map((mix, idx) => `
+      <div class="card stack">
+        <div class="row" style="justify-content:space-between">
+          <strong>${trackDefs[idx].name}</strong>
+          <button class="toggle ${mix.mute ? 'active' : ''}" data-mute="${idx}">${mix.mute ? 'Muted' : 'Live'}</button>
+        </div>
+        <div class="control"><label>Gain <span>${Math.round(mix.gain * 100)}%</span></label><input data-gain="${idx}" type="range" min="10" max="100" value="${Math.round(mix.gain * 100)}"></div>
+        <div class="control"><label>Accent <span>${Math.round(mix.accent * 100)}%</span></label><input data-accent="${idx}" type="range" min="0" max="100" value="${Math.round(mix.accent * 100)}"></div>
+      </div>`).join('');
+    dom.mixWrap.querySelectorAll('[data-mute]').forEach(btn => btn.addEventListener('click', () => {
+      const i = +btn.dataset.mute;
+      state.mix[i].mute = !state.mix[i].mute;
+      renderMix(); persist();
+    }));
+    dom.mixWrap.querySelectorAll('[data-gain]').forEach(input => input.addEventListener('input', () => {
+      state.mix[+input.dataset.gain].gain = +input.value / 100;
+      renderMix(); persist();
+    }));
+    dom.mixWrap.querySelectorAll('[data-accent]').forEach(input => input.addEventListener('input', () => {
+      state.mix[+input.dataset.accent].accent = +input.value / 100;
+      renderMix(); persist();
+    }));
+  }
+  function renderPresets() {
+    dom.presetRow.innerHTML = Object.keys(presets).map(name => `<button data-preset="${name}">${name}</button>`).join('');
+    dom.presetRow.querySelectorAll('button').forEach(btn => btn.addEventListener('click', () => {
+      const preset = presets[btn.dataset.preset];
+      state.scenes = JSON.parse(JSON.stringify(preset));
+      state.activeScene = 'A';
+      renderScenes(); renderGrid(); renderMix(); persist();
+      AppUI.toast(`Loaded ${btn.dataset.preset}`);
+    }));
+  }
+  function randomize() {
+    sceneLetters.forEach(letter => {
+      const density = {A:0.34, B:0.38, C:0.42, D:0.52}[letter];
+      state.scenes[letter] = trackDefs.map((track, idx) => Array.from({length:16}, (_, step) => {
+        if (idx === 0) return step % 4 === 0 || Math.random() < density * 0.12 ? 1 : 0;
+        if (idx === 2) return Math.random() < density + (step % 2 === 0 ? 0.18 : 0) ? 1 : 0;
+        return Math.random() < density * (0.45 + idx * 0.08) ? 1 : 0;
+      }));
+    });
+    renderGrid();
+    persist();
+  }
+  function clearPattern() {
+    state.scenes[state.activeScene] = trackDefs.map(()=>Array(16).fill(0));
+    renderGrid(); persist();
+  }
+  function updateSummary() {
+    const patt = currentPattern();
+    const totalHits = patt.flat().reduce((a,b)=>a+b,0);
+    const loud = state.mix.filter(m=>!m.mute).length;
+    dom.summaryText.innerHTML = `
+      Scene <b>${state.activeScene}</b> holds <b>${totalHits}</b> active steps across <b>${loud}</b> live lanes.<br>
+      Chain order is <b>${state.chain || 'A'}</b>, swing at <b>${state.swing}%</b>, tempo at <b>${state.tempo} BPM</b>.<br>
+      Peak density lane: <b>${trackDefs[patt.map(row=>row.reduce((a,b)=>a+b,0)).indexOf(Math.max(...patt.map(row=>row.reduce((a,b)=>a+b,0))))].name}</b>.
+    `;
+    updateStatus();
+  }
+  function updateStatus() {
+    AppUI.fillStatus([
+      {label:'Tempo', value:`${state.tempo} BPM`},
+      {label:'Scene', value:state.activeScene},
+      {label:'Chain', value:state.chain || 'A'},
+      {label:'Transport', value:playing ? 'Running' : 'Stopped'}
+    ]);
+    dom.tempoVal.textContent = `${state.tempo} BPM`;
+    dom.swingVal.textContent = `${state.swing}%`;
+    dom.driveVal.textContent = `${state.drive}%`;
+  }
+
+  function renderScope() {
+    if (!scopeAnalyser) return;
+    requestAnimationFrame(renderScope);
+    const buf = new Uint8Array(scopeAnalyser.fftSize);
+    scopeAnalyser.getByteTimeDomainData(buf);
+    const {width:w, height:h} = dom.scope;
+    scopeCtx.clearRect(0,0,w,h);
+    const grad = scopeCtx.createLinearGradient(0,0,w,0);
+    grad.addColorStop(0, '#5ef2ff'); grad.addColorStop(0.5, '#56a6ff'); grad.addColorStop(1, '#9b7bff');
+    scopeCtx.strokeStyle = 'rgba(255,255,255,.06)';
+    for (let i = 0; i <= 4; i++) {
+      scopeCtx.beginPath();
+      scopeCtx.moveTo(0, h / 4 * i);
+      scopeCtx.lineTo(w, h / 4 * i);
+      scopeCtx.stroke();
+    }
+    scopeCtx.beginPath();
+    scopeCtx.lineWidth = 2.2;
+    scopeCtx.strokeStyle = grad;
+    buf.forEach((v,i) => {
+      const x = i / (buf.length - 1) * w;
+      const y = v / 255 * h;
+      if (i === 0) scopeCtx.moveTo(x,y); else scopeCtx.lineTo(x,y);
+    });
+    scopeCtx.stroke();
+  }
+
+  dom.tempo.addEventListener('input', () => {
+    state.tempo = +dom.tempo.value;
+    if (playing) { clearInterval(timer); timer = setInterval(scheduleStep, stepDuration() * 1000); }
+    persist();
+  });
+  dom.swing.addEventListener('input', () => { state.swing = +dom.swing.value; persist(); });
+  dom.drive.addEventListener('input', () => { state.drive = +dom.drive.value; persist(); });
+  dom.chain.addEventListener('input', () => { state.chain = dom.chain.value.toUpperCase().replace(/[^ABCD]/g, '').slice(0,8) || 'A'; dom.chain.value = state.chain; persist(); });
+  dom.playBtn.addEventListener('click', start);
+  dom.stopBtn.addEventListener('click', stop);
+  dom.randomBtn.addEventListener('click', () => { randomize(); AppUI.toast('Fresh pattern batch cooked.'); });
+  dom.clearBtn.addEventListener('click', () => { clearPattern(); AppUI.toast('Current scene cleared.'); });
+  dom.powerBtn.addEventListener('click', () => { ensureAudio(); ctx.resume(); AppUI.toast('Audio engine armed.'); });
+  dom.saveBtn.addEventListener('click', () => { persist(); AppUI.toast('Pattern saved locally.'); });
+  dom.exportBtn.addEventListener('click', () => AppUI.download('beat-foundry-session.json', JSON.stringify(state, null, 2)));
+  dom.importInput.parentElement.addEventListener('click', () => dom.importInput.click());
+  dom.importInput.addEventListener('change', async () => {
+    const file = dom.importInput.files[0];
+    if (!file) return;
+    const data = JSON.parse(await file.text());
+    state = Object.assign(defaultState(), data);
+    renderAll();
+    persist();
+    AppUI.toast('Session imported.');
+  });
+
+  function renderAll() {
+    dom.tempo.value = state.tempo;
+    dom.swing.value = state.swing;
+    dom.drive.value = state.drive;
+    dom.chain.value = state.chain;
+    renderScenes();
+    renderGrid();
+    renderMix();
+    renderPresets();
+    updateSummary();
+  }
+  renderAll();
+})();
+
+  </script>
+</body>
+</html>

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Incident & Handoff Log</title>
+  <link rel="stylesheet" href="../assets/css/styles.css" />
+</head>
+<body>
+  <div class="shell">
+    <nav class="menu">
+      <a href="../index.html">🏠 Command Deck</a> <a href="intake-triage-ops.html">🩺 Intake & Triage Ops</a> <a href="soap-note-studio.html">📝 SOAP Note Studio</a> <a href="referral-router.html">📨 Referral Router</a> <a href="prior-auth-tracker.html">🧾 Prior Auth Tracker</a> <a href="lab-followup-board.html">🧪 Lab Follow-up Board</a> <a href="med-recon-desk.html">💊 Medication Reconciliation Desk</a> <a href="imaging-results-commander.html">🩻 Imaging Results Commander</a> <a href="care-gap-radar.html">📡 Care Gap Radar</a> <a href="visit-prep-board.html">📋 Visit Prep Board</a> <a href="procedure-consent-vault.html">🔏 Procedure Consent Vault</a> <a href="chronic-care-tracker.html">❤️ Chronic Care Tracker</a> <a href="discharge-packet-builder.html">📦 Discharge Packet Builder</a> <a class="active" href="incident-handoff-log.html">🚨 Incident & Handoff Log</a>
+    </nav>
+
+    <section class="hero">
+      <div class="hero-card">
+        <div class="kicker">Doctor Ops Wave I</div>
+        <h1 id="app-title">Incident & Handoff Log</h1>
+        <p id="app-subtitle">Clinical ops event ledger for incident tracking, immediate actions, and owner handoff.</p>
+        <p id="app-blurb">A sober logbook for operational incidents, near-misses, staffing handoffs, and resolution tracking.</p>
+        <div class="hero-actions">
+          <button class="btn primary" id="export-json">Export JSON</button>
+          <button class="btn gold" id="export-csv">Export CSV</button>
+          <button class="btn ghost" id="seed-demo">Restore demo records</button>
+          <button class="btn ghost" id="clear-all">Clear all</button>
+        </div>
+      </div>
+      <div class="hero-card hero-side">
+        <div class="notice">Use synthetic data only. Static local-first build. No medical advice, no legal advice, no compliance certification claim.</div>
+        <div class="metrics" id="metrics"></div>
+      </div>
+    </section>
+
+    <div class="grid-2">
+      <div class="stack">
+        <section class="panel">
+          <div class="section-title">
+            <div>
+              <h2><span id="form-mode">Create</span> <span id="record-label">incident</span></h2>
+              <p>Each save creates an audit entry and updates the queue below.</p>
+            </div>
+            <div class="toolbar">
+              <button class="btn ghost" id="reset-form" type="button">Reset form</button>
+              <label class="btn ghost" for="import-file">Import JSON</label>
+              <input id="import-file" type="file" accept="application/json" hidden />
+            </div>
+          </div>
+          <form id="record-form">
+            <div class="form-grid"></div>
+            <div class="toolbar" style="margin-top:14px">
+              <button class="btn primary" type="submit">Save record</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="panel">
+          <div class="section-title">
+            <div>
+              <h2>Record queue</h2>
+              <p>Search, filter, and click a row to inspect the selected record.</p>
+            </div>
+          </div>
+          <div class="filters" style="margin-bottom:14px">
+            <div class="field" style="min-width:220px">
+              <label for="search">Search</label>
+              <input id="search" type="text" placeholder="Search any text field" />
+            </div>
+            <div class="field" style="min-width:180px">
+              <label for="status-filter">Status</label>
+              <select id="status-filter"><option value="">All statuses</option></select>
+            </div>
+            <div class="field" style="min-width:180px">
+              <label for="priority-filter">Priority / class</label>
+              <select id="priority-filter"><option value="">All priorities</option></select>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Casename</th><th>Incidenttype</th><th>Severity</th><th>Status</th><th>Eventdate</th><th>Derived</th><th>Actions</th></tr></thead>
+              <tbody id="records-body">
+                <tr><td colspan="7"><div class="empty" id="empty-copy">No incidents yet.</div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
+      <div class="stack">
+        <section class="panel">
+          <div class="section-title">
+            <div>
+              <h2 id="selected-title">No record selected</h2>
+              <p>Detail metadata + generated text surface.</p>
+            </div>
+            <div class="toolbar">
+              <button class="btn gold" id="export-preview">Export summary</button>
+            </div>
+          </div>
+          <div id="detail-meta"></div>
+          <h3 id="preview-title" style="margin-top:18px">Generated incident brief</h3>
+          <div class="preview" id="detail-preview"></div>
+        </section>
+
+        <section class="panel">
+          <div class="section-title">
+            <div>
+              <h2>Audit lane</h2>
+              <p>Local activity log for the current app surface.</p>
+            </div>
+          </div>
+          <div class="audit-list" id="audit-list"></div>
+        </section>
+      </div>
+    </div>
+
+    <div class="footer">Incident & Handoff Log — static workflow app inside Doctor Ops Wave I.</div>
+  </div>
+  <script src="../assets/js/core.js"></script>
+  <script src="../assets/js/apps/incident-handoff-log.js"></script>
+</body>
+</html>

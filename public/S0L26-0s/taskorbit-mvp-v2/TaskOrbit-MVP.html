@@ -1,0 +1,1157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TaskOrbit MVP</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <style>
+    :root{
+      --bg:#05070f;
+      --panel:rgba(10,14,28,.38);
+      --panel-2:rgba(16,21,38,.58);
+      --line:rgba(255,255,255,.09);
+      --soft:rgba(255,255,255,.04);
+      --text:#f5f7ff;
+      --muted:#94a3b8;
+      --gold:#f59e0b;
+      --gold-2:#fbbf24;
+      --red:#f97316;
+      --green:#22c55e;
+      --blue:#38bdf8;
+      --purple:#8b5cf6;
+      --shadow:0 30px 80px rgba(0,0,0,.45);
+      --radius:24px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:radial-gradient(circle at top, #1a1430 0%, #070911 42%, #03040a 100%);
+      color:var(--text);
+      overflow:hidden;
+    }
+    #bg{
+      position:fixed; inset:0; width:100%; height:100%; z-index:-2;
+    }
+    .backdrop{
+      position:fixed; inset:0;
+      background:
+        radial-gradient(circle at 15% 15%, rgba(245,158,11,.18), transparent 25%),
+        radial-gradient(circle at 84% 20%, rgba(139,92,246,.14), transparent 26%),
+        radial-gradient(circle at 50% 80%, rgba(56,189,248,.08), transparent 24%),
+        linear-gradient(180deg, rgba(3,4,10,.12), rgba(3,4,10,.42));
+      z-index:-1;
+      pointer-events:none;
+    }
+    .app-shell{
+      height:100%;
+      display:grid;
+      grid-template-columns: 320px minmax(0,1fr) 380px;
+      gap:18px;
+      padding:18px;
+    }
+    .panel{
+      background:var(--panel);
+      border:1px solid var(--line);
+      box-shadow:var(--shadow);
+      backdrop-filter: blur(16px) saturate(135%);
+      border-radius:var(--radius);
+      overflow:hidden;
+      min-height:0;
+    }
+    .panel-inner{padding:18px}
+    .brand{
+      display:flex; align-items:center; gap:14px;
+      padding:20px 18px 14px;
+      border-bottom:1px solid var(--line);
+    }
+    .orb{
+      width:52px; height:52px; border-radius:50%;
+      background:radial-gradient(circle at 35% 35%, #fff4cf 0, var(--gold-2) 18%, rgba(245,158,11,.2) 44%, rgba(245,158,11,.05) 65%, transparent 70%);
+      box-shadow:0 0 35px rgba(245,158,11,.28);
+      animation: pulse 4s ease-in-out infinite;
+    }
+    @keyframes pulse{
+      0%,100%{transform:translateY(0) scale(1)}
+      50%{transform:translateY(-4px) scale(1.04)}
+    }
+    .eyebrow{
+      font-size:11px; letter-spacing:.34em; text-transform:uppercase; color:rgba(245,191,36,.86);
+      margin:0 0 6px;
+    }
+    h1,h2,h3,p{margin:0}
+    .brand h1{font-size:24px; letter-spacing:-.03em}
+    .brand p{color:var(--muted); font-size:13px; margin-top:4px}
+    .section-title{
+      font-size:12px; letter-spacing:.22em; text-transform:uppercase; color:#cbd5e1; margin-bottom:12px;
+    }
+    .stats{
+      display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin-top:14px;
+    }
+    .stat{
+      padding:14px; border-radius:18px; background:linear-gradient(180deg, rgba(255,255,255,.028), rgba(255,255,255,.012));
+      border:1px solid rgba(255,255,255,.07);
+    }
+    .stat .value{font-size:28px; font-weight:800; letter-spacing:-.04em}
+    .stat .label{font-size:12px; color:var(--muted); margin-top:4px}
+    .sidebar-scroll,.main-scroll,.detail-scroll{height:100%; overflow:auto}
+    .sidebar-scroll::-webkit-scrollbar,.main-scroll::-webkit-scrollbar,.detail-scroll::-webkit-scrollbar{width:8px}
+    .sidebar-scroll::-webkit-scrollbar-thumb,.main-scroll::-webkit-scrollbar-thumb,.detail-scroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14); border-radius:999px}
+    .actions{
+      display:grid; gap:10px;
+    }
+    button,select,input,textarea{
+      font:inherit;
+    }
+    .btn{
+      width:100%; border:none; cursor:pointer; color:white; font-weight:700;
+      border-radius:16px; padding:14px 14px; transition:transform .18s ease, opacity .18s ease, background .18s ease;
+      display:inline-flex; align-items:center; justify-content:center; gap:10px;
+    }
+    .btn:hover{transform:translateY(-1px)}
+    .btn:active{transform:translateY(0)}
+    .btn-primary{background:linear-gradient(135deg, var(--gold), #fb923c); color:#1f1300}
+    .btn-secondary{background:rgba(255,255,255,.018); color:#e2e8f0; border:1px solid rgba(255,255,255,.12)}
+    .btn-danger{background:rgba(249,115,22,.14); color:#fed7aa; border:1px solid rgba(249,115,22,.22)}
+    .row{display:flex; gap:10px}
+    .row > *{flex:1}
+    .toolbar{
+      display:grid; grid-template-columns: minmax(220px,1.4fr) repeat(3,minmax(130px,.6fr)) auto auto;
+      gap:10px;
+      padding:18px;
+      border-bottom:1px solid var(--line);
+      align-items:center;
+    }
+    .input,.select,.textarea{
+      width:100%; background:rgba(255,255,255,.022); color:white; border:1px solid rgba(255,255,255,.12);
+      padding:12px 14px; border-radius:14px; outline:none;
+    }
+    .input:focus,.select:focus,.textarea:focus{
+      border-color:rgba(245,191,36,.45);
+      box-shadow:0 0 0 4px rgba(245,191,36,.08);
+    }
+    .main-grid{
+      display:grid; grid-template-columns: repeat(3,minmax(250px,1fr));
+      gap:14px; padding:18px;
+      min-width:980px;
+    }
+    .lane{
+      background:rgba(255,255,255,.018);
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:24px;
+      min-height:320px;
+      display:flex; flex-direction:column;
+    }
+    .lane-header{
+      display:flex; justify-content:space-between; align-items:center;
+      padding:16px 16px 12px;
+      border-bottom:1px solid rgba(255,255,255,.06);
+    }
+    .lane-title{font-size:15px; font-weight:700}
+    .lane-count{
+      min-width:34px; padding:6px 10px; border-radius:999px; text-align:center; background:rgba(255,255,255,.042);
+      color:#e2e8f0; font-size:12px; font-weight:700;
+    }
+    .cards{padding:14px; display:grid; gap:12px}
+    .task-card{
+      padding:14px; border-radius:18px; background:linear-gradient(180deg, rgba(255,255,255,.038), rgba(255,255,255,.015));
+      border:1px solid rgba(255,255,255,.08); cursor:pointer; transition:transform .18s ease, border-color .18s ease;
+      position:relative; overflow:hidden;
+    }
+    .task-card:hover{transform:translateY(-2px); border-color:rgba(245,191,36,.32)}
+    .task-card.active{border-color:rgba(245,191,36,.54); box-shadow:0 0 0 1px rgba(245,191,36,.2) inset}
+    .priority-bar{
+      position:absolute; left:0; top:0; bottom:0; width:4px;
+      background:var(--gold);
+    }
+    .card-top{display:flex; justify-content:space-between; gap:12px}
+    .task-title{font-size:15px; font-weight:700; line-height:1.3}
+    .chip-row{display:flex; flex-wrap:wrap; gap:8px; margin-top:12px}
+    .chip{
+      display:inline-flex; align-items:center; gap:6px;
+      font-size:11px; padding:7px 10px; border-radius:999px;
+      background:rgba(255,255,255,.07); color:#cbd5e1; border:1px solid rgba(255,255,255,.07)
+    }
+    .chip.priority-1{color:#cbd5e1}
+    .chip.priority-2{color:#fdba74}
+    .chip.priority-3{color:#fca5a5}
+    .detail-head{
+      padding:18px;
+      border-bottom:1px solid var(--line);
+      display:flex; justify-content:space-between; gap:12px; align-items:flex-start;
+    }
+    .detail-body{padding:18px; display:grid; gap:16px}
+    .empty{
+      color:var(--muted); font-size:14px; line-height:1.6;
+      padding:20px;
+    }
+    .meta-grid{
+      display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:10px;
+    }
+    .meta-card{
+      padding:14px; border-radius:18px; background:rgba(255,255,255,.022); border:1px solid rgba(255,255,255,.12);
+    }
+    .meta-card small{display:block; color:var(--muted); margin-bottom:6px}
+    .notes{
+      white-space:pre-wrap; color:#e2e8f0; line-height:1.6; font-size:14px;
+      background:rgba(255,255,255,.018); border:1px solid rgba(255,255,255,.12); border-radius:18px; padding:14px;
+      min-height:110px;
+    }
+    .mini-actions{display:grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap:10px}
+    .mini-btn{
+      border:none; cursor:pointer; padding:12px 10px; border-radius:14px;
+      background:rgba(255,255,255,.03); color:white; border:1px solid rgba(255,255,255,.12); font-weight:700;
+    }
+    .mini-btn:hover{background:rgba(255,255,255,.09)}
+    .timer{
+      padding:18px; border-radius:22px; background:linear-gradient(135deg, rgba(245,158,11,.08), rgba(249,115,22,.04));
+      border:1px solid rgba(245,191,36,.14);
+    }
+    .timer-clock{
+      font-size:42px; letter-spacing:-.04em; font-weight:800; margin:10px 0 16px;
+    }
+    .session-list{display:grid; gap:8px}
+    .session-item{
+      display:flex; justify-content:space-between; gap:10px; padding:11px 12px;
+      border:1px solid var(--line); border-radius:14px; background:rgba(255,255,255,.018); font-size:13px;
+    }
+    .modal{
+      position:fixed; inset:0; background:rgba(2,3,8,.64); backdrop-filter:blur(10px);
+      display:none; align-items:center; justify-content:center; padding:18px; z-index:30;
+    }
+    .modal.show{display:flex}
+    .modal-card{
+      width:min(780px, 100%); max-height:calc(100vh - 36px); overflow:auto;
+      border-radius:28px; background:linear-gradient(180deg, rgba(14,17,30,.96), rgba(8,10,20,.98));
+      border:1px solid var(--line); box-shadow:var(--shadow);
+    }
+    .modal-head{
+      padding:20px 22px; border-bottom:1px solid var(--line);
+      display:flex; justify-content:space-between; align-items:center;
+    }
+    .form-grid{padding:22px; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px}
+    .form-grid .full{grid-column:1 / -1}
+    .label{display:block; font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:#cbd5e1; margin-bottom:8px}
+    .footer-actions{
+      display:flex; justify-content:space-between; gap:12px; padding:0 22px 22px;
+    }
+    .icon-btn{
+      width:42px; height:42px; border:none; border-radius:14px; cursor:pointer;
+      background:rgba(255,255,255,.06); color:white; border:1px solid var(--line);
+    }
+    .status-todo .lane-title{color:#f8fafc}
+    .status-doing .lane-title{color:#fdba74}
+    .status-done .lane-title{color:#86efac}
+    .muted{color:var(--muted)}
+    .topline{
+      display:flex; justify-content:space-between; align-items:center; gap:14px; margin-bottom:14px;
+    }
+    .pill{
+      padding:8px 12px; border-radius:999px; font-size:11px; font-weight:700; letter-spacing:.08em;
+      text-transform:uppercase; background:rgba(255,255,255,.07); border:1px solid var(--line);
+    }
+    .progress{
+      height:10px; background:rgba(255,255,255,.06); border-radius:999px; overflow:hidden; border:1px solid var(--line);
+      margin-top:10px;
+    }
+    .progress > span{
+      display:block; height:100%; width:0%;
+      background:linear-gradient(90deg, var(--gold), #fb923c);
+      border-radius:999px;
+    }
+    .small{font-size:12px}
+    @media (max-width: 1320px){
+      .app-shell{grid-template-columns: 300px minmax(0,1fr)}
+      .detail-panel{grid-column:1 / -1}
+    }
+    @media (max-width: 980px){
+      body{overflow:auto}
+      .app-shell{grid-template-columns:1fr; height:auto; overflow:visible}
+      .toolbar{grid-template-columns:1fr 1fr}
+      .toolbar > .grow{grid-column:1 / -1}
+      .main-grid{min-width:unset; grid-template-columns:1fr}
+    }
+  </style>
+</head>
+<body>
+  <canvas id="bg"></canvas>
+  <div class="backdrop"></div>
+
+  <div class="app-shell">
+    <aside class="panel">
+      <div class="sidebar-scroll">
+        <div class="brand">
+          <div class="orb"></div>
+          <div>
+            <p class="eyebrow">Orbit Productivity System</p>
+            <h1>TaskOrbit MVP</h1>
+            <p>Real task flow, saved locally, with focus tracking and export/import.</p>
+          </div>
+        </div>
+        <div class="panel-inner">
+          <div class="section-title">Mission Control</div>
+          <div class="actions">
+            <button class="btn btn-primary" id="newTaskBtn">+ Deploy New Task</button>
+            <div class="row">
+              <button class="btn btn-secondary" id="exportBtn">Export JSON</button>
+              <button class="btn btn-secondary" id="importBtn">Import JSON</button>
+              <input type="file" id="importFile" accept="application/json" hidden />
+            </div>
+            <button class="btn btn-danger" id="resetBtn">Reset Demo Data</button>
+          </div>
+
+          <div class="stats" id="statsGrid"></div>
+
+          <div style="margin-top:18px">
+            <div class="topline">
+              <div class="section-title" style="margin:0">Focus Progress</div>
+              <div class="pill" id="weeklyFocusPill">0 min this week</div>
+            </div>
+            <div class="small muted">Progress toward a 300 minute weekly focus target.</div>
+            <div class="progress"><span id="focusProgressBar"></span></div>
+          </div>
+
+          <div style="margin-top:22px">
+            <div class="topline">
+              <div class="section-title" style="margin:0">Projects</div>
+              <div class="small muted" id="projectCount">0 active</div>
+            </div>
+            <div id="projectList" class="session-list"></div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <main class="panel">
+      <div class="main-scroll">
+        <div class="toolbar">
+          <input class="input grow" id="searchInput" placeholder="Search task, note, or project..." />
+          <select class="select" id="statusFilter">
+            <option value="all">All Statuses</option>
+            <option value="todo">Queued</option>
+            <option value="doing">In Flight</option>
+            <option value="done">Completed</option>
+          </select>
+          <select class="select" id="priorityFilter">
+            <option value="all">All Priority</option>
+            <option value="1">Low Mass</option>
+            <option value="2">Medium Mass</option>
+            <option value="3">Heavy Priority</option>
+          </select>
+          <select class="select" id="projectFilter">
+            <option value="all">All Projects</option>
+          </select>
+          <button class="icon-btn" id="clearFiltersBtn" title="Clear filters">✦</button>
+          <button class="icon-btn" id="refreshOrbitBtn" title="Refresh orbit">↻</button>
+        </div>
+
+        <div class="main-grid" id="board"></div>
+      </div>
+    </main>
+
+    <aside class="panel detail-panel">
+      <div class="detail-scroll" id="detailPanel"></div>
+    </aside>
+  </div>
+
+  <div class="modal" id="taskModal">
+    <div class="modal-card">
+      <div class="modal-head">
+        <div>
+          <div class="eyebrow" style="margin-bottom:4px">Task Configurator</div>
+          <h2 id="modalTitle">Deploy New Task</h2>
+        </div>
+        <button class="icon-btn" id="closeModalBtn">✕</button>
+      </div>
+      <form id="taskForm">
+        <div class="form-grid">
+          <div class="full">
+            <label class="label" for="taskTitle">Task Title</label>
+            <input class="input" id="taskTitle" required placeholder="Launch landing page for new lead..." />
+          </div>
+          <div>
+            <label class="label" for="taskProject">Project</label>
+            <input class="input" id="taskProject" placeholder="TaskOrbit / Client Build / Internal Ops" />
+          </div>
+          <div>
+            <label class="label" for="taskDueDate">Due Date</label>
+            <input class="input" id="taskDueDate" type="date" />
+          </div>
+          <div>
+            <label class="label" for="taskPriority">Priority</label>
+            <select class="select" id="taskPriority">
+              <option value="1">Low Mass</option>
+              <option value="2">Medium Mass</option>
+              <option value="3">Heavy Priority</option>
+            </select>
+          </div>
+          <div>
+            <label class="label" for="taskStatus">Status</label>
+            <select class="select" id="taskStatus">
+              <option value="todo">Queued</option>
+              <option value="doing">In Flight</option>
+              <option value="done">Completed</option>
+            </select>
+          </div>
+          <div>
+            <label class="label" for="taskEstimate">Estimated Minutes</label>
+            <input class="input" id="taskEstimate" type="number" min="0" step="5" placeholder="90" />
+          </div>
+          <div>
+            <label class="label" for="taskTags">Tags</label>
+            <input class="input" id="taskTags" placeholder="design, outreach, urgent" />
+          </div>
+          <div class="full">
+            <label class="label" for="taskNotes">Notes</label>
+            <textarea class="textarea" id="taskNotes" rows="7" placeholder="Mission notes, acceptance criteria, links, dependencies..."></textarea>
+          </div>
+        </div>
+        <div class="footer-actions">
+          <button type="button" class="btn btn-danger" id="deleteTaskBtn" style="max-width:180px; opacity:0; pointer-events:none">Delete Task</button>
+          <div class="row" style="max-width:360px; width:100%">
+            <button type="button" class="btn btn-secondary" id="cancelModalBtn">Cancel</button>
+            <button type="submit" class="btn btn-primary" id="saveTaskBtn">Save Task</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'taskorbit_mvp_state_v1';
+    const WEEKLY_GOAL_MINUTES = 300;
+
+    const defaultState = () => ({
+      tasks: [
+        {
+          id: crypto.randomUUID(),
+          title: 'Polish launch copy for Orbit suite',
+          project: 'TaskOrbit',
+          dueDate: addDays(2),
+          priority: 3,
+          status: 'doing',
+          estimate: 120,
+          notes: 'Tighten hero messaging, refine CTA language, and check mobile spacing.',
+          tags: ['copy','launch','mvp'],
+          createdAt: new Date().toISOString(),
+          completedAt: null,
+          focusMinutes: 55
+        },
+        {
+          id: crypto.randomUUID(),
+          title: 'Review inbound client lead notes',
+          project: 'Sales',
+          dueDate: addDays(1),
+          priority: 2,
+          status: 'todo',
+          estimate: 45,
+          notes: 'Sort by urgency and mark which leads need same-day follow-up.',
+          tags: ['sales','ops'],
+          createdAt: new Date().toISOString(),
+          completedAt: null,
+          focusMinutes: 0
+        },
+        {
+          id: crypto.randomUUID(),
+          title: 'Archive finished sprint items',
+          project: 'Internal Ops',
+          dueDate: addDays(-1),
+          priority: 1,
+          status: 'done',
+          estimate: 25,
+          notes: 'Bundle exports and update the handoff pack.',
+          tags: ['cleanup'],
+          createdAt: new Date().toISOString(),
+          completedAt: new Date().toISOString(),
+          focusMinutes: 20
+        }
+      ],
+      sessions: [
+        { id: crypto.randomUUID(), taskId: null, minutes: 30, startedAt: new Date().toISOString() }
+      ]
+    });
+
+    let state = loadState();
+    let selectedTaskId = state.tasks[0]?.id || null;
+    let editingTaskId = null;
+    let timerSeconds = 0;
+    let timerHandle = null;
+
+    const els = {
+      statsGrid: document.getElementById('statsGrid'),
+      projectList: document.getElementById('projectList'),
+      projectCount: document.getElementById('projectCount'),
+      projectFilter: document.getElementById('projectFilter'),
+      board: document.getElementById('board'),
+      detailPanel: document.getElementById('detailPanel'),
+      searchInput: document.getElementById('searchInput'),
+      statusFilter: document.getElementById('statusFilter'),
+      priorityFilter: document.getElementById('priorityFilter'),
+      clearFiltersBtn: document.getElementById('clearFiltersBtn'),
+      taskModal: document.getElementById('taskModal'),
+      taskForm: document.getElementById('taskForm'),
+      modalTitle: document.getElementById('modalTitle'),
+      deleteTaskBtn: document.getElementById('deleteTaskBtn'),
+      weeklyFocusPill: document.getElementById('weeklyFocusPill'),
+      focusProgressBar: document.getElementById('focusProgressBar'),
+      importFile: document.getElementById('importFile')
+    };
+
+    function addDays(days){
+      const d = new Date();
+      d.setDate(d.getDate() + days);
+      return d.toISOString().slice(0,10);
+    }
+
+    function loadState(){
+      try{
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if(!raw) return defaultState();
+        const parsed = JSON.parse(raw);
+        if(!parsed.tasks || !Array.isArray(parsed.tasks)) return defaultState();
+        parsed.sessions = Array.isArray(parsed.sessions) ? parsed.sessions : [];
+        return parsed;
+      }catch(err){
+        console.warn('Failed to load state', err);
+        return defaultState();
+      }
+    }
+
+    function saveState(){
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    function getSelectedTask(){
+      return state.tasks.find(t => t.id === selectedTaskId) || null;
+    }
+
+    function formatDate(dateStr){
+      if(!dateStr) return '—';
+      const d = new Date(dateStr + 'T12:00:00');
+      return d.toLocaleDateString(undefined, { month:'short', day:'numeric', year:'numeric' });
+    }
+
+    function daysUntil(dateStr){
+      if(!dateStr) return null;
+      const today = new Date();
+      today.setHours(0,0,0,0);
+      const due = new Date(dateStr + 'T00:00:00');
+      return Math.round((due - today) / 86400000);
+    }
+
+    function priorityLabel(value){
+      return ({1:'Low Mass', 2:'Medium Mass', 3:'Heavy Priority'})[value] || 'Unknown';
+    }
+
+    function statusLabel(value){
+      return ({todo:'Queued', doing:'In Flight', done:'Completed'})[value] || value;
+    }
+
+    function escapeHtml(value){
+      return String(value ?? '')
+        .replaceAll('&','&amp;')
+        .replaceAll('<','&lt;')
+        .replaceAll('>','&gt;')
+        .replaceAll('"','&quot;')
+        .replaceAll("'",'&#39;');
+    }
+
+    function filterTasks(){
+      const search = els.searchInput.value.trim().toLowerCase();
+      const status = els.statusFilter.value;
+      const priority = els.priorityFilter.value;
+      const project = els.projectFilter.value;
+
+      return state.tasks.filter(task => {
+        const matchesSearch = !search || [
+          task.title,
+          task.project,
+          task.notes,
+          ...(task.tags || [])
+        ].join(' ').toLowerCase().includes(search);
+
+        const matchesStatus = status === 'all' || task.status === status;
+        const matchesPriority = priority === 'all' || String(task.priority) === priority;
+        const matchesProject = project === 'all' || task.project === project;
+        return matchesSearch && matchesStatus && matchesPriority && matchesProject;
+      });
+    }
+
+    function renderStats(){
+      const total = state.tasks.length;
+      const open = state.tasks.filter(t => t.status !== 'done').length;
+      const completed = state.tasks.filter(t => t.status === 'done').length;
+      const dueSoon = state.tasks.filter(t => t.status !== 'done' && daysUntil(t.dueDate) !== null && daysUntil(t.dueDate) <= 3).length;
+      const totalFocus = state.tasks.reduce((sum, t) => sum + (Number(t.focusMinutes) || 0), 0);
+
+      els.statsGrid.innerHTML = [
+        { value: total, label: 'Total Tasks' },
+        { value: open, label: 'Open Tasks' },
+        { value: dueSoon, label: 'Due Soon' },
+        { value: totalFocus, label: 'Focus Minutes' }
+      ].map(stat => `
+        <div class="stat">
+          <div class="value">${stat.value}</div>
+          <div class="label">${stat.label}</div>
+        </div>
+      `).join('');
+
+      const weeklyFocus = getWeeklyFocusMinutes();
+      els.weeklyFocusPill.textContent = `${weeklyFocus} min this week`;
+      els.focusProgressBar.style.width = `${Math.min(100, (weeklyFocus / WEEKLY_GOAL_MINUTES) * 100)}%`;
+      els.focusProgressBar.setAttribute('aria-valuenow', String(weeklyFocus));
+    }
+
+    function renderProjects(){
+      const projectMap = new Map();
+      state.tasks.forEach(task => {
+        const key = task.project?.trim() || 'Unassigned';
+        if(!projectMap.has(key)) projectMap.set(key, { total: 0, open: 0 });
+        const item = projectMap.get(key);
+        item.total += 1;
+        if(task.status !== 'done') item.open += 1;
+      });
+      const projects = [...projectMap.entries()].sort((a,b) => b[1].total - a[1].total);
+      els.projectCount.textContent = `${projects.length} active`;
+      els.projectList.innerHTML = projects.length ? projects.map(([name, meta]) => `
+        <div class="session-item">
+          <div>
+            <div style="font-weight:700">${escapeHtml(name)}</div>
+            <div class="muted">${meta.open} open of ${meta.total}</div>
+          </div>
+          <button class="mini-btn" style="padding:8px 12px" onclick="setProjectFilter('${escapeHtml(name).replaceAll('&#39;', "\\'")}')">Filter</button>
+        </div>
+      `).join('') : `<div class="empty">No projects yet. Deploy a few tasks and the constellation starts to mean something.</div>`;
+
+      const current = els.projectFilter.value;
+      els.projectFilter.innerHTML = `<option value="all">All Projects</option>` + projects.map(([name]) => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('');
+      els.projectFilter.value = projects.some(([name]) => name === current) ? current : 'all';
+    }
+
+    function renderBoard(){
+      const filtered = filterTasks();
+      const lanes = [
+        { key:'todo', title:'Queued', className:'status-todo' },
+        { key:'doing', title:'In Flight', className:'status-doing' },
+        { key:'done', title:'Completed', className:'status-done' }
+      ];
+
+      els.board.innerHTML = lanes.map(lane => {
+        const items = filtered.filter(task => task.status === lane.key);
+        return `
+          <section class="lane ${lane.className}">
+            <div class="lane-header">
+              <div class="lane-title">${lane.title}</div>
+              <div class="lane-count">${items.length}</div>
+            </div>
+            <div class="cards">
+              ${items.length ? items.map(task => renderTaskCard(task)).join('') : `<div class="empty">Nothing parked here yet.</div>`}
+            </div>
+          </section>
+        `;
+      }).join('');
+    }
+
+    function renderTaskCard(task){
+      const dueDelta = daysUntil(task.dueDate);
+      const dueText = dueDelta === null ? 'No due date'
+        : dueDelta < 0 ? `${Math.abs(dueDelta)} day${Math.abs(dueDelta) === 1 ? '' : 's'} overdue`
+        : dueDelta === 0 ? 'Due today'
+        : `Due in ${dueDelta} day${dueDelta === 1 ? '' : 's'}`;
+
+      const title = escapeHtml(task.title);
+      const project = escapeHtml(task.project || 'Unassigned');
+      const tags = (task.tags || []).slice(0,3).map(tag => `<span class="chip">${escapeHtml(tag)}</span>`).join('');
+
+      return `
+        <article class="task-card ${selectedTaskId === task.id ? 'active' : ''}" onclick="selectTask('${task.id}')">
+          <div class="priority-bar" style="background:${task.priority === 3 ? '#fb7185' : task.priority === 2 ? '#f59e0b' : '#38bdf8'}"></div>
+          <div class="card-top">
+            <div>
+              <div class="task-title">${title}</div>
+              <div class="muted small" style="margin-top:6px">${project}</div>
+            </div>
+            <div class="chip priority-${task.priority}">${priorityLabel(task.priority)}</div>
+          </div>
+          <div class="chip-row">
+            <span class="chip">${escapeHtml(dueText)}</span>
+            <span class="chip">${task.focusMinutes || 0} focus min</span>
+            ${tags}
+          </div>
+        </article>
+      `;
+    }
+
+    function renderDetail(){
+      const task = getSelectedTask();
+      if(!task){
+        els.detailPanel.innerHTML = `
+          <div class="detail-head">
+            <div>
+              <div class="eyebrow" style="margin-bottom:4px">Task Details</div>
+              <h2>No task selected</h2>
+            </div>
+          </div>
+          <div class="detail-body">
+            <div class="empty">Pick a task from the board or create a new one. This panel becomes your live mission readout.</div>
+          </div>
+        `;
+        return;
+      }
+
+      const dueDelta = daysUntil(task.dueDate);
+      const dueBadge = dueDelta === null ? 'No due date'
+        : dueDelta < 0 ? `${Math.abs(dueDelta)} day${Math.abs(dueDelta) === 1 ? '' : 's'} overdue`
+        : dueDelta === 0 ? 'Due today'
+        : `Due in ${dueDelta} day${dueDelta === 1 ? '' : 's'}`;
+
+      const taskSessions = state.sessions
+        .filter(s => s.taskId === task.id)
+        .sort((a,b) => new Date(b.startedAt) - new Date(a.startedAt))
+        .slice(0, 8);
+
+      els.detailPanel.innerHTML = `
+        <div class="detail-head">
+          <div>
+            <div class="eyebrow" style="margin-bottom:6px">Mission Readout</div>
+            <h2 style="font-size:28px; line-height:1.18">${escapeHtml(task.title)}</h2>
+            <p class="muted" style="margin-top:8px">${escapeHtml(task.project || 'Unassigned')}</p>
+          </div>
+          <button class="btn btn-secondary" style="width:auto; padding:12px 14px" onclick="openTaskModal('${task.id}')">Edit</button>
+        </div>
+        <div class="detail-body">
+          <div class="meta-grid">
+            <div class="meta-card"><small>Status</small><strong>${statusLabel(task.status)}</strong></div>
+            <div class="meta-card"><small>Priority</small><strong>${priorityLabel(task.priority)}</strong></div>
+            <div class="meta-card"><small>Due</small><strong>${escapeHtml(dueBadge)}</strong></div>
+            <div class="meta-card"><small>Estimate</small><strong>${task.estimate || 0} min</strong></div>
+            <div class="meta-card"><small>Focus Logged</small><strong>${task.focusMinutes || 0} min</strong></div>
+            <div class="meta-card"><small>Created</small><strong>${new Date(task.createdAt).toLocaleDateString()}</strong></div>
+          </div>
+
+          <div>
+            <div class="section-title">Tags</div>
+            <div class="chip-row">${(task.tags?.length ? task.tags : ['none']).map(tag => `<span class="chip">${escapeHtml(tag)}</span>`).join('')}</div>
+          </div>
+
+          <div>
+            <div class="section-title">Notes</div>
+            <div class="notes">${escapeHtml(task.notes || 'No notes yet. Add scope, criteria, and weird little edge cases here.')}</div>
+          </div>
+
+          <div>
+            <div class="section-title">Quick Actions</div>
+            <div class="mini-actions">
+              <button class="mini-btn" onclick="advanceStatus('${task.id}', -1)">← Move Back</button>
+              <button class="mini-btn" onclick="advanceStatus('${task.id}', 1)">Move Forward →</button>
+              <button class="mini-btn" onclick="toggleDone('${task.id}')">${task.status === 'done' ? 'Reopen' : 'Mark Done'}</button>
+            </div>
+          </div>
+
+          <div class="timer">
+            <div class="section-title" style="color:#fde68a">Focus Timer</div>
+            <div class="muted small">Track live work and log the minutes directly to this task.</div>
+            <div class="timer-clock" id="timerClock">${formatTimer(timerSeconds)}</div>
+            <div class="mini-actions">
+              <button class="mini-btn" onclick="toggleTimer()">${timerHandle ? 'Pause Timer' : 'Start Timer'}</button>
+              <button class="mini-btn" onclick="saveTimerToTask()">Save Session</button>
+              <button class="mini-btn" onclick="resetTimer()">Reset</button>
+            </div>
+          </div>
+
+          <div>
+            <div class="topline">
+              <div class="section-title" style="margin:0">Recent Sessions</div>
+              <div class="small muted">${taskSessions.length} shown</div>
+            </div>
+            <div class="session-list">
+              ${taskSessions.length ? taskSessions.map(session => `
+                <div class="session-item">
+                  <div>${session.minutes} minutes</div>
+                  <div class="muted">${new Date(session.startedAt).toLocaleString()}</div>
+                </div>
+              `).join('') : `<div class="empty">No sessions logged yet. Hit start and feed the productivity goblin.</div>`}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function getWeeklyFocusMinutes(){
+      const now = new Date();
+      const weekAgo = new Date(now);
+      weekAgo.setDate(now.getDate() - 7);
+      return state.sessions
+        .filter(s => new Date(s.startedAt) >= weekAgo)
+        .reduce((sum, s) => sum + (Number(s.minutes) || 0), 0);
+    }
+
+    function openTaskModal(taskId = null){
+      editingTaskId = taskId;
+      const task = taskId ? state.tasks.find(t => t.id === taskId) : null;
+      els.modalTitle.textContent = task ? 'Edit Task' : 'Deploy New Task';
+      document.getElementById('taskTitle').value = task?.title || '';
+      document.getElementById('taskProject').value = task?.project || '';
+      document.getElementById('taskDueDate').value = task?.dueDate || '';
+      document.getElementById('taskPriority').value = String(task?.priority || 2);
+      document.getElementById('taskStatus').value = task?.status || 'todo';
+      document.getElementById('taskEstimate').value = task?.estimate || '';
+      document.getElementById('taskTags').value = (task?.tags || []).join(', ');
+      document.getElementById('taskNotes').value = task?.notes || '';
+
+      els.deleteTaskBtn.style.opacity = task ? '1' : '0';
+      els.deleteTaskBtn.style.pointerEvents = task ? 'auto' : 'none';
+      els.taskModal.classList.add('show');
+    }
+
+    function closeTaskModal(){
+      els.taskModal.classList.remove('show');
+      editingTaskId = null;
+    }
+
+    function upsertTaskFromForm(event){
+      event.preventDefault();
+      const payload = {
+        title: document.getElementById('taskTitle').value.trim(),
+        project: document.getElementById('taskProject').value.trim() || 'Unassigned',
+        dueDate: document.getElementById('taskDueDate').value || '',
+        priority: Number(document.getElementById('taskPriority').value),
+        status: document.getElementById('taskStatus').value,
+        estimate: Number(document.getElementById('taskEstimate').value || 0),
+        tags: document.getElementById('taskTags').value.split(',').map(t => t.trim()).filter(Boolean),
+        notes: document.getElementById('taskNotes').value.trim()
+      };
+      if(!payload.title) return;
+
+      if(editingTaskId){
+        const task = state.tasks.find(t => t.id === editingTaskId);
+        if(task){
+          Object.assign(task, payload);
+          if(task.status === 'done' && !task.completedAt) task.completedAt = new Date().toISOString();
+          if(task.status !== 'done') task.completedAt = null;
+        }
+        selectedTaskId = editingTaskId;
+      }else{
+        const task = {
+          id: crypto.randomUUID(),
+          ...payload,
+          createdAt: new Date().toISOString(),
+          completedAt: payload.status === 'done' ? new Date().toISOString() : null,
+          focusMinutes: 0
+        };
+        state.tasks.unshift(task);
+        selectedTaskId = task.id;
+      }
+      saveState();
+      renderAll();
+      rebuildOrbit();
+      closeTaskModal();
+    }
+
+    function deleteEditingTask(){
+      if(!editingTaskId) return;
+      state.tasks = state.tasks.filter(t => t.id !== editingTaskId);
+      state.sessions = state.sessions.filter(s => s.taskId !== editingTaskId);
+      if(selectedTaskId === editingTaskId){
+        selectedTaskId = state.tasks[0]?.id || null;
+      }
+      saveState();
+      renderAll();
+      rebuildOrbit();
+      closeTaskModal();
+    }
+
+    function selectTask(taskId){
+      selectedTaskId = taskId;
+      renderBoard();
+      renderDetail();
+    }
+
+    function advanceStatus(taskId, delta){
+      const flow = ['todo','doing','done'];
+      const task = state.tasks.find(t => t.id === taskId);
+      if(!task) return;
+      const index = Math.max(0, Math.min(flow.length - 1, flow.indexOf(task.status) + delta));
+      task.status = flow[index];
+      task.completedAt = task.status === 'done' ? (task.completedAt || new Date().toISOString()) : null;
+      saveState();
+      renderAll();
+      rebuildOrbit();
+    }
+
+    function toggleDone(taskId){
+      const task = state.tasks.find(t => t.id === taskId);
+      if(!task) return;
+      task.status = task.status === 'done' ? 'doing' : 'done';
+      task.completedAt = task.status === 'done' ? new Date().toISOString() : null;
+      saveState();
+      renderAll();
+      rebuildOrbit();
+    }
+
+    function setProjectFilter(project){
+      els.projectFilter.value = project;
+      renderBoard();
+    }
+
+    function clearFilters(){
+      els.searchInput.value = '';
+      els.statusFilter.value = 'all';
+      els.priorityFilter.value = 'all';
+      els.projectFilter.value = 'all';
+      renderBoard();
+    }
+
+    function exportData(){
+      const blob = new Blob([JSON.stringify(state, null, 2)], { type:'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `taskorbit-export-${new Date().toISOString().slice(0,10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function importData(file){
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try{
+          const parsed = JSON.parse(reader.result);
+          if(!parsed.tasks || !Array.isArray(parsed.tasks)) throw new Error('Invalid file');
+          state = {
+            tasks: parsed.tasks,
+            sessions: Array.isArray(parsed.sessions) ? parsed.sessions : []
+          };
+          selectedTaskId = state.tasks[0]?.id || null;
+          saveState();
+          renderAll();
+          rebuildOrbit();
+        }catch(err){
+          alert('That import file is not valid TaskOrbit data.');
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function resetDemoData(){
+      if(!confirm('Reset TaskOrbit to the starter MVP data?')) return;
+      state = defaultState();
+      selectedTaskId = state.tasks[0]?.id || null;
+      saveState();
+      renderAll();
+      rebuildOrbit();
+      resetTimer();
+    }
+
+    function formatTimer(totalSeconds){
+      const hours = String(Math.floor(totalSeconds / 3600)).padStart(2,'0');
+      const minutes = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2,'0');
+      const seconds = String(totalSeconds % 60).padStart(2,'0');
+      return `${hours}:${minutes}:${seconds}`;
+    }
+
+    function updateTimerDisplay(){
+      const clock = document.getElementById('timerClock');
+      if(clock) clock.textContent = formatTimer(timerSeconds);
+    }
+
+    function toggleTimer(){
+      if(timerHandle){
+        clearInterval(timerHandle);
+        timerHandle = null;
+      }else{
+        timerHandle = setInterval(() => {
+          timerSeconds += 1;
+          updateTimerDisplay();
+        }, 1000);
+      }
+      renderDetail();
+    }
+
+    function saveTimerToTask(){
+      const task = getSelectedTask();
+      if(!task || timerSeconds === 0) return;
+      const minutes = Math.max(1, Math.round(timerSeconds / 60));
+      task.focusMinutes = (Number(task.focusMinutes) || 0) + minutes;
+      state.sessions.unshift({
+        id: crypto.randomUUID(),
+        taskId: task.id,
+        minutes,
+        startedAt: new Date().toISOString()
+      });
+      saveState();
+      timerSeconds = 0;
+      if(timerHandle){
+        clearInterval(timerHandle);
+        timerHandle = null;
+      }
+      renderAll();
+      updateTimerDisplay();
+    }
+
+    function resetTimer(){
+      timerSeconds = 0;
+      if(timerHandle){
+        clearInterval(timerHandle);
+        timerHandle = null;
+      }
+      updateTimerDisplay();
+      renderDetail();
+    }
+
+    function renderAll(){
+      renderStats();
+      renderProjects();
+      renderBoard();
+      renderDetail();
+    }
+
+    document.getElementById('newTaskBtn').addEventListener('click', () => openTaskModal());
+    document.getElementById('closeModalBtn').addEventListener('click', closeTaskModal);
+    document.getElementById('cancelModalBtn').addEventListener('click', closeTaskModal);
+    els.taskForm.addEventListener('submit', upsertTaskFromForm);
+    els.deleteTaskBtn.addEventListener('click', deleteEditingTask);
+    document.getElementById('exportBtn').addEventListener('click', exportData);
+    document.getElementById('importBtn').addEventListener('click', () => els.importFile.click());
+    els.importFile.addEventListener('change', e => importData(e.target.files[0]));
+    document.getElementById('resetBtn').addEventListener('click', resetDemoData);
+    els.searchInput.addEventListener('input', renderBoard);
+    els.statusFilter.addEventListener('change', renderBoard);
+    els.priorityFilter.addEventListener('change', renderBoard);
+    els.projectFilter.addEventListener('change', renderBoard);
+    els.clearFiltersBtn.addEventListener('click', clearFilters);
+    document.getElementById('refreshOrbitBtn').addEventListener('click', rebuildOrbit);
+    els.taskModal.addEventListener('click', (e) => {
+      if(e.target === els.taskModal) closeTaskModal();
+    });
+
+    window.selectTask = selectTask;
+    window.openTaskModal = openTaskModal;
+    window.advanceStatus = advanceStatus;
+    window.toggleDone = toggleDone;
+    window.toggleTimer = toggleTimer;
+    window.saveTimerToTask = saveTimerToTask;
+    window.resetTimer = resetTimer;
+    window.setProjectFilter = setProjectFilter;
+
+    // --- Three.js orbit background ---
+    let scene, camera, renderer, starField, coreMesh;
+    let orbitNodes = [];
+
+    function initThree(){
+      const canvas = document.getElementById('bg');
+      scene = new THREE.Scene();
+      camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
+      camera.position.set(0, 4, 22);
+
+      renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      renderer.setSize(window.innerWidth, window.innerHeight);
+
+      const coreGeo = new THREE.IcosahedronGeometry(2.8, 1);
+      const coreMat = new THREE.MeshBasicMaterial({ color: 0xf59e0b, wireframe:true, transparent:true, opacity:.7 });
+      coreMesh = new THREE.Mesh(coreGeo, coreMat);
+      scene.add(coreMesh);
+
+      const glowGeo = new THREE.SphereGeometry(3.4, 24, 24);
+      const glowMat = new THREE.MeshBasicMaterial({ color: 0xf59e0b, transparent:true, opacity:.06 });
+      scene.add(new THREE.Mesh(glowGeo, glowMat));
+
+      const starGeo = new THREE.BufferGeometry();
+      const starCount = 1400;
+      const positions = new Float32Array(starCount * 3);
+      for(let i=0;i<starCount*3;i++){
+        positions[i] = (Math.random() - 0.5) * 120;
+      }
+      starGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      const starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.06, transparent:true, opacity:.52 });
+      starField = new THREE.Points(starGeo, starMat);
+      scene.add(starField);
+
+      rebuildOrbit();
+      animate();
+    }
+
+    function clearOrbit(){
+      orbitNodes.forEach(item => {
+        scene.remove(item.group);
+        item.group.traverse(obj => {
+          if(obj.geometry) obj.geometry.dispose?.();
+          if(obj.material) obj.material.dispose?.();
+        });
+      });
+      orbitNodes = [];
+    }
+
+    function rebuildOrbit(){
+      if(!scene) return;
+      clearOrbit();
+      const activeTasks = state.tasks.filter(t => t.status !== 'done');
+      const source = activeTasks.length ? activeTasks : state.tasks.slice(0, 6);
+      source.forEach((task, index) => {
+        const group = new THREE.Group();
+        const radius = 5 + (task.priority * 2.4) + (index * 0.45);
+        const color = task.priority === 3 ? 0xfb7185 : task.priority === 2 ? 0xf59e0b : 0x38bdf8;
+
+        const orbitGeo = new THREE.TorusGeometry(radius, 0.018, 10, 120);
+        const orbitMat = new THREE.MeshBasicMaterial({ color, transparent:true, opacity:.1 });
+        const orbit = new THREE.Mesh(orbitGeo, orbitMat);
+        orbit.rotation.x = Math.PI / 2;
+        group.add(orbit);
+
+        const nodeGeo = new THREE.OctahedronGeometry(.22 + (task.priority * .08), 0);
+        const nodeMat = new THREE.MeshBasicMaterial({ color, wireframe:true });
+        const node = new THREE.Mesh(nodeGeo, nodeMat);
+        group.add(node);
+
+        scene.add(group);
+        orbitNodes.push({
+          group,
+          node,
+          radius,
+          speed: 0.16 + (task.priority * 0.04),
+          vertical: 0.35 + (index % 3) * 0.15,
+          phase: index * 1.7 + Math.random()
+        });
+      });
+    }
+
+    function animate(){
+      requestAnimationFrame(animate);
+      const time = performance.now() * 0.00055;
+      if(coreMesh){
+        coreMesh.rotation.x += 0.003;
+        coreMesh.rotation.y += 0.004;
+        const scale = 1 + Math.sin(time * 5) * 0.035;
+        coreMesh.scale.set(scale, scale, scale);
+      }
+      if(starField){
+        starField.rotation.y += 0.00018;
+      }
+      orbitNodes.forEach(item => {
+        const angle = time * item.speed * 10 + item.phase;
+        item.node.position.x = Math.cos(angle) * item.radius;
+        item.node.position.z = Math.sin(angle) * item.radius;
+        item.node.position.y = Math.sin(angle * 1.5) * item.vertical;
+        item.node.rotation.x += 0.02;
+        item.node.rotation.y += 0.02;
+      });
+      renderer.render(scene, camera);
+    }
+
+    window.addEventListener('resize', () => {
+      if(!camera || !renderer) return;
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    renderAll();
+    initThree();
+    updateTimerDisplay();
+  </script>
+</body>
+</html>

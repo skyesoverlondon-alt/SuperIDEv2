@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Synth Patch Codex MVP</title>
+  <style>
+    :root{
+      --bg:#050816;
+      --panel:rgba(12,18,38,.74);
+      --panel-2:rgba(20,27,56,.72);
+      --border:rgba(144,170,255,.18);
+      --text:#f6f7fb;
+      --muted:#94a3b8;
+      --blue:#56a6ff;
+      --violet:#9b7bff;
+      --cyan:#5ef2ff;
+      --gold:#ffd76a;
+      --danger:#ff6b8a;
+      --good:#4ade80;
+      --shadow:0 18px 60px rgba(0,0,0,.35);
+      --radius:24px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      background:
+        radial-gradient(circle at 20% 20%, rgba(86,166,255,.14), transparent 26%),
+        radial-gradient(circle at 80% 30%, rgba(155,123,255,.14), transparent 24%),
+        radial-gradient(circle at 50% 80%, rgba(94,242,255,.08), transparent 22%),
+        linear-gradient(180deg, #040611 0%, #070b18 42%, #050816 100%);
+      color:var(--text);
+      font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      min-height:100%;
+      overflow-x:hidden;
+    }
+    #bgCanvas{position:fixed; inset:0; width:100%; height:100%; z-index:0}
+    .app{position:relative; z-index:1; padding:16px; display:grid; gap:16px}
+    .topbar{
+      display:grid;
+      grid-template-columns:1.2fr .9fr;
+      gap:16px;
+      align-items:stretch;
+    }
+    .brand, .statusbar, .panel {
+      border:1px solid var(--border);
+      background:linear-gradient(180deg, rgba(16,24,52,.86), rgba(10,16,32,.82));
+      box-shadow:var(--shadow);
+      border-radius:var(--radius);
+      backdrop-filter: blur(18px);
+    }
+    .brand {
+      padding:18px 20px;
+      display:flex;
+      justify-content:space-between;
+      gap:16px;
+      align-items:center;
+    }
+    .brand h1{margin:0; font-size:clamp(1.25rem, 2vw, 2rem); letter-spacing:.02em}
+    .brand p{margin:6px 0 0; color:var(--muted)}
+    .navchips{display:flex; flex-wrap:wrap; gap:8px; justify-content:flex-end}
+    .navchips a, .pill, button, .seg button, select, input[type="range"], input[type="text"], input[type="number"], textarea {
+      border:1px solid var(--border);
+      background:rgba(255,255,255,.05);
+      color:var(--text);
+      border-radius:14px;
+      text-decoration:none;
+      transition:.2s ease;
+    }
+    .navchips a, button, .pill {
+      padding:10px 12px; font-weight:600; font-size:.92rem; cursor:pointer;
+    }
+    .navchips a.active{
+      background:linear-gradient(135deg, rgba(94,242,255,.24), rgba(86,166,255,.24));
+      border-color:rgba(94,242,255,.4);
+    }
+    button:hover, .navchips a:hover, .seg button:hover, .card:hover, .step:hover, .pad:hover, .chip:hover, .laneCard:hover, .sectionCard:hover {
+      transform:translateY(-1px);
+      border-color:rgba(255,255,255,.28);
+      background:rgba(255,255,255,.09);
+    }
+    button.primary{background:linear-gradient(135deg, rgba(86,166,255,.25), rgba(155,123,255,.28)); border-color:rgba(94,242,255,.25)}
+    button.good{background:linear-gradient(135deg, rgba(74,222,128,.18), rgba(86,166,255,.22))}
+    button.warn{background:linear-gradient(135deg, rgba(255,215,106,.18), rgba(155,123,255,.24))}
+    button.danger{background:linear-gradient(135deg, rgba(255,107,138,.18), rgba(155,123,255,.24))}
+    button.tiny{padding:7px 10px; font-size:.82rem; border-radius:12px}
+    .statusbar{padding:14px 16px; display:grid; gap:10px}
+    .statusgrid{display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:10px}
+    .stat{padding:10px 12px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.05); border-radius:18px}
+    .stat b{display:block; font-size:.8rem; color:var(--muted); margin-bottom:4px}
+    .stat span{font-size:1.05rem; font-weight:700}
+    .maingrid{display:grid; grid-template-columns:1.12fr .88fr; gap:16px}
+    .panel{padding:16px}
+    .panel h2, .panel h3{margin:0 0 10px}
+    .sub{color:var(--muted); font-size:.92rem; margin-top:4px}
+    .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+    .stack{display:grid; gap:12px}
+    .controls{display:grid; gap:14px}
+    .control{display:grid; gap:7px}
+    label{font-size:.88rem; color:var(--muted)}
+    input[type="range"]{width:100%; padding:0; height:10px}
+    input[type="text"], input[type="number"], select, textarea{padding:10px 12px; width:100%}
+    textarea{min-height:90px; resize:vertical}
+    .seg{display:flex; flex-wrap:wrap; gap:8px}
+    .seg button.active, .toggle.active, .pad.active, .step.active, .slot.active, .chip.active, .laneCard.active, .sectionCard.active, .miniKey.active {
+      background:linear-gradient(135deg, rgba(94,242,255,.26), rgba(86,166,255,.24));
+      border-color:rgba(94,242,255,.45);
+      box-shadow:0 0 0 1px rgba(94,242,255,.16), 0 10px 28px rgba(86,166,255,.18);
+    }
+    .mini{font-size:.8rem; color:var(--muted)}
+    .grid2{display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:12px}
+    .grid3{display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:12px}
+    .grid4{display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:12px}
+    .card, .laneCard, .pad, .chip, .sectionCard{
+      padding:14px; border-radius:18px; border:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.04)
+    }
+    .laneCard, .sectionCard{display:grid; gap:10px}
+    .meter{height:10px; border-radius:999px; background:rgba(255,255,255,.06); overflow:hidden}
+    .meter > span{display:block; height:100%; background:linear-gradient(90deg, var(--cyan), var(--blue), var(--violet)); width:40%}
+    canvas.scope, canvas.field, canvas.wave, canvas.chart{
+      width:100%; min-height:220px; border-radius:18px; border:1px solid rgba(255,255,255,.08); background:rgba(2,6,18,.55)
+    }
+    .footerNote{padding:8px 4px 20px; color:var(--muted); font-size:.88rem; text-align:center}
+    .toast{
+      position:fixed; right:18px; bottom:18px; z-index:5;
+      padding:12px 14px; border-radius:16px; color:var(--text);
+      background:linear-gradient(180deg, rgba(18,26,54,.92), rgba(8,14,30,.92));
+      border:1px solid var(--border); box-shadow:var(--shadow); opacity:0; transform:translateY(12px); transition:.25s ease; pointer-events:none;
+    }
+    .toast.show{opacity:1; transform:translateY(0)}
+    .hidden{display:none !important}
+    .stepgrid{display:grid; gap:8px}
+    .steps16{grid-template-columns:repeat(16, minmax(0,1fr))}
+    .steps12{grid-template-columns:repeat(12, minmax(0,1fr))}
+    .steps8{grid-template-columns:repeat(8, minmax(0,1fr))}
+    .step,.slot,.pad,.clipPad,.chip,.miniKey{
+      min-height:44px; display:flex; align-items:center; justify-content:center; text-align:center; cursor:pointer; user-select:none;
+    }
+    .step.playing,.slot.playing,.pad.playing,.clipPad.playing,.chip.playing,.sectionCard.playing{
+      outline:2px solid rgba(255,215,106,.75);
+      transform:translateY(-1px) scale(1.02);
+    }
+    .clipPad{padding:12px; border-radius:16px; border:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.04); display:grid; gap:6px; justify-items:start}
+    .clipPad small{color:var(--muted)}
+    .timeline{display:grid; gap:8px}
+    .timelineItem{display:grid; grid-template-columns:96px 1fr; gap:12px; align-items:start; padding:10px 12px; border:1px solid rgba(255,255,255,.08); border-radius:16px; background:rgba(255,255,255,.03)}
+    .waveWrap{position:relative}
+    .marker{
+      position:absolute; top:0; bottom:0; width:2px; background:linear-gradient(180deg,var(--gold),transparent); pointer-events:none;
+    }
+    .pill input[type="file"]{display:none}
+    .kbd{padding:2px 8px; border-radius:10px; border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.05); font-size:.8rem}
+    .miniKeys{display:grid; grid-template-columns:repeat(12,minmax(0,1fr)); gap:6px}
+    .miniKey{padding:10px; border-radius:12px; border:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.04)}
+    .pillTag{padding:6px 10px; border-radius:999px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.08); font-size:.82rem}
+    @media (max-width: 1080px){
+      .topbar, .maingrid{grid-template-columns:1fr}
+      .statusgrid{grid-template-columns:repeat(2, minmax(0,1fr))}
+    }
+    @media (max-width: 720px){
+      .grid2,.grid3,.grid4{grid-template-columns:1fr}
+      .statusgrid{grid-template-columns:1fr 1fr}
+      .brand{align-items:flex-start; flex-direction:column}
+      .navchips{justify-content:flex-start}
+      .timelineItem{grid-template-columns:1fr}
+      .steps16{grid-template-columns:repeat(8,minmax(0,1fr))}
+      .steps12{grid-template-columns:repeat(6,minmax(0,1fr))}
+      .miniKeys{grid-template-columns:repeat(6,minmax(0,1fr))}
+    }
+</style>
+</head>
+<body>
+  <canvas id="bgCanvas"></canvas>
+  <div class="app">
+    <div class="topbar">
+      <section class="brand">
+        <div>
+          <h1>Synth Patch Codex MVP</h1>
+          <p>S0L26-0s browser-native patch designer with save slots, keyboard audition, and modulation controls.</p>
+        </div>
+        <nav class="navchips"><a href="S0L26-0s_Music_Workstation_Wave_3_Launcher.html" class="">Wave 3 Launcher</a><a href="DJ_Transition_Trainer_MVP.html" class="">DJ Transition Trainer</a><a href="Cinematic_Tension_Designer_MVP.html" class="">Cinematic Tension Designer</a><a href="Song_Sketch_Studio_MVP.html" class="">Song Sketch Studio</a><a href="Rhythm_Polyrhythm_Lab_MVP.html" class="">Rhythm Polyrhythm Lab</a><a href="Synth_Patch_Codex_MVP.html" class="active">Synth Patch Codex</a></nav>
+      </section>
+      <section class="statusbar">
+        <div class="row">
+          <button id="powerBtn" class="primary">Power / Audio</button>
+          <button id="saveBtn" class="good">Save</button>
+          <button id="exportBtn" class="warn">Export JSON</button>
+          <label class="pill">Import JSON <input id="importInput" type="file" accept="application/json"></label>
+        </div>
+        <div class="statusgrid" id="statusGrid"></div>
+      </section>
+    </div>
+    
+<main class="maingrid">
+  <section class="panel stack">
+    <div>
+      <h2>Patch designer + recipe vault</h2>
+      <p class="sub">Shape oscillator, envelope, filter-ish brightness, LFO motion, and save patch recipes in browser slots. Tiny synth librarian with a vanity problem.</p>
+    </div>
+    <canvas id="scopeCanvas" class="chart"></canvas>
+    <div class="grid2">
+      <div class="laneCard">
+        <h3>Core voice</h3>
+        <div class="grid2">
+          <div class="control"><label>Oscillator</label><select id="oscType">
+            <option value="sine">Sine</option><option value="triangle">Triangle</option><option value="square">Square</option><option value="sawtooth">Saw</option>
+          </select></div>
+          <div class="control"><label>Cutoff</label><input id="cutoff" type="range" min="120" max="8000" step="10"></div>
+        </div>
+        <div class="grid2">
+          <div class="control"><label>Detune</label><input id="detune" type="range" min="-24" max="24" step="1"></div>
+          <div class="control"><label>Gain</label><input id="gain" type="range" min="0.02" max="0.5" step="0.01"></div>
+        </div>
+        <div class="grid4">
+          <div class="control"><label>Attack</label><input id="attack" type="range" min="0.001" max="0.4" step="0.001"></div>
+          <div class="control"><label>Decay</label><input id="decay" type="range" min="0.01" max="0.6" step="0.01"></div>
+          <div class="control"><label>Sustain</label><input id="sustain" type="range" min="0.05" max="1" step="0.01"></div>
+          <div class="control"><label>Release</label><input id="release" type="range" min="0.02" max="1" step="0.01"></div>
+        </div>
+      </div>
+      <div class="laneCard">
+        <h3>Motion</h3>
+        <div class="grid2">
+          <div class="control"><label>LFO rate</label><input id="lfoRate" type="range" min="0" max="12" step="0.1"></div>
+          <div class="control"><label>LFO depth</label><input id="lfoDepth" type="range" min="0" max="40" step="1"></div>
+        </div>
+        <div class="grid2">
+          <div class="control"><label>Macro A</label><input id="macroA" type="range" min="0" max="1" step="0.01"></div>
+          <div class="control"><label>Macro B</label><input id="macroB" type="range" min="0" max="1" step="0.01"></div>
+        </div>
+        <div class="row">
+          <button id="auditionBtn" class="primary">Audition Chord</button>
+          <button id="randomPatchBtn" class="tiny">Randomize Patch</button>
+        </div>
+      </div>
+    </div>
+    <div class="miniKeys" id="keys"></div>
+  </section>
+  <aside class="panel stack">
+    <div>
+      <h2>Patch vault</h2>
+      <p class="sub">Save up to eight browser patch slots. Slightly ridiculous. Also useful.</p>
+    </div>
+    <div class="control"><label>Patch name</label><input id="patchName" type="text"></div>
+    <div class="control"><label>Patch notes</label><textarea id="patchNotes"></textarea></div>
+    <div id="slots" class="grid2"></div>
+  </aside>
+</main>
+
+    <div class="footerNote">Browser goblin note: tap <span class="kbd">Power / Audio</span> once before playback if Chrome wants a ritual gesture.</div>
+  </div>
+  <div class="toast" id="toast"></div>
+  <script>
+  const STORAGE_KEY = "sol26_wave3_patch_codex";
+  
+  const $ = (sel,root=document)=>root.querySelector(sel);
+  const $$ = (sel,root=document)=>Array.from(root.querySelectorAll(sel));
+  let audioCtx = null, masterGain = null, noiseBuffer = null, analyser = null;
+  let toastTimer = null, bgTick = 0;
+  function toast(msg){
+    const el = $('#toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=>el.classList.remove('show'), 1800);
+  }
+  async function ensureAudio(){
+    if(audioCtx) return audioCtx;
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    masterGain = audioCtx.createGain();
+    masterGain.gain.value = 0.78;
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 1024;
+    masterGain.connect(analyser);
+    analyser.connect(audioCtx.destination);
+
+    noiseBuffer = audioCtx.createBuffer(1, audioCtx.sampleRate*2, audioCtx.sampleRate);
+    const data = noiseBuffer.getChannelData(0);
+    for(let i=0;i<data.length;i++) data[i] = (Math.random()*2-1) * Math.pow(1-(i/data.length), .15);
+    toast('Audio engine ready');
+    return audioCtx;
+  }
+  function now(){ return audioCtx ? audioCtx.currentTime : 0; }
+  function noteToFreq(note){
+    const map = {'C':0,'C#':1,'Db':1,'D':2,'D#':3,'Eb':3,'E':4,'F':5,'F#':6,'Gb':6,'G':7,'G#':8,'Ab':8,'A':9,'A#':10,'Bb':10,'B':11};
+    const m = String(note).match(/^([A-G][b#]?)(-?\d)$/);
+    if(!m) return 220;
+    const pitch = map[m[1]];
+    const octave = Number(m[2]);
+    const midi = pitch + ((octave+1)*12);
+    return 440 * Math.pow(2, (midi-69)/12);
+  }
+  function playTone(freq, opts={}){
+    if(!audioCtx) return;
+    const {
+      type='sine', gain=.12, dur=.18, when=0, attack=.005, decay=.08,
+      sustain=.25, release=.09, detune=0, cutoff=9000, pan=0, glideTo=null,
+      lfoRate=0, lfoDepth=0
+    } = opts;
+    const start = audioCtx.currentTime + when;
+    const stop = start + Math.max(.02, dur + release);
+    const osc = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+    const filter = audioCtx.createBiquadFilter();
+    const panner = audioCtx.createStereoPanner();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(Math.max(60, cutoff), start);
+    osc.type = type;
+    osc.frequency.setValueAtTime(Math.max(20, freq), start);
+    if(glideTo) osc.frequency.linearRampToValueAtTime(Math.max(20, glideTo), start + dur);
+    osc.detune.value = detune;
+    gainNode.gain.setValueAtTime(0.0001, start);
+    gainNode.gain.linearRampToValueAtTime(gain, start + attack);
+    gainNode.gain.linearRampToValueAtTime(gain * sustain, start + attack + decay);
+    gainNode.gain.setValueAtTime(gain * sustain, start + dur);
+    gainNode.gain.linearRampToValueAtTime(0.0001, stop);
+    panner.pan.setValueAtTime(pan, start);
+    if(lfoRate > 0 && lfoDepth > 0){
+      const lfo = audioCtx.createOscillator();
+      const lfoGain = audioCtx.createGain();
+      lfo.frequency.value = lfoRate;
+      lfoGain.gain.value = lfoDepth;
+      lfo.connect(lfoGain);
+      lfoGain.connect(osc.frequency);
+      lfo.start(start);
+      lfo.stop(stop);
+    }
+    osc.connect(filter);
+    filter.connect(gainNode);
+    gainNode.connect(panner);
+    panner.connect(masterGain);
+    osc.start(start);
+    osc.stop(stop);
+  }
+  function playNoise(opts={}){
+    if(!audioCtx) return;
+    const {gain=.14, dur=.14, when=0, cutoff=12000, pan=0, band='highpass'} = opts;
+    const start = audioCtx.currentTime + when;
+    const stop = start + dur;
+    const src = audioCtx.createBufferSource();
+    src.buffer = noiseBuffer;
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = band;
+    filter.frequency.setValueAtTime(cutoff, start);
+    const gainNode = audioCtx.createGain();
+    const panner = audioCtx.createStereoPanner();
+    panner.pan.setValueAtTime(pan, start);
+    gainNode.gain.setValueAtTime(gain, start);
+    gainNode.gain.exponentialRampToValueAtTime(0.0001, stop);
+    src.connect(filter);
+    filter.connect(gainNode);
+    gainNode.connect(panner);
+    panner.connect(masterGain);
+    src.start(start);
+    src.stop(stop);
+  }
+  function softKick(when=0, amp=.28, pitch=58){
+    playTone(pitch,{type:'sine',gain:amp,dur:.18,release:.12,glideTo:30,cutoff:500});
+  }
+  function softSnare(when=0, amp=.16){
+    playNoise({gain:amp,dur:.12,cutoff:1800,band:'bandpass'});
+    playTone(180,{type:'triangle',gain:amp*.35,dur:.06,cutoff:2400});
+  }
+  function softHat(when=0, amp=.06, pan=0){
+    playNoise({gain:amp,dur:.04,cutoff:6000,band:'highpass',pan});
+  }
+  function drawBackground(){
+    const c = $('#bgCanvas');
+    if(!c) return;
+    const dpr = window.devicePixelRatio || 1;
+    const w = c.clientWidth = innerWidth;
+    const h = c.clientHeight = innerHeight;
+    c.width = w*dpr; c.height = h*dpr;
+    const ctx = c.getContext('2d');
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.clearRect(0,0,w,h);
+    ctx.fillStyle = '#040811';
+    ctx.fillRect(0,0,w,h);
+    bgTick += 0.008;
+    for(let i=0;i<48;i++){
+      const x = (Math.sin(bgTick*0.8 + i*0.91)*0.5+0.5)*w;
+      const y = (Math.cos(bgTick*0.56 + i*0.63)*0.5+0.5)*h;
+      const r = 1.5 + (i%4);
+      ctx.beginPath();
+      ctx.fillStyle = i%3===0 ? 'rgba(94,242,255,.18)' : i%3===1 ? 'rgba(86,166,255,.15)' : 'rgba(155,123,255,.16)';
+      ctx.arc(x,y,r,0,Math.PI*2);
+      ctx.fill();
+    }
+    requestAnimationFrame(drawBackground);
+  }
+  window.addEventListener('resize', ()=>{});
+
+  
+  const NOTES = ['C4','C#4','D4','D#4','E4','F4','F#4','G4','G#4','A4','A#4','B4'];
+  let state = {
+    oscType:'sawtooth', cutoff:2400, detune:0, gain:.16,
+    attack:.01, decay:.14, sustain:.45, release:.16,
+    lfoRate:0.8, lfoDepth:6, macroA:.35, macroB:.55,
+    patchName:'Silver Current', patchNotes:'Bright attack, slight wobble, good for shimmering lead.',
+    slots:[null,null,null,null,null,null,null,null]
+  };
+
+  function saveState(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); toast('Saved'); }
+  function loadState(){ try{ const raw = JSON.parse(localStorage.getItem(STORAGE_KEY)||'null'); if(raw) state = {...state,...raw}; }catch(e){} }
+  function exportState(){ const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='synth-patch-codex.json'; a.click(); URL.revokeObjectURL(a.href); }
+  function importState(file){ const fr=new FileReader(); fr.onload=()=>{ try{ state={...state,...JSON.parse(fr.result)}; render(); toast('Imported'); }catch(e){toast('Import failed');} }; fr.readAsText(file); }
+  function bind(){
+    ['oscType','cutoff','detune','gain','attack','decay','sustain','release','lfoRate','lfoDepth','macroA','macroB'].forEach(key=>{
+      const el = $('#'+key);
+      if(!el) return;
+      el.value = state[key];
+      el.oninput = e=>{ state[key] = el.type === 'select-one' || el.tagName === 'SELECT' ? e.target.value : Number(e.target.value); drawScope(); renderStatus(); };
+      el.onchange = el.oninput;
+    });
+    $('#patchName').value = state.patchName;
+    $('#patchName').oninput = e=> state.patchName = e.target.value;
+    $('#patchNotes').value = state.patchNotes;
+    $('#patchNotes').oninput = e=> state.patchNotes = e.target.value;
+  }
+  function patchSnapshot(){
+    const {slots, ...patch} = state;
+    return JSON.parse(JSON.stringify(patch));
+  }
+  function playPatch(note){
+    if(!audioCtx) return;
+    const freq = noteToFreq(note);
+    playTone(freq,{
+      type:state.oscType, gain:state.gain, attack:state.attack, decay:state.decay,
+      sustain:state.sustain*(.5 + state.macroA*.5), release:state.release + state.macroB*.18,
+      cutoff:state.cutoff + state.macroB*1200, detune:state.detune + state.macroA*8,
+      lfoRate:state.lfoRate, lfoDepth:state.lfoDepth * (0.2 + state.macroA*.8)
+    });
+  }
+  function auditionChord(){
+    ['C4','E4','G4','B4'].forEach((n,i)=>playTone(noteToFreq(n),{
+      type:state.oscType, gain:state.gain*.8, when:i*.02, attack:state.attack, decay:state.decay,
+      sustain:state.sustain, release:state.release+.12, cutoff:state.cutoff + state.macroB*1400,
+      detune:state.detune + (i===3 ? 4 : 0), lfoRate:state.lfoRate, lfoDepth:state.lfoDepth*(.25 + state.macroA*.75),
+      pan:-.3 + i*.2
+    }));
+  }
+  function renderKeys(){
+    $('#keys').innerHTML = NOTES.map(n=>`<button class="miniKey" data-note="${n}">${n}</button>`).join('');
+    $$('#keys .miniKey').forEach(btn=>btn.onclick=async()=>{ await ensureAudio(); playPatch(btn.dataset.note); btn.classList.add('active'); setTimeout(()=>btn.classList.remove('active'),140); });
+  }
+  function renderSlots(){
+    $('#slots').innerHTML = state.slots.map((slot,i)=>`
+      <div class="card">
+        <div class="row"><strong>Slot ${i+1}</strong><span class="pillTag">${slot ? slot.patchName || 'Stored' : 'Empty'}</span></div>
+        <div class="mini">${slot ? (slot.patchNotes || 'No notes') : 'Nothing stored yet.'}</div>
+        <div class="row">
+          <button class="tiny" data-act="save" data-i="${i}">Save</button>
+          <button class="tiny" data-act="load" data-i="${i}">Load</button>
+          <button class="tiny" data-act="play" data-i="${i}">Play</button>
+        </div>
+      </div>`).join('');
+    $$('button[data-act]').forEach(btn=>btn.onclick=async()=>{
+      const i = Number(btn.dataset.i), act = btn.dataset.act;
+      if(act==='save'){ state.slots[i] = patchSnapshot(); renderSlots(); toast(`Saved to slot ${i+1}`); }
+      if(act==='load' && state.slots[i]){ const slot = JSON.parse(JSON.stringify(state.slots[i])); state = {...state, ...slot, slots: state.slots}; render(); toast(`Loaded slot ${i+1}`); }
+      if(act==='play' && state.slots[i]){ await ensureAudio(); const slot = state.slots[i]; ['C4','E4','G4'].forEach((n,j)=>playTone(noteToFreq(n),{
+        type:slot.oscType, gain:slot.gain*.8, when:j*.02, attack:slot.attack, decay:slot.decay, sustain:slot.sustain, release:slot.release+.1,
+        cutoff:slot.cutoff, detune:slot.detune, lfoRate:slot.lfoRate, lfoDepth:slot.lfoDepth
+      })); }
+    });
+  }
+  function drawScope(){
+    const c = $('#scopeCanvas'), ctx = c.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    c.width = c.clientWidth*dpr; c.height = c.clientHeight*dpr;
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    const w = c.clientWidth, h = c.clientHeight;
+    ctx.clearRect(0,0,w,h); ctx.fillStyle='rgba(3,8,18,.82)'; ctx.fillRect(0,0,w,h);
+    const mid = h/2;
+    ctx.strokeStyle='rgba(94,242,255,.92)';
+    ctx.lineWidth=2;
+    ctx.beginPath();
+    for(let x=0;x<w;x++){
+      const t = x / w * Math.PI * 4;
+      let yNorm = 0;
+      if(state.oscType === 'sine') yNorm = Math.sin(t);
+      if(state.oscType === 'triangle') yNorm = 2/Math.PI * Math.asin(Math.sin(t));
+      if(state.oscType === 'square') yNorm = Math.sin(t) >= 0 ? 1 : -1;
+      if(state.oscType === 'sawtooth') yNorm = 2 * ((t/(Math.PI*2)) - Math.floor(.5 + t/(Math.PI*2)));
+      yNorm *= (.55 + state.macroA*.35);
+      yNorm += Math.sin(t * Math.max(.1,state.lfoRate)) * (state.lfoDepth/45) * .45;
+      const y = mid + yNorm * (h*.28);
+      if(x===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    }
+    ctx.stroke();
+    ctx.fillStyle='#f6f7fb'; ctx.font='600 14px Inter, sans-serif';
+    ctx.fillText(`${state.patchName || 'Untitled Patch'} • ${state.oscType}`, 20, 28);
+  }
+  function renderStatus(){
+    $('#statusGrid').innerHTML = [
+      ['Oscillator', state.oscType],
+      ['Cutoff', Math.round(state.cutoff)],
+      ['Envelope', `${state.attack.toFixed(2)} / ${state.decay.toFixed(2)} / ${state.release.toFixed(2)}`],
+      ['LFO', `${state.lfoRate.toFixed(1)} Hz`]
+    ].map(([k,v])=>`<div class="stat"><b>${k}</b><span>${v}</span></div>`).join('');
+  }
+  function randomizePatch(){
+    const types = ['sine','triangle','square','sawtooth'];
+    state.oscType = types[Math.floor(Math.random()*types.length)];
+    state.cutoff = 400 + Math.floor(Math.random()*5200);
+    state.detune = -8 + Math.floor(Math.random()*17);
+    state.gain = +(0.08 + Math.random()*0.22).toFixed(2);
+    state.attack = +(0.002 + Math.random()*0.08).toFixed(3);
+    state.decay = +(0.06 + Math.random()*0.32).toFixed(2);
+    state.sustain = +(0.18 + Math.random()*0.62).toFixed(2);
+    state.release = +(0.06 + Math.random()*0.42).toFixed(2);
+    state.lfoRate = +(Math.random()*6).toFixed(1);
+    state.lfoDepth = Math.floor(Math.random()*22);
+    state.macroA = +Math.random().toFixed(2);
+    state.macroB = +Math.random().toFixed(2);
+    render(); toast('Patch randomized');
+  }
+  function render(){
+    bind();
+    renderKeys();
+    renderSlots();
+    renderStatus();
+    drawScope();
+  }
+
+  $('#powerBtn').onclick = ensureAudio;
+  $('#saveBtn').onclick = saveState;
+  $('#exportBtn').onclick = exportState;
+  $('#importInput').onchange = e=>e.target.files[0] && importState(e.target.files[0]);
+  $('#auditionBtn').onclick = async ()=>{ await ensureAudio(); auditionChord(); };
+  $('#randomPatchBtn').onclick = randomizePatch;
+
+  loadState(); render();
+
+  drawBackground();
+  </script>
+</body>
+</html>

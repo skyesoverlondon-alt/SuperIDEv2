@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vocal Stack Builder MVP</title>
+  <style>
+    :root{
+      --bg:#050816;
+      --panel:rgba(12,18,38,.74);
+      --panel-2:rgba(20,27,56,.72);
+      --border:rgba(144,170,255,.18);
+      --text:#f6f7fb;
+      --muted:#94a3b8;
+      --blue:#56a6ff;
+      --violet:#9b7bff;
+      --cyan:#5ef2ff;
+      --gold:#ffd76a;
+      --danger:#ff6b8a;
+      --good:#4ade80;
+      --shadow:0 18px 60px rgba(0,0,0,.35);
+      --radius:24px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      background:
+        radial-gradient(circle at 20% 20%, rgba(86,166,255,.14), transparent 26%),
+        radial-gradient(circle at 80% 30%, rgba(155,123,255,.14), transparent 24%),
+        radial-gradient(circle at 50% 80%, rgba(94,242,255,.08), transparent 22%),
+        linear-gradient(180deg, #040611 0%, #070b18 42%, #050816 100%);
+      color:var(--text);
+      font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      min-height:100%;
+      overflow-x:hidden;
+    }
+    #bgCanvas{position:fixed; inset:0; width:100%; height:100%; z-index:0}
+    .app{position:relative; z-index:1; padding:16px; display:grid; gap:16px}
+    .topbar{
+      display:grid;
+      grid-template-columns:1.2fr .9fr;
+      gap:16px;
+      align-items:stretch;
+    }
+    .brand, .statusbar, .panel {
+      border:1px solid var(--border);
+      background:linear-gradient(180deg, rgba(16,24,52,.86), rgba(10,16,32,.82));
+      box-shadow:var(--shadow);
+      border-radius:var(--radius);
+      backdrop-filter: blur(18px);
+    }
+    .brand {
+      padding:18px 20px;
+      display:flex;
+      justify-content:space-between;
+      gap:16px;
+      align-items:center;
+    }
+    .brand h1{margin:0; font-size:clamp(1.25rem, 2vw, 2rem); letter-spacing:.02em}
+    .brand p{margin:6px 0 0; color:var(--muted)}
+    .navchips{display:flex; flex-wrap:wrap; gap:8px; justify-content:flex-end}
+    .navchips a, .pill, button, .seg button, select, input[type="range"], input[type="text"], input[type="number"], textarea {
+      border:1px solid var(--border);
+      background:rgba(255,255,255,.05);
+      color:var(--text);
+      border-radius:14px;
+      text-decoration:none;
+      transition:.2s ease;
+    }
+    .navchips a, button, .pill {
+      padding:10px 12px; font-weight:600; font-size:.92rem; cursor:pointer;
+    }
+    .navchips a.active{
+      background:linear-gradient(135deg, rgba(94,242,255,.24), rgba(86,166,255,.24));
+      border-color:rgba(94,242,255,.4);
+    }
+    button:hover, .navchips a:hover, .seg button:hover, .card:hover, .step:hover, .pad:hover, .chip:hover {
+      transform:translateY(-1px);
+      border-color:rgba(255,255,255,.28);
+      background:rgba(255,255,255,.09);
+    }
+    button.primary{background:linear-gradient(135deg, rgba(86,166,255,.25), rgba(155,123,255,.28)); border-color:rgba(94,242,255,.25)}
+    button.good{background:linear-gradient(135deg, rgba(74,222,128,.18), rgba(86,166,255,.22))}
+    button.warn{background:linear-gradient(135deg, rgba(255,215,106,.18), rgba(155,123,255,.24))}
+    button.danger{background:linear-gradient(135deg, rgba(255,107,138,.18), rgba(155,123,255,.24))}
+    button.tiny{padding:7px 10px; font-size:.82rem; border-radius:12px}
+    .statusbar{padding:14px 16px; display:grid; gap:10px}
+    .statusgrid{display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:10px}
+    .stat{padding:10px 12px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.05); border-radius:18px}
+    .stat b{display:block; font-size:.8rem; color:var(--muted); margin-bottom:4px}
+    .stat span{font-size:1.05rem; font-weight:700}
+    .maingrid{display:grid; grid-template-columns:1.12fr .88fr; gap:16px}
+    .panel{padding:16px}
+    .panel h2, .panel h3{margin:0 0 10px}
+    .sub{color:var(--muted); font-size:.92rem; margin-top:4px}
+    .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+    .stack{display:grid; gap:12px}
+    .controls{display:grid; gap:14px}
+    .control{display:grid; gap:7px}
+    label{font-size:.88rem; color:var(--muted)}
+    input[type="range"]{width:100%; padding:0; height:10px}
+    input[type="text"], input[type="number"], select, textarea{padding:10px 12px; width:100%}
+    textarea{min-height:90px; resize:vertical}
+    .seg{display:flex; flex-wrap:wrap; gap:8px}
+    .seg button.active, .toggle.active, .pad.active, .step.active, .slot.active, .chip.active, .laneCard.active {
+      background:linear-gradient(135deg, rgba(94,242,255,.26), rgba(86,166,255,.24));
+      border-color:rgba(94,242,255,.45);
+      box-shadow:0 0 0 1px rgba(94,242,255,.16), 0 10px 28px rgba(86,166,255,.18);
+    }
+    .mini{font-size:.8rem; color:var(--muted)}
+    .grid2{display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:12px}
+    .grid3{display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:12px}
+    .grid4{display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:12px}
+    .card, .laneCard, .pad, .chip{
+      padding:14px; border-radius:18px; border:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.04)
+    }
+    .laneCard{display:grid; gap:10px}
+    .meter{height:10px; border-radius:999px; background:rgba(255,255,255,.06); overflow:hidden}
+    .meter > span{display:block; height:100%; background:linear-gradient(90deg, var(--cyan), var(--blue), var(--violet)); width:40%}
+    canvas.scope, canvas.field, canvas.wave, canvas.chart{
+      width:100%; min-height:220px; border-radius:18px; border:1px solid rgba(255,255,255,.08); background:rgba(2,6,18,.55)
+    }
+    .footerNote{padding:8px 4px 20px; color:var(--muted); font-size:.88rem; text-align:center}
+    .toast{
+      position:fixed; right:18px; bottom:18px; z-index:5;
+      padding:12px 14px; border-radius:16px; color:var(--text);
+      background:linear-gradient(180deg, rgba(18,26,54,.92), rgba(8,14,30,.92));
+      border:1px solid var(--border); box-shadow:var(--shadow); opacity:0; transform:translateY(12px); transition:.25s ease; pointer-events:none;
+    }
+    .toast.show{opacity:1; transform:translateY(0)}
+    .hidden{display:none !important}
+    .stepgrid{display:grid; gap:8px}
+    .steps16{grid-template-columns:repeat(16, minmax(0,1fr))}
+    .steps8{grid-template-columns:repeat(8, minmax(0,1fr))}
+    .step,.slot,.pad,.clipPad,.chip{
+      min-height:44px; display:flex; align-items:center; justify-content:center; text-align:center; cursor:pointer; user-select:none;
+    }
+    .step.playing,.slot.playing,.pad.playing,.clipPad.playing,.chip.playing{
+      outline:2px solid rgba(255,215,106,.75);
+      transform:translateY(-1px) scale(1.02);
+    }
+    .clipPad{padding:12px; border-radius:16px; border:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.04); display:grid; gap:6px; justify-items:start}
+    .clipPad small{color:var(--muted)}
+    .timeline{display:grid; gap:8px}
+    .timelineItem{display:grid; grid-template-columns:96px 1fr; gap:12px; align-items:start; padding:10px 12px; border:1px solid rgba(255,255,255,.08); border-radius:16px; background:rgba(255,255,255,.03)}
+    .waveWrap{position:relative}
+    .marker{
+      position:absolute; top:0; bottom:0; width:2px; background:linear-gradient(180deg,var(--gold),transparent); pointer-events:none;
+    }
+    .pill input[type="file"]{display:none}
+    .kbd{padding:2px 8px; border-radius:10px; border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.05); font-size:.8rem}
+    @media (max-width: 1080px){
+      .topbar, .maingrid{grid-template-columns:1fr}
+      .statusgrid{grid-template-columns:repeat(2, minmax(0,1fr))}
+    }
+    @media (max-width: 720px){
+      .grid2,.grid3,.grid4{grid-template-columns:1fr}
+      .statusgrid{grid-template-columns:1fr 1fr}
+      .brand{align-items:flex-start; flex-direction:column}
+      .navchips{justify-content:flex-start}
+      .timelineItem{grid-template-columns:1fr}
+      .steps16{grid-template-columns:repeat(8,minmax(0,1fr))}
+    }
+</style>
+</head>
+<body>
+  <canvas id="bgCanvas"></canvas>
+  <div class="app">
+    <div class="topbar">
+      <section class="brand">
+        <div>
+          <h1>Vocal Stack Builder</h1>
+          <p>S0L26-0s browser-native creative workstation MVP. Single-file, offline-friendly, locally autosaved.</p>
+        </div>
+        <nav class="navchips"><a href="index.html">Wave 2 Launcher</a><a href="loop-forge.html">Loop Forge</a><a href="bass-lab.html">Bass Lab</a><a href="sample-chop-station.html">Sample Chop Station</a><a href="performance-pad-deck.html">Performance Pad Deck</a><a href="vocal-stack-builder.html" class="active">Vocal Stack Builder</a></nav>
+      </section>
+      <section class="statusbar">
+        <div class="row">
+          <button id="powerBtn" class="primary">Power / Audio</button>
+          <button id="saveBtn" class="good">Save</button>
+          <button id="exportBtn" class="warn">Export JSON</button>
+          <label class="pill">Import JSON <input id="importInput" type="file" accept="application/json"></label>
+        </div>
+        <div class="statusgrid" id="statusGrid"></div>
+      </section>
+    </div>
+    
+<main class="maingrid">
+  <section class="panel stack">
+    <div>
+      <h2>Section Builder</h2>
+      <p class="sub">Lead, low harmony, high harmony, and adlib lanes with text phrases, semitone offsets, stereo spread, and quick section recall. More arranger than miracle worker — which is honestly healthier.</p>
+    </div>
+    <div class="row">
+      <button id="previewBtn" class="primary">Preview Stack</button>
+      <button id="stopBtn">Stop</button>
+      <button id="dupBtn" class="good">Duplicate Section</button>
+      <button id="ideaBtn" class="warn">Generate Stack Idea</button>
+      <div class="seg" id="sectionHost"></div>
+    </div>
+    <div id="laneHost" class="stack"></div>
+  </section>
+  <section class="panel stack">
+    <div>
+      <h2>Harmony + Spread</h2>
+      <p class="sub">Use the choir-ish synth preview to audition interval choices, then keep notes for a real vocalist or future production pass.</p>
+    </div>
+    <div class="controls grid2">
+      <div class="control"><label>Key</label><select id="keySel"></select></div>
+      <div class="control"><label>Mode</label><select id="modeSel"></select></div>
+      <div class="control"><label>Tempo <span id="tempoVal"></span></label><input id="tempo" type="range" min="70" max="150" value="100"></div>
+      <div class="control"><label>Spread <span id="spreadVal"></span></label><input id="spread" type="range" min="0" max="1" step="0.01" value="0.48"></div>
+      <div class="control"><label>Brightness <span id="brightVal"></span></label><input id="bright" type="range" min="400" max="4000" value="1800"></div>
+      <div class="control"><label>Humanize <span id="humanVal"></span></label><input id="human" type="range" min="0" max="0.08" step="0.005" value="0.02"></div>
+    </div>
+    <canvas id="stackCanvas" class="scope" height="230"></canvas>
+    <div class="grid2">
+      <div class="card">
+        <h3>Arrangement Timeline</h3>
+        <div class="timeline" id="timeline"></div>
+      </div>
+      <div class="card">
+        <h3>Production Notes</h3>
+        <textarea id="notes" placeholder="Double the chorus lead, whisper adlibs in bridge, stack the last word..."></textarea>
+      </div>
+    </div>
+  </section>
+</main>
+
+    <div class="footerNote">Browser goblin note: tap <span class="kbd">Power / Audio</span> once before playback if Chrome wants a ritual gesture.</div>
+  </div>
+  <div class="toast" id="toast"></div>
+  <script>
+  const STORAGE_KEY = "sol26_wave2_vocal_stack_builder";
+  const $ = (sel,root=document)=>root.querySelector(sel);
+  const $$ = (sel,root=document)=>Array.from(root.querySelectorAll(sel));
+  const toastEl = $('#toast');
+  function toast(msg){
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(window.__toastTimer);
+    window.__toastTimer = setTimeout(()=>toastEl.classList.remove('show'), 1800);
+  }
+  function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
+  function lerp(a,b,t){ return a + (b-a)*t; }
+  const rand = (a,b)=>Math.random()*(b-a)+a;
+  let audioCtx = null, masterGain = null, analyser = null;
+  async function ensureAudio(){
+    if(!audioCtx){
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      masterGain = audioCtx.createGain();
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 2048;
+      masterGain.gain.value = 0.88;
+      masterGain.connect(analyser);
+      analyser.connect(audioCtx.destination);
+    }
+    if(audioCtx.state === 'suspended') await audioCtx.resume();
+    return audioCtx;
+  }
+  $('#powerBtn').addEventListener('click', async()=>{ await ensureAudio(); toast('Audio engine awake'); });
+  function saveState(state){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    toast('Saved locally');
+  }
+  function loadState(fallback){
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? Object.assign(fallback, JSON.parse(raw)) : fallback;
+    } catch(e) { return fallback; }
+  }
+  $('#exportBtn').addEventListener('click', ()=> {
+    const data = JSON.stringify(window.appState || {}, null, 2);
+    const blob = new Blob([data], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = STORAGE_KEY + '.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+  $('#importInput').addEventListener('change', async (e)=> {
+    const file = e.target.files[0];
+    if(!file) return;
+    try {
+      const data = JSON.parse(await file.text());
+      window.appState = Object.assign(window.appState || {}, data);
+      if(window.renderApp) window.renderApp();
+      toast('Imported state');
+    } catch(err) {
+      toast('Import failed');
+    }
+  });
+  $('#saveBtn').addEventListener('click', ()=> saveState(window.appState || {}));
+  function setStatus(items){
+    const host = $('#statusGrid');
+    host.innerHTML = items.map(it => `<div class="stat"><b>${it.label}</b><span>${it.value}</span></div>`).join('');
+  }
+  // background stars
+  const bg = document.getElementById('bgCanvas');
+  const bgCtx = bg.getContext('2d');
+  let stars = [];
+  function resizeBG(){
+    bg.width = innerWidth * devicePixelRatio;
+    bg.height = innerHeight * devicePixelRatio;
+    bgCtx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+    const count = Math.max(60, Math.floor(innerWidth / 12));
+    stars = Array.from({length:count}, ()=>({
+      x: Math.random()*innerWidth,
+      y: Math.random()*innerHeight,
+      r: Math.random()*1.8 + .2,
+      dx: Math.random()*.25 + .05,
+      a: Math.random()*.8 + .1
+    }));
+  }
+  addEventListener('resize', resizeBG);
+  resizeBG();
+  function drawBG(){
+    bgCtx.clearRect(0,0,innerWidth,innerHeight);
+    const g = bgCtx.createLinearGradient(0,0,0,innerHeight);
+    g.addColorStop(0,'rgba(8,11,24,.08)');
+    g.addColorStop(1,'rgba(3,5,12,.22)');
+    bgCtx.fillStyle = g;
+    bgCtx.fillRect(0,0,innerWidth,innerHeight);
+    for(const s of stars){
+      s.x += s.dx;
+      if(s.x > innerWidth + 8) s.x = -8;
+      bgCtx.beginPath();
+      bgCtx.fillStyle = `rgba(130,180,255,${s.a})`;
+      bgCtx.arc(s.x, s.y, s.r, 0, Math.PI*2);
+      bgCtx.fill();
+    }
+    requestAnimationFrame(drawBG);
+  }
+  drawBG();
+  setStatus([{label:'Section',value:'Verse'},{label:'Active Lanes',value:'3/4'},{label:'Key / Mode',value:'A minor'},{label:'Spread',value:'48%'}]);
+  
+const keys = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const modes = {major:[0,2,4,5,7,9,11], minor:[0,2,3,5,7,8,10], dorian:[0,2,3,5,7,9,10]};
+const laneBase = [
+  {name:'Lead', phrase:'hold the line', semis:0, pan:0, doubles:1, active:true},
+  {name:'Low Harm', phrase:'hold the line', semis:-3, pan:-0.35, doubles:1, active:true},
+  {name:'High Harm', phrase:'hold the line', semis:4, pan:0.35, doubles:1, active:true},
+  {name:'Adlib', phrase:'yeah / breathe / echo', semis:7, pan:0.6, doubles:2, active:false},
+];
+const vocalDefault = {
+  key:'A', mode:'minor', tempo:100, spread:0.48, bright:1800, human:0.02, notes:'',
+  activeSection:0,
+  sections:['Verse','Pre','Chorus','Bridge'].map((name,i)=>({name, lanes:structuredClone(laneBase)}))
+};
+window.appState = loadState(structuredClone(vocalDefault));
+let vocalStopHandles = [];
+function renderSections(){
+  const host=$('#sectionHost'); host.innerHTML='';
+  window.appState.sections.forEach((s,i)=>{
+    const b=document.createElement('button');
+    b.textContent=s.name;
+    b.className=i===window.appState.activeSection ? 'active' : '';
+    b.onclick=()=>{ window.appState.activeSection=i; renderApp(); };
+    host.appendChild(b);
+  });
+}
+function currentSection(){ return window.appState.sections[window.appState.activeSection]; }
+function laneRow(lane, idx){
+  const card=document.createElement('div');
+  card.className='laneCard' + (lane.active?' active':'');
+  card.innerHTML = `
+    <div class="row" style="justify-content:space-between">
+      <div><strong>${lane.name}</strong><div class="mini">${lane.active?'active lane':'muted lane'}</div></div>
+      <button class="tiny toggle ${lane.active?'active':''}">${lane.active?'On':'Off'}</button>
+    </div>
+    <textarea class="phrase" placeholder="phrase">${lane.phrase||''}</textarea>
+    <div class="grid3">
+      <label class="mini">Semitones<input class="semi" type="range" min="-12" max="12" step="1" value="${lane.semis}"><span class="mini semLabel">${lane.semis>0?'+':''}${lane.semis}</span></label>
+      <label class="mini">Pan<input class="pan" type="range" min="-1" max="1" step="0.01" value="${lane.pan}"><span class="mini panLabel">${lane.pan.toFixed(2)}</span></label>
+      <label class="mini">Doubles<select class="dbl">${[1,2,3].map(n=>`<option value="${n}" ${lane.doubles===n?'selected':''}>${n}</option>`).join('')}</select></label>
+    </div>
+  `;
+  $('.toggle',card).onclick=()=>{ lane.active=!lane.active; renderApp(); };
+  $('.phrase',card).oninput=e=> lane.phrase = e.target.value;
+  $('.semi',card).oninput=e=>{ lane.semis=+e.target.value; $('.semLabel',card).textContent=(lane.semis>0?'+':'')+lane.semis; };
+  $('.pan',card).oninput=e=>{ lane.pan=parseFloat(e.target.value); $('.panLabel',card).textContent=lane.pan.toFixed(2); };
+  $('.dbl',card).onchange=e=>{ lane.doubles=+e.target.value; };
+  return card;
+}
+function renderApp(){
+  renderSections();
+  const host=$('#laneHost'); host.innerHTML=''; currentSection().lanes.forEach((lane,i)=> host.appendChild(laneRow(lane,i)));
+  $('#keySel').innerHTML = keys.map(k=>`<option ${window.appState.key===k?'selected':''}>${k}</option>`).join('');
+  $('#modeSel').innerHTML = Object.keys(modes).map(m=>`<option ${window.appState.mode===m?'selected':''}>${m}</option>`).join('');
+  $('#tempo').value=window.appState.tempo; $('#tempoVal').textContent=window.appState.tempo;
+  $('#spread').value=window.appState.spread; $('#spreadVal').textContent=Math.round(window.appState.spread*100)+'%';
+  $('#bright').value=window.appState.bright; $('#brightVal').textContent=Math.round(window.appState.bright)+' Hz';
+  $('#human').value=window.appState.human; $('#humanVal').textContent=Math.round(window.appState.human*1000)+' ms';
+  $('#notes').value=window.appState.notes||'';
+  renderTimeline();
+  setStatus([
+    {label:'Section', value: currentSection().name},
+    {label:'Active Lanes', value: currentSection().lanes.filter(l=>l.active).length+'/4'},
+    {label:'Key / Mode', value: `${window.appState.key} ${window.appState.mode}`},
+    {label:'Spread', value: Math.round(window.appState.spread*100)+'%'}
+  ]);
+}
+window.renderApp = renderApp;
+function renderTimeline(){
+  const host=$('#timeline');
+  host.innerHTML = window.appState.sections.map((s,i)=>`
+    <div class="timelineItem"><strong>${s.name}</strong><div>${s.lanes.filter(l=>l.active).map(l=>l.name).join(', ') || 'Muted'}<div class="mini">${s.lanes.map(l=>l.phrase).filter(Boolean).slice(0,2).join(' • ')}</div></div></div>
+  `).join('');
+}
+function stopVoices(){
+  vocalStopHandles.forEach(fn=>fn());
+  vocalStopHandles = [];
+}
+function rootFreq(){
+  return 220 * Math.pow(2, (keys.indexOf(window.appState.key)-9)/12);
+}
+async function previewStack(){
+  await ensureAudio();
+  stopVoices();
+  const sec = currentSection();
+  const base = rootFreq();
+  const mode = modes[window.appState.mode];
+  const beat = 60/window.appState.tempo;
+  sec.lanes.forEach((lane, laneIdx)=>{
+    if(!lane.active) return;
+    const words = (lane.phrase || '').split(/\s+/).filter(Boolean);
+    const syllables = Math.max(1, words.length);
+    for(let d=0; d<lane.doubles; d++){
+      const pan = audioCtx.createStereoPanner();
+      pan.pan.value = clamp(lane.pan + (d-(lane.doubles-1)/2)*0.12*window.appState.spread, -1, 1);
+      const filt = audioCtx.createBiquadFilter();
+      filt.type='bandpass'; filt.frequency.value = window.appState.bright * (0.8 + d*0.15 + laneIdx*0.06);
+      pan.connect(filt).connect(masterGain);
+      for(let i=0;i<syllables;i++){
+        const t = audioCtx.currentTime + i*beat*0.68 + Math.random()*window.appState.human;
+        const semi = lane.semis + mode[i % mode.length];
+        const freq = base * Math.pow(2, semi/12);
+        const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+        o.type = laneIdx===0 ? 'triangle' : laneIdx===3 ? 'square' : 'sine';
+        o.frequency.value = freq;
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.linearRampToValueAtTime(0.05/(1+d*0.3), t+0.03);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + beat*0.5);
+        o.connect(g).connect(pan);
+        o.start(t); o.stop(t + beat*0.55);
+      }
+      vocalStopHandles.push(()=>{ try{ pan.disconnect(); filt.disconnect(); }catch(e){} });
+    }
+  });
+}
+$('#previewBtn').onclick = ()=> previewStack();
+$('#stopBtn').onclick = ()=> stopVoices();
+$('#dupBtn').onclick = ()=>{
+  const clone = structuredClone(currentSection());
+  clone.name = currentSection().name + ' Copy';
+  window.appState.sections.push(clone);
+  if(window.appState.sections.length>6) window.appState.sections.shift();
+  renderApp();
+};
+$('#ideaBtn').onclick = ()=>{
+  const phrases = ['run it back', 'hold the line', 'into the light', 'no sleep tonight', 'city on fire', 'echo the name'];
+  currentSection().lanes.forEach((lane, idx)=>{
+    lane.active = Math.random() > 0.15;
+    lane.phrase = phrases[Math.floor(Math.random()*phrases.length)];
+    lane.semis = [0,-3,4,7][idx] + (Math.random()>.65 ? (Math.random()>.5?2:-2) : 0);
+    lane.pan = [-0.05,-0.4,0.4,0.65][idx];
+    lane.doubles = idx===0 ? 1 : (Math.random()>.5 ? 2 : 1);
+  });
+  renderApp();
+  toast('New stack idea');
+};
+['keySel','modeSel'].forEach(id=> $('#'+id).addEventListener('change', e=>{ const k=id==='keySel'?'key':'mode'; window.appState[k]=e.target.value; renderApp(); }));
+['tempo','spread','bright','human'].forEach(id=> $('#'+id).addEventListener('input', e=>{
+  window.appState[id] = id==='tempo' ? +e.target.value : parseFloat(e.target.value);
+  renderApp();
+}));
+$('#notes').addEventListener('input', e=> window.appState.notes = e.target.value);
+function drawStack(){
+  const c=$('#stackCanvas'), ctx=c.getContext('2d');
+  c.width=c.clientWidth*devicePixelRatio; c.height=c.clientHeight*devicePixelRatio;
+  ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+  const w=c.clientWidth, h=c.clientHeight;
+  ctx.clearRect(0,0,w,h);
+  ctx.fillStyle='rgba(4,8,18,.72)'; ctx.fillRect(0,0,w,h);
+  currentSection().lanes.forEach((lane,i)=>{
+    const y = 40 + i*45;
+    const length = Math.max(80, (lane.phrase||'').length * 6);
+    ctx.strokeStyle = ['rgba(94,242,255,.82)','rgba(255,215,106,.82)','rgba(155,123,255,.82)','rgba(86,166,255,.82)'][i];
+    ctx.lineWidth = lane.active ? 8 : 3;
+    ctx.beginPath();
+    ctx.moveTo(30, y);
+    ctx.bezierCurveTo(80 + lane.pan*40, y - lane.semis*2, 150 + length*0.35, y + lane.semis*1.4, 40 + length, y);
+    ctx.stroke();
+    ctx.fillStyle='rgba(255,255,255,.78)';
+    ctx.fillText(lane.name + ' • ' + (lane.phrase||'—'), 18, y-12);
+  });
+  requestAnimationFrame(drawStack);
+}
+drawStack();
+renderApp();
+setInterval(()=>{ if(window.appState) localStorage.setItem(STORAGE_KEY, JSON.stringify(window.appState)); }, 3000);
+
+  </script>
+</body>
+</html>

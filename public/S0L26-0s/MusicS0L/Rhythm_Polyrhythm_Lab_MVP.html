@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rhythm Polyrhythm Lab MVP</title>
+  <style>
+    :root{
+      --bg:#050816;
+      --panel:rgba(12,18,38,.74);
+      --panel-2:rgba(20,27,56,.72);
+      --border:rgba(144,170,255,.18);
+      --text:#f6f7fb;
+      --muted:#94a3b8;
+      --blue:#56a6ff;
+      --violet:#9b7bff;
+      --cyan:#5ef2ff;
+      --gold:#ffd76a;
+      --danger:#ff6b8a;
+      --good:#4ade80;
+      --shadow:0 18px 60px rgba(0,0,0,.35);
+      --radius:24px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      background:
+        radial-gradient(circle at 20% 20%, rgba(86,166,255,.14), transparent 26%),
+        radial-gradient(circle at 80% 30%, rgba(155,123,255,.14), transparent 24%),
+        radial-gradient(circle at 50% 80%, rgba(94,242,255,.08), transparent 22%),
+        linear-gradient(180deg, #040611 0%, #070b18 42%, #050816 100%);
+      color:var(--text);
+      font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      min-height:100%;
+      overflow-x:hidden;
+    }
+    #bgCanvas{position:fixed; inset:0; width:100%; height:100%; z-index:0}
+    .app{position:relative; z-index:1; padding:16px; display:grid; gap:16px}
+    .topbar{
+      display:grid;
+      grid-template-columns:1.2fr .9fr;
+      gap:16px;
+      align-items:stretch;
+    }
+    .brand, .statusbar, .panel {
+      border:1px solid var(--border);
+      background:linear-gradient(180deg, rgba(16,24,52,.86), rgba(10,16,32,.82));
+      box-shadow:var(--shadow);
+      border-radius:var(--radius);
+      backdrop-filter: blur(18px);
+    }
+    .brand {
+      padding:18px 20px;
+      display:flex;
+      justify-content:space-between;
+      gap:16px;
+      align-items:center;
+    }
+    .brand h1{margin:0; font-size:clamp(1.25rem, 2vw, 2rem); letter-spacing:.02em}
+    .brand p{margin:6px 0 0; color:var(--muted)}
+    .navchips{display:flex; flex-wrap:wrap; gap:8px; justify-content:flex-end}
+    .navchips a, .pill, button, .seg button, select, input[type="range"], input[type="text"], input[type="number"], textarea {
+      border:1px solid var(--border);
+      background:rgba(255,255,255,.05);
+      color:var(--text);
+      border-radius:14px;
+      text-decoration:none;
+      transition:.2s ease;
+    }
+    .navchips a, button, .pill {
+      padding:10px 12px; font-weight:600; font-size:.92rem; cursor:pointer;
+    }
+    .navchips a.active{
+      background:linear-gradient(135deg, rgba(94,242,255,.24), rgba(86,166,255,.24));
+      border-color:rgba(94,242,255,.4);
+    }
+    button:hover, .navchips a:hover, .seg button:hover, .card:hover, .step:hover, .pad:hover, .chip:hover, .laneCard:hover, .sectionCard:hover {
+      transform:translateY(-1px);
+      border-color:rgba(255,255,255,.28);
+      background:rgba(255,255,255,.09);
+    }
+    button.primary{background:linear-gradient(135deg, rgba(86,166,255,.25), rgba(155,123,255,.28)); border-color:rgba(94,242,255,.25)}
+    button.good{background:linear-gradient(135deg, rgba(74,222,128,.18), rgba(86,166,255,.22))}
+    button.warn{background:linear-gradient(135deg, rgba(255,215,106,.18), rgba(155,123,255,.24))}
+    button.danger{background:linear-gradient(135deg, rgba(255,107,138,.18), rgba(155,123,255,.24))}
+    button.tiny{padding:7px 10px; font-size:.82rem; border-radius:12px}
+    .statusbar{padding:14px 16px; display:grid; gap:10px}
+    .statusgrid{display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:10px}
+    .stat{padding:10px 12px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.05); border-radius:18px}
+    .stat b{display:block; font-size:.8rem; color:var(--muted); margin-bottom:4px}
+    .stat span{font-size:1.05rem; font-weight:700}
+    .maingrid{display:grid; grid-template-columns:1.12fr .88fr; gap:16px}
+    .panel{padding:16px}
+    .panel h2, .panel h3{margin:0 0 10px}
+    .sub{color:var(--muted); font-size:.92rem; margin-top:4px}
+    .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+    .stack{display:grid; gap:12px}
+    .controls{display:grid; gap:14px}
+    .control{display:grid; gap:7px}
+    label{font-size:.88rem; color:var(--muted)}
+    input[type="range"]{width:100%; padding:0; height:10px}
+    input[type="text"], input[type="number"], select, textarea{padding:10px 12px; width:100%}
+    textarea{min-height:90px; resize:vertical}
+    .seg{display:flex; flex-wrap:wrap; gap:8px}
+    .seg button.active, .toggle.active, .pad.active, .step.active, .slot.active, .chip.active, .laneCard.active, .sectionCard.active, .miniKey.active {
+      background:linear-gradient(135deg, rgba(94,242,255,.26), rgba(86,166,255,.24));
+      border-color:rgba(94,242,255,.45);
+      box-shadow:0 0 0 1px rgba(94,242,255,.16), 0 10px 28px rgba(86,166,255,.18);
+    }
+    .mini{font-size:.8rem; color:var(--muted)}
+    .grid2{display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:12px}
+    .grid3{display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:12px}
+    .grid4{display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:12px}
+    .card, .laneCard, .pad, .chip, .sectionCard{
+      padding:14px; border-radius:18px; border:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.04)
+    }
+    .laneCard, .sectionCard{display:grid; gap:10px}
+    .meter{height:10px; border-radius:999px; background:rgba(255,255,255,.06); overflow:hidden}
+    .meter > span{display:block; height:100%; background:linear-gradient(90deg, var(--cyan), var(--blue), var(--violet)); width:40%}
+    canvas.scope, canvas.field, canvas.wave, canvas.chart{
+      width:100%; min-height:220px; border-radius:18px; border:1px solid rgba(255,255,255,.08); background:rgba(2,6,18,.55)
+    }
+    .footerNote{padding:8px 4px 20px; color:var(--muted); font-size:.88rem; text-align:center}
+    .toast{
+      position:fixed; right:18px; bottom:18px; z-index:5;
+      padding:12px 14px; border-radius:16px; color:var(--text);
+      background:linear-gradient(180deg, rgba(18,26,54,.92), rgba(8,14,30,.92));
+      border:1px solid var(--border); box-shadow:var(--shadow); opacity:0; transform:translateY(12px); transition:.25s ease; pointer-events:none;
+    }
+    .toast.show{opacity:1; transform:translateY(0)}
+    .hidden{display:none !important}
+    .stepgrid{display:grid; gap:8px}
+    .steps16{grid-template-columns:repeat(16, minmax(0,1fr))}
+    .steps12{grid-template-columns:repeat(12, minmax(0,1fr))}
+    .steps8{grid-template-columns:repeat(8, minmax(0,1fr))}
+    .step,.slot,.pad,.clipPad,.chip,.miniKey{
+      min-height:44px; display:flex; align-items:center; justify-content:center; text-align:center; cursor:pointer; user-select:none;
+    }
+    .step.playing,.slot.playing,.pad.playing,.clipPad.playing,.chip.playing,.sectionCard.playing{
+      outline:2px solid rgba(255,215,106,.75);
+      transform:translateY(-1px) scale(1.02);
+    }
+    .clipPad{padding:12px; border-radius:16px; border:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.04); display:grid; gap:6px; justify-items:start}
+    .clipPad small{color:var(--muted)}
+    .timeline{display:grid; gap:8px}
+    .timelineItem{display:grid; grid-template-columns:96px 1fr; gap:12px; align-items:start; padding:10px 12px; border:1px solid rgba(255,255,255,.08); border-radius:16px; background:rgba(255,255,255,.03)}
+    .waveWrap{position:relative}
+    .marker{
+      position:absolute; top:0; bottom:0; width:2px; background:linear-gradient(180deg,var(--gold),transparent); pointer-events:none;
+    }
+    .pill input[type="file"]{display:none}
+    .kbd{padding:2px 8px; border-radius:10px; border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.05); font-size:.8rem}
+    .miniKeys{display:grid; grid-template-columns:repeat(12,minmax(0,1fr)); gap:6px}
+    .miniKey{padding:10px; border-radius:12px; border:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.04)}
+    .pillTag{padding:6px 10px; border-radius:999px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.08); font-size:.82rem}
+    @media (max-width: 1080px){
+      .topbar, .maingrid{grid-template-columns:1fr}
+      .statusgrid{grid-template-columns:repeat(2, minmax(0,1fr))}
+    }
+    @media (max-width: 720px){
+      .grid2,.grid3,.grid4{grid-template-columns:1fr}
+      .statusgrid{grid-template-columns:1fr 1fr}
+      .brand{align-items:flex-start; flex-direction:column}
+      .navchips{justify-content:flex-start}
+      .timelineItem{grid-template-columns:1fr}
+      .steps16{grid-template-columns:repeat(8,minmax(0,1fr))}
+      .steps12{grid-template-columns:repeat(6,minmax(0,1fr))}
+      .miniKeys{grid-template-columns:repeat(6,minmax(0,1fr))}
+    }
+</style>
+</head>
+<body>
+  <canvas id="bgCanvas"></canvas>
+  <div class="app">
+    <div class="topbar">
+      <section class="brand">
+        <div>
+          <h1>Rhythm Polyrhythm Lab MVP</h1>
+          <p>S0L26-0s browser-native Euclidean/polymeter machine with rotating cycles and live ring view.</p>
+        </div>
+        <nav class="navchips"><a href="S0L26-0s_Music_Workstation_Wave_3_Launcher.html" class="">Wave 3 Launcher</a><a href="DJ_Transition_Trainer_MVP.html" class="">DJ Transition Trainer</a><a href="Cinematic_Tension_Designer_MVP.html" class="">Cinematic Tension Designer</a><a href="Song_Sketch_Studio_MVP.html" class="">Song Sketch Studio</a><a href="Rhythm_Polyrhythm_Lab_MVP.html" class="active">Rhythm Polyrhythm Lab</a><a href="Synth_Patch_Codex_MVP.html" class="">Synth Patch Codex</a></nav>
+      </section>
+      <section class="statusbar">
+        <div class="row">
+          <button id="powerBtn" class="primary">Power / Audio</button>
+          <button id="saveBtn" class="good">Save</button>
+          <button id="exportBtn" class="warn">Export JSON</button>
+          <label class="pill">Import JSON <input id="importInput" type="file" accept="application/json"></label>
+        </div>
+        <div class="statusgrid" id="statusGrid"></div>
+      </section>
+    </div>
+    
+<main class="maingrid">
+  <section class="panel stack">
+    <div>
+      <h2>Euclidean + polymeter machine</h2>
+      <p class="sub">Each lane has its own step count, pulse count, and offset. The result is rhythmic geometry doing wizard nonsense in your browser.</p>
+    </div>
+    <canvas id="polyCanvas" class="chart"></canvas>
+    <div class="row">
+      <button id="transportBtn" class="primary">Start Engine</button>
+      <button id="randomBtn" class="tiny">Randomize</button>
+      <button id="rotateBtn" class="tiny">Rotate All</button>
+    </div>
+    <div id="lanes" class="stack"></div>
+  </section>
+  <aside class="panel stack">
+    <div>
+      <h2>Cycle math</h2>
+      <p class="sub">When the least common multiple gets big, the loop becomes a sneaky little labyrinth.</p>
+    </div>
+    <div class="card"><h3>Cycle Length</h3><p class="sub" id="cycleText"></p></div>
+    <div class="card"><h3>Tips</h3><p class="sub">Try 5 against 7, then offset one lane. Suddenly the groove starts behaving like it escaped normal time.</p></div>
+    <div class="control"><label>BPM</label><input id="bpm" type="range" min="60" max="180" step="1"></div>
+  </aside>
+</main>
+
+    <div class="footerNote">Browser goblin note: tap <span class="kbd">Power / Audio</span> once before playback if Chrome wants a ritual gesture.</div>
+  </div>
+  <div class="toast" id="toast"></div>
+  <script>
+  const STORAGE_KEY = "sol26_wave3_polyrhythm";
+  
+  const $ = (sel,root=document)=>root.querySelector(sel);
+  const $$ = (sel,root=document)=>Array.from(root.querySelectorAll(sel));
+  let audioCtx = null, masterGain = null, noiseBuffer = null, analyser = null;
+  let toastTimer = null, bgTick = 0;
+  function toast(msg){
+    const el = $('#toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=>el.classList.remove('show'), 1800);
+  }
+  async function ensureAudio(){
+    if(audioCtx) return audioCtx;
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    masterGain = audioCtx.createGain();
+    masterGain.gain.value = 0.78;
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 1024;
+    masterGain.connect(analyser);
+    analyser.connect(audioCtx.destination);
+
+    noiseBuffer = audioCtx.createBuffer(1, audioCtx.sampleRate*2, audioCtx.sampleRate);
+    const data = noiseBuffer.getChannelData(0);
+    for(let i=0;i<data.length;i++) data[i] = (Math.random()*2-1) * Math.pow(1-(i/data.length), .15);
+    toast('Audio engine ready');
+    return audioCtx;
+  }
+  function now(){ return audioCtx ? audioCtx.currentTime : 0; }
+  function noteToFreq(note){
+    const map = {'C':0,'C#':1,'Db':1,'D':2,'D#':3,'Eb':3,'E':4,'F':5,'F#':6,'Gb':6,'G':7,'G#':8,'Ab':8,'A':9,'A#':10,'Bb':10,'B':11};
+    const m = String(note).match(/^([A-G][b#]?)(-?\d)$/);
+    if(!m) return 220;
+    const pitch = map[m[1]];
+    const octave = Number(m[2]);
+    const midi = pitch + ((octave+1)*12);
+    return 440 * Math.pow(2, (midi-69)/12);
+  }
+  function playTone(freq, opts={}){
+    if(!audioCtx) return;
+    const {
+      type='sine', gain=.12, dur=.18, when=0, attack=.005, decay=.08,
+      sustain=.25, release=.09, detune=0, cutoff=9000, pan=0, glideTo=null,
+      lfoRate=0, lfoDepth=0
+    } = opts;
+    const start = audioCtx.currentTime + when;
+    const stop = start + Math.max(.02, dur + release);
+    const osc = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+    const filter = audioCtx.createBiquadFilter();
+    const panner = audioCtx.createStereoPanner();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(Math.max(60, cutoff), start);
+    osc.type = type;
+    osc.frequency.setValueAtTime(Math.max(20, freq), start);
+    if(glideTo) osc.frequency.linearRampToValueAtTime(Math.max(20, glideTo), start + dur);
+    osc.detune.value = detune;
+    gainNode.gain.setValueAtTime(0.0001, start);
+    gainNode.gain.linearRampToValueAtTime(gain, start + attack);
+    gainNode.gain.linearRampToValueAtTime(gain * sustain, start + attack + decay);
+    gainNode.gain.setValueAtTime(gain * sustain, start + dur);
+    gainNode.gain.linearRampToValueAtTime(0.0001, stop);
+    panner.pan.setValueAtTime(pan, start);
+    if(lfoRate > 0 && lfoDepth > 0){
+      const lfo = audioCtx.createOscillator();
+      const lfoGain = audioCtx.createGain();
+      lfo.frequency.value = lfoRate;
+      lfoGain.gain.value = lfoDepth;
+      lfo.connect(lfoGain);
+      lfoGain.connect(osc.frequency);
+      lfo.start(start);
+      lfo.stop(stop);
+    }
+    osc.connect(filter);
+    filter.connect(gainNode);
+    gainNode.connect(panner);
+    panner.connect(masterGain);
+    osc.start(start);
+    osc.stop(stop);
+  }
+  function playNoise(opts={}){
+    if(!audioCtx) return;
+    const {gain=.14, dur=.14, when=0, cutoff=12000, pan=0, band='highpass'} = opts;
+    const start = audioCtx.currentTime + when;
+    const stop = start + dur;
+    const src = audioCtx.createBufferSource();
+    src.buffer = noiseBuffer;
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = band;
+    filter.frequency.setValueAtTime(cutoff, start);
+    const gainNode = audioCtx.createGain();
+    const panner = audioCtx.createStereoPanner();
+    panner.pan.setValueAtTime(pan, start);
+    gainNode.gain.setValueAtTime(gain, start);
+    gainNode.gain.exponentialRampToValueAtTime(0.0001, stop);
+    src.connect(filter);
+    filter.connect(gainNode);
+    gainNode.connect(panner);
+    panner.connect(masterGain);
+    src.start(start);
+    src.stop(stop);
+  }
+  function softKick(when=0, amp=.28, pitch=58){
+    playTone(pitch,{type:'sine',gain:amp,dur:.18,release:.12,glideTo:30,cutoff:500});
+  }
+  function softSnare(when=0, amp=.16){
+    playNoise({gain:amp,dur:.12,cutoff:1800,band:'bandpass'});
+    playTone(180,{type:'triangle',gain:amp*.35,dur:.06,cutoff:2400});
+  }
+  function softHat(when=0, amp=.06, pan=0){
+    playNoise({gain:amp,dur:.04,cutoff:6000,band:'highpass',pan});
+  }
+  function drawBackground(){
+    const c = $('#bgCanvas');
+    if(!c) return;
+    const dpr = window.devicePixelRatio || 1;
+    const w = c.clientWidth = innerWidth;
+    const h = c.clientHeight = innerHeight;
+    c.width = w*dpr; c.height = h*dpr;
+    const ctx = c.getContext('2d');
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.clearRect(0,0,w,h);
+    ctx.fillStyle = '#040811';
+    ctx.fillRect(0,0,w,h);
+    bgTick += 0.008;
+    for(let i=0;i<48;i++){
+      const x = (Math.sin(bgTick*0.8 + i*0.91)*0.5+0.5)*w;
+      const y = (Math.cos(bgTick*0.56 + i*0.63)*0.5+0.5)*h;
+      const r = 1.5 + (i%4);
+      ctx.beginPath();
+      ctx.fillStyle = i%3===0 ? 'rgba(94,242,255,.18)' : i%3===1 ? 'rgba(86,166,255,.15)' : 'rgba(155,123,255,.16)';
+      ctx.arc(x,y,r,0,Math.PI*2);
+      ctx.fill();
+    }
+    requestAnimationFrame(drawBackground);
+  }
+  window.addEventListener('resize', ()=>{});
+
+  
+  let state = {
+    bpm:118, isPlaying:false, tick:0,
+    lanes:[
+      {name:'Kick', steps:8, pulses:3, offset:0, gain:.9, sound:'kick', enabled:true},
+      {name:'Snare', steps:5, pulses:2, offset:1, gain:.75, sound:'snare', enabled:true},
+      {name:'Hat', steps:7, pulses:4, offset:0, gain:.45, sound:'hat', enabled:true},
+      {name:'Tone', steps:12, pulses:5, offset:3, gain:.5, sound:'tone', enabled:true}
+    ]
+  };
+  let timer = null;
+
+  function saveState(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); toast('Saved'); }
+  function loadState(){ try{ const raw = JSON.parse(localStorage.getItem(STORAGE_KEY)||'null'); if(raw) state = {...state,...raw}; }catch(e){} }
+  function exportState(){ const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='rhythm-polyrhythm-lab.json'; a.click(); URL.revokeObjectURL(a.href); }
+  function importState(file){ const fr=new FileReader(); fr.onload=()=>{ try{ state={...state,...JSON.parse(fr.result)}; render(); toast('Imported'); }catch(e){toast('Import failed');} }; fr.readAsText(file); }
+  function euclid(steps, pulses){
+    steps = Math.max(1, steps); pulses = Math.max(0, Math.min(steps, pulses));
+    if(pulses === 0) return Array(steps).fill(0);
+    if(pulses === steps) return Array(steps).fill(1);
+    let pattern = [];
+    let counts = [], remainders = [pulses], divisor = steps - pulses, level = 0;
+    while(true){
+      counts.push(Math.floor(divisor / remainders[level]));
+      remainders.push(divisor % remainders[level]);
+      divisor = remainders[level];
+      level++;
+      if(remainders[level] <= 1) break;
+    }
+    counts.push(divisor);
+    function build(level){
+      if(level === -1) pattern.push(0);
+      else if(level === -2) pattern.push(1);
+      else{
+        for(let i=0;i<counts[level];i++) build(level-1);
+        if(remainders[level] !== 0) build(level-2);
+      }
+    }
+    build(level);
+    return pattern.reverse();
+  }
+  function rotatedPattern(lane){
+    const p = euclid(lane.steps, lane.pulses);
+    const out = [];
+    for(let i=0;i<p.length;i++) out.push(p[(i - lane.offset + p.length) % p.length]);
+    return out;
+  }
+  function gcd(a,b){ while(b){ [a,b]=[b,a%b]; } return a; }
+  function lcm(a,b){ return a*b/gcd(a,b); }
+  function fullCycle(){ return state.lanes.reduce((acc,l)=>lcm(acc, Math.max(1, l.steps)), 1); }
+  function triggerLane(lane, idx){
+    const amp = lane.gain;
+    if(lane.sound === 'kick') playTone(62,{type:'sine',gain:.18*amp,dur:.16,glideTo:32,cutoff:500});
+    if(lane.sound === 'snare'){ playNoise({gain:.08*amp,dur:.08,cutoff:1800,band:'bandpass'}); playTone(200,{type:'triangle',gain:.04*amp,dur:.05,cutoff:2200}); }
+    if(lane.sound === 'hat') playNoise({gain:.04*amp,dur:.025,cutoff:5200,band:'highpass'});
+    if(lane.sound === 'tone') playTone(noteToFreq(['C4','D4','E4','G4','A4'][idx%5]),{type:'square',gain:.06*amp,dur:.09,release:.04,cutoff:1600});
+  }
+  function stepEngine(){
+    if(!state.isPlaying || !audioCtx) return;
+    const tick = state.tick++;
+    state.lanes.forEach(lane=>{
+      if(!lane.enabled) return;
+      const patt = rotatedPattern(lane);
+      const pos = tick % lane.steps;
+      if(patt[pos]) triggerLane(lane, pos);
+    });
+    drawPoly();
+    renderStatus();
+    renderLanes();
+  }
+  function startEngine(){
+    clearInterval(timer);
+    const ms16 = (60000 / state.bpm) / 4;
+    timer = setInterval(stepEngine, ms16);
+  }
+  function drawPoly(){
+    const c = $('#polyCanvas'), ctx = c.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    c.width = c.clientWidth*dpr; c.height = c.clientHeight*dpr;
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    const w = c.clientWidth, h = c.clientHeight;
+    ctx.clearRect(0,0,w,h); ctx.fillStyle='rgba(3,8,18,.82)'; ctx.fillRect(0,0,w,h);
+    const cx=w/2, cy=h/2, base=Math.min(w,h)*.14;
+    state.lanes.forEach((lane,i)=>{
+      const patt = rotatedPattern(lane);
+      const radius = base + i*34;
+      patt.forEach((on, step)=>{
+        const ang = (-Math.PI/2) + (step/patt.length)*Math.PI*2;
+        const x = cx + Math.cos(ang)*radius;
+        const y = cy + Math.sin(ang)*radius;
+        ctx.beginPath();
+        ctx.fillStyle = on ? ['rgba(94,242,255,.8)','rgba(86,166,255,.8)','rgba(155,123,255,.8)','rgba(255,215,106,.8)'][i%4] : 'rgba(255,255,255,.08)';
+        const active = state.isPlaying && (state.tick % lane.steps) === step;
+        ctx.arc(x,y, active ? 8 : 5, 0, Math.PI*2);
+        ctx.fill();
+      });
+      ctx.strokeStyle='rgba(255,255,255,.08)';
+      ctx.beginPath(); ctx.arc(cx,cy,radius,0,Math.PI*2); ctx.stroke();
+    });
+  }
+  function renderLanes(){
+    $('#lanes').innerHTML = state.lanes.map((lane,i)=>{
+      const patt = rotatedPattern(lane);
+      return `
+        <div class="laneCard">
+          <div class="row"><h3 style="margin:0">${lane.name}</h3><span class="pillTag">${lane.steps} steps</span><span class="pillTag">${lane.pulses} pulses</span></div>
+          <div class="grid4">
+            <div class="control"><label>Steps</label><input data-k="steps" data-i="${i}" type="number" min="1" max="32" value="${lane.steps}"></div>
+            <div class="control"><label>Pulses</label><input data-k="pulses" data-i="${i}" type="number" min="0" max="${lane.steps}" value="${lane.pulses}"></div>
+            <div class="control"><label>Offset</label><input data-k="offset" data-i="${i}" type="number" min="0" max="32" value="${lane.offset}"></div>
+            <div class="control"><label>Gain</label><input data-k="gain" data-i="${i}" type="range" min="0" max="1" step="0.01" value="${lane.gain}"></div>
+          </div>
+          <div class="row">
+            <button class="tiny" data-act="rotate" data-i="${i}">Rotate</button>
+            <button class="tiny" data-act="toggle" data-i="${i}">${lane.enabled ? 'Disable' : 'Enable'}</button>
+            <span class="pillTag">${lane.sound}</span>
+          </div>
+          <div class="stepgrid steps16">${patt.map((on,step)=>`<div class="step ${on?'active':''} ${state.isPlaying && (state.tick % lane.steps) === step ? 'playing' : ''}">${step+1}</div>`).join('')}</div>
+        </div>
+      `;
+    }).join('');
+    $$('input[data-k]').forEach(inp=>inp.oninput=()=>{
+      const i = Number(inp.dataset.i), k = inp.dataset.k;
+      state.lanes[i][k] = k==='gain' ? Number(inp.value) : Math.max(0, Number(inp.value)||0);
+      if(k==='pulses') state.lanes[i].pulses = Math.min(state.lanes[i].steps, state.lanes[i].pulses);
+      renderStatus(); renderLanes(); drawPoly();
+    });
+    $$('button[data-act]').forEach(btn=>btn.onclick=()=>{
+      const i=Number(btn.dataset.i), act=btn.dataset.act;
+      if(act==='rotate') state.lanes[i].offset = (state.lanes[i].offset + 1) % Math.max(1,state.lanes[i].steps);
+      if(act==='toggle') state.lanes[i].enabled = !state.lanes[i].enabled;
+      renderLanes(); drawPoly(); renderStatus();
+    });
+  }
+  function renderStatus(){
+    $('#statusGrid').innerHTML = [
+      ['BPM', state.bpm],
+      ['Lanes', state.lanes.length],
+      ['Cycle', `${fullCycle()} steps`],
+      ['Engine', state.isPlaying ? 'Running' : 'Stopped']
+    ].map(([k,v])=>`<div class="stat"><b>${k}</b><span>${v}</span></div>`).join('');
+    $('#cycleText').textContent = `${fullCycle()} total steps before the full combined cycle repeats. That is where the rhythm starts muttering ancient secrets.`;
+    $('#bpm').value = state.bpm;
+  }
+
+  $('#powerBtn').onclick = ensureAudio;
+  $('#saveBtn').onclick = saveState;
+  $('#exportBtn').onclick = exportState;
+  $('#importInput').onchange = e=>e.target.files[0] && importState(e.target.files[0]);
+  $('#transportBtn').onclick = async ()=>{ await ensureAudio(); state.isPlaying = !state.isPlaying; if(state.isPlaying) startEngine(); else clearInterval(timer); $('#transportBtn').textContent = state.isPlaying ? 'Stop Engine' : 'Start Engine'; renderStatus(); renderLanes(); };
+  $('#randomBtn').onclick = ()=>{
+    state.lanes.forEach(l=>{ l.steps = 3 + Math.floor(Math.random()*13); l.pulses = 1 + Math.floor(Math.random()*Math.max(1,l.steps-1)); l.offset = Math.floor(Math.random()*l.steps); });
+    renderLanes(); drawPoly(); renderStatus();
+  };
+  $('#rotateBtn').onclick = ()=>{ state.lanes.forEach(l=>l.offset=(l.offset+1)%Math.max(1,l.steps)); renderLanes(); drawPoly(); };
+  $('#bpm').oninput = e=>{ state.bpm = Number(e.target.value); renderStatus(); if(state.isPlaying) startEngine(); };
+
+  loadState(); renderStatus(); renderLanes(); drawPoly();
+
+  drawBackground();
+  </script>
+</body>
+</html>

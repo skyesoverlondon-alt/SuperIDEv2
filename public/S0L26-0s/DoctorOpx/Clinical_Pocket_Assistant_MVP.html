@@ -1,0 +1,2091 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Clinical Pocket Assistant MVP</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+    :root{
+      --bg-deep:#020617;
+      --bg-panel:rgba(15,23,42,0.72);
+      --bg-soft:rgba(255,255,255,0.08);
+      --line:rgba(255,255,255,0.12);
+      --text:#e2e8f0;
+      --muted:#94a3b8;
+      --accent:#3b82f6;
+      --accent-2:#14b8a6;
+      --danger:#ef4444;
+      --warning:#f59e0b;
+      --success:#22c55e;
+      --shadow:0 18px 60px rgba(2,6,23,0.38);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body{
+      margin:0;
+      font-family:'Inter',sans-serif;
+      overflow:hidden;
+      color:var(--text);
+      background: radial-gradient(circle at top, #0f172a 0%, #020617 55%, #01040b 100%);
+    }
+
+    #three-canvas{
+      position:fixed;
+      inset:0;
+      width:100%;
+      height:100%;
+      z-index:-2;
+    }
+
+    .bg-orb{
+      position:fixed;
+      inset:auto;
+      filter: blur(70px);
+      opacity:.4;
+      pointer-events:none;
+      z-index:-1;
+    }
+    .orb-a{ width:360px; height:360px; background:#2563eb; top:-80px; right:-120px; border-radius:999px; }
+    .orb-b{ width:300px; height:300px; background:#0f766e; bottom:-70px; left:-60px; border-radius:999px; }
+
+    .glass{
+      background:var(--bg-panel);
+      backdrop-filter: blur(18px);
+      border:1px solid var(--line);
+      box-shadow:var(--shadow);
+    }
+
+    .glass-soft{
+      background:rgba(255,255,255,0.06);
+      backdrop-filter: blur(10px);
+      border:1px solid rgba(255,255,255,0.08);
+    }
+
+    .sidebar{
+      width:300px;
+      transition: width .28s ease;
+    }
+
+    .sidebar.collapsed{
+      width:96px;
+    }
+
+    .sidebar.collapsed .label,
+    .sidebar.collapsed .sidebar-brand-copy,
+    .sidebar.collapsed .sidebar-footer-copy{
+      display:none;
+    }
+
+    .sidebar.collapsed .nav-btn{
+      justify-content:center;
+    }
+
+    .sidebar.collapsed .nav-btn svg{
+      margin-right:0 !important;
+    }
+
+    .custom-scrollbar{
+      scrollbar-width: thin;
+      scrollbar-color: rgba(148,163,184,.45) transparent;
+    }
+    .custom-scrollbar::-webkit-scrollbar{ width: 8px; height:8px; }
+    .custom-scrollbar::-webkit-scrollbar-track{ background: transparent; }
+    .custom-scrollbar::-webkit-scrollbar-thumb{
+      background: rgba(148,163,184,.35);
+      border-radius:999px;
+    }
+
+    .tab-panel{ display:none; }
+    .tab-panel.active{ display:block; animation: fadeUp .22s ease; }
+
+    @keyframes fadeUp {
+      from { opacity:0; transform:translateY(10px); }
+      to { opacity:1; transform:translateY(0); }
+    }
+
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow:0 0 0 rgba(59,130,246,0); transform:translateY(0); }
+      50% { box-shadow:0 0 24px rgba(59,130,246,.24); transform:translateY(-1px); }
+    }
+
+    .nav-btn.active{
+      background:linear-gradient(135deg, rgba(59,130,246,.95), rgba(14,165,233,.85));
+      color:white;
+      box-shadow:0 14px 32px rgba(59,130,246,.28);
+    }
+
+    .metric-tile{
+      position:relative;
+      overflow:hidden;
+    }
+
+    .metric-tile::after{
+      content:'';
+      position:absolute;
+      inset:auto -20% -40% auto;
+      width:150px;
+      height:150px;
+      background: radial-gradient(circle, rgba(59,130,246,.18), transparent 65%);
+      border-radius:999px;
+      pointer-events:none;
+    }
+
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:.4rem;
+      border-radius:999px;
+      padding:.3rem .7rem;
+      font-size:.75rem;
+      font-weight:700;
+      letter-spacing:.02em;
+      border:1px solid rgba(255,255,255,.1);
+      background:rgba(255,255,255,.06);
+      color:#dbeafe;
+    }
+
+    .pill.high{ background:rgba(239,68,68,.14); color:#fecaca; }
+    .pill.medium{ background:rgba(245,158,11,.14); color:#fde68a; }
+    .pill.low{ background:rgba(34,197,94,.14); color:#bbf7d0; }
+    .pill.active{ background:rgba(59,130,246,.14); color:#bfdbfe; }
+    .pill.pending{ background:rgba(245,158,11,.14); color:#fde68a; }
+    .pill.ready{ background:rgba(34,197,94,.14); color:#bbf7d0; }
+    .pill.discharged{ background:rgba(148,163,184,.14); color:#cbd5e1; }
+
+    .field{
+      width:100%;
+      background:rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.10);
+      color:var(--text);
+      border-radius:14px;
+      outline:none;
+      padding:.9rem 1rem;
+      transition:border-color .18s ease, box-shadow .18s ease, background .18s ease;
+    }
+
+    .field::placeholder { color:#94a3b8; }
+    .field:focus{
+      border-color:rgba(96,165,250,.65);
+      background:rgba(255,255,255,.08);
+      box-shadow:0 0 0 3px rgba(59,130,246,.18);
+    }
+
+    .btn{
+      border:none;
+      border-radius:14px;
+      padding:.9rem 1rem;
+      font-weight:700;
+      cursor:pointer;
+      transition:transform .16s ease, opacity .16s ease, background .16s ease, box-shadow .16s ease;
+    }
+    .btn:hover{ transform:translateY(-1px); }
+    .btn:active{ transform:translateY(0); }
+    .btn-primary{
+      background:linear-gradient(135deg, #2563eb, #0ea5e9);
+      color:white;
+      box-shadow:0 16px 28px rgba(37,99,235,.28);
+    }
+    .btn-secondary{
+      background:rgba(255,255,255,.08);
+      color:var(--text);
+      border:1px solid rgba(255,255,255,.1);
+    }
+    .btn-danger{
+      background:rgba(239,68,68,.12);
+      color:#fecaca;
+      border:1px solid rgba(239,68,68,.22);
+    }
+    .btn-success{
+      background:rgba(34,197,94,.14);
+      color:#bbf7d0;
+      border:1px solid rgba(34,197,94,.22);
+    }
+
+    .section-title{
+      font-size:1.7rem;
+      font-weight:800;
+      letter-spacing:-.03em;
+      color:white;
+    }
+
+    .subtle{
+      color:var(--muted);
+    }
+
+    .modal-wrap{
+      position:fixed;
+      inset:0;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding:1rem;
+      background:rgba(2,6,23,.72);
+      backdrop-filter: blur(6px);
+      z-index:60;
+    }
+    .modal-wrap.open{ display:flex; }
+
+    .intro{
+      position:fixed;
+      inset:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      z-index:80;
+      background:
+        radial-gradient(circle at top, rgba(37,99,235,.20), transparent 35%),
+        radial-gradient(circle at bottom, rgba(20,184,166,.12), transparent 35%),
+        linear-gradient(180deg, rgba(2,6,23,.86), rgba(2,6,23,.97));
+      transition:opacity .45s ease, visibility .45s ease;
+    }
+    .intro.hidden{
+      opacity:0;
+      visibility:hidden;
+      pointer-events:none;
+    }
+
+    .intro-card{
+      width:min(760px, calc(100vw - 2rem));
+      padding:2rem;
+      border-radius:28px;
+      background:rgba(15,23,42,.74);
+      border:1px solid rgba(255,255,255,.12);
+      backdrop-filter: blur(18px);
+      box-shadow:0 30px 80px rgba(2,6,23,.5);
+      animation:pulseGlow 4s ease-in-out infinite;
+    }
+
+    .tiny-note{
+      font-size:.7rem;
+      letter-spacing:.08em;
+      text-transform:uppercase;
+      color:#93c5fd;
+      font-weight:800;
+    }
+
+    .stat-number{
+      font-size:2rem;
+      line-height:1;
+      font-weight:900;
+      color:white;
+      letter-spacing:-.04em;
+    }
+
+    .progress-shell{
+      width:100%;
+      height:10px;
+      border-radius:999px;
+      overflow:hidden;
+      background:rgba(255,255,255,.08);
+    }
+
+    .progress-bar{
+      height:100%;
+      border-radius:999px;
+      background:linear-gradient(90deg, #22c55e, #14b8a6);
+    }
+
+    .task-row.done .task-text{
+      text-decoration:line-through;
+      opacity:.55;
+    }
+
+    .card-hover{
+      transition:transform .18s ease, border-color .18s ease, background .18s ease;
+    }
+    .card-hover:hover{
+      transform:translateY(-2px);
+      border-color:rgba(96,165,250,.32);
+      background:rgba(255,255,255,.08);
+    }
+
+    .empty-state{
+      min-height:280px;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+      gap:.8rem;
+      color:#cbd5e1;
+      border:1px dashed rgba(255,255,255,.14);
+      border-radius:24px;
+      background:rgba(255,255,255,.04);
+    }
+
+    .desktop-grid{
+      display:grid;
+      grid-template-columns: minmax(0, 1fr) 360px;
+      gap:1.2rem;
+    }
+
+    @media (max-width: 1180px){
+      .desktop-grid{ grid-template-columns:1fr; }
+    }
+
+    @media (max-width: 900px){
+      body{ overflow:auto; }
+      #app-shell{
+        flex-direction:column;
+        height:auto;
+        min-height:100vh;
+      }
+      .sidebar{
+        width:100% !important;
+        min-height:auto;
+      }
+      .sidebar.collapsed .label,
+      .sidebar.collapsed .sidebar-brand-copy,
+      .sidebar.collapsed .sidebar-footer-copy{
+        display:initial;
+      }
+      .sidebar.collapsed .nav-btn{
+        justify-content:flex-start;
+      }
+      .sidebar.collapsed .nav-btn svg{
+        margin-right:.75rem !important;
+      }
+      #main-area{
+        height:auto !important;
+        overflow:visible !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="three-canvas"></canvas>
+  <div class="bg-orb orb-a"></div>
+  <div class="bg-orb orb-b"></div>
+
+  <div id="intro" class="intro">
+    <div class="intro-card">
+      <div class="tiny-note mb-4">Clinical Pocket Assistant · MVP</div>
+      <div class="grid md:grid-cols-[1.2fr_.8fr] gap-8 items-center">
+        <div>
+          <h1 class="text-4xl md:text-5xl font-black tracking-tight text-white mb-4">Morning Rounds became a real little hospital gremlin.</h1>
+          <p class="text-slate-300 text-base md:text-lg leading-relaxed mb-6">
+            This expanded build turns the starter scratchpad into a fuller local-first MVP with census tracking, patient charts, SOAP drafting,
+            handoff generation, calculator tools, JSON backup, and persistent data storage in your browser.
+          </p>
+          <div class="flex flex-wrap gap-3">
+            <button class="btn btn-primary" onclick="dismissIntro()">Enter Workspace</button>
+            <button class="btn btn-secondary" onclick="seedFreshDemo()">Reload Demo Data</button>
+          </div>
+          <p class="text-xs text-slate-400 mt-4">
+            Local browser MVP only. Convenience aid, not clinical judgment. Verify calculations and patient data before use.
+          </p>
+        </div>
+        <div class="glass rounded-[24px] p-5">
+          <div class="grid grid-cols-2 gap-4">
+            <div class="glass-soft rounded-2xl p-4">
+              <div class="tiny-note">Modules</div>
+              <div class="stat-number mt-2">7</div>
+              <div class="subtle mt-2 text-sm">Dashboard, Rounds, Chart, SOAP, Handoff, Calculators, Settings</div>
+            </div>
+            <div class="glass-soft rounded-2xl p-4">
+              <div class="tiny-note">Persistence</div>
+              <div class="stat-number mt-2">Local</div>
+              <div class="subtle mt-2 text-sm">Autosaves into browser storage</div>
+            </div>
+            <div class="glass-soft rounded-2xl p-4 col-span-2">
+              <div class="tiny-note">What changed</div>
+              <div class="subtle mt-2 text-sm leading-6">
+                More complete patient objects, selectable charts, task tracking, shift handoff export, import/export backup, and a more usable dashboard.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="app-shell" class="h-screen flex">
+    <aside id="sidebar" class="sidebar glass m-3 rounded-[28px] p-4 flex flex-col gap-4">
+      <div class="flex items-center justify-between gap-3 px-2 pt-2">
+        <div class="flex items-center gap-3">
+          <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-blue-500/20">
+            <svg xmlns="http://www.w3.org/2000/svg" width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+          </div>
+          <div class="sidebar-brand-copy">
+            <div class="tiny-note">Pocket Assistant</div>
+            <div class="text-white font-black text-lg tracking-tight">Clinical MVP</div>
+          </div>
+        </div>
+        <button class="btn btn-secondary !p-3" onclick="toggleSidebar()" title="Collapse sidebar">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+        </button>
+      </div>
+
+      <div class="glass-soft rounded-2xl p-3 flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-200 flex items-center justify-center">
+          <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+        </div>
+        <div class="sidebar-footer-copy">
+          <div class="text-white font-semibold text-sm" id="currentDateLabel">Today</div>
+          <div class="subtle text-xs" id="currentTimeLabel">--:--</div>
+        </div>
+      </div>
+
+      <nav class="flex-1 flex flex-col gap-2 pt-2">
+        <button class="nav-btn active btn btn-secondary !bg-transparent text-left !py-3 !px-4 flex items-center gap-3" data-tab-btn="dashboard" onclick="switchTab('dashboard')">
+          <svg xmlns="http://www.w3.org/2000/svg" class="shrink-0" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"></rect><rect x="14" y="3" width="7" height="5" rx="1.5"></rect><rect x="14" y="12" width="7" height="9" rx="1.5"></rect><rect x="3" y="16" width="7" height="5" rx="1.5"></rect></svg>
+          <span class="label">Dashboard</span>
+        </button>
+
+        <button class="nav-btn btn btn-secondary !bg-transparent text-left !py-3 !px-4 flex items-center gap-3" data-tab-btn="rounds" onclick="switchTab('rounds')">
+          <svg xmlns="http://www.w3.org/2000/svg" class="shrink-0" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+          <span class="label">Rounds</span>
+        </button>
+
+        <button class="nav-btn btn btn-secondary !bg-transparent text-left !py-3 !px-4 flex items-center gap-3" data-tab-btn="chart" onclick="switchTab('chart')">
+          <svg xmlns="http://www.w3.org/2000/svg" class="shrink-0" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><path d="M9 14h6"></path><path d="M9 18h6"></path></svg>
+          <span class="label">Patient Chart</span>
+        </button>
+
+        <button class="nav-btn btn btn-secondary !bg-transparent text-left !py-3 !px-4 flex items-center gap-3" data-tab-btn="soap" onclick="switchTab('soap')">
+          <svg xmlns="http://www.w3.org/2000/svg" class="shrink-0" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V4h16v3"></path><path d="M9 20h6"></path><path d="M12 4v16"></path><rect x="4" y="7" width="16" height="13" rx="2"></rect></svg>
+          <span class="label">SOAP Builder</span>
+        </button>
+
+        <button class="nav-btn btn btn-secondary !bg-transparent text-left !py-3 !px-4 flex items-center gap-3" data-tab-btn="handoff" onclick="switchTab('handoff')">
+          <svg xmlns="http://www.w3.org/2000/svg" class="shrink-0" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h16"></path><path d="m10 18 6-6-6-6"></path></svg>
+          <span class="label">Handoff</span>
+        </button>
+
+        <button class="nav-btn btn btn-secondary !bg-transparent text-left !py-3 !px-4 flex items-center gap-3" data-tab-btn="calculators" onclick="switchTab('calculators')">
+          <svg xmlns="http://www.w3.org/2000/svg" class="shrink-0" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"></rect><line x1="8" y1="6" x2="16" y2="6"></line><path d="M8 10h.01"></path><path d="M12 10h.01"></path><path d="M16 10h.01"></path><path d="M8 14h.01"></path><path d="M12 14h.01"></path><path d="M16 14h.01"></path><path d="M8 18h.01"></path><path d="M12 18h.01"></path><path d="M16 18h.01"></path></svg>
+          <span class="label">Calculators</span>
+        </button>
+
+        <button class="nav-btn btn btn-secondary !bg-transparent text-left !py-3 !px-4 flex items-center gap-3" data-tab-btn="settings" onclick="switchTab('settings')">
+          <svg xmlns="http://www.w3.org/2000/svg" class="shrink-0" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 8.92 4.6H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.36.23.79.36 1.21.36H21a2 2 0 1 1 0 4h-.09c-.42 0-.85.13-1.21.36Z"></path></svg>
+          <span class="label">Settings</span>
+        </button>
+      </nav>
+
+      <div class="glass-soft rounded-2xl p-4 sidebar-footer-copy">
+        <div class="tiny-note">Workspace mode</div>
+        <div class="text-white font-semibold mt-2">Local-first MVP</div>
+        <div class="subtle text-sm mt-1">Autosave, backup export, patient chart editing, and handoff output.</div>
+      </div>
+    </aside>
+
+    <main id="main-area" class="flex-1 h-screen overflow-auto custom-scrollbar px-2 md:px-3 py-3">
+      <div class="max-w-[1600px] mx-auto h-full">
+        <div class="glass rounded-[28px] min-h-full p-5 md:p-7">
+          <header class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
+            <div>
+              <div class="tiny-note">Clinical pocket assistant</div>
+              <h2 id="pageTitle" class="section-title mt-2">Dashboard</h2>
+              <p id="pageSubTitle" class="subtle mt-1">Operational view of rounds, pending tasks, and the current census.</p>
+            </div>
+            <div class="flex flex-wrap items-center gap-3">
+              <div class="glass-soft rounded-2xl px-4 py-3 min-w-[220px]">
+                <div class="tiny-note">Selected patient</div>
+                <div id="selectedPatientBanner" class="text-white font-semibold mt-2">No chart selected</div>
+              </div>
+              <button class="btn btn-primary" onclick="openPatientModal()">Add Patient</button>
+            </div>
+          </header>
+
+          <section id="dashboard" class="tab-panel active">
+            <div class="grid xl:grid-cols-4 md:grid-cols-2 gap-4 mb-6" id="dashboardMetrics"></div>
+            <div class="desktop-grid">
+              <div class="space-y-4">
+                <div class="glass-soft rounded-[24px] p-5">
+                  <div class="flex items-center justify-between gap-3 mb-5">
+                    <div>
+                      <div class="tiny-note">Live census</div>
+                      <h3 class="text-white font-bold text-xl mt-1">Round queue</h3>
+                    </div>
+                    <button class="btn btn-secondary !py-2 !px-3 text-sm" onclick="switchTab('rounds')">Open Rounds</button>
+                  </div>
+                  <div id="dashboardRoundQueue" class="space-y-3"></div>
+                </div>
+
+                <div class="glass-soft rounded-[24px] p-5">
+                  <div class="tiny-note mb-2">Pending work</div>
+                  <h3 class="text-white font-bold text-xl mb-4">Task radar</h3>
+                  <div id="dashboardTasks" class="space-y-3"></div>
+                </div>
+              </div>
+
+              <div class="space-y-4">
+                <div class="glass-soft rounded-[24px] p-5">
+                  <div class="tiny-note mb-2">Shift snapshot</div>
+                  <h3 class="text-white font-bold text-xl mb-4">Readiness</h3>
+                  <div class="space-y-4" id="dashboardReadiness"></div>
+                </div>
+
+                <div class="glass-soft rounded-[24px] p-5">
+                  <div class="tiny-note mb-2">Quick actions</div>
+                  <h3 class="text-white font-bold text-xl mb-4">Useful buttons</h3>
+                  <div class="grid grid-cols-1 gap-3">
+                    <button class="btn btn-secondary text-left" onclick="switchTab('soap')">Open SOAP Builder</button>
+                    <button class="btn btn-secondary text-left" onclick="switchTab('handoff')">Generate Handoff</button>
+                    <button class="btn btn-secondary text-left" onclick="exportState()">Export JSON Backup</button>
+                    <button class="btn btn-secondary text-left" onclick="copyRoundingChecklist()">Copy Standard Rounding Checklist</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section id="rounds" class="tab-panel">
+            <div class="flex flex-col xl:flex-row gap-4 xl:items-end justify-between mb-6">
+              <div>
+                <h3 class="text-white font-bold text-2xl">Morning rounds board</h3>
+                <p class="subtle mt-1">Search, sort, and open charts. This is the working census surface.</p>
+              </div>
+              <div class="grid sm:grid-cols-4 gap-3 w-full xl:w-auto">
+                <input id="roundsSearch" class="field sm:col-span-2" placeholder="Search room, patient, dx, attending..." oninput="setRoundsSearch(this.value)">
+                <select id="statusFilter" class="field" onchange="setRoundsFilter('status', this.value)">
+                  <option value="all">All statuses</option>
+                  <option value="Active">Active</option>
+                  <option value="Ready for Discharge">Ready for Discharge</option>
+                  <option value="Pending Tests">Pending Tests</option>
+                  <option value="Discharged">Discharged</option>
+                </select>
+                <select id="acuityFilter" class="field" onchange="setRoundsFilter('acuity', this.value)">
+                  <option value="all">All acuity</option>
+                  <option value="High">High</option>
+                  <option value="Medium">Medium</option>
+                  <option value="Low">Low</option>
+                </select>
+              </div>
+            </div>
+            <div id="roundsGrid" class="grid xl:grid-cols-2 gap-4"></div>
+          </section>
+
+          <section id="chart" class="tab-panel">
+            <div class="flex flex-col xl:flex-row gap-4 xl:items-center justify-between mb-6">
+              <div>
+                <h3 class="text-white font-bold text-2xl">Patient chart editor</h3>
+                <p class="subtle mt-1">Select a patient from rounds or use the selector below. Edits autosave locally.</p>
+              </div>
+              <div class="grid sm:grid-cols-[minmax(0,280px)_auto_auto] gap-3">
+                <select id="chartPatientSelect" class="field" onchange="selectPatient(this.value)">
+                  <option value="">Select patient...</option>
+                </select>
+                <button class="btn btn-secondary" onclick="copyPatientSnapshot()">Copy Snapshot</button>
+                <button class="btn btn-secondary" onclick="openPatientModal(getSelectedPatient())">Edit Header Fields</button>
+              </div>
+            </div>
+
+            <div id="chartPanel"></div>
+          </section>
+
+          <section id="soap" class="tab-panel">
+            <div class="flex flex-col xl:flex-row gap-4 xl:items-center justify-between mb-6">
+              <div>
+                <h3 class="text-white font-bold text-2xl">SOAP note builder</h3>
+                <p class="subtle mt-1">Draft notes per patient, apply templates, and copy the finished block.</p>
+              </div>
+              <div class="flex flex-wrap gap-3">
+                <select id="soapPatientSelect" class="field min-w-[280px]" onchange="setSoapPatient(this.value)">
+                  <option value="">Select patient...</option>
+                </select>
+                <button class="btn btn-secondary" onclick="applySoapTemplate('general')">General Template</button>
+                <button class="btn btn-secondary" onclick="applySoapTemplate('postop')">Post-op</button>
+                <button class="btn btn-secondary" onclick="applySoapTemplate('sepsis')">Sepsis</button>
+              </div>
+            </div>
+
+            <div class="grid xl:grid-cols-2 gap-4">
+              <div class="glass-soft rounded-[24px] overflow-hidden flex flex-col">
+                <div class="px-5 py-4 border-b border-white/10">
+                  <div class="tiny-note">Subjective</div>
+                </div>
+                <textarea id="soapSubjective" class="field !rounded-none !border-0 !bg-transparent min-h-[220px]" placeholder="Patient report, overnight events, symptoms..." oninput="updateSoapField('subjective', this.value)"></textarea>
+              </div>
+
+              <div class="glass-soft rounded-[24px] overflow-hidden flex flex-col">
+                <div class="px-5 py-4 border-b border-white/10">
+                  <div class="tiny-note">Objective</div>
+                </div>
+                <textarea id="soapObjective" class="field !rounded-none !border-0 !bg-transparent min-h-[220px]" placeholder="Vitals, exam, imaging, labs..." oninput="updateSoapField('objective', this.value)"></textarea>
+              </div>
+
+              <div class="glass-soft rounded-[24px] overflow-hidden flex flex-col">
+                <div class="px-5 py-4 border-b border-white/10">
+                  <div class="tiny-note">Assessment</div>
+                </div>
+                <textarea id="soapAssessment" class="field !rounded-none !border-0 !bg-transparent min-h-[220px]" placeholder="Problems, differential, interpretation..." oninput="updateSoapField('assessment', this.value)"></textarea>
+              </div>
+
+              <div class="glass-soft rounded-[24px] overflow-hidden flex flex-col">
+                <div class="px-5 py-4 border-b border-white/10">
+                  <div class="tiny-note">Plan</div>
+                </div>
+                <textarea id="soapPlan" class="field !rounded-none !border-0 !bg-transparent min-h-[220px]" placeholder="Orders, consults, meds, follow-up..." oninput="updateSoapField('plan', this.value)"></textarea>
+              </div>
+            </div>
+
+            <div class="flex flex-wrap gap-3 mt-5">
+              <button class="btn btn-primary" onclick="copySoap()">Copy SOAP</button>
+              <button class="btn btn-secondary" onclick="syncSoapToChart()">Sync note into chart</button>
+              <button class="btn btn-secondary" onclick="clearSoapForSelected()">Clear SOAP</button>
+            </div>
+          </section>
+
+          <section id="handoff" class="tab-panel">
+            <div class="flex flex-col xl:flex-row xl:items-center justify-between gap-4 mb-6">
+              <div>
+                <h3 class="text-white font-bold text-2xl">Shift handoff generator</h3>
+                <p class="subtle mt-1">Turns chart data into a quick signout block. Copy it or export it to a text file.</p>
+              </div>
+              <div class="flex flex-wrap gap-3">
+                <select id="handoffMode" class="field min-w-[220px]" onchange="renderHandoff()">
+                  <option value="active">Only active / pending patients</option>
+                  <option value="all">All patients</option>
+                  <option value="selected">Selected patient only</option>
+                </select>
+                <button class="btn btn-secondary" onclick="copyHandoff()">Copy Handoff</button>
+                <button class="btn btn-secondary" onclick="downloadHandoff()">Download TXT</button>
+              </div>
+            </div>
+            <div class="grid xl:grid-cols-[.8fr_1.2fr] gap-4">
+              <div class="glass-soft rounded-[24px] p-5">
+                <div class="tiny-note mb-2">Included patients</div>
+                <div id="handoffList" class="space-y-3"></div>
+              </div>
+              <div class="glass-soft rounded-[24px] p-5">
+                <div class="tiny-note mb-2">Generated output</div>
+                <textarea id="handoffOutput" class="field min-h-[560px]" spellcheck="false"></textarea>
+              </div>
+            </div>
+          </section>
+
+          <section id="calculators" class="tab-panel">
+            <div class="mb-6">
+              <h3 class="text-white font-bold text-2xl">Clinical calculators</h3>
+              <p class="subtle mt-1">Quick utility math. Verify against policy, patient context, and your actual workflow.</p>
+            </div>
+
+            <div class="grid xl:grid-cols-2 gap-4">
+              <div class="glass-soft rounded-[24px] p-5">
+                <div class="tiny-note mb-2">MAP</div>
+                <h4 class="text-white font-bold text-xl mb-4">Mean arterial pressure</h4>
+                <div class="grid sm:grid-cols-2 gap-3 mb-4">
+                  <input id="mapSBP" type="number" class="field" placeholder="Systolic" oninput="calcMAP()">
+                  <input id="mapDBP" type="number" class="field" placeholder="Diastolic" oninput="calcMAP()">
+                </div>
+                <div class="glass rounded-2xl p-5">
+                  <div class="tiny-note">Result</div>
+                  <div id="mapResult" class="text-white font-black text-5xl mt-2">--</div>
+                  <div class="subtle mt-2 text-sm">Formula: (SBP + 2×DBP) / 3</div>
+                </div>
+              </div>
+
+              <div class="glass-soft rounded-[24px] p-5">
+                <div class="tiny-note mb-2">Dose</div>
+                <h4 class="text-white font-bold text-xl mb-4">Weight-based medication dose</h4>
+                <div class="grid sm:grid-cols-2 gap-3 mb-4">
+                  <input id="doseKg" type="number" class="field" placeholder="Weight (kg)" oninput="calcDose()">
+                  <input id="doseMgKg" type="number" class="field" placeholder="Dose (mg/kg)" oninput="calcDose()">
+                </div>
+                <div class="glass rounded-2xl p-5">
+                  <div class="tiny-note">Result</div>
+                  <div id="doseResult" class="text-white font-black text-5xl mt-2">--</div>
+                  <div class="subtle mt-2 text-sm">Returns total mg.</div>
+                </div>
+              </div>
+
+              <div class="glass-soft rounded-[24px] p-5">
+                <div class="tiny-note mb-2">Electrolytes</div>
+                <h4 class="text-white font-bold text-xl mb-4">Corrected sodium (for hyperglycemia)</h4>
+                <div class="grid sm:grid-cols-2 gap-3 mb-4">
+                  <input id="sodiumNa" type="number" class="field" placeholder="Measured sodium" oninput="calcCorrectedNa()">
+                  <input id="sodiumGlu" type="number" class="field" placeholder="Glucose" oninput="calcCorrectedNa()">
+                </div>
+                <div class="glass rounded-2xl p-5">
+                  <div class="tiny-note">Result</div>
+                  <div id="sodiumResult" class="text-white font-black text-5xl mt-2">--</div>
+                  <div class="subtle mt-2 text-sm">Using +1.6 mEq/L per 100 mg/dL glucose over 100.</div>
+                </div>
+              </div>
+
+              <div class="glass-soft rounded-[24px] p-5">
+                <div class="tiny-note mb-2">Renal</div>
+                <h4 class="text-white font-bold text-xl mb-4">Creatinine clearance (Cockcroft-Gault)</h4>
+                <div class="grid sm:grid-cols-2 gap-3 mb-4">
+                  <input id="crclAge" type="number" class="field" placeholder="Age" oninput="calcCrCl()">
+                  <input id="crclWeight" type="number" class="field" placeholder="Weight (kg)" oninput="calcCrCl()">
+                  <input id="crclCr" type="number" step="0.01" class="field" placeholder="Serum creatinine" oninput="calcCrCl()">
+                  <select id="crclSex" class="field" onchange="calcCrCl()">
+                    <option value="male">Sex: male</option>
+                    <option value="female">Sex: female</option>
+                  </select>
+                </div>
+                <div class="glass rounded-2xl p-5">
+                  <div class="tiny-note">Result</div>
+                  <div id="crclResult" class="text-white font-black text-5xl mt-2">--</div>
+                  <div class="subtle mt-2 text-sm">Approximation in mL/min.</div>
+                </div>
+              </div>
+
+              <div class="glass-soft rounded-[24px] p-5 xl:col-span-2">
+                <div class="tiny-note mb-2">Acid-base</div>
+                <h4 class="text-white font-bold text-xl mb-4">Anion gap</h4>
+                <div class="grid md:grid-cols-4 gap-3 mb-4">
+                  <input id="agNa" type="number" class="field" placeholder="Na" oninput="calcAnionGap()">
+                  <input id="agCl" type="number" class="field" placeholder="Cl" oninput="calcAnionGap()">
+                  <input id="agHco3" type="number" class="field" placeholder="HCO3" oninput="calcAnionGap()">
+                  <input id="agAlbumin" type="number" step="0.1" class="field" placeholder="Albumin (optional)" oninput="calcAnionGap()">
+                </div>
+                <div class="grid lg:grid-cols-2 gap-4">
+                  <div class="glass rounded-2xl p-5">
+                    <div class="tiny-note">Raw gap</div>
+                    <div id="agResult" class="text-white font-black text-5xl mt-2">--</div>
+                  </div>
+                  <div class="glass rounded-2xl p-5">
+                    <div class="tiny-note">Albumin-corrected</div>
+                    <div id="agCorrectedResult" class="text-white font-black text-5xl mt-2">--</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section id="settings" class="tab-panel">
+            <div class="mb-6">
+              <h3 class="text-white font-bold text-2xl">Settings and data controls</h3>
+              <p class="subtle mt-1">This MVP stores data in your browser. Export often if you want a manual backup.</p>
+            </div>
+            <div class="grid xl:grid-cols-2 gap-4">
+              <div class="glass-soft rounded-[24px] p-5">
+                <div class="tiny-note mb-2">Data operations</div>
+                <h4 class="text-white font-bold text-xl mb-4">Backup and restore</h4>
+                <div class="grid gap-3">
+                  <button class="btn btn-secondary text-left" onclick="exportState()">Export JSON backup</button>
+                  <label class="btn btn-secondary text-left cursor-pointer">
+                    Import JSON backup
+                    <input id="importFileInput" type="file" accept="application/json" class="hidden" onchange="importState(event)">
+                  </label>
+                  <button class="btn btn-secondary text-left" onclick="seedFreshDemo()">Reset to fresh demo data</button>
+                </div>
+                <div class="subtle text-sm mt-4">
+                  Imported data overwrites the current local state. Keep a backup unless you enjoy chaos goblins.
+                </div>
+              </div>
+
+              <div class="glass-soft rounded-[24px] p-5">
+                <div class="tiny-note mb-2">Workspace notes</div>
+                <h4 class="text-white font-bold text-xl mb-4">Build scope</h4>
+                <div class="space-y-3 text-sm text-slate-300 leading-7">
+                  <p>Included in this MVP: census management, chart editing, task tracking, SOAP drafting, handoff generation, calculators, and local JSON backup.</p>
+                  <p>Not included: authentication, multi-user sync, audit trail, server persistence, role permissions, or EHR integration. Those would be next-lane work.</p>
+                  <p>This is a stronger MVP skeleton than the original starter and keeps the single-file portability magic trick intact.</p>
+                </div>
+              </div>
+
+              <div class="glass-soft rounded-[24px] p-5 xl:col-span-2">
+                <div class="tiny-note mb-2">Danger zone</div>
+                <h4 class="text-white font-bold text-xl mb-4">Clear everything</h4>
+                <div class="flex flex-wrap gap-3">
+                  <button class="btn btn-danger" onclick="wipeAllData()">Delete all local data</button>
+                  <button class="btn btn-secondary" onclick="dismissIntro(false, true)">Show intro again</button>
+                </div>
+                <div class="subtle text-sm mt-4">Deleting local data removes the browser-stored state for this app only.</div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div id="patientModal" class="modal-wrap">
+    <div class="glass rounded-[28px] p-5 md:p-6 w-full max-w-5xl max-h-[92vh] overflow-auto custom-scrollbar">
+      <div class="flex items-start justify-between gap-4 mb-5">
+        <div>
+          <div class="tiny-note">Patient editor</div>
+          <h3 id="patientModalTitle" class="text-white font-black text-2xl mt-2">Add patient</h3>
+        </div>
+        <button class="btn btn-secondary !p-3" onclick="closePatientModal()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+
+      <form id="patientForm" onsubmit="savePatientFromModal(event)">
+        <input type="hidden" id="modalPatientId">
+        <div class="grid lg:grid-cols-4 md:grid-cols-2 gap-4">
+          <input id="modalRoom" class="field" placeholder="Room">
+          <input id="modalName" class="field" placeholder="Patient name">
+          <input id="modalMRN" class="field" placeholder="MRN">
+          <input id="modalAge" type="number" class="field" placeholder="Age">
+
+          <select id="modalAcuity" class="field">
+            <option value="High">Acuity: High</option>
+            <option value="Medium">Acuity: Medium</option>
+            <option value="Low">Acuity: Low</option>
+          </select>
+
+          <select id="modalStatus" class="field">
+            <option value="Active">Status: Active</option>
+            <option value="Pending Tests">Status: Pending Tests</option>
+            <option value="Ready for Discharge">Status: Ready for Discharge</option>
+            <option value="Discharged">Status: Discharged</option>
+          </select>
+
+          <input id="modalDiagnosis" class="field lg:col-span-2" placeholder="Primary diagnosis">
+          <input id="modalAttending" class="field" placeholder="Attending">
+          <input id="modalCodeStatus" class="field" placeholder="Code status">
+          <input id="modalAllergies" class="field lg:col-span-2" placeholder="Allergies">
+
+          <input id="modalTemp" class="field" placeholder="Temp e.g. 37.1 C">
+          <input id="modalHR" class="field" placeholder="HR">
+          <input id="modalBP" class="field" placeholder="BP e.g. 118/74">
+          <input id="modalRR" class="field" placeholder="RR">
+          <input id="modalSpO2" class="field" placeholder="SpO2">
+          <input id="modalWeight" class="field" placeholder="Weight kg">
+
+          <textarea id="modalOvernight" class="field lg:col-span-2 min-h-[120px]" placeholder="Overnight events"></textarea>
+          <textarea id="modalPlanPreview" class="field lg:col-span-2 min-h-[120px]" placeholder="Quick plan preview"></textarea>
+        </div>
+
+        <div class="flex flex-wrap gap-3 mt-6">
+          <button class="btn btn-primary" type="submit">Save patient</button>
+          <button class="btn btn-secondary" type="button" onclick="closePatientModal()">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="toast" class="fixed bottom-6 right-6 glass rounded-2xl px-4 py-3 text-sm text-white opacity-0 pointer-events-none translate-y-4 transition-all duration-300 z-[90]">
+    Saved.
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'clinical-pocket-assistant-mvp-v1';
+
+    const ui = {
+      activeTab: 'dashboard',
+      selectedPatientId: null,
+      soapPatientId: null,
+      search: '',
+      filterStatus: 'all',
+      filterAcuity: 'all',
+      sidebarCollapsed: false
+    };
+
+    let state = {
+      introSeen: false,
+      patients: []
+    };
+
+    const defaultChecklist = [
+      'Review overnight events and new consults',
+      'Trend vitals and telemetry',
+      'Check new labs / imaging',
+      'Confirm meds, DVT ppx, lines, drains, diet',
+      'Update assessment / plan and discharge barriers'
+    ];
+
+    function uid(prefix = 'id'){
+      return `${prefix}_${Math.random().toString(36).slice(2, 9)}_${Date.now().toString(36)}`;
+    }
+
+    function nowISO(){
+      return new Date().toISOString();
+    }
+
+    function demoPatients(){
+      return [
+        {
+          id: uid('pt'),
+          room: '402',
+          name: 'Sarah Henderson',
+          mrn: 'MRN-01482',
+          age: 64,
+          diagnosis: 'Suspected biliary obstruction',
+          attending: 'Dr. Rao',
+          codeStatus: 'Full Code',
+          allergies: 'Penicillin',
+          acuity: 'High',
+          status: 'Pending Tests',
+          vitals: { temp: '37.9 C', hr: '108', bp: '94/62', rr: '22', spo2: '95% RA', weightKg: '71' },
+          overnightEvents: 'Febrile overnight. RUQ pain improved after analgesia. Awaiting MRCP slot.',
+          subjective: 'Reports less abdominal pain this morning, still nauseated. No chest pain or SOB.',
+          objective: 'Low-grade fever. Mild RUQ tenderness. WBC elevated. Alk phos and bilirubin rising.',
+          assessment: 'Concern for obstructive process with possible cholangitis risk. Hemodynamically borderline but mentating well.',
+          plan: 'Trend CMP/CBC, expedite MRCP, continue fluids, keep NPO pending imaging, GI aware.',
+          tasks: [
+            { id: uid('task'), text: 'Call MRI scheduling', done: false },
+            { id: uid('task'), text: 'Repeat CMP at noon', done: false },
+            { id: uid('task'), text: 'Message GI re worsening bilirubin', done: true }
+          ],
+          createdAt: nowISO(),
+          updatedAt: nowISO()
+        },
+        {
+          id: uid('pt'),
+          room: '415',
+          name: 'James Miller',
+          mrn: 'MRN-10214',
+          age: 58,
+          diagnosis: 'Post-op colectomy day 2',
+          attending: 'Dr. Benton',
+          codeStatus: 'Full Code',
+          allergies: 'NKDA',
+          acuity: 'Medium',
+          status: 'Active',
+          vitals: { temp: '36.8 C', hr: '84', bp: '128/76', rr: '18', spo2: '98% 2L', weightKg: '86' },
+          overnightEvents: 'Pain reasonably controlled. Passed flatus. No emesis.',
+          subjective: 'Feels better, wants to walk more. Some incisional soreness.',
+          objective: 'Abdomen soft, dressing clean, minimal drain output. Creatinine stable.',
+          assessment: 'Expected post-op recovery, not yet ready for discharge but moving in the right direction.',
+          plan: 'Advance diet per surgery, ambulate TID, continue incentive spirometry, monitor bowel function.',
+          tasks: [
+            { id: uid('task'), text: 'Confirm PT ambulation note', done: false },
+            { id: uid('task'), text: 'Review AM CBC', done: true }
+          ],
+          createdAt: nowISO(),
+          updatedAt: nowISO()
+        },
+        {
+          id: uid('pt'),
+          room: '423',
+          name: 'Linda Brooks',
+          mrn: 'MRN-55411',
+          age: 73,
+          diagnosis: 'CHF exacerbation',
+          attending: 'Dr. Chawla',
+          codeStatus: 'DNR/DNI',
+          allergies: 'Sulfa',
+          acuity: 'Medium',
+          status: 'Ready for Discharge',
+          vitals: { temp: '36.6 C', hr: '76', bp: '118/70', rr: '17', spo2: '96% RA', weightKg: '64' },
+          overnightEvents: 'No acute events. Net negative 1.8L in last 24 hours.',
+          subjective: 'Breathing much improved. Wants to go home.',
+          objective: 'Minimal bibasilar crackles, no edema, creatinine stable, oxygenation adequate on room air.',
+          assessment: 'Volume status improved with IV diuresis. May be discharge-ready once med rec and follow-up finalized.',
+          plan: 'Transition to PO diuretic, reinforce salt / fluid counseling, arrange close outpatient follow-up.',
+          tasks: [
+            { id: uid('task'), text: 'Print discharge instructions', done: false },
+            { id: uid('task'), text: 'Confirm home meds', done: false }
+          ],
+          createdAt: nowISO(),
+          updatedAt: nowISO()
+        }
+      ];
+    }
+
+    function persist(){
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    function loadState(){
+      try{
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if(raw){
+          const parsed = JSON.parse(raw);
+          if(parsed && Array.isArray(parsed.patients)){
+            state = parsed;
+          } else {
+            state = { introSeen:false, patients: demoPatients() };
+          }
+        } else {
+          state = { introSeen:false, patients: demoPatients() };
+          persist();
+        }
+      } catch(err){
+        console.error(err);
+        state = { introSeen:false, patients: demoPatients() };
+        persist();
+      }
+
+      if(!state.patients.length){
+        state.patients = demoPatients();
+      }
+
+      if(!ui.selectedPatientId && state.patients[0]){
+        ui.selectedPatientId = state.patients[0].id;
+      }
+      if(!ui.soapPatientId && state.patients[0]){
+        ui.soapPatientId = ui.selectedPatientId || state.patients[0].id;
+      }
+
+      document.getElementById('intro').classList.toggle('hidden', !!state.introSeen);
+    }
+
+    function sortPatients(patients){
+      const acuityRank = { High: 0, Medium: 1, Low: 2 };
+      return [...patients].sort((a,b) => {
+        const acuityCompare = (acuityRank[a.acuity] ?? 99) - (acuityRank[b.acuity] ?? 99);
+        if(acuityCompare !== 0) return acuityCompare;
+        return String(a.room).localeCompare(String(b.room), undefined, { numeric:true });
+      });
+    }
+
+    function filteredPatients(){
+      const needle = ui.search.trim().toLowerCase();
+      return sortPatients(state.patients).filter(p => {
+        const matchesSearch = !needle || [
+          p.room, p.name, p.diagnosis, p.attending, p.status, p.acuity, p.mrn
+        ].join(' ').toLowerCase().includes(needle);
+
+        const matchesStatus = ui.filterStatus === 'all' || p.status === ui.filterStatus;
+        const matchesAcuity = ui.filterAcuity === 'all' || p.acuity === ui.filterAcuity;
+        return matchesSearch && matchesStatus && matchesAcuity;
+      });
+    }
+
+    function getPatient(id){
+      return state.patients.find(p => p.id === id) || null;
+    }
+
+    function getSelectedPatient(){
+      return getPatient(ui.selectedPatientId);
+    }
+
+    function touchPatient(id){
+      const p = getPatient(id);
+      if(p){
+        p.updatedAt = nowISO();
+        persist();
+      }
+    }
+
+    function showToast(msg){
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-4');
+      clearTimeout(showToast._timer);
+      showToast._timer = setTimeout(() => {
+        toast.classList.add('opacity-0', 'pointer-events-none', 'translate-y-4');
+      }, 2200);
+    }
+
+    function dismissIntro(markSeen = true, forceShow = false){
+      if(forceShow){
+        state.introSeen = false;
+        persist();
+        document.getElementById('intro').classList.remove('hidden');
+        return;
+      }
+      state.introSeen = markSeen;
+      persist();
+      document.getElementById('intro').classList.add('hidden');
+    }
+
+    function setHeaderForTab(tab){
+      const map = {
+        dashboard: ['Dashboard', 'Operational view of rounds, pending tasks, and the current census.'],
+        rounds: ['Morning Rounds', 'Search, sort, and work through the patient list.'],
+        chart: ['Patient Chart', 'Editable chart fields for the currently selected patient.'],
+        soap: ['SOAP Builder', 'Draft structured notes and copy them out.'],
+        handoff: ['Shift Handoff', 'Generate a compact signout summary.'],
+        calculators: ['Calculators', 'Fast bedside math with guardrails and sanity checks.'],
+        settings: ['Settings', 'Data controls, backup, restore, and destructive actions.']
+      };
+      const [title, subtitle] = map[tab] || ['Clinical Pocket Assistant', ''];
+      document.getElementById('pageTitle').textContent = title;
+      document.getElementById('pageSubTitle').textContent = subtitle;
+    }
+
+    function switchTab(tab){
+      ui.activeTab = tab;
+      document.querySelectorAll('.tab-panel').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('[data-tab-btn]').forEach(el => el.classList.remove('active'));
+      document.getElementById(tab).classList.add('active');
+      document.querySelector(`[data-tab-btn="${tab}"]`)?.classList.add('active');
+      setHeaderForTab(tab);
+      if(tab === 'handoff') renderHandoff();
+      if(tab === 'soap') renderSoap();
+    }
+
+    function toggleSidebar(){
+      ui.sidebarCollapsed = !ui.sidebarCollapsed;
+      document.getElementById('sidebar').classList.toggle('collapsed', ui.sidebarCollapsed);
+    }
+
+    function formatDateTime(){
+      const now = new Date();
+      const date = now.toLocaleDateString(undefined, { weekday:'long', month:'short', day:'numeric', year:'numeric' });
+      const time = now.toLocaleTimeString(undefined, { hour:'numeric', minute:'2-digit' });
+      document.getElementById('currentDateLabel').textContent = date;
+      document.getElementById('currentTimeLabel').textContent = time;
+    }
+
+    function setRoundsSearch(value){
+      ui.search = value;
+      renderRounds();
+    }
+
+    function setRoundsFilter(kind, value){
+      if(kind === 'status') ui.filterStatus = value;
+      if(kind === 'acuity') ui.filterAcuity = value;
+      renderRounds();
+    }
+
+    function renderAll(){
+      formatDateTime();
+      renderBanner();
+      renderDashboard();
+      renderRounds();
+      renderPatientSelectors();
+      renderChart();
+      renderSoap();
+      renderHandoff();
+    }
+
+    function renderBanner(){
+      const p = getSelectedPatient();
+      document.getElementById('selectedPatientBanner').textContent = p
+        ? `${p.room} · ${p.name} · ${p.diagnosis}`
+        : 'No chart selected';
+    }
+
+    function statusClass(status){
+      if(status === 'Ready for Discharge') return 'ready';
+      if(status === 'Pending Tests') return 'pending';
+      if(status === 'Discharged') return 'discharged';
+      return 'active';
+    }
+
+    function acuityClass(acuity){
+      if(acuity === 'High') return 'high';
+      if(acuity === 'Medium') return 'medium';
+      return 'low';
+    }
+
+    function safeArray(arr){
+      return Array.isArray(arr) ? arr : [];
+    }
+
+    function outstandingTaskCount(){
+      return state.patients.reduce((sum,p) => sum + safeArray(p.tasks).filter(t => !t.done).length, 0);
+    }
+
+    function completedTaskCount(){
+      return state.patients.reduce((sum,p) => sum + safeArray(p.tasks).filter(t => t.done).length, 0);
+    }
+
+    function activePatients(){
+      return state.patients.filter(p => p.status !== 'Discharged');
+    }
+
+    function renderDashboard(){
+      const total = state.patients.length;
+      const high = state.patients.filter(p => p.acuity === 'High' && p.status !== 'Discharged').length;
+      const ready = state.patients.filter(p => p.status === 'Ready for Discharge').length;
+      const pending = outstandingTaskCount();
+      const completed = completedTaskCount();
+      const donePct = total ? Math.round((completed / Math.max(completed + pending, 1)) * 100) : 0;
+
+      document.getElementById('dashboardMetrics').innerHTML = `
+        <div class="metric-tile glass-soft rounded-[24px] p-5">
+          <div class="tiny-note">Census</div>
+          <div class="stat-number mt-3">${total}</div>
+          <div class="subtle mt-2 text-sm">Patients tracked in local workspace</div>
+        </div>
+        <div class="metric-tile glass-soft rounded-[24px] p-5">
+          <div class="tiny-note">High acuity</div>
+          <div class="stat-number mt-3">${high}</div>
+          <div class="subtle mt-2 text-sm">Needs the sharp eyeballs first</div>
+        </div>
+        <div class="metric-tile glass-soft rounded-[24px] p-5">
+          <div class="tiny-note">Discharge candidates</div>
+          <div class="stat-number mt-3">${ready}</div>
+          <div class="subtle mt-2 text-sm">Likely ready after barriers are cleared</div>
+        </div>
+        <div class="metric-tile glass-soft rounded-[24px] p-5">
+          <div class="tiny-note">Open tasks</div>
+          <div class="stat-number mt-3">${pending}</div>
+          <div class="subtle mt-2 text-sm">Task completion ${donePct}%</div>
+        </div>
+      `;
+
+      const queue = sortPatients(activePatients()).slice(0, 6);
+      document.getElementById('dashboardRoundQueue').innerHTML = queue.length ? queue.map(p => {
+        const tasksOpen = safeArray(p.tasks).filter(t => !t.done).length;
+        return `
+          <button class="w-full text-left glass rounded-2xl p-4 card-hover" onclick="selectPatient('${p.id}', 'chart')">
+            <div class="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="pill ${acuityClass(p.acuity)}">${p.acuity}</span>
+                  <span class="pill ${statusClass(p.status)}">${p.status}</span>
+                </div>
+                <div class="text-white font-bold text-lg mt-3">${p.room} · ${p.name}</div>
+                <div class="subtle mt-1 text-sm">${p.diagnosis}</div>
+              </div>
+              <div class="text-right">
+                <div class="tiny-note">Tasks left</div>
+                <div class="text-white font-black text-2xl mt-2">${tasksOpen}</div>
+              </div>
+            </div>
+          </button>
+        `;
+      }).join('') : emptyBlock('No patients yet', 'Add a patient to start filling the rounds board.');
+
+      const taskItems = sortPatients(state.patients).flatMap(p =>
+        safeArray(p.tasks)
+          .filter(t => !t.done)
+          .map(t => ({ patient:p, task:t }))
+      ).slice(0, 8);
+
+      document.getElementById('dashboardTasks').innerHTML = taskItems.length ? taskItems.map(item => `
+        <div class="glass rounded-2xl p-4 flex items-start justify-between gap-3 card-hover">
+          <div>
+            <div class="text-white font-semibold">${item.task.text}</div>
+            <div class="subtle text-sm mt-1">${item.patient.room} · ${item.patient.name}</div>
+          </div>
+          <button class="btn btn-success !py-2 !px-3 text-xs" onclick="toggleTask('${item.patient.id}','${item.task.id}')">Done</button>
+        </div>
+      `).join('') : emptyBlock('No open tasks', 'Either you are wildly efficient or the data is still empty.');
+
+      const active = activePatients().length;
+      const readinessPct = active ? Math.round((ready / active) * 100) : 0;
+      const taskPct = Math.round((completed / Math.max(completed + pending, 1)) * 100);
+
+      document.getElementById('dashboardReadiness').innerHTML = `
+        <div>
+          <div class="flex justify-between text-sm mb-2"><span class="text-slate-300">Discharge readiness</span><span class="text-white font-semibold">${readinessPct}%</span></div>
+          <div class="progress-shell"><div class="progress-bar" style="width:${readinessPct}%"></div></div>
+        </div>
+        <div>
+          <div class="flex justify-between text-sm mb-2"><span class="text-slate-300">Task completion</span><span class="text-white font-semibold">${taskPct}%</span></div>
+          <div class="progress-shell"><div class="progress-bar" style="width:${taskPct}%"></div></div>
+        </div>
+        <div class="glass rounded-2xl p-4 mt-2">
+          <div class="tiny-note">Standard rounds checklist</div>
+          <ul class="mt-3 space-y-2 text-sm text-slate-300">
+            ${defaultChecklist.map(item => `<li class="flex gap-2"><span class="text-cyan-300">•</span><span>${item}</span></li>`).join('')}
+          </ul>
+        </div>
+      `;
+    }
+
+    function emptyBlock(title, subtitle){
+      return `
+        <div class="empty-state">
+          <div class="text-white font-bold text-xl">${title}</div>
+          <div class="subtle max-w-md">${subtitle}</div>
+        </div>
+      `;
+    }
+
+    function renderRounds(){
+      const patients = filteredPatients();
+      document.getElementById('roundsSearch').value = ui.search;
+      document.getElementById('statusFilter').value = ui.filterStatus;
+      document.getElementById('acuityFilter').value = ui.filterAcuity;
+
+      const grid = document.getElementById('roundsGrid');
+      if(!patients.length){
+        grid.innerHTML = emptyBlock('No matching patients', 'Try relaxing the filters or add someone new.');
+        return;
+      }
+
+      grid.innerHTML = patients.map(p => {
+        const openTasks = safeArray(p.tasks).filter(t => !t.done);
+        const doneTasks = safeArray(p.tasks).filter(t => t.done).length;
+        const recentSnippet = (p.plan || p.overnightEvents || 'No plan recorded yet.').slice(0, 150);
+        return `
+          <div class="glass-soft rounded-[24px] p-5 card-hover">
+            <div class="flex items-start justify-between gap-4">
+              <div>
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="pill ${acuityClass(p.acuity)}">${p.acuity}</span>
+                  <span class="pill ${statusClass(p.status)}">${p.status}</span>
+                </div>
+                <div class="text-white font-black text-2xl mt-4">${p.room} · ${p.name}</div>
+                <div class="subtle mt-2">${p.age ? `${p.age}y · ` : ''}${p.diagnosis}</div>
+                <div class="subtle text-sm mt-1">Attending: ${p.attending || '—'} · MRN: ${p.mrn || '—'}</div>
+              </div>
+              <button class="btn btn-secondary !py-2 !px-3 text-xs" onclick="openPatientModal(getPatient('${p.id}'))">Edit</button>
+            </div>
+
+            <div class="grid sm:grid-cols-3 gap-3 mt-5">
+              <div class="glass rounded-2xl p-3">
+                <div class="tiny-note">Vitals</div>
+                <div class="text-slate-200 text-sm leading-6 mt-2">
+                  Temp ${p.vitals?.temp || '—'}<br>
+                  HR ${p.vitals?.hr || '—'} · BP ${p.vitals?.bp || '—'}<br>
+                  RR ${p.vitals?.rr || '—'} · SpO2 ${p.vitals?.spo2 || '—'}
+                </div>
+              </div>
+              <div class="glass rounded-2xl p-3">
+                <div class="tiny-note">Tasks</div>
+                <div class="text-white font-black text-3xl mt-3">${openTasks.length}</div>
+                <div class="subtle text-sm mt-2">${doneTasks} completed</div>
+              </div>
+              <div class="glass rounded-2xl p-3">
+                <div class="tiny-note">Code / Allergies</div>
+                <div class="text-slate-200 text-sm leading-6 mt-2">${p.codeStatus || '—'}<br>${p.allergies || '—'}</div>
+              </div>
+            </div>
+
+            <div class="glass rounded-2xl p-4 mt-4">
+              <div class="tiny-note">Plan preview</div>
+              <div class="text-slate-200 text-sm leading-6 mt-3">${escapeHtml(recentSnippet)}${recentSnippet.length >= 150 ? '…' : ''}</div>
+            </div>
+
+            <div class="mt-4">
+              <div class="tiny-note mb-3">Open tasks</div>
+              <div class="space-y-2">
+                ${openTasks.length ? openTasks.slice(0,3).map(t => `
+                  <div class="task-row glass rounded-xl p-3 flex items-center justify-between gap-3">
+                    <div class="task-text text-slate-200 text-sm">${escapeHtml(t.text)}</div>
+                    <button class="btn btn-success !py-2 !px-3 text-xs" onclick="toggleTask('${p.id}','${t.id}')">Done</button>
+                  </div>
+                `).join('') : '<div class="subtle text-sm">No open tasks.</div>'}
+              </div>
+            </div>
+
+            <div class="flex flex-wrap gap-3 mt-5">
+              <button class="btn btn-primary" onclick="selectPatient('${p.id}','chart')">Open chart</button>
+              <button class="btn btn-secondary" onclick="selectPatient('${p.id}','soap')">SOAP</button>
+              <button class="btn btn-secondary" onclick="selectPatient('${p.id}','handoff')">Handoff</button>
+              <button class="btn btn-danger" onclick="deletePatient('${p.id}')">Delete</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderPatientSelectors(){
+      const options = sortPatients(state.patients).map(p =>
+        `<option value="${p.id}" ${ui.selectedPatientId === p.id ? 'selected' : ''}>${p.room} · ${escapeHtml(p.name)} · ${escapeHtml(p.diagnosis || '')}</option>`
+      ).join('');
+      document.getElementById('chartPatientSelect').innerHTML = `<option value="">Select patient...</option>${options}`;
+      document.getElementById('soapPatientSelect').innerHTML = `<option value="">Select patient...</option>${sortPatients(state.patients).map(p =>
+        `<option value="${p.id}" ${ui.soapPatientId === p.id ? 'selected' : ''}>${p.room} · ${escapeHtml(p.name)}</option>`
+      ).join('')}`;
+    }
+
+    function renderChart(){
+      const p = getSelectedPatient();
+      const panel = document.getElementById('chartPanel');
+      if(!p){
+        panel.innerHTML = emptyBlock('No patient selected', 'Pick a patient from rounds or create a new one.');
+        return;
+      }
+
+      const tasks = safeArray(p.tasks);
+      panel.innerHTML = `
+        <div class="space-y-4">
+          <div class="grid xl:grid-cols-[1.35fr_.65fr] gap-4">
+            <div class="glass-soft rounded-[24px] p-5">
+              <div class="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <div class="flex items-center gap-2 flex-wrap">
+                    <span class="pill ${acuityClass(p.acuity)}">${p.acuity}</span>
+                    <span class="pill ${statusClass(p.status)}">${p.status}</span>
+                  </div>
+                  <h4 class="text-white font-black text-3xl mt-4">${p.room} · ${escapeHtml(p.name)}</h4>
+                  <div class="subtle mt-2">${p.age ? `${p.age} years · ` : ''}${escapeHtml(p.diagnosis || 'No diagnosis recorded')}</div>
+                  <div class="subtle text-sm mt-1">MRN ${escapeHtml(p.mrn || '—')} · Attending ${escapeHtml(p.attending || '—')}</div>
+                </div>
+                <div class="text-right">
+                  <div class="tiny-note">Last update</div>
+                  <div class="text-white font-semibold mt-2">${formatShortDateTime(p.updatedAt)}</div>
+                </div>
+              </div>
+
+              <div class="grid md:grid-cols-2 xl:grid-cols-3 gap-3 mt-5">
+                <div class="glass rounded-2xl p-3">
+                  <div class="tiny-note">Code status</div>
+                  <div class="text-white font-semibold mt-2">${escapeHtml(p.codeStatus || '—')}</div>
+                </div>
+                <div class="glass rounded-2xl p-3">
+                  <div class="tiny-note">Allergies</div>
+                  <div class="text-white font-semibold mt-2">${escapeHtml(p.allergies || '—')}</div>
+                </div>
+                <div class="glass rounded-2xl p-3">
+                  <div class="tiny-note">Weight</div>
+                  <div class="text-white font-semibold mt-2">${escapeHtml(p.vitals?.weightKg || '—')} kg</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="glass-soft rounded-[24px] p-5">
+              <div class="tiny-note mb-2">Live vitals</div>
+              <div class="grid grid-cols-2 gap-3">
+                ${vitalChip('Temp', p.vitals?.temp)}
+                ${vitalChip('HR', p.vitals?.hr)}
+                ${vitalChip('BP', p.vitals?.bp)}
+                ${vitalChip('RR', p.vitals?.rr)}
+                ${vitalChip('SpO2', p.vitals?.spo2)}
+                ${vitalChip('Wt', p.vitals?.weightKg ? `${p.vitals.weightKg} kg` : '—')}
+              </div>
+            </div>
+          </div>
+
+          <div class="grid xl:grid-cols-2 gap-4">
+            <div class="glass-soft rounded-[24px] p-5">
+              <div class="tiny-note mb-2">Narrative</div>
+              <h4 class="text-white font-bold text-xl mb-4">Clinical story</h4>
+              <div class="grid gap-3">
+                <div>
+                  <label class="tiny-note block mb-2">Overnight events</label>
+                  <textarea class="field min-h-[120px]" oninput="updatePatientField('${p.id}','overnightEvents', this.value)">${escapeHtml(p.overnightEvents || '')}</textarea>
+                </div>
+                <div>
+                  <label class="tiny-note block mb-2">Assessment</label>
+                  <textarea class="field min-h-[140px]" oninput="updatePatientField('${p.id}','assessment', this.value)">${escapeHtml(p.assessment || '')}</textarea>
+                </div>
+                <div>
+                  <label class="tiny-note block mb-2">Plan</label>
+                  <textarea class="field min-h-[140px]" oninput="updatePatientField('${p.id}','plan', this.value)">${escapeHtml(p.plan || '')}</textarea>
+                </div>
+              </div>
+            </div>
+
+            <div class="space-y-4">
+              <div class="glass-soft rounded-[24px] p-5">
+                <div class="tiny-note mb-2">Vitals editor</div>
+                <h4 class="text-white font-bold text-xl mb-4">Quick update</h4>
+                <div class="grid sm:grid-cols-2 gap-3">
+                  <input class="field" placeholder="Temp" value="${escapeAttr(p.vitals?.temp || '')}" oninput="updatePatientNestedField('${p.id}','vitals','temp', this.value)">
+                  <input class="field" placeholder="HR" value="${escapeAttr(p.vitals?.hr || '')}" oninput="updatePatientNestedField('${p.id}','vitals','hr', this.value)">
+                  <input class="field" placeholder="BP" value="${escapeAttr(p.vitals?.bp || '')}" oninput="updatePatientNestedField('${p.id}','vitals','bp', this.value)">
+                  <input class="field" placeholder="RR" value="${escapeAttr(p.vitals?.rr || '')}" oninput="updatePatientNestedField('${p.id}','vitals','rr', this.value)">
+                  <input class="field" placeholder="SpO2" value="${escapeAttr(p.vitals?.spo2 || '')}" oninput="updatePatientNestedField('${p.id}','vitals','spo2', this.value)">
+                  <input class="field" placeholder="Weight kg" value="${escapeAttr(p.vitals?.weightKg || '')}" oninput="updatePatientNestedField('${p.id}','vitals','weightKg', this.value)">
+                </div>
+              </div>
+
+              <div class="glass-soft rounded-[24px] p-5">
+                <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                  <div>
+                    <div class="tiny-note">Task board</div>
+                    <h4 class="text-white font-bold text-xl mt-1">Plan follow-through</h4>
+                  </div>
+                  <button class="btn btn-secondary !py-2 !px-3 text-sm" onclick="addTaskPrompt('${p.id}')">Add task</button>
+                </div>
+                <div class="space-y-2">
+                  ${tasks.length ? tasks.map(t => `
+                    <div class="task-row ${t.done ? 'done':''} glass rounded-2xl p-3 flex items-center gap-3">
+                      <input type="checkbox" ${t.done ? 'checked' : ''} onchange="toggleTask('${p.id}','${t.id}')">
+                      <div class="task-text flex-1 text-slate-200">${escapeHtml(t.text)}</div>
+                      <button class="btn btn-danger !py-2 !px-3 text-xs" onclick="removeTask('${p.id}','${t.id}')">Remove</button>
+                    </div>
+                  `).join('') : '<div class="subtle text-sm">No tasks yet. Add one.</div>'}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function vitalChip(label, value){
+      return `
+        <div class="glass rounded-2xl p-3">
+          <div class="tiny-note">${label}</div>
+          <div class="text-white font-bold text-lg mt-2">${escapeHtml(value || '—')}</div>
+        </div>
+      `;
+    }
+
+    function renderSoap(){
+      const patient = getPatient(ui.soapPatientId) || getSelectedPatient();
+      if(patient && patient.id !== ui.soapPatientId){
+        ui.soapPatientId = patient.id;
+      }
+      document.getElementById('soapSubjective').value = patient?.subjective || '';
+      document.getElementById('soapObjective').value = patient?.objective || '';
+      document.getElementById('soapAssessment').value = patient?.assessment || '';
+      document.getElementById('soapPlan').value = patient?.plan || '';
+      document.getElementById('soapPatientSelect').value = patient?.id || '';
+    }
+
+    function setSoapPatient(id){
+      ui.soapPatientId = id || null;
+      renderSoap();
+      renderBanner();
+    }
+
+    function updateSoapField(field, value){
+      const patient = getPatient(ui.soapPatientId);
+      if(!patient) return;
+      patient[field] = value;
+      patient.updatedAt = nowISO();
+      persist();
+      renderBanner();
+      if(ui.selectedPatientId === patient.id){
+        renderChart();
+      }
+    }
+
+    function applySoapTemplate(type){
+      const patient = getPatient(ui.soapPatientId);
+      if(!patient){
+        showToast('Select a patient first.');
+        return;
+      }
+      const templates = {
+        general: {
+          subjective: patient.subjective || 'Patient seen at bedside. Reports overall status compared with yesterday as follows:',
+          objective: patient.objective || 'Vitals reviewed. Exam notable for:',
+          assessment: patient.assessment || 'Hospital course reviewed. Active problems include:',
+          plan: patient.plan || 'Continue current management with updates below:'
+        },
+        postop: {
+          subjective: 'Post-op check completed. Pain control, bowel function, mobility, and PO tolerance reviewed.',
+          objective: 'Incision / dressing reviewed. Drain output, vitals, urine output, and AM labs assessed.',
+          assessment: 'Recovering post-operatively without clear acute complication at this time.',
+          plan: 'Advance recovery milestones, optimize pain control, encourage ambulation / IS, monitor output and labs.'
+        },
+        sepsis: {
+          subjective: 'Overnight fever / rigors / symptoms reviewed. Patient report of fatigue, pain, and intake assessed.',
+          objective: 'Vitals, urine output, cultures, lactate trend, antibiotics, and organ function reviewed.',
+          assessment: 'Ongoing infectious process with need to monitor hemodynamics and response to therapy closely.',
+          plan: 'Trend labs, reassess source control, continue antimicrobial plan, monitor perfusion and escalation needs.'
+        }
+      };
+      const t = templates[type];
+      ['subjective','objective','assessment','plan'].forEach(key => {
+        patient[key] = t[key];
+        document.getElementById(`soap${capitalize(key)}`).value = t[key];
+      });
+      patient.updatedAt = nowISO();
+      persist();
+      renderChart();
+      showToast('SOAP template applied');
+    }
+
+    function capitalize(s){
+      return s.charAt(0).toUpperCase() + s.slice(1);
+    }
+
+    function composeSoap(patient){
+      if(!patient) return '';
+      return `Patient: ${patient.room} · ${patient.name}\nDx: ${patient.diagnosis || '—'}\n\nS: ${patient.subjective || ''}\n\nO: ${patient.objective || ''}\n\nA: ${patient.assessment || ''}\n\nP: ${patient.plan || ''}`.trim();
+    }
+
+    async function copySoap(){
+      const patient = getPatient(ui.soapPatientId);
+      if(!patient){
+        showToast('Select a patient first.');
+        return;
+      }
+      await copyText(composeSoap(patient));
+      showToast('SOAP copied');
+    }
+
+    function syncSoapToChart(){
+      const patient = getPatient(ui.soapPatientId);
+      if(!patient) return;
+      if(ui.selectedPatientId !== patient.id){
+        ui.selectedPatientId = patient.id;
+      }
+      renderAll();
+      switchTab('chart');
+      showToast('SOAP synced to selected chart');
+    }
+
+    function clearSoapForSelected(){
+      const patient = getPatient(ui.soapPatientId);
+      if(!patient) return;
+      if(!confirm('Clear the SOAP fields for this patient?')) return;
+      patient.subjective = '';
+      patient.objective = '';
+      patient.assessment = '';
+      patient.plan = '';
+      patient.updatedAt = nowISO();
+      persist();
+      renderAll();
+      showToast('SOAP cleared');
+    }
+
+    function handoffPatients(){
+      const mode = document.getElementById('handoffMode').value;
+      if(mode === 'selected'){
+        const p = getSelectedPatient();
+        return p ? [p] : [];
+      }
+      if(mode === 'all'){
+        return sortPatients(state.patients);
+      }
+      return sortPatients(state.patients.filter(p => p.status !== 'Discharged'));
+    }
+
+    function composeHandoff(patients){
+      if(!patients.length) return 'No patients selected for handoff.';
+      return patients.map(p => {
+        const openTasks = safeArray(p.tasks).filter(t => !t.done).map(t => `- ${t.text}`).join('\n') || '- No open tasks';
+        return [
+          `${p.room} | ${p.name} | ${p.age || '—'}y | ${p.diagnosis || 'No diagnosis'}`,
+          `Status: ${p.status} | Acuity: ${p.acuity} | Code: ${p.codeStatus || '—'} | Attending: ${p.attending || '—'}`,
+          `Overnight: ${p.overnightEvents || '—'}`,
+          `Assessment: ${p.assessment || '—'}`,
+          `Plan: ${p.plan || '—'}`,
+          `Open Tasks:\n${openTasks}`
+        ].join('\n');
+      }).join('\n\n' + '─'.repeat(72) + '\n\n');
+    }
+
+    function renderHandoff(){
+      const patients = handoffPatients();
+      document.getElementById('handoffList').innerHTML = patients.length ? patients.map(p => `
+        <button class="w-full text-left glass rounded-2xl p-4 card-hover" onclick="selectPatient('${p.id}','chart')">
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <div class="text-white font-semibold">${p.room} · ${escapeHtml(p.name)}</div>
+              <div class="subtle text-sm mt-1">${escapeHtml(p.diagnosis || '')}</div>
+            </div>
+            <span class="pill ${statusClass(p.status)}">${p.status}</span>
+          </div>
+        </button>
+      `).join('') : emptyBlock('Nothing to include', 'Pick a patient or change the handoff mode.');
+      document.getElementById('handoffOutput').value = composeHandoff(patients);
+    }
+
+    async function copyHandoff(){
+      await copyText(document.getElementById('handoffOutput').value);
+      showToast('Handoff copied');
+    }
+
+    function downloadHandoff(){
+      const blob = new Blob([document.getElementById('handoffOutput').value], { type:'text/plain;charset=utf-8' });
+      downloadBlob(blob, `clinical-handoff-${new Date().toISOString().slice(0,10)}.txt`);
+      showToast('Handoff downloaded');
+    }
+
+    function selectPatient(id, goToTab){
+      ui.selectedPatientId = id || null;
+      if(id) ui.soapPatientId = id;
+      renderAll();
+      if(goToTab) switchTab(goToTab);
+    }
+
+    function updatePatientField(id, field, value){
+      const p = getPatient(id);
+      if(!p) return;
+      p[field] = value;
+      p.updatedAt = nowISO();
+      persist();
+      renderBanner();
+      renderDashboard();
+      renderRounds();
+      renderHandoff();
+    }
+
+    function updatePatientNestedField(id, group, field, value){
+      const p = getPatient(id);
+      if(!p) return;
+      p[group] = p[group] || {};
+      p[group][field] = value;
+      p.updatedAt = nowISO();
+      persist();
+      renderBanner();
+      renderRounds();
+      renderDashboard();
+    }
+
+    function addTaskPrompt(id){
+      const text = prompt('Add task');
+      if(!text || !text.trim()) return;
+      const p = getPatient(id);
+      if(!p) return;
+      p.tasks = safeArray(p.tasks);
+      p.tasks.unshift({ id: uid('task'), text: text.trim(), done:false });
+      p.updatedAt = nowISO();
+      persist();
+      renderAll();
+      showToast('Task added');
+    }
+
+    function toggleTask(patientId, taskId){
+      const p = getPatient(patientId);
+      if(!p) return;
+      const task = safeArray(p.tasks).find(t => t.id === taskId);
+      if(!task) return;
+      task.done = !task.done;
+      p.updatedAt = nowISO();
+      persist();
+      renderAll();
+      showToast(task.done ? 'Task completed' : 'Task reopened');
+    }
+
+    function removeTask(patientId, taskId){
+      const p = getPatient(patientId);
+      if(!p) return;
+      p.tasks = safeArray(p.tasks).filter(t => t.id !== taskId);
+      p.updatedAt = nowISO();
+      persist();
+      renderAll();
+      showToast('Task removed');
+    }
+
+    function deletePatient(id){
+      const p = getPatient(id);
+      if(!p) return;
+      if(!confirm(`Delete ${p.name}?`)) return;
+      state.patients = state.patients.filter(x => x.id !== id);
+      if(ui.selectedPatientId === id){
+        ui.selectedPatientId = state.patients[0]?.id || null;
+      }
+      if(ui.soapPatientId === id){
+        ui.soapPatientId = ui.selectedPatientId;
+      }
+      persist();
+      renderAll();
+      showToast('Patient deleted');
+    }
+
+    function openPatientModal(patient = null){
+      document.getElementById('patientModal').classList.add('open');
+      document.getElementById('patientModalTitle').textContent = patient ? `Edit ${patient.name}` : 'Add patient';
+      document.getElementById('modalPatientId').value = patient?.id || '';
+      document.getElementById('modalRoom').value = patient?.room || '';
+      document.getElementById('modalName').value = patient?.name || '';
+      document.getElementById('modalMRN').value = patient?.mrn || '';
+      document.getElementById('modalAge').value = patient?.age || '';
+      document.getElementById('modalAcuity').value = patient?.acuity || 'High';
+      document.getElementById('modalStatus').value = patient?.status || 'Active';
+      document.getElementById('modalDiagnosis').value = patient?.diagnosis || '';
+      document.getElementById('modalAttending').value = patient?.attending || '';
+      document.getElementById('modalCodeStatus').value = patient?.codeStatus || '';
+      document.getElementById('modalAllergies').value = patient?.allergies || '';
+      document.getElementById('modalTemp').value = patient?.vitals?.temp || '';
+      document.getElementById('modalHR').value = patient?.vitals?.hr || '';
+      document.getElementById('modalBP').value = patient?.vitals?.bp || '';
+      document.getElementById('modalRR').value = patient?.vitals?.rr || '';
+      document.getElementById('modalSpO2').value = patient?.vitals?.spo2 || '';
+      document.getElementById('modalWeight').value = patient?.vitals?.weightKg || '';
+      document.getElementById('modalOvernight').value = patient?.overnightEvents || '';
+      document.getElementById('modalPlanPreview').value = patient?.plan || '';
+    }
+
+    function closePatientModal(){
+      document.getElementById('patientModal').classList.remove('open');
+      document.getElementById('patientForm').reset();
+      document.getElementById('modalPatientId').value = '';
+    }
+
+    function savePatientFromModal(event){
+      event.preventDefault();
+      const id = document.getElementById('modalPatientId').value;
+      const payload = {
+        room: document.getElementById('modalRoom').value.trim(),
+        name: document.getElementById('modalName').value.trim(),
+        mrn: document.getElementById('modalMRN').value.trim(),
+        age: Number(document.getElementById('modalAge').value) || '',
+        acuity: document.getElementById('modalAcuity').value,
+        status: document.getElementById('modalStatus').value,
+        diagnosis: document.getElementById('modalDiagnosis').value.trim(),
+        attending: document.getElementById('modalAttending').value.trim(),
+        codeStatus: document.getElementById('modalCodeStatus').value.trim(),
+        allergies: document.getElementById('modalAllergies').value.trim(),
+        vitals: {
+          temp: document.getElementById('modalTemp').value.trim(),
+          hr: document.getElementById('modalHR').value.trim(),
+          bp: document.getElementById('modalBP').value.trim(),
+          rr: document.getElementById('modalRR').value.trim(),
+          spo2: document.getElementById('modalSpO2').value.trim(),
+          weightKg: document.getElementById('modalWeight').value.trim()
+        },
+        overnightEvents: document.getElementById('modalOvernight').value.trim(),
+        plan: document.getElementById('modalPlanPreview').value.trim()
+      };
+
+      if(!payload.room || !payload.name){
+        showToast('Room and patient name are required');
+        return;
+      }
+
+      if(id){
+        const patient = getPatient(id);
+        Object.assign(patient, payload, { updatedAt: nowISO() });
+      } else {
+        const patient = {
+          id: uid('pt'),
+          createdAt: nowISO(),
+          updatedAt: nowISO(),
+          subjective: '',
+          objective: '',
+          assessment: '',
+          tasks: [],
+          ...payload
+        };
+        state.patients.unshift(patient);
+        ui.selectedPatientId = patient.id;
+        ui.soapPatientId = patient.id;
+      }
+
+      persist();
+      closePatientModal();
+      renderAll();
+      showToast(id ? 'Patient updated' : 'Patient added');
+    }
+
+    function seedFreshDemo(){
+      if(!confirm('Replace current local data with demo data?')) return;
+      state = { introSeen: false, patients: demoPatients() };
+      ui.selectedPatientId = state.patients[0]?.id || null;
+      ui.soapPatientId = ui.selectedPatientId;
+      persist();
+      document.getElementById('intro').classList.remove('hidden');
+      renderAll();
+      showToast('Fresh demo data loaded');
+    }
+
+    function wipeAllData(){
+      if(!confirm('Delete all local browser data for this app?')) return;
+      localStorage.removeItem(STORAGE_KEY);
+      state = { introSeen:false, patients: [] };
+      ui.selectedPatientId = null;
+      ui.soapPatientId = null;
+      renderAll();
+      showToast('Local data deleted');
+    }
+
+    function exportState(){
+      const blob = new Blob([JSON.stringify(state, null, 2)], { type:'application/json;charset=utf-8' });
+      downloadBlob(blob, `clinical-pocket-backup-${new Date().toISOString().slice(0,10)}.json`);
+      showToast('JSON exported');
+    }
+
+    function importState(event){
+      const file = event.target.files?.[0];
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try{
+          const parsed = JSON.parse(reader.result);
+          if(!parsed || !Array.isArray(parsed.patients)) throw new Error('Bad structure');
+          state = parsed;
+          if(!state.patients.length){
+            state.patients = demoPatients();
+          }
+          ui.selectedPatientId = state.patients[0]?.id || null;
+          ui.soapPatientId = ui.selectedPatientId;
+          persist();
+          renderAll();
+          showToast('Backup imported');
+        } catch(err){
+          console.error(err);
+          alert('Could not import that JSON file.');
+        } finally {
+          event.target.value = '';
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    async function copyText(text){
+      try{
+        await navigator.clipboard.writeText(text);
+      } catch(err){
+        const el = document.createElement('textarea');
+        el.value = text;
+        document.body.appendChild(el);
+        el.select();
+        document.execCommand('copy');
+        document.body.removeChild(el);
+      }
+    }
+
+    async function copyPatientSnapshot(){
+      const p = getSelectedPatient();
+      if(!p){
+        showToast('No patient selected');
+        return;
+      }
+      const openTasks = safeArray(p.tasks).filter(t => !t.done).map(t => `- ${t.text}`).join('\n') || '- No open tasks';
+      const txt = [
+        `${p.room} · ${p.name}`,
+        `Dx: ${p.diagnosis || '—'}`,
+        `Status: ${p.status} | Acuity: ${p.acuity}`,
+        `Vitals: Temp ${p.vitals?.temp || '—'} | HR ${p.vitals?.hr || '—'} | BP ${p.vitals?.bp || '—'} | RR ${p.vitals?.rr || '—'} | SpO2 ${p.vitals?.spo2 || '—'}`,
+        `Assessment: ${p.assessment || '—'}`,
+        `Plan: ${p.plan || '—'}`,
+        `Open tasks:\n${openTasks}`
+      ].join('\n');
+      await copyText(txt);
+      showToast('Patient snapshot copied');
+    }
+
+    async function copyRoundingChecklist(){
+      await copyText(defaultChecklist.map((item, idx) => `${idx+1}. ${item}`).join('\n'));
+      showToast('Checklist copied');
+    }
+
+    function downloadBlob(blob, filename){
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    function formatShortDateTime(iso){
+      if(!iso) return '—';
+      const d = new Date(iso);
+      if(Number.isNaN(d.getTime())) return '—';
+      return d.toLocaleString(undefined, { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' });
+    }
+
+    function escapeHtml(str){
+      return String(str ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;');
+    }
+
+    function escapeAttr(str){
+      return escapeHtml(str);
+    }
+
+    function calcMAP(){
+      const sbp = Number(document.getElementById('mapSBP').value);
+      const dbp = Number(document.getElementById('mapDBP').value);
+      document.getElementById('mapResult').textContent = (sbp && dbp) ? Math.round((sbp + 2 * dbp) / 3) : '--';
+    }
+
+    function calcDose(){
+      const kg = Number(document.getElementById('doseKg').value);
+      const mgkg = Number(document.getElementById('doseMgKg').value);
+      document.getElementById('doseResult').textContent = (kg && mgkg) ? (kg * mgkg).toFixed(1).replace(/\.0$/, '') : '--';
+    }
+
+    function calcCorrectedNa(){
+      const na = Number(document.getElementById('sodiumNa').value);
+      const glu = Number(document.getElementById('sodiumGlu').value);
+      if(!na || !glu){
+        document.getElementById('sodiumResult').textContent = '--';
+        return;
+      }
+      const corrected = na + Math.max(0, ((glu - 100) / 100) * 1.6);
+      document.getElementById('sodiumResult').textContent = corrected.toFixed(1);
+    }
+
+    function calcCrCl(){
+      const age = Number(document.getElementById('crclAge').value);
+      const wt = Number(document.getElementById('crclWeight').value);
+      const cr = Number(document.getElementById('crclCr').value);
+      const sex = document.getElementById('crclSex').value;
+      if(!age || !wt || !cr){
+        document.getElementById('crclResult').textContent = '--';
+        return;
+      }
+      let res = ((140 - age) * wt) / (72 * cr);
+      if(sex === 'female') res *= 0.85;
+      document.getElementById('crclResult').textContent = res.toFixed(1);
+    }
+
+    function calcAnionGap(){
+      const na = Number(document.getElementById('agNa').value);
+      const cl = Number(document.getElementById('agCl').value);
+      const hco3 = Number(document.getElementById('agHco3').value);
+      const alb = Number(document.getElementById('agAlbumin').value);
+
+      if(!na || !cl || !hco3){
+        document.getElementById('agResult').textContent = '--';
+        document.getElementById('agCorrectedResult').textContent = '--';
+        return;
+      }
+      const ag = na - cl - hco3;
+      document.getElementById('agResult').textContent = ag.toFixed(1);
+      if(alb){
+        const corrected = ag + 2.5 * (4 - alb);
+        document.getElementById('agCorrectedResult').textContent = corrected.toFixed(1);
+      } else {
+        document.getElementById('agCorrectedResult').textContent = '—';
+      }
+    }
+
+    let scene, camera, renderer, points, lineSegments;
+
+    function initThree(){
+      scene = new THREE.Scene();
+      camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
+      renderer = new THREE.WebGLRenderer({
+        canvas: document.getElementById('three-canvas'),
+        antialias: true,
+        alpha: true
+      });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.8));
+
+      const particleCount = 220;
+      const positions = new Float32Array(particleCount * 3);
+      for(let i=0; i<particleCount*3; i++){
+        positions[i] = (Math.random() - 0.5) * 48;
+      }
+
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+      points = new THREE.Points(
+        geometry,
+        new THREE.PointsMaterial({
+          color: 0x60a5fa,
+          size: 0.13,
+          transparent: true,
+          opacity: 0.62
+        })
+      );
+
+      lineSegments = new THREE.LineSegments(
+        geometry,
+        new THREE.LineBasicMaterial({
+          color: 0x0ea5e9,
+          transparent: true,
+          opacity: 0.06
+        })
+      );
+
+      scene.add(points);
+      scene.add(lineSegments);
+      camera.position.z = 16;
+
+      animateThree();
+    }
+
+    function animateThree(){
+      requestAnimationFrame(animateThree);
+      const time = Date.now() * 0.00025;
+      if(points){
+        points.rotation.y = time * 1.1;
+        points.rotation.x = time * 0.7;
+        const s = 1 + Math.sin(time * 4) * 0.04;
+        points.scale.set(s, s, s);
+      }
+      if(lineSegments){
+        lineSegments.rotation.y = -time * 0.8;
+        lineSegments.rotation.x = time * 0.35;
+      }
+      renderer.render(scene, camera);
+    }
+
+    window.addEventListener('resize', () => {
+      if(!camera || !renderer) return;
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    setInterval(formatDateTime, 1000 * 30);
+
+    document.addEventListener('keydown', (e) => {
+      if(e.key === 'Escape'){
+        closePatientModal();
+      }
+    });
+
+    window.addEventListener('load', () => {
+      loadState();
+      initThree();
+      renderAll();
+      setHeaderForTab('dashboard');
+      formatDateTime();
+    });
+  </script>
+</body>
+</html>

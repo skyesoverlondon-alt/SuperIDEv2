@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bass Lab MVP</title>
+  <style>
+    :root{
+      --bg:#050816;
+      --panel:rgba(12,18,38,.74);
+      --panel-2:rgba(20,27,56,.72);
+      --border:rgba(144,170,255,.18);
+      --text:#f6f7fb;
+      --muted:#94a3b8;
+      --blue:#56a6ff;
+      --violet:#9b7bff;
+      --cyan:#5ef2ff;
+      --gold:#ffd76a;
+      --danger:#ff6b8a;
+      --good:#4ade80;
+      --shadow:0 18px 60px rgba(0,0,0,.35);
+      --radius:24px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      background:
+        radial-gradient(circle at 20% 20%, rgba(86,166,255,.14), transparent 26%),
+        radial-gradient(circle at 80% 30%, rgba(155,123,255,.14), transparent 24%),
+        radial-gradient(circle at 50% 80%, rgba(94,242,255,.08), transparent 22%),
+        linear-gradient(180deg, #040611 0%, #070b18 42%, #050816 100%);
+      color:var(--text);
+      font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      min-height:100%;
+      overflow-x:hidden;
+    }
+    #bgCanvas{position:fixed; inset:0; width:100%; height:100%; z-index:0}
+    .app{position:relative; z-index:1; padding:16px; display:grid; gap:16px}
+    .topbar{
+      display:grid;
+      grid-template-columns:1.2fr .9fr;
+      gap:16px;
+      align-items:stretch;
+    }
+    .brand, .statusbar, .panel {
+      border:1px solid var(--border);
+      background:linear-gradient(180deg, rgba(16,24,52,.86), rgba(10,16,32,.82));
+      box-shadow:var(--shadow);
+      border-radius:var(--radius);
+      backdrop-filter: blur(18px);
+    }
+    .brand {
+      padding:18px 20px;
+      display:flex;
+      justify-content:space-between;
+      gap:16px;
+      align-items:center;
+    }
+    .brand h1{margin:0; font-size:clamp(1.25rem, 2vw, 2rem); letter-spacing:.02em}
+    .brand p{margin:6px 0 0; color:var(--muted)}
+    .navchips{display:flex; flex-wrap:wrap; gap:8px; justify-content:flex-end}
+    .navchips a, .pill, button, .seg button, select, input[type="range"], input[type="text"], input[type="number"], textarea {
+      border:1px solid var(--border);
+      background:rgba(255,255,255,.05);
+      color:var(--text);
+      border-radius:14px;
+      text-decoration:none;
+      transition:.2s ease;
+    }
+    .navchips a, button, .pill {
+      padding:10px 12px; font-weight:600; font-size:.92rem; cursor:pointer;
+    }
+    .navchips a.active{
+      background:linear-gradient(135deg, rgba(94,242,255,.24), rgba(86,166,255,.24));
+      border-color:rgba(94,242,255,.4);
+    }
+    button:hover, .navchips a:hover, .seg button:hover, .card:hover, .step:hover, .pad:hover, .chip:hover {
+      transform:translateY(-1px);
+      border-color:rgba(255,255,255,.28);
+      background:rgba(255,255,255,.09);
+    }
+    button.primary{background:linear-gradient(135deg, rgba(86,166,255,.25), rgba(155,123,255,.28)); border-color:rgba(94,242,255,.25)}
+    button.good{background:linear-gradient(135deg, rgba(74,222,128,.18), rgba(86,166,255,.22))}
+    button.warn{background:linear-gradient(135deg, rgba(255,215,106,.18), rgba(155,123,255,.24))}
+    button.danger{background:linear-gradient(135deg, rgba(255,107,138,.18), rgba(155,123,255,.24))}
+    button.tiny{padding:7px 10px; font-size:.82rem; border-radius:12px}
+    .statusbar{padding:14px 16px; display:grid; gap:10px}
+    .statusgrid{display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:10px}
+    .stat{padding:10px 12px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.05); border-radius:18px}
+    .stat b{display:block; font-size:.8rem; color:var(--muted); margin-bottom:4px}
+    .stat span{font-size:1.05rem; font-weight:700}
+    .maingrid{display:grid; grid-template-columns:1.12fr .88fr; gap:16px}
+    .panel{padding:16px}
+    .panel h2, .panel h3{margin:0 0 10px}
+    .sub{color:var(--muted); font-size:.92rem; margin-top:4px}
+    .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+    .stack{display:grid; gap:12px}
+    .controls{display:grid; gap:14px}
+    .control{display:grid; gap:7px}
+    label{font-size:.88rem; color:var(--muted)}
+    input[type="range"]{width:100%; padding:0; height:10px}
+    input[type="text"], input[type="number"], select, textarea{padding:10px 12px; width:100%}
+    textarea{min-height:90px; resize:vertical}
+    .seg{display:flex; flex-wrap:wrap; gap:8px}
+    .seg button.active, .toggle.active, .pad.active, .step.active, .slot.active, .chip.active, .laneCard.active {
+      background:linear-gradient(135deg, rgba(94,242,255,.26), rgba(86,166,255,.24));
+      border-color:rgba(94,242,255,.45);
+      box-shadow:0 0 0 1px rgba(94,242,255,.16), 0 10px 28px rgba(86,166,255,.18);
+    }
+    .mini{font-size:.8rem; color:var(--muted)}
+    .grid2{display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:12px}
+    .grid3{display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:12px}
+    .grid4{display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:12px}
+    .card, .laneCard, .pad, .chip{
+      padding:14px; border-radius:18px; border:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.04)
+    }
+    .laneCard{display:grid; gap:10px}
+    .meter{height:10px; border-radius:999px; background:rgba(255,255,255,.06); overflow:hidden}
+    .meter > span{display:block; height:100%; background:linear-gradient(90deg, var(--cyan), var(--blue), var(--violet)); width:40%}
+    canvas.scope, canvas.field, canvas.wave, canvas.chart{
+      width:100%; min-height:220px; border-radius:18px; border:1px solid rgba(255,255,255,.08); background:rgba(2,6,18,.55)
+    }
+    .footerNote{padding:8px 4px 20px; color:var(--muted); font-size:.88rem; text-align:center}
+    .toast{
+      position:fixed; right:18px; bottom:18px; z-index:5;
+      padding:12px 14px; border-radius:16px; color:var(--text);
+      background:linear-gradient(180deg, rgba(18,26,54,.92), rgba(8,14,30,.92));
+      border:1px solid var(--border); box-shadow:var(--shadow); opacity:0; transform:translateY(12px); transition:.25s ease; pointer-events:none;
+    }
+    .toast.show{opacity:1; transform:translateY(0)}
+    .hidden{display:none !important}
+    .stepgrid{display:grid; gap:8px}
+    .steps16{grid-template-columns:repeat(16, minmax(0,1fr))}
+    .steps8{grid-template-columns:repeat(8, minmax(0,1fr))}
+    .step,.slot,.pad,.clipPad,.chip{
+      min-height:44px; display:flex; align-items:center; justify-content:center; text-align:center; cursor:pointer; user-select:none;
+    }
+    .step.playing,.slot.playing,.pad.playing,.clipPad.playing,.chip.playing{
+      outline:2px solid rgba(255,215,106,.75);
+      transform:translateY(-1px) scale(1.02);
+    }
+    .clipPad{padding:12px; border-radius:16px; border:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.04); display:grid; gap:6px; justify-items:start}
+    .clipPad small{color:var(--muted)}
+    .timeline{display:grid; gap:8px}
+    .timelineItem{display:grid; grid-template-columns:96px 1fr; gap:12px; align-items:start; padding:10px 12px; border:1px solid rgba(255,255,255,.08); border-radius:16px; background:rgba(255,255,255,.03)}
+    .waveWrap{position:relative}
+    .marker{
+      position:absolute; top:0; bottom:0; width:2px; background:linear-gradient(180deg,var(--gold),transparent); pointer-events:none;
+    }
+    .pill input[type="file"]{display:none}
+    .kbd{padding:2px 8px; border-radius:10px; border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.05); font-size:.8rem}
+    @media (max-width: 1080px){
+      .topbar, .maingrid{grid-template-columns:1fr}
+      .statusgrid{grid-template-columns:repeat(2, minmax(0,1fr))}
+    }
+    @media (max-width: 720px){
+      .grid2,.grid3,.grid4{grid-template-columns:1fr}
+      .statusgrid{grid-template-columns:1fr 1fr}
+      .brand{align-items:flex-start; flex-direction:column}
+      .navchips{justify-content:flex-start}
+      .timelineItem{grid-template-columns:1fr}
+      .steps16{grid-template-columns:repeat(8,minmax(0,1fr))}
+    }
+</style>
+</head>
+<body>
+  <canvas id="bgCanvas"></canvas>
+  <div class="app">
+    <div class="topbar">
+      <section class="brand">
+        <div>
+          <h1>Bass Lab</h1>
+          <p>S0L26-0s browser-native creative workstation MVP. Single-file, offline-friendly, locally autosaved.</p>
+        </div>
+        <nav class="navchips"><a href="index.html">Wave 2 Launcher</a><a href="loop-forge.html">Loop Forge</a><a href="bass-lab.html" class="active">Bass Lab</a><a href="sample-chop-station.html">Sample Chop Station</a><a href="performance-pad-deck.html">Performance Pad Deck</a><a href="vocal-stack-builder.html">Vocal Stack Builder</a></nav>
+      </section>
+      <section class="statusbar">
+        <div class="row">
+          <button id="powerBtn" class="primary">Power / Audio</button>
+          <button id="saveBtn" class="good">Save</button>
+          <button id="exportBtn" class="warn">Export JSON</button>
+          <label class="pill">Import JSON <input id="importInput" type="file" accept="application/json"></label>
+        </div>
+        <div class="statusgrid" id="statusGrid"></div>
+      </section>
+    </div>
+    
+<main class="maingrid">
+  <section class="panel stack">
+    <div>
+      <h2>Mono Bass Sequencer</h2>
+      <p class="sub">A focused bassline generator with accents, octave jumps, glide, root/scale lock, and mutate controls. Built to spit out sticky low-end patterns instead of polite little noodles.</p>
+    </div>
+    <div class="row">
+      <button id="playBtn" class="primary">Play</button>
+      <button id="stopBtn">Stop</button>
+      <button id="randomBtn" class="warn">Randomize</button>
+      <button id="mutateBtn" class="good">Mutate</button>
+      <button id="clearBtn" class="danger">Clear</button>
+      <button id="demoBtn">Demo Groove</button>
+    </div>
+    <div id="stepHost" class="stepgrid steps16"></div>
+  </section>
+  <section class="panel stack">
+    <div>
+      <h2>Tone + Groove</h2>
+      <p class="sub">Each step can carry degree, octave, accent, and glide. Strong enough for sketching bass hooks without hauling in a whole DAW beast.</p>
+    </div>
+    <div class="controls grid2">
+      <div class="control"><label>Root</label><select id="root"></select></div>
+      <div class="control"><label>Scale</label><select id="scale"></select></div>
+      <div class="control"><label>Waveform</label><select id="wave"></select><div class="mini">square and saw hit hardest here</div></div>
+      <div class="control"><label>BPM <span id="bpmVal"></span></label><input id="bpm" type="range" min="70" max="160" value="122"></div>
+      <div class="control"><label>Cutoff <span id="cutoffVal"></span></label><input id="cutoff" type="range" min="120" max="3000" value="620"></div>
+      <div class="control"><label>Resonance <span id="resVal"></span></label><input id="res" type="range" min="0.1" max="18" step="0.1" value="4.2"></div>
+      <div class="control"><label>Glide <span id="glideVal"></span></label><input id="glide" type="range" min="0" max="0.25" step="0.005" value="0.05"></div>
+      <div class="control"><label>Swing <span id="swingVal"></span></label><input id="swing" type="range" min="0" max="0.45" step="0.01" value="0.05"></div>
+    </div>
+    <canvas id="bassScope" class="scope" height="220"></canvas>
+    <div class="grid2">
+      <div class="card">
+        <h3>Keyboard</h3>
+        <p class="sub">Press <span class="kbd">Q</span><span class="kbd">W</span><span class="kbd">E</span><span class="kbd">R</span><span class="kbd">T</span><span class="kbd">Y</span><span class="kbd">U</span> to audition scale degrees.</p>
+      </div>
+      <div class="card">
+        <h3>Pattern Notes</h3>
+        <textarea id="notes" placeholder="Hook ideas, arrangement cues, or bass change notes..."></textarea>
+      </div>
+    </div>
+  </section>
+</main>
+
+    <div class="footerNote">Browser goblin note: tap <span class="kbd">Power / Audio</span> once before playback if Chrome wants a ritual gesture.</div>
+  </div>
+  <div class="toast" id="toast"></div>
+  <script>
+  const STORAGE_KEY = "sol26_wave2_bass_lab";
+  const $ = (sel,root=document)=>root.querySelector(sel);
+  const $$ = (sel,root=document)=>Array.from(root.querySelectorAll(sel));
+  const toastEl = $('#toast');
+  function toast(msg){
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(window.__toastTimer);
+    window.__toastTimer = setTimeout(()=>toastEl.classList.remove('show'), 1800);
+  }
+  function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
+  function lerp(a,b,t){ return a + (b-a)*t; }
+  const rand = (a,b)=>Math.random()*(b-a)+a;
+  let audioCtx = null, masterGain = null, analyser = null;
+  async function ensureAudio(){
+    if(!audioCtx){
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      masterGain = audioCtx.createGain();
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 2048;
+      masterGain.gain.value = 0.88;
+      masterGain.connect(analyser);
+      analyser.connect(audioCtx.destination);
+    }
+    if(audioCtx.state === 'suspended') await audioCtx.resume();
+    return audioCtx;
+  }
+  $('#powerBtn').addEventListener('click', async()=>{ await ensureAudio(); toast('Audio engine awake'); });
+  function saveState(state){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    toast('Saved locally');
+  }
+  function loadState(fallback){
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? Object.assign(fallback, JSON.parse(raw)) : fallback;
+    } catch(e) { return fallback; }
+  }
+  $('#exportBtn').addEventListener('click', ()=> {
+    const data = JSON.stringify(window.appState || {}, null, 2);
+    const blob = new Blob([data], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = STORAGE_KEY + '.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+  $('#importInput').addEventListener('change', async (e)=> {
+    const file = e.target.files[0];
+    if(!file) return;
+    try {
+      const data = JSON.parse(await file.text());
+      window.appState = Object.assign(window.appState || {}, data);
+      if(window.renderApp) window.renderApp();
+      toast('Imported state');
+    } catch(err) {
+      toast('Import failed');
+    }
+  });
+  $('#saveBtn').addEventListener('click', ()=> saveState(window.appState || {}));
+  function setStatus(items){
+    const host = $('#statusGrid');
+    host.innerHTML = items.map(it => `<div class="stat"><b>${it.label}</b><span>${it.value}</span></div>`).join('');
+  }
+  // background stars
+  const bg = document.getElementById('bgCanvas');
+  const bgCtx = bg.getContext('2d');
+  let stars = [];
+  function resizeBG(){
+    bg.width = innerWidth * devicePixelRatio;
+    bg.height = innerHeight * devicePixelRatio;
+    bgCtx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+    const count = Math.max(60, Math.floor(innerWidth / 12));
+    stars = Array.from({length:count}, ()=>({
+      x: Math.random()*innerWidth,
+      y: Math.random()*innerHeight,
+      r: Math.random()*1.8 + .2,
+      dx: Math.random()*.25 + .05,
+      a: Math.random()*.8 + .1
+    }));
+  }
+  addEventListener('resize', resizeBG);
+  resizeBG();
+  function drawBG(){
+    bgCtx.clearRect(0,0,innerWidth,innerHeight);
+    const g = bgCtx.createLinearGradient(0,0,0,innerHeight);
+    g.addColorStop(0,'rgba(8,11,24,.08)');
+    g.addColorStop(1,'rgba(3,5,12,.22)');
+    bgCtx.fillStyle = g;
+    bgCtx.fillRect(0,0,innerWidth,innerHeight);
+    for(const s of stars){
+      s.x += s.dx;
+      if(s.x > innerWidth + 8) s.x = -8;
+      bgCtx.beginPath();
+      bgCtx.fillStyle = `rgba(130,180,255,${s.a})`;
+      bgCtx.arc(s.x, s.y, s.r, 0, Math.PI*2);
+      bgCtx.fill();
+    }
+    requestAnimationFrame(drawBG);
+  }
+  drawBG();
+  setStatus([{label:'Root / Scale',value:'E minor'},{label:'Active Steps',value:'8/16'},{label:'Accent Count',value:'4'},{label:'Transport',value:'Idle'}]);
+  
+const notesMap = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const scales = {
+  minor:[0,2,3,5,7,8,10],
+  dorian:[0,2,3,5,7,9,10],
+  phrygian:[0,1,3,5,7,8,10],
+  major:[0,2,4,5,7,9,11],
+  mixolydian:[0,2,4,5,7,9,10],
+};
+const bassDefault = {
+  root:'E', scale:'minor', wave:'sawtooth', bpm:122, cutoff:620, res:4.2, glide:0.05, swing:0.05, notes:'',
+  playing:false, step:0,
+  steps:Array.from({length:16}, (_,i)=>({degree:(i%7)+1, octave:i%8===0?1:0, accent:[0,4,8,12].includes(i), glide:false, active:[0,3,5,7,8,10,12,15].includes(i)}))
+};
+window.appState = loadState(structuredClone(bassDefault));
+let bassTimer=null, bassOsc=null, bassFilter=null, bassAmp=null;
+function bassFreq(step){
+  const rootIndex = notesMap.indexOf(window.appState.root);
+  const scale = scales[window.appState.scale];
+  const degreeIdx = clamp(step.degree-1,0,6);
+  const semis = rootIndex + scale[degreeIdx] + (step.octave*12);
+  return 41.2 * Math.pow(2, (semis - 4)/12); // around low E1 reference-ish
+}
+function initBassSynth(){
+  if(!audioCtx) return;
+  if(bassOsc) return;
+  bassOsc = audioCtx.createOscillator();
+  bassFilter = audioCtx.createBiquadFilter();
+  bassAmp = audioCtx.createGain();
+  bassOsc.type = window.appState.wave;
+  bassFilter.type = 'lowpass';
+  bassFilter.frequency.value = window.appState.cutoff;
+  bassFilter.Q.value = window.appState.res;
+  bassAmp.gain.value = 0;
+  bassOsc.connect(bassFilter).connect(bassAmp).connect(masterGain);
+  bassOsc.start();
+}
+function renderSelectors(){
+  $('#root').innerHTML = notesMap.map(n=>`<option ${window.appState.root===n?'selected':''}>${n}</option>`).join('');
+  $('#scale').innerHTML = Object.keys(scales).map(n=>`<option ${window.appState.scale===n?'selected':''}>${n}</option>`).join('');
+  $('#wave').innerHTML = ['sine','triangle','square','sawtooth'].map(n=>`<option ${window.appState.wave===n?'selected':''}>${n}</option>`).join('');
+}
+function stepCard(step, idx){
+  const d = document.createElement('div');
+  d.className='laneCard'+(step.active?' active':'') + (window.appState.step===idx && window.appState.playing?' playing':'');
+  d.innerHTML = `
+    <div class="row" style="justify-content:space-between"><strong>${idx+1}</strong><span class="mini">${step.active?'on':'off'}</span></div>
+    <label class="mini">Degree
+      <select class="deg">${[1,2,3,4,5,6,7].map(n=>`<option value="${n}" ${step.degree===n?'selected':''}>${n}</option>`).join('')}</select>
+    </label>
+    <div class="row">
+      <button class="tiny oct ${step.octave?'active':''}">+8ve</button>
+      <button class="tiny acc ${step.accent?'active':''}">Accent</button>
+      <button class="tiny gl ${step.glide?'active':''}">Glide</button>
+    </div>
+  `;
+  d.addEventListener('click', (e)=>{
+    if(e.target.tagName==='SELECT' || e.target.tagName==='BUTTON') return;
+    step.active = !step.active; renderApp();
+  });
+  $('.deg',d).onchange = e=>{ step.degree = +e.target.value; };
+  $('.oct',d).onclick = ()=>{ step.octave = step.octave?0:1; renderApp(); };
+  $('.acc',d).onclick = ()=>{ step.accent = !step.accent; renderApp(); };
+  $('.gl',d).onclick = ()=>{ step.glide = !step.glide; renderApp(); };
+  return d;
+}
+function renderApp(){
+  renderSelectors();
+  const host=$('#stepHost'); host.innerHTML=''; window.appState.steps.forEach((s,i)=>host.appendChild(stepCard(s,i)));
+  $('#bpm').value=window.appState.bpm; $('#bpmVal').textContent=window.appState.bpm;
+  $('#cutoff').value=window.appState.cutoff; $('#cutoffVal').textContent=Math.round(window.appState.cutoff)+' Hz';
+  $('#res').value=window.appState.res; $('#resVal').textContent=window.appState.res.toFixed(1);
+  $('#glide').value=window.appState.glide; $('#glideVal').textContent=Math.round(window.appState.glide*1000)+' ms';
+  $('#swing').value=window.appState.swing; $('#swingVal').textContent=Math.round(window.appState.swing*100)+'%';
+  $('#notes').value=window.appState.notes||'';
+  if(bassOsc){
+    bassOsc.type = window.appState.wave;
+    bassFilter.frequency.setTargetAtTime(window.appState.cutoff, audioCtx.currentTime, 0.01);
+    bassFilter.Q.setTargetAtTime(window.appState.res, audioCtx.currentTime, 0.01);
+  }
+  setStatus([
+    {label:'Root / Scale', value:`${window.appState.root} ${window.appState.scale}`},
+    {label:'Active Steps', value: window.appState.steps.filter(s=>s.active).length + '/16'},
+    {label:'Accent Count', value: window.appState.steps.filter(s=>s.accent).length},
+    {label:'Transport', value: window.appState.playing ? 'Running' : 'Idle'}
+  ]);
+}
+window.renderApp = renderApp;
+function playStep(step, t){
+  if(!audioCtx) return;
+  initBassSynth();
+  if(!step.active){
+    bassAmp.gain.cancelScheduledValues(t);
+    bassAmp.gain.setTargetAtTime(0.0001, t, 0.02);
+    return;
+  }
+  const f = bassFreq(step);
+  const accent = step.accent ? 1.6 : 1;
+  const glideTime = step.glide ? Math.max(window.appState.glide, 0.05) : 0.02;
+  bassOsc.frequency.cancelScheduledValues(t);
+  bassOsc.frequency.linearRampToValueAtTime(f, t + glideTime);
+  bassFilter.frequency.cancelScheduledValues(t);
+  bassFilter.frequency.setValueAtTime(window.appState.cutoff * (step.accent?1.45:1), t);
+  bassAmp.gain.cancelScheduledValues(t);
+  bassAmp.gain.setValueAtTime(0.0001, t);
+  bassAmp.gain.linearRampToValueAtTime(0.12 * accent, t+0.01);
+  bassAmp.gain.exponentialRampToValueAtTime(0.0001, t+0.22);
+}
+async function startBass(){
+  await ensureAudio(); initBassSynth();
+  window.appState.playing=true;
+  if(bassTimer) clearInterval(bassTimer);
+  bassTimer = setInterval(()=>{
+    const stepDur = 60/window.appState.bpm/4;
+    const t = audioCtx.currentTime + 0.02 + ((window.appState.step%2)?window.appState.swing*stepDur:0);
+    playStep(window.appState.steps[window.appState.step], t);
+    window.appState.step = (window.appState.step + 1) % 16;
+    renderApp();
+  }, (60/window.appState.bpm/4)*1000);
+  renderApp();
+}
+function stopBass(){
+  clearInterval(bassTimer); bassTimer=null;
+  window.appState.playing=false;
+  if(bassAmp && audioCtx) bassAmp.gain.setTargetAtTime(0.0001, audioCtx.currentTime, 0.02);
+  renderApp();
+}
+$('#playBtn').onclick = ()=> startBass();
+$('#stopBtn').onclick = ()=> stopBass();
+$('#randomBtn').onclick = ()=>{
+  window.appState.steps.forEach((s,i)=>{
+    s.active = Math.random() > 0.34;
+    s.degree = 1 + Math.floor(Math.random()*7);
+    s.octave = Math.random() > 0.75 ? 1 : 0;
+    s.accent = Math.random() > 0.7;
+    s.glide = Math.random() > 0.82;
+  });
+  renderApp();
+};
+$('#mutateBtn').onclick = ()=>{
+  const idx = Math.floor(Math.random()*16);
+  const s = window.appState.steps[idx];
+  s.active = true;
+  s.degree = clamp(s.degree + (Math.random()>.5?1:-1),1,7);
+  if(Math.random()>.65) s.accent = !s.accent;
+  if(Math.random()>.72) s.glide = !s.glide;
+  renderApp();
+  toast('Pattern mutated');
+};
+$('#clearBtn').onclick = ()=>{ window.appState.steps.forEach(s=>{s.active=false;s.accent=false;s.glide=false;s.octave=0;}); renderApp(); };
+$('#demoBtn').onclick = ()=>{
+  const degrees=[1,1,5,1,3,1,5,6,1,1,5,4,3,2,1,1];
+  window.appState.steps.forEach((s,i)=>{
+    s.active = true;
+    s.degree = degrees[i];
+    s.octave = [7,15].includes(i)?1:0;
+    s.accent = [0,4,8,12].includes(i);
+    s.glide = [6,14].includes(i);
+  });
+  renderApp();
+};
+['root','scale','wave'].forEach(id=> $('#'+id).addEventListener('change', e=>{ window.appState[id]=e.target.value; renderApp(); }));
+['bpm','cutoff','res','glide','swing'].forEach(id=> $('#'+id).addEventListener('input', e=>{
+  window.appState[id] = ['bpm'].includes(id) ? +e.target.value : parseFloat(e.target.value);
+  if(window.appState.playing && id==='bpm') startBass();
+  renderApp();
+}));
+$('#notes').addEventListener('input', e=> window.appState.notes = e.target.value);
+addEventListener('keydown', async e=>{
+  if(e.target && /input|textarea|select/i.test(e.target.tagName)) return;
+  const map = ['q','w','e','r','t','y','u'];
+  const idx = map.indexOf(e.key.toLowerCase());
+  if(idx > -1){
+    await ensureAudio(); initBassSynth();
+    playStep({active:true, degree:idx+1, octave:0, accent:false, glide:false}, audioCtx.currentTime+0.01);
+  }
+});
+function drawBass(){
+  const c=$('#bassScope'), ctx=c.getContext('2d');
+  c.width=c.clientWidth*devicePixelRatio; c.height=c.clientHeight*devicePixelRatio;
+  ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+  const w=c.clientWidth, h=c.clientHeight;
+  ctx.clearRect(0,0,w,h);
+  ctx.fillStyle='rgba(4,8,20,.7)'; ctx.fillRect(0,0,w,h);
+  const scale=scales[window.appState.scale];
+  window.appState.steps.forEach((s,i)=>{
+    const x=i*(w/16)+4, ww=w/16-8;
+    const height = s.active ? h*((s.degree+ (s.octave?2:0))/10) : 10;
+    ctx.fillStyle = s.accent ? 'rgba(255,215,106,.75)' : 'rgba(86,166,255,.7)';
+    ctx.fillRect(x, h-height-8, ww, height);
+    if(s.glide){ ctx.fillStyle='rgba(94,242,255,.85)'; ctx.fillRect(x+ww*0.66, h-height-14, 6, 6); }
+    if(i===window.appState.step && window.appState.playing){
+      ctx.strokeStyle='rgba(255,255,255,.78)'; ctx.strokeRect(x, 10, ww, h-20);
+    }
+  });
+  requestAnimationFrame(drawBass);
+}
+drawBass();
+renderApp();
+setInterval(()=>{ if(window.appState) localStorage.setItem(STORAGE_KEY, JSON.stringify(window.appState)); }, 3000);
+
+  </script>
+</body>
+</html>

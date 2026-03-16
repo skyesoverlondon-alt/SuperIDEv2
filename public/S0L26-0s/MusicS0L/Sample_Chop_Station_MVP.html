@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sample Chop Station MVP</title>
+  <style>
+    :root{
+      --bg:#050816;
+      --panel:rgba(12,18,38,.74);
+      --panel-2:rgba(20,27,56,.72);
+      --border:rgba(144,170,255,.18);
+      --text:#f6f7fb;
+      --muted:#94a3b8;
+      --blue:#56a6ff;
+      --violet:#9b7bff;
+      --cyan:#5ef2ff;
+      --gold:#ffd76a;
+      --danger:#ff6b8a;
+      --good:#4ade80;
+      --shadow:0 18px 60px rgba(0,0,0,.35);
+      --radius:24px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      background:
+        radial-gradient(circle at 20% 20%, rgba(86,166,255,.14), transparent 26%),
+        radial-gradient(circle at 80% 30%, rgba(155,123,255,.14), transparent 24%),
+        radial-gradient(circle at 50% 80%, rgba(94,242,255,.08), transparent 22%),
+        linear-gradient(180deg, #040611 0%, #070b18 42%, #050816 100%);
+      color:var(--text);
+      font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      min-height:100%;
+      overflow-x:hidden;
+    }
+    #bgCanvas{position:fixed; inset:0; width:100%; height:100%; z-index:0}
+    .app{position:relative; z-index:1; padding:16px; display:grid; gap:16px}
+    .topbar{
+      display:grid;
+      grid-template-columns:1.2fr .9fr;
+      gap:16px;
+      align-items:stretch;
+    }
+    .brand, .statusbar, .panel {
+      border:1px solid var(--border);
+      background:linear-gradient(180deg, rgba(16,24,52,.86), rgba(10,16,32,.82));
+      box-shadow:var(--shadow);
+      border-radius:var(--radius);
+      backdrop-filter: blur(18px);
+    }
+    .brand {
+      padding:18px 20px;
+      display:flex;
+      justify-content:space-between;
+      gap:16px;
+      align-items:center;
+    }
+    .brand h1{margin:0; font-size:clamp(1.25rem, 2vw, 2rem); letter-spacing:.02em}
+    .brand p{margin:6px 0 0; color:var(--muted)}
+    .navchips{display:flex; flex-wrap:wrap; gap:8px; justify-content:flex-end}
+    .navchips a, .pill, button, .seg button, select, input[type="range"], input[type="text"], input[type="number"], textarea {
+      border:1px solid var(--border);
+      background:rgba(255,255,255,.05);
+      color:var(--text);
+      border-radius:14px;
+      text-decoration:none;
+      transition:.2s ease;
+    }
+    .navchips a, button, .pill {
+      padding:10px 12px; font-weight:600; font-size:.92rem; cursor:pointer;
+    }
+    .navchips a.active{
+      background:linear-gradient(135deg, rgba(94,242,255,.24), rgba(86,166,255,.24));
+      border-color:rgba(94,242,255,.4);
+    }
+    button:hover, .navchips a:hover, .seg button:hover, .card:hover, .step:hover, .pad:hover, .chip:hover {
+      transform:translateY(-1px);
+      border-color:rgba(255,255,255,.28);
+      background:rgba(255,255,255,.09);
+    }
+    button.primary{background:linear-gradient(135deg, rgba(86,166,255,.25), rgba(155,123,255,.28)); border-color:rgba(94,242,255,.25)}
+    button.good{background:linear-gradient(135deg, rgba(74,222,128,.18), rgba(86,166,255,.22))}
+    button.warn{background:linear-gradient(135deg, rgba(255,215,106,.18), rgba(155,123,255,.24))}
+    button.danger{background:linear-gradient(135deg, rgba(255,107,138,.18), rgba(155,123,255,.24))}
+    button.tiny{padding:7px 10px; font-size:.82rem; border-radius:12px}
+    .statusbar{padding:14px 16px; display:grid; gap:10px}
+    .statusgrid{display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:10px}
+    .stat{padding:10px 12px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.05); border-radius:18px}
+    .stat b{display:block; font-size:.8rem; color:var(--muted); margin-bottom:4px}
+    .stat span{font-size:1.05rem; font-weight:700}
+    .maingrid{display:grid; grid-template-columns:1.12fr .88fr; gap:16px}
+    .panel{padding:16px}
+    .panel h2, .panel h3{margin:0 0 10px}
+    .sub{color:var(--muted); font-size:.92rem; margin-top:4px}
+    .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+    .stack{display:grid; gap:12px}
+    .controls{display:grid; gap:14px}
+    .control{display:grid; gap:7px}
+    label{font-size:.88rem; color:var(--muted)}
+    input[type="range"]{width:100%; padding:0; height:10px}
+    input[type="text"], input[type="number"], select, textarea{padding:10px 12px; width:100%}
+    textarea{min-height:90px; resize:vertical}
+    .seg{display:flex; flex-wrap:wrap; gap:8px}
+    .seg button.active, .toggle.active, .pad.active, .step.active, .slot.active, .chip.active, .laneCard.active {
+      background:linear-gradient(135deg, rgba(94,242,255,.26), rgba(86,166,255,.24));
+      border-color:rgba(94,242,255,.45);
+      box-shadow:0 0 0 1px rgba(94,242,255,.16), 0 10px 28px rgba(86,166,255,.18);
+    }
+    .mini{font-size:.8rem; color:var(--muted)}
+    .grid2{display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:12px}
+    .grid3{display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:12px}
+    .grid4{display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:12px}
+    .card, .laneCard, .pad, .chip{
+      padding:14px; border-radius:18px; border:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.04)
+    }
+    .laneCard{display:grid; gap:10px}
+    .meter{height:10px; border-radius:999px; background:rgba(255,255,255,.06); overflow:hidden}
+    .meter > span{display:block; height:100%; background:linear-gradient(90deg, var(--cyan), var(--blue), var(--violet)); width:40%}
+    canvas.scope, canvas.field, canvas.wave, canvas.chart{
+      width:100%; min-height:220px; border-radius:18px; border:1px solid rgba(255,255,255,.08); background:rgba(2,6,18,.55)
+    }
+    .footerNote{padding:8px 4px 20px; color:var(--muted); font-size:.88rem; text-align:center}
+    .toast{
+      position:fixed; right:18px; bottom:18px; z-index:5;
+      padding:12px 14px; border-radius:16px; color:var(--text);
+      background:linear-gradient(180deg, rgba(18,26,54,.92), rgba(8,14,30,.92));
+      border:1px solid var(--border); box-shadow:var(--shadow); opacity:0; transform:translateY(12px); transition:.25s ease; pointer-events:none;
+    }
+    .toast.show{opacity:1; transform:translateY(0)}
+    .hidden{display:none !important}
+    .stepgrid{display:grid; gap:8px}
+    .steps16{grid-template-columns:repeat(16, minmax(0,1fr))}
+    .steps8{grid-template-columns:repeat(8, minmax(0,1fr))}
+    .step,.slot,.pad,.clipPad,.chip{
+      min-height:44px; display:flex; align-items:center; justify-content:center; text-align:center; cursor:pointer; user-select:none;
+    }
+    .step.playing,.slot.playing,.pad.playing,.clipPad.playing,.chip.playing{
+      outline:2px solid rgba(255,215,106,.75);
+      transform:translateY(-1px) scale(1.02);
+    }
+    .clipPad{padding:12px; border-radius:16px; border:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.04); display:grid; gap:6px; justify-items:start}
+    .clipPad small{color:var(--muted)}
+    .timeline{display:grid; gap:8px}
+    .timelineItem{display:grid; grid-template-columns:96px 1fr; gap:12px; align-items:start; padding:10px 12px; border:1px solid rgba(255,255,255,.08); border-radius:16px; background:rgba(255,255,255,.03)}
+    .waveWrap{position:relative}
+    .marker{
+      position:absolute; top:0; bottom:0; width:2px; background:linear-gradient(180deg,var(--gold),transparent); pointer-events:none;
+    }
+    .pill input[type="file"]{display:none}
+    .kbd{padding:2px 8px; border-radius:10px; border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.05); font-size:.8rem}
+    @media (max-width: 1080px){
+      .topbar, .maingrid{grid-template-columns:1fr}
+      .statusgrid{grid-template-columns:repeat(2, minmax(0,1fr))}
+    }
+    @media (max-width: 720px){
+      .grid2,.grid3,.grid4{grid-template-columns:1fr}
+      .statusgrid{grid-template-columns:1fr 1fr}
+      .brand{align-items:flex-start; flex-direction:column}
+      .navchips{justify-content:flex-start}
+      .timelineItem{grid-template-columns:1fr}
+      .steps16{grid-template-columns:repeat(8,minmax(0,1fr))}
+    }
+</style>
+</head>
+<body>
+  <canvas id="bgCanvas"></canvas>
+  <div class="app">
+    <div class="topbar">
+      <section class="brand">
+        <div>
+          <h1>Sample Chop Station</h1>
+          <p>S0L26-0s browser-native creative workstation MVP. Single-file, offline-friendly, locally autosaved.</p>
+        </div>
+        <nav class="navchips"><a href="index.html">Wave 2 Launcher</a><a href="loop-forge.html">Loop Forge</a><a href="bass-lab.html">Bass Lab</a><a href="sample-chop-station.html" class="active">Sample Chop Station</a><a href="performance-pad-deck.html">Performance Pad Deck</a><a href="vocal-stack-builder.html">Vocal Stack Builder</a></nav>
+      </section>
+      <section class="statusbar">
+        <div class="row">
+          <button id="powerBtn" class="primary">Power / Audio</button>
+          <button id="saveBtn" class="good">Save</button>
+          <button id="exportBtn" class="warn">Export JSON</button>
+          <label class="pill">Import JSON <input id="importInput" type="file" accept="application/json"></label>
+        </div>
+        <div class="statusgrid" id="statusGrid"></div>
+      </section>
+    </div>
+    
+<main class="maingrid">
+  <section class="panel stack">
+    <div>
+      <h2>Waveform + Slice Pads</h2>
+      <p class="sub">Load a sample, auto-slice it, then trigger the chops from pads or a simple pattern lane. A tiny browser scalpel for bigger sonic nonsense.</p>
+    </div>
+    <div class="row">
+      <label class="pill">Load Audio <input id="audioFile" type="file" accept="audio/*"></label>
+      <button id="demoBtn" class="primary">Load Demo Sample</button>
+      <button id="autoBtn" class="warn">Auto Slice</button>
+      <button id="clearMarkersBtn">Clear Markers</button>
+      <button id="playPatternBtn" class="good">Play Pattern</button>
+      <button id="stopPatternBtn">Stop</button>
+    </div>
+    <div class="waveWrap">
+      <canvas id="waveCanvas" class="wave" height="240"></canvas>
+      <div id="markerLayer"></div>
+    </div>
+    <div class="mini">Click the waveform to drop a new marker. Auto Slice will space them evenly across the buffer.</div>
+    <div id="padGrid" class="grid4"></div>
+  </section>
+  <section class="panel stack">
+    <div>
+      <h2>Pattern + Chop Tuning</h2>
+      <p class="sub">Sequence slice IDs, reverse a selected slice, and nudge pitch. This MVP stays on the useful side of weird.</p>
+    </div>
+    <div class="controls grid2">
+      <div class="control"><label>Slices</label><input id="sliceCount" type="range" min="4" max="12" value="8"><div class="mini" id="sliceCountVal"></div></div>
+      <div class="control"><label>BPM <span id="bpmVal"></span></label><input id="bpm" type="range" min="70" max="160" value="120"></div>
+      <div class="control"><label>Pitch Offset <span id="pitchVal"></span></label><input id="pitch" type="range" min="-12" max="12" step="1" value="0"></div>
+      <div class="control"><label>Playback Rate <span id="rateVal"></span></label><input id="rate" type="range" min="0.4" max="1.8" step="0.01" value="1"></div>
+    </div>
+    <div id="patternGrid" class="stepgrid steps16"></div>
+    <div class="row">
+      <button id="randPatternBtn">Randomize Pattern</button>
+      <button id="reverseBtn">Reverse Selected Slice</button>
+      <span class="mini">Selected slice: <strong id="selSliceLabel">1</strong></span>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <h3>Session Notes</h3>
+        <textarea id="notes" placeholder="Chop idea, source sample note, arrangement reminder..."></textarea>
+      </div>
+      <div class="card">
+        <h3>Workflow</h3>
+        <p class="sub">Click pads to audition. Click pattern slots to cycle slice numbers. Export/import keeps markers and sequence state, not raw audio.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+    <div class="footerNote">Browser goblin note: tap <span class="kbd">Power / Audio</span> once before playback if Chrome wants a ritual gesture.</div>
+  </div>
+  <div class="toast" id="toast"></div>
+  <script>
+  const STORAGE_KEY = "sol26_wave2_sample_chop_station";
+  const $ = (sel,root=document)=>root.querySelector(sel);
+  const $$ = (sel,root=document)=>Array.from(root.querySelectorAll(sel));
+  const toastEl = $('#toast');
+  function toast(msg){
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(window.__toastTimer);
+    window.__toastTimer = setTimeout(()=>toastEl.classList.remove('show'), 1800);
+  }
+  function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
+  function lerp(a,b,t){ return a + (b-a)*t; }
+  const rand = (a,b)=>Math.random()*(b-a)+a;
+  let audioCtx = null, masterGain = null, analyser = null;
+  async function ensureAudio(){
+    if(!audioCtx){
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      masterGain = audioCtx.createGain();
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 2048;
+      masterGain.gain.value = 0.88;
+      masterGain.connect(analyser);
+      analyser.connect(audioCtx.destination);
+    }
+    if(audioCtx.state === 'suspended') await audioCtx.resume();
+    return audioCtx;
+  }
+  $('#powerBtn').addEventListener('click', async()=>{ await ensureAudio(); toast('Audio engine awake'); });
+  function saveState(state){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    toast('Saved locally');
+  }
+  function loadState(fallback){
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? Object.assign(fallback, JSON.parse(raw)) : fallback;
+    } catch(e) { return fallback; }
+  }
+  $('#exportBtn').addEventListener('click', ()=> {
+    const data = JSON.stringify(window.appState || {}, null, 2);
+    const blob = new Blob([data], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = STORAGE_KEY + '.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+  $('#importInput').addEventListener('change', async (e)=> {
+    const file = e.target.files[0];
+    if(!file) return;
+    try {
+      const data = JSON.parse(await file.text());
+      window.appState = Object.assign(window.appState || {}, data);
+      if(window.renderApp) window.renderApp();
+      toast('Imported state');
+    } catch(err) {
+      toast('Import failed');
+    }
+  });
+  $('#saveBtn').addEventListener('click', ()=> saveState(window.appState || {}));
+  function setStatus(items){
+    const host = $('#statusGrid');
+    host.innerHTML = items.map(it => `<div class="stat"><b>${it.label}</b><span>${it.value}</span></div>`).join('');
+  }
+  // background stars
+  const bg = document.getElementById('bgCanvas');
+  const bgCtx = bg.getContext('2d');
+  let stars = [];
+  function resizeBG(){
+    bg.width = innerWidth * devicePixelRatio;
+    bg.height = innerHeight * devicePixelRatio;
+    bgCtx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+    const count = Math.max(60, Math.floor(innerWidth / 12));
+    stars = Array.from({length:count}, ()=>({
+      x: Math.random()*innerWidth,
+      y: Math.random()*innerHeight,
+      r: Math.random()*1.8 + .2,
+      dx: Math.random()*.25 + .05,
+      a: Math.random()*.8 + .1
+    }));
+  }
+  addEventListener('resize', resizeBG);
+  resizeBG();
+  function drawBG(){
+    bgCtx.clearRect(0,0,innerWidth,innerHeight);
+    const g = bgCtx.createLinearGradient(0,0,0,innerHeight);
+    g.addColorStop(0,'rgba(8,11,24,.08)');
+    g.addColorStop(1,'rgba(3,5,12,.22)');
+    bgCtx.fillStyle = g;
+    bgCtx.fillRect(0,0,innerWidth,innerHeight);
+    for(const s of stars){
+      s.x += s.dx;
+      if(s.x > innerWidth + 8) s.x = -8;
+      bgCtx.beginPath();
+      bgCtx.fillStyle = `rgba(130,180,255,${s.a})`;
+      bgCtx.arc(s.x, s.y, s.r, 0, Math.PI*2);
+      bgCtx.fill();
+    }
+    requestAnimationFrame(drawBG);
+  }
+  drawBG();
+  setStatus([{label:'Sample',value:'None loaded'},{label:'Slices',value:'0'},{label:'Pattern Hits',value:'4'},{label:'Selected',value:'Slice 1'}]);
+  
+const sampleDefault = { bpm:120, sliceCount:8, pitch:0, rate:1, notes:'', selectedSlice:0, markers:[], pattern:Array.from({length:16}, (_,i)=> i%4===0?1:0) };
+window.appState = loadState(structuredClone(sampleDefault));
+let sampleBuffer = null, sampleTimer = null, patternStep = 0;
+async function buildDemoBuffer(){
+  await ensureAudio();
+  const len = audioCtx.sampleRate * 2.4;
+  const buf = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
+  const d = buf.getChannelData(0);
+  for(let i=0;i<len;i++){
+    const t = i/audioCtx.sampleRate;
+    const env = (1 - (i/len)) * (0.6 + 0.4*Math.sin(t*7));
+    const tone = Math.sin(2*Math.PI*(220 + 80*Math.sin(t*4))*t) * 0.45;
+    const clicks = ((i%8000)<220 ? (1-(i%8000)/220) : 0) * 0.55;
+    d[i] = (tone + clicks + (Math.random()*2-1)*0.04) * env;
+  }
+  sampleBuffer = buf;
+  if(!window.appState.markers?.length) autoSlice();
+  renderApp();
+  toast('Demo sample loaded');
+}
+async function handleAudioFile(file){
+  await ensureAudio();
+  const arr = await file.arrayBuffer();
+  sampleBuffer = await audioCtx.decodeAudioData(arr.slice(0));
+  autoSlice();
+  renderApp();
+}
+function autoSlice(){
+  if(!sampleBuffer) return;
+  const count = window.appState.sliceCount;
+  window.appState.markers = Array.from({length:count+1}, (_,i)=> i/count);
+  window.appState.selectedSlice = 0;
+  renderApp();
+}
+function renderWave(){
+  const c=$('#waveCanvas'), ctx=c.getContext('2d');
+  c.width=c.clientWidth*devicePixelRatio; c.height=c.clientHeight*devicePixelRatio;
+  ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+  const w=c.clientWidth, h=c.clientHeight;
+  ctx.clearRect(0,0,w,h);
+  ctx.fillStyle='rgba(4,8,18,.75)'; ctx.fillRect(0,0,w,h);
+  if(!sampleBuffer){
+    ctx.fillStyle='rgba(148,163,184,.8)';
+    ctx.font='16px Inter, sans-serif';
+    ctx.fillText('Load a sample or use demo audio', 24, h/2);
+    return;
+  }
+  const data = sampleBuffer.getChannelData(0);
+  const step = Math.max(1, Math.floor(data.length / w));
+  ctx.strokeStyle='rgba(94,242,255,.9)';
+  ctx.lineWidth=1;
+  ctx.beginPath();
+  for(let x=0;x<w;x++){
+    let min=1,max=-1;
+    for(let i=0;i<step;i++){
+      const v=data[x*step+i] || 0;
+      if(v<min) min=v; if(v>max) max=v;
+    }
+    ctx.moveTo(x, (1+min)*0.5*h);
+    ctx.lineTo(x, (1+max)*0.5*h);
+  }
+  ctx.stroke();
+  const markers = window.appState.markers || [];
+  markers.forEach((m,i)=>{
+    const x = m*w;
+    ctx.strokeStyle = i===window.appState.selectedSlice ? 'rgba(255,215,106,.95)' : 'rgba(155,123,255,.8)';
+    ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,h); ctx.stroke();
+  });
+}
+function renderPads(){
+  const host=$('#padGrid'); host.innerHTML='';
+  const markers = window.appState.markers || [];
+  const slices = Math.max(0, markers.length-1);
+  for(let i=0;i<slices;i++){
+    const p=document.createElement('div');
+    p.className='pad' + (i===window.appState.selectedSlice?' active':'');
+    p.innerHTML=`<div><strong>Slice ${i+1}</strong><div class="mini">${Math.round((markers[i+1]-markers[i])*100)}% span</div></div>`;
+    p.onclick=()=>{ window.appState.selectedSlice = i; playSlice(i); renderApp(); };
+    host.appendChild(p);
+  }
+}
+function renderPattern(){
+  const host=$('#patternGrid'); host.innerHTML='';
+  window.appState.pattern.forEach((v,i)=>{
+    const cell=document.createElement('div');
+    cell.className='slot'+(v?' active':'') + (patternStep===i && sampleTimer?' playing':'');
+    cell.textContent = v ? v : '–';
+    cell.onclick=()=>{ 
+      const max = Math.max(1,(window.appState.markers?.length||1)-1);
+      window.appState.pattern[i] = (window.appState.pattern[i] + 1) % (max+1);
+      renderApp();
+    };
+    host.appendChild(cell);
+  });
+}
+function renderControls(){
+  $('#sliceCount').value=window.appState.sliceCount; $('#sliceCountVal').textContent=window.appState.sliceCount+' slices';
+  $('#bpm').value=window.appState.bpm; $('#bpmVal').textContent=window.appState.bpm;
+  $('#pitch').value=window.appState.pitch; $('#pitchVal').textContent=(window.appState.pitch>0?'+':'')+window.appState.pitch+' st';
+  $('#rate').value=window.appState.rate; $('#rateVal').textContent=window.appState.rate.toFixed(2)+'×';
+  $('#selSliceLabel').textContent = (window.appState.selectedSlice||0)+1;
+  $('#notes').value=window.appState.notes||'';
+  $('#reverseBtn').classList.toggle('active', !!window.appState.reverseFlag);
+}
+function renderApp(){
+  renderWave();
+  renderPads();
+  renderPattern();
+  renderControls();
+  setStatus([
+    {label:'Sample', value: sampleBuffer ? `${sampleBuffer.duration.toFixed(2)} s` : 'None loaded'},
+    {label:'Slices', value: Math.max(0,(window.appState.markers?.length||1)-1)},
+    {label:'Pattern Hits', value: window.appState.pattern.filter(Boolean).length},
+    {label:'Selected', value: 'Slice ' + ((window.appState.selectedSlice||0)+1)}
+  ]);
+}
+window.renderApp = renderApp;
+async function playSlice(i){
+  if(!sampleBuffer) return;
+  await ensureAudio();
+  const markers = window.appState.markers;
+  if(!markers || i >= markers.length-1) return;
+  const start = markers[i]*sampleBuffer.duration;
+  const end = markers[i+1]*sampleBuffer.duration;
+  const src = audioCtx.createBufferSource();
+  src.buffer = sampleBuffer;
+  src.playbackRate.value = window.appState.rate * Math.pow(2, window.appState.pitch/12) * (window.appState.reverseFlag ? -1 : 1);
+  const gain = audioCtx.createGain(); gain.gain.value = 0.95;
+  src.connect(gain).connect(masterGain);
+  if(src.playbackRate.value < 0){
+    // reverse by using rendered reverse buffer for the slice
+    const span = Math.max(0.02, end-start);
+    const len = Math.floor(span*sampleBuffer.sampleRate);
+    const rb = audioCtx.createBuffer(1, len, sampleBuffer.sampleRate);
+    const srcData = sampleBuffer.getChannelData(0);
+    const out = rb.getChannelData(0);
+    const startIndex = Math.floor(start*sampleBuffer.sampleRate);
+    for(let n=0;n<len;n++) out[n] = srcData[startIndex + len - 1 - n] || 0;
+    src.buffer = rb;
+    src.playbackRate.value = Math.abs(src.playbackRate.value);
+    src.start();
+  } else {
+    src.start(0, start, Math.max(0.02, end-start));
+  }
+}
+async function startPattern(){
+  await ensureAudio();
+  if(sampleTimer) clearInterval(sampleTimer);
+  patternStep = 0;
+  sampleTimer = setInterval(()=>{
+    const sliceId = window.appState.pattern[patternStep];
+    if(sliceId) playSlice(sliceId-1);
+    patternStep = (patternStep+1)%16;
+    renderPattern();
+  }, (60/window.appState.bpm/4)*1000);
+  toast('Pattern running');
+}
+function stopPattern(){ clearInterval(sampleTimer); sampleTimer=null; renderPattern(); }
+$('#demoBtn').onclick = ()=> buildDemoBuffer();
+$('#audioFile').addEventListener('change', e=>{ const file=e.target.files[0]; if(file) handleAudioFile(file); });
+$('#autoBtn').onclick = ()=> autoSlice();
+$('#clearMarkersBtn').onclick = ()=>{ window.appState.markers=[]; renderApp(); };
+$('#playPatternBtn').onclick = ()=> startPattern();
+$('#stopPatternBtn').onclick = ()=> stopPattern();
+$('#randPatternBtn').onclick = ()=>{
+  const max = Math.max(1,(window.appState.markers?.length||1)-1);
+  window.appState.pattern = window.appState.pattern.map(()=> Math.random()>0.45 ? 1 + Math.floor(Math.random()*max) : 0);
+  renderPattern();
+};
+$('#reverseBtn').onclick = ()=>{ window.appState.reverseFlag = !window.appState.reverseFlag; renderApp(); };
+$('#sliceCount').addEventListener('input', e=>{ window.appState.sliceCount = +e.target.value; $('#sliceCountVal').textContent = e.target.value + ' slices'; });
+$('#sliceCount').addEventListener('change', ()=> autoSlice());
+['bpm','pitch','rate'].forEach(id=> $('#'+id).addEventListener('input', e=>{ window.appState[id] = id==='bpm' ? +e.target.value : parseFloat(e.target.value); renderControls(); if(id==='bpm' && sampleTimer) startPattern(); }));
+$('#notes').addEventListener('input', e=> window.appState.notes = e.target.value);
+$('#waveCanvas').addEventListener('click', e=>{
+  if(!sampleBuffer) return;
+  const rect = e.currentTarget.getBoundingClientRect();
+  const ratio = clamp((e.clientX - rect.left)/rect.width, 0, 1);
+  window.appState.markers = [...(window.appState.markers||[]), ratio].sort((a,b)=>a-b);
+  renderApp();
+});
+renderApp();
+setInterval(()=>{ if(window.appState) localStorage.setItem(STORAGE_KEY, JSON.stringify(window.appState)); }, 3000);
+
+  </script>
+</body>
+</html>

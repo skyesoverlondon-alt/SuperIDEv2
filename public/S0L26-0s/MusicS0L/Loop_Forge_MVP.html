@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Loop Forge MVP</title>
+  <style>
+    :root{
+      --bg:#050816;
+      --panel:rgba(12,18,38,.74);
+      --panel-2:rgba(20,27,56,.72);
+      --border:rgba(144,170,255,.18);
+      --text:#f6f7fb;
+      --muted:#94a3b8;
+      --blue:#56a6ff;
+      --violet:#9b7bff;
+      --cyan:#5ef2ff;
+      --gold:#ffd76a;
+      --danger:#ff6b8a;
+      --good:#4ade80;
+      --shadow:0 18px 60px rgba(0,0,0,.35);
+      --radius:24px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      background:
+        radial-gradient(circle at 20% 20%, rgba(86,166,255,.14), transparent 26%),
+        radial-gradient(circle at 80% 30%, rgba(155,123,255,.14), transparent 24%),
+        radial-gradient(circle at 50% 80%, rgba(94,242,255,.08), transparent 22%),
+        linear-gradient(180deg, #040611 0%, #070b18 42%, #050816 100%);
+      color:var(--text);
+      font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      min-height:100%;
+      overflow-x:hidden;
+    }
+    #bgCanvas{position:fixed; inset:0; width:100%; height:100%; z-index:0}
+    .app{position:relative; z-index:1; padding:16px; display:grid; gap:16px}
+    .topbar{
+      display:grid;
+      grid-template-columns:1.2fr .9fr;
+      gap:16px;
+      align-items:stretch;
+    }
+    .brand, .statusbar, .panel {
+      border:1px solid var(--border);
+      background:linear-gradient(180deg, rgba(16,24,52,.86), rgba(10,16,32,.82));
+      box-shadow:var(--shadow);
+      border-radius:var(--radius);
+      backdrop-filter: blur(18px);
+    }
+    .brand {
+      padding:18px 20px;
+      display:flex;
+      justify-content:space-between;
+      gap:16px;
+      align-items:center;
+    }
+    .brand h1{margin:0; font-size:clamp(1.25rem, 2vw, 2rem); letter-spacing:.02em}
+    .brand p{margin:6px 0 0; color:var(--muted)}
+    .navchips{display:flex; flex-wrap:wrap; gap:8px; justify-content:flex-end}
+    .navchips a, .pill, button, .seg button, select, input[type="range"], input[type="text"], input[type="number"], textarea {
+      border:1px solid var(--border);
+      background:rgba(255,255,255,.05);
+      color:var(--text);
+      border-radius:14px;
+      text-decoration:none;
+      transition:.2s ease;
+    }
+    .navchips a, button, .pill {
+      padding:10px 12px; font-weight:600; font-size:.92rem; cursor:pointer;
+    }
+    .navchips a.active{
+      background:linear-gradient(135deg, rgba(94,242,255,.24), rgba(86,166,255,.24));
+      border-color:rgba(94,242,255,.4);
+    }
+    button:hover, .navchips a:hover, .seg button:hover, .card:hover, .step:hover, .pad:hover, .chip:hover {
+      transform:translateY(-1px);
+      border-color:rgba(255,255,255,.28);
+      background:rgba(255,255,255,.09);
+    }
+    button.primary{background:linear-gradient(135deg, rgba(86,166,255,.25), rgba(155,123,255,.28)); border-color:rgba(94,242,255,.25)}
+    button.good{background:linear-gradient(135deg, rgba(74,222,128,.18), rgba(86,166,255,.22))}
+    button.warn{background:linear-gradient(135deg, rgba(255,215,106,.18), rgba(155,123,255,.24))}
+    button.danger{background:linear-gradient(135deg, rgba(255,107,138,.18), rgba(155,123,255,.24))}
+    button.tiny{padding:7px 10px; font-size:.82rem; border-radius:12px}
+    .statusbar{padding:14px 16px; display:grid; gap:10px}
+    .statusgrid{display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:10px}
+    .stat{padding:10px 12px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.05); border-radius:18px}
+    .stat b{display:block; font-size:.8rem; color:var(--muted); margin-bottom:4px}
+    .stat span{font-size:1.05rem; font-weight:700}
+    .maingrid{display:grid; grid-template-columns:1.12fr .88fr; gap:16px}
+    .panel{padding:16px}
+    .panel h2, .panel h3{margin:0 0 10px}
+    .sub{color:var(--muted); font-size:.92rem; margin-top:4px}
+    .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+    .stack{display:grid; gap:12px}
+    .controls{display:grid; gap:14px}
+    .control{display:grid; gap:7px}
+    label{font-size:.88rem; color:var(--muted)}
+    input[type="range"]{width:100%; padding:0; height:10px}
+    input[type="text"], input[type="number"], select, textarea{padding:10px 12px; width:100%}
+    textarea{min-height:90px; resize:vertical}
+    .seg{display:flex; flex-wrap:wrap; gap:8px}
+    .seg button.active, .toggle.active, .pad.active, .step.active, .slot.active, .chip.active, .laneCard.active {
+      background:linear-gradient(135deg, rgba(94,242,255,.26), rgba(86,166,255,.24));
+      border-color:rgba(94,242,255,.45);
+      box-shadow:0 0 0 1px rgba(94,242,255,.16), 0 10px 28px rgba(86,166,255,.18);
+    }
+    .mini{font-size:.8rem; color:var(--muted)}
+    .grid2{display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:12px}
+    .grid3{display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:12px}
+    .grid4{display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:12px}
+    .card, .laneCard, .pad, .chip{
+      padding:14px; border-radius:18px; border:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.04)
+    }
+    .laneCard{display:grid; gap:10px}
+    .meter{height:10px; border-radius:999px; background:rgba(255,255,255,.06); overflow:hidden}
+    .meter > span{display:block; height:100%; background:linear-gradient(90deg, var(--cyan), var(--blue), var(--violet)); width:40%}
+    canvas.scope, canvas.field, canvas.wave, canvas.chart{
+      width:100%; min-height:220px; border-radius:18px; border:1px solid rgba(255,255,255,.08); background:rgba(2,6,18,.55)
+    }
+    .footerNote{padding:8px 4px 20px; color:var(--muted); font-size:.88rem; text-align:center}
+    .toast{
+      position:fixed; right:18px; bottom:18px; z-index:5;
+      padding:12px 14px; border-radius:16px; color:var(--text);
+      background:linear-gradient(180deg, rgba(18,26,54,.92), rgba(8,14,30,.92));
+      border:1px solid var(--border); box-shadow:var(--shadow); opacity:0; transform:translateY(12px); transition:.25s ease; pointer-events:none;
+    }
+    .toast.show{opacity:1; transform:translateY(0)}
+    .hidden{display:none !important}
+    .stepgrid{display:grid; gap:8px}
+    .steps16{grid-template-columns:repeat(16, minmax(0,1fr))}
+    .steps8{grid-template-columns:repeat(8, minmax(0,1fr))}
+    .step,.slot,.pad,.clipPad,.chip{
+      min-height:44px; display:flex; align-items:center; justify-content:center; text-align:center; cursor:pointer; user-select:none;
+    }
+    .step.playing,.slot.playing,.pad.playing,.clipPad.playing,.chip.playing{
+      outline:2px solid rgba(255,215,106,.75);
+      transform:translateY(-1px) scale(1.02);
+    }
+    .clipPad{padding:12px; border-radius:16px; border:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.04); display:grid; gap:6px; justify-items:start}
+    .clipPad small{color:var(--muted)}
+    .timeline{display:grid; gap:8px}
+    .timelineItem{display:grid; grid-template-columns:96px 1fr; gap:12px; align-items:start; padding:10px 12px; border:1px solid rgba(255,255,255,.08); border-radius:16px; background:rgba(255,255,255,.03)}
+    .waveWrap{position:relative}
+    .marker{
+      position:absolute; top:0; bottom:0; width:2px; background:linear-gradient(180deg,var(--gold),transparent); pointer-events:none;
+    }
+    .pill input[type="file"]{display:none}
+    .kbd{padding:2px 8px; border-radius:10px; border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.05); font-size:.8rem}
+    @media (max-width: 1080px){
+      .topbar, .maingrid{grid-template-columns:1fr}
+      .statusgrid{grid-template-columns:repeat(2, minmax(0,1fr))}
+    }
+    @media (max-width: 720px){
+      .grid2,.grid3,.grid4{grid-template-columns:1fr}
+      .statusgrid{grid-template-columns:1fr 1fr}
+      .brand{align-items:flex-start; flex-direction:column}
+      .navchips{justify-content:flex-start}
+      .timelineItem{grid-template-columns:1fr}
+      .steps16{grid-template-columns:repeat(8,minmax(0,1fr))}
+    }
+</style>
+</head>
+<body>
+  <canvas id="bgCanvas"></canvas>
+  <div class="app">
+    <div class="topbar">
+      <section class="brand">
+        <div>
+          <h1>Loop Forge</h1>
+          <p>S0L26-0s browser-native creative workstation MVP. Single-file, offline-friendly, locally autosaved.</p>
+        </div>
+        <nav class="navchips"><a href="index.html">Wave 2 Launcher</a><a href="loop-forge.html" class="active">Loop Forge</a><a href="bass-lab.html">Bass Lab</a><a href="sample-chop-station.html">Sample Chop Station</a><a href="performance-pad-deck.html">Performance Pad Deck</a><a href="vocal-stack-builder.html">Vocal Stack Builder</a></nav>
+      </section>
+      <section class="statusbar">
+        <div class="row">
+          <button id="powerBtn" class="primary">Power / Audio</button>
+          <button id="saveBtn" class="good">Save</button>
+          <button id="exportBtn" class="warn">Export JSON</button>
+          <label class="pill">Import JSON <input id="importInput" type="file" accept="application/json"></label>
+        </div>
+        <div class="statusgrid" id="statusGrid"></div>
+      </section>
+    </div>
+    
+<main class="maingrid">
+  <section class="panel stack">
+    <div>
+      <h2>Scene Looping Board</h2>
+      <p class="sub">Four independent lanes with per-lane loop length, density, tone, and scene memory. Think live loop station more than plain drum grid.</p>
+    </div>
+    <div class="row">
+      <button id="playBtn" class="primary">Play</button>
+      <button id="stopBtn">Stop</button>
+      <button id="randomBtn" class="warn">Random Scene</button>
+      <button id="clearBtn" class="danger">Clear Scene</button>
+      <button id="copyBtn" class="good">Copy Scene →</button>
+      <div class="seg" id="sceneSeg"></div>
+    </div>
+    <div id="laneHost" class="stack"></div>
+  </section>
+  <section class="panel stack">
+    <div>
+      <h2>Transport + Motion</h2>
+      <p class="sub">Reverse, half-speed, and overdub-esque density changes let the loop mutate without feeling like the same eight bars forever.</p>
+    </div>
+    <div class="controls grid2">
+      <div class="control"><label>BPM <span id="bpmVal"></span></label><input id="bpm" type="range" min="70" max="164" value="108"></div>
+      <div class="control"><label>Swing <span id="swingVal"></span></label><input id="swing" type="range" min="0" max="0.48" step="0.01" value="0.08"></div>
+      <div class="control"><label>Master Level <span id="levelVal"></span></label><input id="level" type="range" min="0.2" max="1" step="0.01" value="0.88"></div>
+      <div class="control"><label>Motion Amount <span id="motionVal"></span></label><input id="motion" type="range" min="0" max="1" step="0.01" value="0.34"></div>
+    </div>
+    <div class="row">
+      <button id="reverseBtn">Reverse</button>
+      <button id="halfBtn">Half-Speed</button>
+      <button id="demoBtn">Load Demo</button>
+    </div>
+    <canvas id="scope" class="scope" height="240"></canvas>
+    <div class="grid2">
+      <div class="card">
+        <h3>Performance Moves</h3>
+        <p class="sub">Press <span class="kbd">1</span> <span class="kbd">2</span> <span class="kbd">3</span> to jump scenes. Press <span class="kbd">R</span> for reverse and <span class="kbd">H</span> for half-speed.</p>
+      </div>
+      <div class="card">
+        <h3>Loop Notes</h3>
+        <textarea id="notes" placeholder="Scene notes, build cues, transitions..."></textarea>
+      </div>
+    </div>
+  </section>
+</main>
+
+    <div class="footerNote">Browser goblin note: tap <span class="kbd">Power / Audio</span> once before playback if Chrome wants a ritual gesture.</div>
+  </div>
+  <div class="toast" id="toast"></div>
+  <script>
+  const STORAGE_KEY = "sol26_wave2_loop_forge";
+  const $ = (sel,root=document)=>root.querySelector(sel);
+  const $$ = (sel,root=document)=>Array.from(root.querySelectorAll(sel));
+  const toastEl = $('#toast');
+  function toast(msg){
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(window.__toastTimer);
+    window.__toastTimer = setTimeout(()=>toastEl.classList.remove('show'), 1800);
+  }
+  function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
+  function lerp(a,b,t){ return a + (b-a)*t; }
+  const rand = (a,b)=>Math.random()*(b-a)+a;
+  let audioCtx = null, masterGain = null, analyser = null;
+  async function ensureAudio(){
+    if(!audioCtx){
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      masterGain = audioCtx.createGain();
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 2048;
+      masterGain.gain.value = 0.88;
+      masterGain.connect(analyser);
+      analyser.connect(audioCtx.destination);
+    }
+    if(audioCtx.state === 'suspended') await audioCtx.resume();
+    return audioCtx;
+  }
+  $('#powerBtn').addEventListener('click', async()=>{ await ensureAudio(); toast('Audio engine awake'); });
+  function saveState(state){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    toast('Saved locally');
+  }
+  function loadState(fallback){
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? Object.assign(fallback, JSON.parse(raw)) : fallback;
+    } catch(e) { return fallback; }
+  }
+  $('#exportBtn').addEventListener('click', ()=> {
+    const data = JSON.stringify(window.appState || {}, null, 2);
+    const blob = new Blob([data], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = STORAGE_KEY + '.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+  $('#importInput').addEventListener('change', async (e)=> {
+    const file = e.target.files[0];
+    if(!file) return;
+    try {
+      const data = JSON.parse(await file.text());
+      window.appState = Object.assign(window.appState || {}, data);
+      if(window.renderApp) window.renderApp();
+      toast('Imported state');
+    } catch(err) {
+      toast('Import failed');
+    }
+  });
+  $('#saveBtn').addEventListener('click', ()=> saveState(window.appState || {}));
+  function setStatus(items){
+    const host = $('#statusGrid');
+    host.innerHTML = items.map(it => `<div class="stat"><b>${it.label}</b><span>${it.value}</span></div>`).join('');
+  }
+  // background stars
+  const bg = document.getElementById('bgCanvas');
+  const bgCtx = bg.getContext('2d');
+  let stars = [];
+  function resizeBG(){
+    bg.width = innerWidth * devicePixelRatio;
+    bg.height = innerHeight * devicePixelRatio;
+    bgCtx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+    const count = Math.max(60, Math.floor(innerWidth / 12));
+    stars = Array.from({length:count}, ()=>({
+      x: Math.random()*innerWidth,
+      y: Math.random()*innerHeight,
+      r: Math.random()*1.8 + .2,
+      dx: Math.random()*.25 + .05,
+      a: Math.random()*.8 + .1
+    }));
+  }
+  addEventListener('resize', resizeBG);
+  resizeBG();
+  function drawBG(){
+    bgCtx.clearRect(0,0,innerWidth,innerHeight);
+    const g = bgCtx.createLinearGradient(0,0,0,innerHeight);
+    g.addColorStop(0,'rgba(8,11,24,.08)');
+    g.addColorStop(1,'rgba(3,5,12,.22)');
+    bgCtx.fillStyle = g;
+    bgCtx.fillRect(0,0,innerWidth,innerHeight);
+    for(const s of stars){
+      s.x += s.dx;
+      if(s.x > innerWidth + 8) s.x = -8;
+      bgCtx.beginPath();
+      bgCtx.fillStyle = `rgba(130,180,255,${s.a})`;
+      bgCtx.arc(s.x, s.y, s.r, 0, Math.PI*2);
+      bgCtx.fill();
+    }
+    requestAnimationFrame(drawBG);
+  }
+  drawBG();
+  setStatus([{label:'Scene',value:'Scene A'},{label:'Transport',value:'Idle'},{label:'Direction',value:'Forward'},{label:'Loop Density',value:'0 cells'}]);
+  
+const loopDefault = {
+  bpm:108, swing:0.08, level:0.88, motion:0.34, activeScene:0, playing:false, reverse:false, half:false, notes:'',
+  scenes: Array.from({length:3}, ()=>({
+    lanes:[
+      {name:'Pulse', type:'kick', length:16, density:0.32, color:'var(--cyan)', steps:Array.from({length:16}, (_,i)=> i%4===0 ? 1:0)},
+      {name:'Metal', type:'perc', length:8, density:0.28, color:'var(--violet)', steps:Array.from({length:16}, (_,i)=> (i===3||i===11)?1:0)},
+      {name:'Tone', type:'tone', length:16, density:0.26, color:'var(--blue)', steps:Array.from({length:16}, (_,i)=> [0,5,9,13].includes(i)?1:0)},
+      {name:'Air', type:'noise', length:12, density:0.18, color:'var(--gold)', steps:Array.from({length:16}, (_,i)=> [7,15].includes(i)?1:0)},
+    ]
+  }))
+};
+window.appState = loadState(structuredClone(loopDefault));
+const sceneNames = ['Scene A','Scene B','Scene C'];
+let loopTimer = null, loopStep = 0;
+function currentScene(){ return window.appState.scenes[window.appState.activeScene]; }
+function renderLoopStatus(){
+  setStatus([
+    {label:'Scene', value: sceneNames[window.appState.activeScene]},
+    {label:'Transport', value: window.appState.playing ? (window.appState.half ? 'Playing • Half' : 'Playing') : 'Idle'},
+    {label:'Direction', value: window.appState.reverse ? 'Reverse' : 'Forward'},
+    {label:'Loop Density', value: (currentScene().lanes.reduce((a,l)=>a+l.steps.reduce((x,y)=>x+y,0),0)) + ' cells'}
+  ]);
+}
+function renderScenes(){
+  const host = $('#sceneSeg');
+  host.innerHTML = '';
+  sceneNames.forEach((name,i)=>{
+    const b=document.createElement('button');
+    b.textContent=name;
+    b.className=i===window.appState.activeScene ? 'active':'';
+    b.onclick=()=>{ window.appState.activeScene=i; renderApp(); };
+    host.appendChild(b);
+  });
+}
+function laneCard(lane,laneIndex){
+  const card=document.createElement('div');
+  card.className='laneCard';
+  card.innerHTML = `
+    <div class="row" style="justify-content:space-between">
+      <div><h3 style="margin:0">${lane.name}</h3><div class="mini">${lane.type} lane</div></div>
+      <div class="row">
+        <label class="mini">Length
+          <select data-len="${laneIndex}">
+            ${[4,8,12,16].map(n=>`<option value="${n}" ${lane.length===n?'selected':''}>${n}</option>`).join('')}
+          </select>
+        </label>
+        <label class="mini">Density
+          <input data-density="${laneIndex}" type="range" min="0" max="1" step="0.01" value="${lane.density}">
+        </label>
+      </div>
+    </div>
+    <div class="stepgrid steps16"></div>
+  `;
+  const grid = $('.stepgrid',card);
+  lane.steps.forEach((on,stepIndex)=>{
+    const cell=document.createElement('div');
+    cell.className='step'+(on?' active':'');
+    cell.textContent=(stepIndex%4===0? stepIndex+1 : '•');
+    cell.onclick=()=>{
+      lane.steps[stepIndex] = lane.steps[stepIndex] ? 0 : 1;
+      renderApp();
+    };
+    if(stepIndex >= lane.length) cell.style.opacity = .32;
+    if(stepIndex === loopStep && window.appState.playing) cell.classList.add('playing');
+    grid.appendChild(cell);
+  });
+  $('select',card).onchange = (e)=>{ lane.length = +e.target.value; renderApp(); };
+  $('input[type="range"]',card).oninput = (e)=>{ lane.density = +e.target.value; };
+  $('input[type="range"]',card).onchange = (e)=>{ lane.density = +e.target.value; reseedLane(lane); renderApp(); };
+  return card;
+}
+function reseedLane(lane){
+  lane.steps = lane.steps.map((v,i)=> i<lane.length ? (Math.random()<lane.density ? 1:0) : 0);
+}
+function renderLanes(){
+  const host = $('#laneHost');
+  host.innerHTML='';
+  currentScene().lanes.forEach((lane,idx)=>host.appendChild(laneCard(lane,idx)));
+}
+function syncControls(){
+  $('#bpm').value = window.appState.bpm; $('#bpmVal').textContent = window.appState.bpm;
+  $('#swing').value = window.appState.swing; $('#swingVal').textContent = Math.round(window.appState.swing*100)+'%';
+  $('#level').value = window.appState.level; $('#levelVal').textContent = Math.round(window.appState.level*100)+'%';
+  $('#motion').value = window.appState.motion; $('#motionVal').textContent = Math.round(window.appState.motion*100)+'%';
+  $('#reverseBtn').classList.toggle('active', !!window.appState.reverse);
+  $('#halfBtn').classList.toggle('active', !!window.appState.half);
+  $('#notes').value = window.appState.notes || '';
+  if(masterGain) masterGain.gain.value = window.appState.level;
+}
+function renderApp(){
+  renderScenes();
+  renderLanes();
+  syncControls();
+  renderLoopStatus();
+}
+window.renderApp = renderApp;
+function triggerLane(lane, t){
+  if(!audioCtx || !lane.steps[loopStep % lane.length]) return;
+  const amp = 0.18 + lane.density * 0.22;
+  if(lane.type==='kick'){
+    const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+    o.type='sine'; o.frequency.setValueAtTime(130, t); o.frequency.exponentialRampToValueAtTime(42, t+0.15);
+    g.gain.setValueAtTime(amp, t); g.gain.exponentialRampToValueAtTime(0.0001, t+0.16);
+    o.connect(g).connect(masterGain); o.start(t); o.stop(t+0.18);
+  } else if(lane.type==='perc'){
+    const buf=audioCtx.createBuffer(1, audioCtx.sampleRate*0.06, audioCtx.sampleRate);
+    const d=buf.getChannelData(0); for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*(1-i/d.length);
+    const src=audioCtx.createBufferSource(), bp=audioCtx.createBiquadFilter(), g=audioCtx.createGain();
+    src.buffer=buf; bp.type='bandpass'; bp.frequency.value=1800+window.appState.motion*2200;
+    g.gain.value=amp*0.8;
+    src.connect(bp).connect(g).connect(masterGain); src.start(t);
+  } else if(lane.type==='tone'){
+    const freqs=[55,65.4,73.4,82.4,98,110,123.4,146.8];
+    const o=audioCtx.createOscillator(), f=audioCtx.createBiquadFilter(), g=audioCtx.createGain(), pan=audioCtx.createStereoPanner();
+    o.type='sawtooth'; o.frequency.value=freqs[(loopStep + window.appState.activeScene*2) % freqs.length];
+    f.type='lowpass'; f.frequency.value=500 + window.appState.motion*1800;
+    pan.pan.value=Math.sin((loopStep/16)*Math.PI*2)*.4;
+    g.gain.setValueAtTime(amp*0.42, t); g.gain.exponentialRampToValueAtTime(0.0001, t+0.22);
+    o.connect(f).connect(pan).connect(g).connect(masterGain); o.start(t); o.stop(t+0.24);
+  } else {
+    const buf=audioCtx.createBuffer(1, audioCtx.sampleRate*0.22, audioCtx.sampleRate);
+    const d=buf.getChannelData(0); for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*(1-i/d.length)*(0.5+Math.sin(i/240)*0.5);
+    const src=audioCtx.createBufferSource(), hp=audioCtx.createBiquadFilter(), g=audioCtx.createGain(), pan=audioCtx.createStereoPanner();
+    src.buffer=buf; hp.type='highpass'; hp.frequency.value=2400;
+    pan.pan.value = Math.cos(loopStep*0.5)*0.7;
+    g.gain.value=amp*0.42;
+    src.connect(hp).connect(pan).connect(g).connect(masterGain); src.start(t);
+  }
+}
+async function tickLoop(){
+  await ensureAudio();
+  if(loopTimer) clearInterval(loopTimer);
+  loopTimer = setInterval(()=>{
+    const stepDur = (60/window.appState.bpm/4) * (window.appState.half?2:1);
+    const swingOffset = (loopStep%2===1 ? window.appState.swing*stepDur : 0);
+    const t = audioCtx.currentTime + 0.02 + swingOffset;
+    currentScene().lanes.forEach(l=> triggerLane(l,t));
+    loopStep = (loopStep + (window.appState.reverse?-1:1) + 16) % 16;
+    renderLanes();
+  }, (60/window.appState.bpm/4) * 1000 * (window.appState.half?2:1));
+}
+function stopLoop(){
+  clearInterval(loopTimer); loopTimer=null; window.appState.playing=false; renderApp();
+}
+$('#playBtn').onclick = async()=>{ window.appState.playing = true; await tickLoop(); renderApp(); };
+$('#stopBtn').onclick = ()=> stopLoop();
+$('#randomBtn').onclick = ()=>{ currentScene().lanes.forEach(reseedLane); renderApp(); };
+$('#clearBtn').onclick = ()=>{ currentScene().lanes.forEach(l=>l.steps=l.steps.map(()=>0)); renderApp(); };
+$('#copyBtn').onclick = ()=>{ const target=(window.appState.activeScene+1)%3; window.appState.scenes[target]=structuredClone(currentScene()); toast('Copied into '+sceneNames[target]); };
+$('#reverseBtn').onclick = ()=>{ window.appState.reverse=!window.appState.reverse; renderApp(); if(window.appState.playing) tickLoop(); };
+$('#halfBtn').onclick = ()=>{ window.appState.half=!window.appState.half; renderApp(); if(window.appState.playing) tickLoop(); };
+$('#demoBtn').onclick = ()=> {
+  window.appState.scenes[0].lanes[0].steps=[1,0,0,0,1,0,0,0,1,0,1,0,1,0,0,0];
+  window.appState.scenes[0].lanes[1].steps=[0,0,1,0,0,1,0,0,0,0,1,0,0,1,0,0];
+  window.appState.scenes[0].lanes[2].steps=[1,0,0,1,0,0,1,0,1,0,0,1,0,0,1,0];
+  window.appState.scenes[0].lanes[3].steps=[0,0,0,1,0,0,0,1,0,0,1,0,0,0,0,1];
+  renderApp();
+};
+['bpm','swing','level','motion'].forEach(id=>{
+  $('#'+id).addEventListener('input', e=>{
+    window.appState[id] = +e.target.value;
+    syncControls();
+    if(id==='level' && masterGain) masterGain.gain.value = window.appState.level;
+    if((id==='bpm' || id==='swing') && window.appState.playing) tickLoop();
+  });
+});
+$('#notes').addEventListener('input', e=> window.appState.notes = e.target.value);
+addEventListener('keydown', e=>{
+  if(e.target && /input|textarea|select/i.test(e.target.tagName)) return;
+  if(['1','2','3'].includes(e.key)){ window.appState.activeScene = +e.key - 1; renderApp(); }
+  if(e.key.toLowerCase()==='r'){ window.appState.reverse=!window.appState.reverse; renderApp(); if(window.appState.playing) tickLoop(); }
+  if(e.key.toLowerCase()==='h'){ window.appState.half=!window.appState.half; renderApp(); if(window.appState.playing) tickLoop(); }
+});
+function drawScope(){
+  const c=$('#scope'), ctx=c.getContext('2d');
+  c.width = c.clientWidth * devicePixelRatio; c.height = c.clientHeight * devicePixelRatio;
+  ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+  const w=c.clientWidth, h=c.clientHeight;
+  ctx.clearRect(0,0,w,h);
+  ctx.fillStyle='rgba(4,9,20,.68)'; ctx.fillRect(0,0,w,h);
+  const grd=ctx.createLinearGradient(0,0,w,h);
+  grd.addColorStop(0,'rgba(94,242,255,.18)'); grd.addColorStop(1,'rgba(155,123,255,.12)');
+  ctx.fillStyle=grd;
+  for(let i=0;i<16;i++){
+    const x=i*(w/16), active=currentScene().lanes.reduce((a,l)=>a+(l.steps[i]?1:0),0);
+    const bar=h*(active/6)*(0.4+window.appState.motion*.6);
+    ctx.fillRect(x+4, h-bar-8, w/16-8, bar);
+    if(i===loopStep) { ctx.strokeStyle='rgba(255,215,106,.8)'; ctx.strokeRect(x+4, 10, w/16-8, h-20); }
+  }
+  requestAnimationFrame(drawScope);
+}
+drawScope();
+renderApp();
+setInterval(()=>{ if(window.appState) localStorage.setItem(STORAGE_KEY, JSON.stringify(window.appState)); }, 3000);
+
+  </script>
+</body>
+</html>

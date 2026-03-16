@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Melody Reactor — Wave 1 MVP</title>
+  <style>
+    :root{
+      --bg:#050816;
+      --panel:rgba(12,18,38,.74);
+      --panel-2:rgba(20,27,56,.72);
+      --border:rgba(144,170,255,.18);
+      --text:#f6f7fb;
+      --muted:#94a3b8;
+      --blue:#56a6ff;
+      --violet:#9b7bff;
+      --cyan:#5ef2ff;
+      --gold:#ffd76a;
+      --danger:#ff6b8a;
+      --good:#4ade80;
+      --shadow:0 18px 60px rgba(0,0,0,.35);
+      --radius:24px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      background:
+        radial-gradient(circle at 20% 20%, rgba(86,166,255,.14), transparent 26%),
+        radial-gradient(circle at 80% 30%, rgba(155,123,255,.14), transparent 24%),
+        radial-gradient(circle at 50% 80%, rgba(94,242,255,.08), transparent 22%),
+        linear-gradient(180deg, #040611 0%, #070b18 42%, #050816 100%);
+      color:var(--text);
+      font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      min-height:100%;
+      overflow-x:hidden;
+    }
+    #bgCanvas{position:fixed; inset:0; width:100%; height:100%; z-index:0}
+    .app{position:relative; z-index:1; padding:16px; display:grid; gap:16px}
+    .topbar{
+      display:grid;
+      grid-template-columns:1.25fr .95fr;
+      gap:16px;
+      align-items:stretch;
+    }
+    .brand, .statusbar, .panel {
+      border:1px solid var(--border);
+      background:linear-gradient(180deg, rgba(16,24,52,.86), rgba(10,16,32,.82));
+      box-shadow:var(--shadow);
+      border-radius:var(--radius);
+      backdrop-filter: blur(18px);
+    }
+    .brand {
+      padding:18px 20px;
+      display:flex;
+      justify-content:space-between;
+      gap:16px;
+      align-items:center;
+    }
+    .brand h1{margin:0; font-size:clamp(1.25rem, 2vw, 2rem); letter-spacing:.02em}
+    .brand p{margin:6px 0 0; color:var(--muted)}
+    .navchips{display:flex; flex-wrap:wrap; gap:8px; justify-content:flex-end}
+    .navchips a, .pill, button, .seg button, select, input[type="range"], input[type="text"], input[type="number"], textarea {
+      border:1px solid var(--border);
+      background:rgba(255,255,255,.05);
+      color:var(--text);
+      border-radius:14px;
+      text-decoration:none;
+      transition:.2s ease;
+    }
+    .navchips a, button, .pill {
+      padding:10px 12px; font-weight:600; font-size:.92rem; cursor:pointer;
+    }
+    button:hover, .navchips a:hover, .seg button:hover, .card:hover {
+      transform:translateY(-1px);
+      border-color:rgba(255,255,255,.28);
+      background:rgba(255,255,255,.09);
+    }
+    button.primary{background:linear-gradient(135deg, rgba(86,166,255,.25), rgba(155,123,255,.28)); border-color:rgba(94,242,255,.25)}
+    button.good{background:linear-gradient(135deg, rgba(74,222,128,.18), rgba(86,166,255,.22))}
+    button.warn{background:linear-gradient(135deg, rgba(255,215,106,.18), rgba(155,123,255,.24))}
+    button.danger{background:linear-gradient(135deg, rgba(255,107,138,.18), rgba(155,123,255,.24))}
+    .statusbar{padding:14px 16px; display:grid; gap:10px}
+    .statusgrid{display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:10px}
+    .stat{padding:10px 12px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.05); border-radius:18px}
+    .stat b{display:block; font-size:.8rem; color:var(--muted); margin-bottom:4px}
+    .stat span{font-size:1.05rem; font-weight:700}
+    .maingrid{display:grid; grid-template-columns:1.15fr .85fr; gap:16px}
+    .panel{padding:16px}
+    .panel h2, .panel h3{margin:0 0 10px}
+    .sub{color:var(--muted); font-size:.92rem; margin-top:4px}
+    .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+    .stack{display:grid; gap:12px}
+    .controls{display:grid; gap:14px}
+    .control{display:grid; gap:7px}
+    label{font-size:.88rem; color:var(--muted)}
+    input[type="range"]{width:100%; padding:0; height:10px}
+    input[type="text"], input[type="number"], select, textarea{padding:10px 12px; width:100%}
+    textarea{min-height:90px; resize:vertical}
+    .seg{display:flex; flex-wrap:wrap; gap:8px}
+    .seg button.active, .toggle.active, .pad.active, .step.active, .slot.active {
+      background:linear-gradient(135deg, rgba(94,242,255,.26), rgba(86,166,255,.24));
+      border-color:rgba(94,242,255,.45);
+      box-shadow:0 0 0 1px rgba(94,242,255,.16), 0 10px 28px rgba(86,166,255,.18);
+    }
+    .mini{font-size:.8rem; color:var(--muted)}
+    .grid2{display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:12px}
+    .grid3{display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:12px}
+    .grid4{display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:12px}
+    .card{padding:14px; border-radius:18px; border:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.04)}
+    .meter{height:10px; border-radius:999px; background:rgba(255,255,255,.06); overflow:hidden}
+    .meter > span{display:block; height:100%; background:linear-gradient(90deg, var(--cyan), var(--blue), var(--violet)); width:40%}
+    canvas.scope, canvas.field, canvas.wave, canvas.chart{width:100%; min-height:220px; border-radius:18px; border:1px solid rgba(255,255,255,.08); background:rgba(2,6,18,.55)}
+    .footerNote{padding:8px 4px 20px; color:var(--muted); font-size:.88rem; text-align:center}
+    .toast{
+      position:fixed; right:18px; bottom:18px; z-index:5;
+      padding:12px 14px; border-radius:16px; color:var(--text);
+      background:linear-gradient(180deg, rgba(18,26,54,.92), rgba(8,14,30,.92));
+      border:1px solid var(--border); box-shadow:var(--shadow); opacity:0; transform:translateY(12px); transition:.25s ease; pointer-events:none;
+    }
+    .toast.show{opacity:1; transform:translateY(0)}
+    .hidden{display:none !important}
+    @media (max-width: 1080px){
+      .topbar, .maingrid{grid-template-columns:1fr}
+      .statusgrid{grid-template-columns:repeat(2, minmax(0,1fr))}
+    }
+    @media (max-width: 720px){
+      .grid2,.grid3,.grid4{grid-template-columns:1fr}
+      .statusgrid{grid-template-columns:1fr 1fr}
+      .brand{align-items:flex-start; flex-direction:column}
+      .navchips{justify-content:flex-start}
+    }
+  </style>
+  
+</head>
+<body>
+  <canvas id="bgCanvas"></canvas>
+  <div class="app">
+    <div class="topbar">
+      <section class="brand">
+        <div>
+          <h1>Melody Reactor</h1>
+          <p>A scale-locked melody generator and editor with contour controls, piano-roll grid, mutation, and live playback.</p>
+        </div>
+        <nav class="navchips"><a href="index.html">Wave Launcher</a><a href="beat-foundry.html">Beat Foundry</a><a href="chord-architect.html">Chord Architect</a><a href="spatial-fx-playground.html">Spatial FX Playground</a><a href="ambient-scene-engine.html">Ambient Scene Engine</a><a href="melody-reactor.html">Melody Reactor</a></nav>
+      </section>
+      <section class="statusbar">
+        <div class="row">
+          <button id="powerBtn" class="primary">Power / Audio</button>
+          <button id="saveBtn" class="good">Save</button>
+          <button id="exportBtn" class="warn">Export JSON</button>
+          <label class="pill">Import JSON <input id="importInput" type="file" accept="application/json" class="hidden"></label>
+        </div>
+        <div class="statusgrid" id="statusGrid"></div>
+      </section>
+    </div>
+    
+<main class="maingrid">
+  <section class="panel stack">
+    <div class="row" style="justify-content:space-between">
+      <div>
+        <h2>Piano Roll Reactor</h2>
+        <p class="sub">Generate, mutate, and hand-edit a 16-step melody inside a scale-locked grid.</p>
+      </div>
+      <div class="row">
+        <button id="playBtn" class="primary">Play</button>
+        <button id="stopBtn">Stop</button>
+        <button id="generateBtn" class="good">Generate</button>
+        <button id="mutateBtn" class="warn">Mutate</button>
+        <button id="clearBtn" class="danger">Clear</button>
+      </div>
+    </div>
+    <div id="rollWrap" class="card" style="overflow:auto"></div>
+    <div class="grid2">
+      <div class="card">
+        <h3>Phrase Readout</h3>
+        <div id="phraseText" class="sub"></div>
+      </div>
+      <div class="card">
+        <h3>Energy Curve</h3>
+        <canvas id="energyChart" class="chart" width="600" height="220"></canvas>
+      </div>
+    </div>
+  </section>
+  <section class="stack">
+    <section class="panel controls">
+      <div>
+        <h3>Generator Controls</h3>
+        <p class="sub">These dials steer contour, density, range, and melodic behavior.</p>
+      </div>
+      <div class="grid2">
+        <div class="control"><label>Key</label><select id="keySelect"></select></div>
+        <div class="control"><label>Scale</label><select id="scaleSelect"></select></div>
+      </div>
+      <div class="grid2">
+        <div class="control"><label>Contour</label><select id="contourSelect"></select></div>
+        <div class="control"><label>Waveform</label><select id="waveSelect"></select></div>
+      </div>
+      <div class="control"><label>Tempo <span id="tempoVal"></span></label><input id="tempo" type="range" min="70" max="170" value="124"></div>
+      <div class="control"><label>Density <span id="densityVal"></span></label><input id="density" type="range" min="10" max="100" value="64"></div>
+      <div class="control"><label>Range <span id="rangeVal"></span></label><input id="range" type="range" min="3" max="10" value="6"></div>
+      <div class="control"><label>Jumpiness <span id="jumpVal"></span></label><input id="jumpiness" type="range" min="0" max="100" value="32"></div>
+      <div class="control"><label>Notes / Hook Idea</label><textarea id="notes"></textarea></div>
+    </section>
+    <section class="panel stack">
+      <div>
+        <h3>Scale Palette</h3>
+        <p class="sub">Click a note chip to preview the available scale degrees.</p>
+      </div>
+      <div id="notePalette" class="grid4"></div>
+      <canvas id="scope" class="scope" width="520" height="220"></canvas>
+    </section>
+  </section>
+</main>
+
+    <div class="footerNote">Single-file browser MVP • local autosave • no backend required • optimized for fast idea proving</div>
+  </div>
+  <div id="toast" class="toast"></div>
+  <script>
+  const AppUI = (() => {
+    const toast = document.getElementById('toast');
+    const bg = document.getElementById('bgCanvas');
+    const ctx = bg.getContext('2d');
+    let particles = Array.from({length:64}, (_,i)=>({
+      x: Math.random()*window.innerWidth,
+      y: Math.random()*window.innerHeight,
+      r: 0.8 + Math.random()*2.2,
+      dx: -0.35 + Math.random()*0.7,
+      dy: -0.35 + Math.random()*0.7,
+      hue: [190,210,250][i%3]
+    }));
+    function resizeBG() {
+      bg.width = window.innerWidth * devicePixelRatio;
+      bg.height = window.innerHeight * devicePixelRatio;
+      bg.style.width = window.innerWidth + 'px';
+      bg.style.height = window.innerHeight + 'px';
+      ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+    }
+    resizeBG();
+    window.addEventListener('resize', resizeBG);
+    function loop() {
+      const w = window.innerWidth, h = window.innerHeight;
+      ctx.clearRect(0,0,w,h);
+      const g1 = ctx.createRadialGradient(w*.25,h*.2,10,w*.25,h*.2,w*.55);
+      g1.addColorStop(0,'rgba(86,166,255,.17)');
+      g1.addColorStop(1,'rgba(86,166,255,0)');
+      const g2 = ctx.createRadialGradient(w*.8,h*.3,10,w*.8,h*.3,w*.45);
+      g2.addColorStop(0,'rgba(155,123,255,.13)');
+      g2.addColorStop(1,'rgba(155,123,255,0)');
+      ctx.fillStyle = g1; ctx.fillRect(0,0,w,h);
+      ctx.fillStyle = g2; ctx.fillRect(0,0,w,h);
+      particles.forEach(p => {
+        p.x += p.dx; p.y += p.dy;
+        if(p.x < -10) p.x = w + 10; if(p.x > w + 10) p.x = -10;
+        if(p.y < -10) p.y = h + 10; if(p.y > h + 10) p.y = -10;
+        ctx.beginPath();
+        ctx.fillStyle = `hsla(${p.hue}, 100%, 72%, 0.32)`;
+        ctx.shadowColor = `hsla(${p.hue}, 100%, 72%, 0.6)`;
+        ctx.shadowBlur = 18;
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      });
+      requestAnimationFrame(loop);
+    }
+    loop();
+    return {
+      toast(msg) {
+        toast.textContent = msg;
+        toast.classList.add('show');
+        clearTimeout(toast._t);
+        toast._t = setTimeout(() => toast.classList.remove('show'), 1800);
+      },
+      download(name, data) {
+        const blob = new Blob([data], {type:'application/json'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = name; a.click();
+        setTimeout(()=>URL.revokeObjectURL(url), 1500);
+      },
+      fillStatus(items) {
+        const grid = document.getElementById('statusGrid');
+        grid.innerHTML = items.map(item => `<div class="stat"><b>${item.label}</b><span>${item.value}</span></div>`).join('');
+      },
+      clamp(v, a, b) { return Math.min(b, Math.max(a, v)); },
+      choice(arr) { return arr[Math.floor(Math.random()*arr.length)] },
+      rand(min,max) { return min + Math.random()*(max-min); },
+      uid() { return Math.random().toString(36).slice(2,9); },
+    };
+  })();
+  
+(() => {
+  const STORAGE = 'melody-reactor-wave1-v1';
+  const NOTES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+  const SCALES = {
+    major:[0,2,4,5,7,9,11],
+    minor:[0,2,3,5,7,8,10],
+    pentatonic:[0,2,4,7,9],
+    dorian:[0,2,3,5,7,9,10]
+  };
+  const defaultState = () => ({
+    key:'C',
+    scale:'minor',
+    contour:'wave',
+    wave:'triangle',
+    tempo:124,
+    density:64,
+    range:6,
+    jumpiness:32,
+    notes:'',
+    steps:Array.from({length:16}, (_,i) => ({pitch:i % 3 === 0 ? 4 + (i % 5) : null, gate:i % 5 !== 1}))
+  });
+  let state = load() || defaultState();
+  let ctx, master, analyser;
+  let timer = null, playing = false, playIndex = 0;
+  const dom = {
+    rollWrap: document.getElementById('rollWrap'),
+    phraseText: document.getElementById('phraseText'),
+    energyChart: document.getElementById('energyChart'),
+    keySelect: document.getElementById('keySelect'),
+    scaleSelect: document.getElementById('scaleSelect'),
+    contourSelect: document.getElementById('contourSelect'),
+    waveSelect: document.getElementById('waveSelect'),
+    tempo: document.getElementById('tempo'),
+    density: document.getElementById('density'),
+    range: document.getElementById('range'),
+    jumpiness: document.getElementById('jumpiness'),
+    tempoVal: document.getElementById('tempoVal'),
+    densityVal: document.getElementById('densityVal'),
+    rangeVal: document.getElementById('rangeVal'),
+    jumpVal: document.getElementById('jumpVal'),
+    notes: document.getElementById('notes'),
+    notePalette: document.getElementById('notePalette'),
+    scope: document.getElementById('scope'),
+    playBtn: document.getElementById('playBtn'),
+    stopBtn: document.getElementById('stopBtn'),
+    generateBtn: document.getElementById('generateBtn'),
+    mutateBtn: document.getElementById('mutateBtn'),
+    clearBtn: document.getElementById('clearBtn'),
+    saveBtn: document.getElementById('saveBtn'),
+    exportBtn: document.getElementById('exportBtn'),
+    importInput: document.getElementById('importInput'),
+    powerBtn: document.getElementById('powerBtn'),
+  };
+  const ectx = dom.energyChart.getContext('2d');
+  const sctx = dom.scope.getContext('2d');
+
+  function load(){ try { return JSON.parse(localStorage.getItem(STORAGE)); } catch { return null; } }
+  function persist(){ localStorage.setItem(STORAGE, JSON.stringify(state)); render(); }
+  function ensureAudio() {
+    if (ctx) return;
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    master = ctx.createGain(); master.gain.value = 0.88;
+    analyser = ctx.createAnalyser(); analyser.fftSize = 1024;
+    master.connect(analyser); analyser.connect(ctx.destination);
+    renderScope();
+  }
+  function activeScaleNotes() {
+    const root = NOTES.indexOf(state.key);
+    const intervals = SCALES[state.scale];
+    const out = [];
+    for (let octave = 0; octave < 3; octave++) {
+      intervals.forEach(int => out.push(60 + root + int + octave * 12));
+    }
+    return out.slice(0, state.range + 4);
+  }
+  function midiToName(midi) {
+    const note = NOTES[(midi % 12 + 12) % 12];
+    const octave = Math.floor(midi / 12) - 1;
+    return `${note}${octave}`;
+  }
+  function midiToFreq(midi){ return 440 * Math.pow(2, (midi - 69) / 12); }
+  function triggerNote(stepObj, when=0) {
+    if (stepObj.pitch === null || !stepObj.gate) return;
+    ensureAudio();
+    const pitches = activeScaleNotes();
+    const midi = pitches[stepObj.pitch % pitches.length];
+    const osc = ctx.createOscillator();
+    const filter = ctx.createBiquadFilter();
+    const gain = ctx.createGain();
+    osc.type = state.wave;
+    osc.frequency.setValueAtTime(midiToFreq(midi), ctx.currentTime + when);
+    filter.type = 'lowpass';
+    filter.frequency.value = 2200 + state.jumpiness * 12;
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime + when);
+    gain.gain.exponentialRampToValueAtTime(0.22, ctx.currentTime + when + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + when + 0.22);
+    osc.connect(filter).connect(gain).connect(master);
+    osc.start(ctx.currentTime + when);
+    osc.stop(ctx.currentTime + when + 0.25);
+  }
+  function stepMs() { return (60 / state.tempo / 4) * 1000; }
+  function playStep() {
+    const step = state.steps[playIndex];
+    triggerNote(step);
+    highlight(playIndex);
+    playIndex = (playIndex + 1) % state.steps.length;
+  }
+  function start() {
+    ensureAudio();
+    if (ctx.state === 'suspended') ctx.resume();
+    if (playing) return;
+    playing = true;
+    playIndex = 0;
+    playStep();
+    timer = setInterval(playStep, stepMs());
+    updateStatus();
+  }
+  function stop() {
+    playing = false;
+    clearInterval(timer); timer = null;
+    highlight(-1);
+    updateStatus();
+  }
+  function generate() {
+    const notes = activeScaleNotes();
+    const slots = state.steps.length;
+    let cursor = Math.floor(notes.length / 2);
+    state.steps = Array.from({length:slots}, (_, i) => {
+      const densityHit = Math.random() * 100 < state.density;
+      if (!densityHit) return {pitch:null, gate:false};
+      const contourBias = state.contour === 'rise' ? (i / slots) * 1.8 :
+                          state.contour === 'fall' ? ((slots - i) / slots) * -1.5 :
+                          state.contour === 'wave' ? Math.sin(i / slots * Math.PI * 2) * 1.6 :
+                          ((i % 4 === 0) ? 2 : -1);
+      const jump = (Math.random() - 0.5) * (state.jumpiness / 18) + contourBias;
+      cursor = Math.round(AppUI.clamp(cursor + jump, 0, notes.length - 1));
+      return {pitch:cursor, gate:true};
+    });
+    persist();
+  }
+  function mutate() {
+    state.steps = state.steps.map((step, i) => {
+      if (Math.random() < 0.22) {
+        if (step.pitch === null) return {pitch:Math.floor(Math.random() * activeScaleNotes().length), gate:true};
+        return {pitch:Math.max(0, step.pitch + Math.round((Math.random()-0.5) * 4)), gate:Math.random() > 0.12};
+      }
+      return step;
+    });
+    persist();
+  }
+  function highlight(index) {
+    dom.rollWrap.querySelectorAll('[data-step]').forEach(btn => {
+      const on = +btn.dataset.step === index;
+      btn.style.outline = on ? '2px solid rgba(255,215,106,.9)' : 'none';
+      btn.style.transform = on ? 'translateY(-2px)' : '';
+    });
+  }
+  function renderRoll() {
+    const notes = activeScaleNotes().slice().reverse();
+    dom.rollWrap.innerHTML = `
+      <div style="display:grid; grid-template-columns:120px repeat(${state.steps.length}, 44px); gap:6px; align-items:center; min-width:${120 + state.steps.length * 50}px;">
+        <div></div>
+        ${state.steps.map((_,i) => `<div class="mini" style="text-align:center">${i+1}</div>`).join('')}
+        ${notes.map((midi, rowIdx) => `
+          <div class="mini">${midiToName(midi)}</div>
+          ${state.steps.map((step, stepIdx) => {
+            const pitchIndex = activeScaleNotes().findIndex(x => x === midi);
+            const active = step.pitch === pitchIndex && step.gate;
+            return `<button class="pad ${active?'active':''}" data-pitch="${pitchIndex}" data-step="${stepIdx}" style="width:44px;height:34px;border-radius:12px"></button>`;
+          }).join('')}
+        `).join('')}
+      </div>`;
+    dom.rollWrap.querySelectorAll('[data-step][data-pitch]').forEach(btn => btn.addEventListener('click', () => {
+      const stepIdx = +btn.dataset.step, pitch = +btn.dataset.pitch;
+      const target = state.steps[stepIdx];
+      if (target.pitch === pitch && target.gate) state.steps[stepIdx] = {pitch:null, gate:false};
+      else state.steps[stepIdx] = {pitch, gate:true};
+      persist();
+    }));
+  }
+  function renderPalette() {
+    dom.notePalette.innerHTML = activeScaleNotes().slice(0, 8).map(midi => `<button data-note="${midi}">${midiToName(midi)}</button>`).join('');
+    dom.notePalette.querySelectorAll('[data-note]').forEach(btn => btn.addEventListener('click', () => {
+      ensureAudio();
+      triggerNote({pitch:activeScaleNotes().findIndex(n => n === +btn.dataset.note), gate:true});
+    }));
+  }
+  function renderPhrase() {
+    const phrase = state.steps.map(step => {
+      if (step.pitch === null || !step.gate) return '—';
+      const midi = activeScaleNotes()[step.pitch % activeScaleNotes().length];
+      return midiToName(midi);
+    }).join(' · ');
+    dom.phraseText.innerHTML = phrase;
+    drawEnergy();
+  }
+  function drawEnergy() {
+    const vals = state.steps.map(step => step.pitch === null || !step.gate ? 0 : step.pitch + 1);
+    const {width:w,height:h} = dom.energyChart;
+    ectx.clearRect(0,0,w,h);
+    ectx.strokeStyle = 'rgba(255,255,255,.08)';
+    for (let i=0;i<5;i++) { ectx.beginPath(); ectx.moveTo(0,i*h/4); ectx.lineTo(w,i*h/4); ectx.stroke(); }
+    ectx.beginPath();
+    ectx.lineWidth = 2.4;
+    const grad = ectx.createLinearGradient(0,0,w,0);
+    grad.addColorStop(0, '#5ef2ff'); grad.addColorStop(.5, '#56a6ff'); grad.addColorStop(1, '#9b7bff');
+    ectx.strokeStyle = grad;
+    vals.forEach((v,i) => {
+      const x = i/(vals.length-1)*(w-40)+20;
+      const y = h - ((v || 0) / Math.max(8, ...vals, 1)) * (h - 40) - 20;
+      if (i===0) ectx.moveTo(x,y); else ectx.lineTo(x,y);
+    });
+    ectx.stroke();
+  }
+  function renderScope() {
+    if (!analyser) return;
+    requestAnimationFrame(renderScope);
+    const data = new Uint8Array(analyser.fftSize);
+    analyser.getByteTimeDomainData(data);
+    const {width:w,height:h} = dom.scope;
+    sctx.clearRect(0,0,w,h);
+    sctx.beginPath();
+    sctx.lineWidth = 2;
+    const grad = sctx.createLinearGradient(0,0,w,0);
+    grad.addColorStop(0,'#ffd76a'); grad.addColorStop(0.5,'#56a6ff'); grad.addColorStop(1,'#5ef2ff');
+    sctx.strokeStyle = grad;
+    data.forEach((v,i) => {
+      const x = i/(data.length-1)*w;
+      const y = v/255*h;
+      if (i===0) sctx.moveTo(x,y); else sctx.lineTo(x,y);
+    });
+    sctx.stroke();
+  }
+
+  function renderControls() {
+    if (!dom.keySelect.options.length) {
+      dom.keySelect.innerHTML = NOTES.map(n => `<option value="${n}">${n}</option>`).join('');
+      dom.scaleSelect.innerHTML = Object.keys(SCALES).map(s => `<option value="${s}">${s}</option>`).join('');
+      dom.contourSelect.innerHTML = ['wave','rise','fall','stair'].map(s => `<option value="${s}">${s}</option>`).join('');
+      dom.waveSelect.innerHTML = ['triangle','sine','square','sawtooth'].map(s => `<option value="${s}">${s}</option>`).join('');
+    }
+    dom.keySelect.value = state.key;
+    dom.scaleSelect.value = state.scale;
+    dom.contourSelect.value = state.contour;
+    dom.waveSelect.value = state.wave;
+    dom.tempo.value = state.tempo;
+    dom.density.value = state.density;
+    dom.range.value = state.range;
+    dom.jumpiness.value = state.jumpiness;
+    dom.notes.value = state.notes;
+    dom.tempoVal.textContent = `${state.tempo} BPM`;
+    dom.densityVal.textContent = `${state.density}%`;
+    dom.rangeVal.textContent = `${state.range} tones`;
+    dom.jumpVal.textContent = `${state.jumpiness}%`;
+  }
+  function updateStatus() {
+    AppUI.fillStatus([
+      {label:'Key', value:`${state.key} ${state.scale}`},
+      {label:'Contour', value:state.contour},
+      {label:'Density', value:`${state.density}%`},
+      {label:'Transport', value:playing ? 'Running' : 'Stopped'}
+    ]);
+  }
+  function render() {
+    renderControls();
+    renderPalette();
+    renderRoll();
+    renderPhrase();
+    updateStatus();
+  }
+
+  dom.keySelect.addEventListener('change', () => { state.key = dom.keySelect.value; persist(); });
+  dom.scaleSelect.addEventListener('change', () => { state.scale = dom.scaleSelect.value; persist(); });
+  dom.contourSelect.addEventListener('change', () => { state.contour = dom.contourSelect.value; persist(); });
+  dom.waveSelect.addEventListener('change', () => { state.wave = dom.waveSelect.value; persist(); });
+  dom.tempo.addEventListener('input', () => { state.tempo = +dom.tempo.value; if (playing) { clearInterval(timer); timer = setInterval(playStep, stepMs()); } persist(); });
+  dom.density.addEventListener('input', () => { state.density = +dom.density.value; persist(); });
+  dom.range.addEventListener('input', () => { state.range = +dom.range.value; persist(); });
+  dom.jumpiness.addEventListener('input', () => { state.jumpiness = +dom.jumpiness.value; persist(); });
+  dom.notes.addEventListener('input', () => { state.notes = dom.notes.value; persist(); });
+
+  dom.playBtn.addEventListener('click', start);
+  dom.stopBtn.addEventListener('click', stop);
+  dom.generateBtn.addEventListener('click', () => { generate(); AppUI.toast('New melodic strand generated.'); });
+  dom.mutateBtn.addEventListener('click', () => { mutate(); AppUI.toast('Phrase mutated.'); });
+  dom.clearBtn.addEventListener('click', () => { state.steps = state.steps.map(()=>({pitch:null, gate:false})); persist(); AppUI.toast('Phrase cleared.'); });
+  dom.powerBtn.addEventListener('click', () => { ensureAudio(); ctx.resume(); AppUI.toast('Melody engine awake.'); });
+  dom.saveBtn.addEventListener('click', () => { persist(); AppUI.toast('Melody session saved.'); });
+  dom.exportBtn.addEventListener('click', () => AppUI.download('melody-reactor-session.json', JSON.stringify(state, null, 2)));
+  dom.importInput.parentElement.addEventListener('click', () => dom.importInput.click());
+  dom.importInput.addEventListener('change', async () => {
+    const file = dom.importInput.files[0];
+    if (!file) return;
+    state = Object.assign(defaultState(), JSON.parse(await file.text()));
+    persist();
+    AppUI.toast('Melody session imported.');
+  });
+
+  render();
+})();
+
+  </script>
+</body>
+</html>

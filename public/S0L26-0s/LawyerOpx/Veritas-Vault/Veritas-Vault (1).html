@@ -1,0 +1,1636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Veritas Vault // Evidence Management</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #07090e;
+            --surface: rgba(11,15,22,0.92);
+            --surface-raised: rgba(17,23,35,0.95);
+            --border: rgba(44,55,80,0.55);
+            --border-bright: rgba(66,153,225,0.4);
+            --text-primary: #e2e8f0;
+            --text-secondary: #718096;
+            --text-dim: #4a5568;
+            --accent: #4299e1;
+            --accent-glow: rgba(66,153,225,0.15);
+            --red: #f56565;
+            --green: #48bb78;
+            --amber: #ed8936;
+            --purple: #9f7aea;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'JetBrains Mono', monospace;
+            background: var(--bg);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+            font-size: 12px;
+        }
+
+        #three-canvas {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            opacity: 0.6;
+        }
+
+        /* ── Layout ── */
+        #app {
+            position: relative;
+            z-index: 1;
+            display: grid;
+            grid-template-rows: 56px 1fr;
+            grid-template-columns: 340px 1fr;
+            height: 100vh;
+            gap: 0;
+        }
+
+        /* ── Topbar ── */
+        #topbar {
+            grid-column: 1 / -1;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            background: rgba(7,9,14,0.98);
+            border-bottom: 1px solid var(--border);
+            backdrop-filter: blur(20px);
+        }
+
+        .topbar-left { display: flex; align-items: center; gap: 14px; }
+
+        .logo-mark {
+            width: 34px; height: 34px;
+            background: linear-gradient(135deg, #2b6cb0, #4299e1);
+            border-radius: 6px;
+            display: flex; align-items: center; justify-content: center;
+            font-family: 'Syne', sans-serif;
+            font-weight: 800; font-size: 16px; color: white;
+            box-shadow: 0 0 20px rgba(66,153,225,0.3);
+        }
+
+        .app-title {
+            font-family: 'Syne', sans-serif;
+            font-size: 15px;
+            font-weight: 800;
+            color: white;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .app-subtitle {
+            font-size: 8px;
+            color: var(--accent);
+            letter-spacing: 0.25em;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .topbar-stats {
+            display: flex;
+            align-items: center;
+            gap: 0;
+        }
+
+        .stat-pill {
+            padding: 0 18px;
+            border-left: 1px solid var(--border);
+            text-align: center;
+        }
+        .stat-pill:first-child { border-left: none; }
+
+        .stat-label { font-size: 7px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.15em; }
+        .stat-value { font-size: 13px; font-weight: 700; color: var(--text-primary); margin-top: 1px; }
+        .stat-value.green { color: var(--green); }
+        .stat-value.amber { color: var(--amber); }
+        .stat-value.red { color: var(--red); }
+        .stat-value.blue { color: var(--accent); }
+
+        .topbar-right { display: flex; gap: 8px; align-items: center; }
+
+        .btn {
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            font-weight: 700;
+            cursor: pointer;
+            border: none;
+            transition: all 0.15s ease;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .btn-ghost {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+        .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #2b6cb0 0%, #4299e1 100%);
+            color: white;
+            box-shadow: 0 0 16px rgba(66,153,225,0.25);
+        }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(66,153,225,0.4); }
+        .btn-primary:active { transform: translateY(0); }
+
+        .btn-danger {
+            background: rgba(229,62,62,0.1);
+            border: 1px solid rgba(245,101,101,0.3);
+            color: var(--red);
+        }
+        .btn-danger:hover { background: rgba(229,62,62,0.2); }
+
+        /* ── Sidebar ── */
+        #sidebar {
+            grid-row: 2;
+            border-right: 1px solid var(--border);
+            background: var(--surface);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .sidebar-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        .search-box {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 8px 12px;
+            margin-bottom: 12px;
+            transition: border-color 0.2s;
+        }
+        .search-box:focus-within { border-color: var(--accent); }
+        .search-box svg { color: var(--text-dim); flex-shrink: 0; }
+        .search-box input {
+            background: none;
+            border: none;
+            outline: none;
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            width: 100%;
+        }
+        .search-box input::placeholder { color: var(--text-dim); }
+
+        .filter-tabs {
+            display: flex;
+            gap: 4px;
+        }
+
+        .filter-tab {
+            flex: 1;
+            padding: 5px 0;
+            text-align: center;
+            font-size: 9px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            border-radius: 5px;
+            cursor: pointer;
+            border: 1px solid transparent;
+            color: var(--text-dim);
+            transition: all 0.15s;
+            background: transparent;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .filter-tab:hover { color: var(--text-secondary); }
+        .filter-tab.active { background: var(--accent-glow); border-color: var(--border-bright); color: var(--accent); }
+
+        #vault-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        #vault-list::-webkit-scrollbar { width: 3px; }
+        #vault-list::-webkit-scrollbar-thumb { background: #2d3748; border-radius: 4px; }
+
+        .vault-item {
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            margin-bottom: 6px;
+            background: rgba(255,255,255,0.02);
+        }
+        .vault-item:hover { background: rgba(66,153,225,0.05); border-color: var(--border); }
+        .vault-item.selected { background: rgba(66,153,225,0.08); border-color: var(--border-bright); }
+
+        .item-row1 { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+        .item-title { font-size: 11px; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
+        .item-hash { font-size: 8px; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; }
+        .item-row2 { display: flex; justify-content: space-between; align-items: center; }
+        .item-date { font-size: 9px; color: var(--text-dim); }
+        .item-actions { display: flex; gap: 6px; opacity: 0; transition: opacity 0.15s; }
+        .vault-item:hover .item-actions { opacity: 1; }
+        .item-action-btn { font-size: 8px; color: var(--text-dim); cursor: pointer; padding: 2px 4px; border-radius: 3px; }
+        .item-action-btn:hover { color: var(--accent); background: var(--accent-glow); }
+
+        .badge {
+            font-size: 8px;
+            padding: 2px 7px;
+            border-radius: 3px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+        .badge-sealed { background: rgba(229,62,62,0.12); color: #fc8181; border: 1px solid rgba(245,101,101,0.25); }
+        .badge-discovery { background: rgba(66,153,225,0.12); color: #90cdf4; border: 1px solid rgba(66,153,225,0.25); }
+        .badge-exhibit { background: rgba(72,187,120,0.12); color: #9ae6b4; border: 1px solid rgba(72,187,120,0.25); }
+        .badge-privileged { background: rgba(159,122,234,0.12); color: #d6bcfa; border: 1px solid rgba(159,122,234,0.25); }
+
+        .sidebar-footer {
+            padding: 12px 16px;
+            border-top: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        .enc-bar-label { display: flex; justify-content: space-between; margin-bottom: 5px; }
+        .enc-bar-label span { font-size: 8px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
+        .enc-bar { height: 2px; background: rgba(255,255,255,0.05); border-radius: 2px; overflow: hidden; }
+        .enc-bar-fill { height: 100%; background: linear-gradient(90deg, #2b6cb0, #4299e1, #63b3ed); animation: pulse-bar 3s ease-in-out infinite; }
+        @keyframes pulse-bar {
+            0%,100% { opacity: 1; } 50% { opacity: 0.6; }
+        }
+
+        /* ── Main Panel ── */
+        #main-panel {
+            grid-row: 2;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* ── Default / 3D view ── */
+        #default-view {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .three-overlay {
+            position: absolute;
+            top: 20px; left: 20px;
+            padding: 16px 20px;
+            border-left: 2px solid rgba(66,153,225,0.3);
+        }
+        .three-overlay h3 { font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 700; color: white; }
+        .three-overlay p { font-size: 9px; color: var(--text-dim); margin-top: 4px; letter-spacing: 0.1em; text-transform: uppercase; }
+
+        /* ── Detail Panel ── */
+        #detail-panel {
+            display: none;
+            flex-direction: column;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .detail-topbar {
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--surface);
+            flex-shrink: 0;
+        }
+
+        .detail-topbar-left { display: flex; align-items: center; gap: 12px; }
+        .detail-title { font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 700; color: white; }
+        .detail-id { font-size: 9px; color: var(--text-dim); }
+
+        .detail-body {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 340px;
+            gap: 0;
+            overflow: hidden;
+        }
+
+        .detail-main {
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .detail-main::-webkit-scrollbar { width: 3px; }
+        .detail-main::-webkit-scrollbar-thumb { background: #2d3748; border-radius: 4px; }
+
+        .detail-sidebar {
+            border-left: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .panel-card {
+            background: var(--surface-raised);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .card-header {
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .card-title {
+            font-size: 9px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            color: var(--text-dim);
+        }
+
+        .card-body { padding: 14px; }
+
+        .meta-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .meta-field {}
+        .meta-key { font-size: 8px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 3px; }
+        .meta-val { font-size: 11px; color: var(--text-primary); font-weight: 600; word-break: break-all; }
+        .meta-val.mono { font-size: 10px; color: var(--accent); }
+
+        .hash-display {
+            background: rgba(0,0,0,0.3);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 10px 12px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 9px;
+            color: var(--green);
+            word-break: break-all;
+            line-height: 1.6;
+        }
+
+        .integrity-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        .integrity-dot {
+            width: 7px; height: 7px;
+            border-radius: 50%;
+            background: var(--green);
+            box-shadow: 0 0 6px var(--green);
+            animation: blink 2s ease-in-out infinite;
+        }
+        @keyframes blink { 0%,100%{ opacity:1; } 50%{ opacity:0.4; } }
+        .integrity-label { font-size: 9px; color: var(--green); font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; }
+
+        /* AI Analysis */
+        .ai-panel {
+            background: linear-gradient(135deg, rgba(66,153,225,0.04), rgba(159,122,234,0.04));
+            border: 1px solid rgba(66,153,225,0.15);
+            border-radius: 10px;
+        }
+
+        .ai-panel .card-header {
+            background: rgba(66,153,225,0.05);
+            border-bottom-color: rgba(66,153,225,0.1);
+        }
+
+        .ai-chip {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            background: rgba(66,153,225,0.1);
+            border: 1px solid rgba(66,153,225,0.2);
+            border-radius: 4px;
+            padding: 3px 8px;
+            font-size: 8px;
+            font-weight: 700;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        .ai-response {
+            font-size: 11px;
+            line-height: 1.7;
+            color: var(--text-secondary);
+            min-height: 80px;
+        }
+
+        .ai-loading {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-dim);
+            font-size: 10px;
+        }
+
+        .ai-dots {
+            display: flex;
+            gap: 3px;
+        }
+
+        .ai-dot {
+            width: 4px; height: 4px;
+            border-radius: 50%;
+            background: var(--accent);
+            animation: bounce-dot 1.4s ease-in-out infinite;
+        }
+        .ai-dot:nth-child(2) { animation-delay: 0.2s; }
+        .ai-dot:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes bounce-dot {
+            0%,80%,100%{ transform: scale(0.8); opacity: 0.5; }
+            40%{ transform: scale(1.2); opacity: 1; }
+        }
+
+        .ai-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px; }
+        .ai-tag {
+            font-size: 8px;
+            padding: 3px 8px;
+            border-radius: 4px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        /* Chain of custody in detail */
+        .custody-timeline { display: flex; flex-direction: column; gap: 0; }
+        .custody-event {
+            display: flex;
+            gap: 12px;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.03);
+        }
+        .custody-event:last-child { border-bottom: none; }
+        .custody-line { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; width: 16px; }
+        .custody-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            border: 2px solid var(--accent);
+            background: var(--bg);
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+        .custody-dot.filled { background: var(--accent); }
+        .custody-dot.red { border-color: var(--red); }
+        .custody-dot.green { border-color: var(--green); background: var(--green); }
+        .custody-connector { flex: 1; width: 1px; background: var(--border); margin-top: 2px; }
+        .custody-text {}
+        .custody-action { font-size: 10px; font-weight: 600; color: var(--text-primary); }
+        .custody-meta { font-size: 9px; color: var(--text-dim); margin-top: 1px; }
+
+        /* Right sidebar in detail */
+        .detail-sidebar-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+        }
+        .ds-tab {
+            flex: 1;
+            padding: 11px;
+            text-align: center;
+            font-size: 9px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            cursor: pointer;
+            color: var(--text-dim);
+            border-bottom: 2px solid transparent;
+            transition: all 0.15s;
+        }
+        .ds-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+        .ds-tab:hover:not(.active) { color: var(--text-secondary); }
+
+        .ds-tab-content { flex: 1; overflow-y: auto; padding: 16px; }
+        .ds-tab-content::-webkit-scrollbar { width: 3px; }
+        .ds-tab-content::-webkit-scrollbar-thumb { background: #2d3748; }
+
+        /* ── Audit Log (bottom of main panel) ── */
+        #audit-footer {
+            flex-shrink: 0;
+            background: rgba(7,9,14,0.98);
+            border-top: 1px solid var(--border);
+            height: 130px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .audit-header {
+            padding: 8px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        .audit-header-left { display: flex; align-items: center; gap: 10px; }
+        .live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); box-shadow: 0 0 6px var(--green); animation: blink 1.5s infinite; }
+        .audit-title { font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.2em; color: var(--text-dim); }
+
+        #audit-log {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px 16px;
+            display: flex;
+            flex-direction: column-reverse;
+            gap: 3px;
+        }
+        #audit-log::-webkit-scrollbar { width: 2px; }
+        #audit-log::-webkit-scrollbar-thumb { background: #2d3748; }
+
+        .log-line { font-size: 9px; display: flex; gap: 10px; }
+        .log-time { color: var(--text-dim); flex-shrink: 0; }
+        .log-user { color: var(--amber); flex-shrink: 0; }
+        .log-msg { color: var(--text-secondary); }
+        .log-msg.success { color: var(--green); }
+        .log-msg.warning { color: var(--amber); }
+        .log-msg.info { color: var(--accent); }
+        .log-msg.error { color: var(--red); }
+
+        /* ── Modal ── */
+        #modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(7,9,14,0.85);
+            backdrop-filter: blur(10px);
+            z-index: 100;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        #modal-overlay.open { display: flex; }
+
+        .modal {
+            background: var(--surface-raised);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            width: 560px;
+            max-height: 85vh;
+            overflow-y: auto;
+            box-shadow: 0 30px 80px rgba(0,0,0,0.6);
+        }
+        .modal::-webkit-scrollbar { width: 3px; }
+        .modal::-webkit-scrollbar-thumb { background: #2d3748; }
+
+        .modal-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .modal-title { font-family: 'Syne', sans-serif; font-size: 17px; font-weight: 700; color: white; }
+        .modal-subtitle { font-size: 9px; color: var(--text-dim); margin-top: 3px; text-transform: uppercase; letter-spacing: 0.15em; }
+
+        .modal-close {
+            width: 28px; height: 28px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-dim);
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 16px;
+            transition: all 0.15s;
+        }
+        .modal-close:hover { border-color: var(--red); color: var(--red); }
+
+        .modal-body { padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+
+        .form-field {}
+        .form-label {
+            display: block;
+            font-size: 9px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: var(--text-dim);
+            margin-bottom: 6px;
+        }
+
+        .form-input {
+            width: 100%;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid var(--border);
+            border-radius: 7px;
+            padding: 9px 12px;
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+        .form-input:focus { border-color: var(--accent); }
+        .form-input::placeholder { color: var(--text-dim); }
+
+        select.form-input { cursor: pointer; }
+        select.form-input option { background: #1a202c; }
+
+        textarea.form-input { resize: vertical; min-height: 80px; line-height: 1.6; }
+
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+        .upload-zone {
+            border: 2px dashed var(--border);
+            border-radius: 10px;
+            padding: 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .upload-zone:hover { border-color: var(--accent); background: var(--accent-glow); }
+        .upload-zone-icon { font-size: 28px; margin-bottom: 8px; }
+        .upload-zone p { font-size: 10px; color: var(--text-secondary); }
+        .upload-zone span { font-size: 9px; color: var(--text-dim); }
+
+        .modal-footer {
+            padding: 16px 24px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+        }
+
+        /* ── Confirm Delete Modal ── */
+        #confirm-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(7,9,14,0.85);
+            backdrop-filter: blur(10px);
+            z-index: 200;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        #confirm-overlay.open { display: flex; }
+
+        .confirm-box {
+            background: var(--surface-raised);
+            border: 1px solid rgba(245,101,101,0.3);
+            border-radius: 12px;
+            width: 360px;
+            padding: 28px;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(229,62,62,0.15);
+        }
+        .confirm-icon { font-size: 32px; margin-bottom: 12px; }
+        .confirm-title { font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 700; color: white; margin-bottom: 8px; }
+        .confirm-text { font-size: 10px; color: var(--text-dim); line-height: 1.6; margin-bottom: 20px; }
+        .confirm-btns { display: flex; gap: 8px; justify-content: center; }
+
+        /* ── Scanner line ── */
+        .scanner {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 80px;
+            background: linear-gradient(to bottom, transparent, rgba(66,153,225,0.04), transparent);
+            pointer-events: none;
+            z-index: 0;
+            animation: scan 10s linear infinite;
+        }
+        @keyframes scan { 0%{ top:-80px; } 100%{ top:100%; } }
+
+        /* ── Tooltip ── */
+        [data-tip] { position: relative; }
+        [data-tip]:hover::after {
+            content: attr(data-tip);
+            position: absolute;
+            bottom: 120%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(17,23,35,0.98);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 9px;
+            white-space: nowrap;
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        /* Redacted effect */
+        .redacted {
+            background: rgba(229,62,62,0.1);
+            border-radius: 2px;
+            padding: 1px 4px;
+            color: var(--red);
+            font-size: 8px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        .section-divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--border), transparent);
+        }
+
+        /* Empty state */
+        .empty-state {
+            padding: 40px 20px;
+            text-align: center;
+        }
+        .empty-state-icon { font-size: 32px; margin-bottom: 12px; opacity: 0.4; }
+        .empty-state p { font-size: 11px; color: var(--text-dim); }
+
+        /* Priority flags */
+        .priority-flag {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 8px;
+            font-weight: 700;
+            text-transform: uppercase;
+            padding: 2px 7px;
+            border-radius: 3px;
+        }
+        .flag-high { background: rgba(229,62,62,0.1); color: var(--red); border: 1px solid rgba(245,101,101,0.2); }
+        .flag-medium { background: rgba(237,137,54,0.1); color: var(--amber); border: 1px solid rgba(237,137,54,0.2); }
+        .flag-low { background: rgba(72,187,120,0.1); color: var(--green); border: 1px solid rgba(72,187,120,0.2); }
+
+        /* Fade in */
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+        .fade-in { animation: fadeIn 0.25s ease forwards; }
+    </style>
+</head>
+<body>
+
+<canvas id="three-canvas"></canvas>
+<div class="scanner"></div>
+
+<div id="app">
+
+    <!-- ─── TOPBAR ─── -->
+    <header id="topbar">
+        <div class="topbar-left">
+            <div class="logo-mark">V</div>
+            <div>
+                <div class="app-title">Veritas Vault</div>
+                <div class="app-subtitle">Secure Evidence Depot // AES-256 Encrypted</div>
+            </div>
+        </div>
+
+        <div class="topbar-stats" id="topbar-stats">
+            <!-- populated by JS -->
+        </div>
+
+        <div class="topbar-right">
+            <button class="btn btn-ghost" onclick="exportReport()" data-tip="Export chain-of-custody report">↓ Export</button>
+            <button class="btn btn-primary" onclick="openUploadModal()">+ Secure Upload</button>
+        </div>
+    </header>
+
+    <!-- ─── SIDEBAR ─── -->
+    <aside id="sidebar">
+        <div class="sidebar-header">
+            <div class="search-box">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                <input type="text" id="search-input" placeholder="Search evidence..." oninput="filterVault()" />
+            </div>
+            <div class="filter-tabs">
+                <button class="filter-tab active" data-filter="all" onclick="setFilter('all',this)">All</button>
+                <button class="filter-tab" data-filter="discovery" onclick="setFilter('discovery',this)">Discovery</button>
+                <button class="filter-tab" data-filter="exhibit" onclick="setFilter('exhibit',this)">Exhibit</button>
+                <button class="filter-tab" data-filter="sealed" onclick="setFilter('sealed',this)">Sealed</button>
+                <button class="filter-tab" data-filter="privileged" onclick="setFilter('privileged',this)">Privileged</button>
+            </div>
+        </div>
+
+        <div id="vault-list"></div>
+
+        <div class="sidebar-footer">
+            <div class="enc-bar-label">
+                <span class="text-xs" style="color:var(--text-dim)">Encryption</span>
+                <span style="color:var(--accent)">AES-256 · Active</span>
+            </div>
+            <div class="enc-bar"><div class="enc-bar-fill" style="width:100%"></div></div>
+        </div>
+    </aside>
+
+    <!-- ─── MAIN PANEL ─── -->
+    <main id="main-panel">
+
+        <!-- Default / 3D view -->
+        <div id="default-view" style="flex:1;position:relative;">
+            <div class="three-overlay">
+                <h3>Spatial Evidence Map</h3>
+                <p>Select an item from the vault to inspect · Interactive cluster analysis</p>
+            </div>
+        </div>
+
+        <!-- Detail view -->
+        <div id="detail-panel">
+            <div class="detail-topbar">
+                <div class="detail-topbar-left">
+                    <button class="btn btn-ghost" onclick="closeDetail()" style="padding:5px 10px;">← Back</button>
+                    <div>
+                        <div class="detail-title" id="detail-title">—</div>
+                        <div class="detail-id" id="detail-id">—</div>
+                    </div>
+                    <div id="detail-badge"></div>
+                    <div id="detail-priority"></div>
+                </div>
+                <div style="display:flex;gap:8px">
+                    <button class="btn btn-ghost" onclick="analyzeCurrentItem()">✦ AI Analysis</button>
+                    <button class="btn btn-danger" onclick="confirmDelete()">Delete</button>
+                </div>
+            </div>
+
+            <div class="detail-body">
+                <!-- Left: metadata + AI -->
+                <div class="detail-main" id="detail-main-content"></div>
+
+                <!-- Right: chain of custody + notes -->
+                <div class="detail-sidebar">
+                    <div class="detail-sidebar-tabs">
+                        <div class="ds-tab active" onclick="switchDsTab('custody',this)">Custody</div>
+                        <div class="ds-tab" onclick="switchDsTab('notes',this)">Notes</div>
+                        <div class="ds-tab" onclick="switchDsTab('related',this)">Related</div>
+                    </div>
+                    <div class="ds-tab-content" id="ds-tab-content"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Audit Footer -->
+        <div id="audit-footer">
+            <div class="audit-header">
+                <div class="audit-header-left">
+                    <div class="live-dot"></div>
+                    <div class="audit-title">Chain of Custody Log // Live Feed</div>
+                </div>
+                <button class="btn btn-ghost" onclick="clearLog()" style="padding:3px 8px;font-size:8px;">Clear</button>
+            </div>
+            <div id="audit-log"></div>
+        </div>
+
+    </main>
+
+</div>
+
+<!-- ─── UPLOAD MODAL ─── -->
+<div id="modal-overlay">
+    <div class="modal">
+        <div class="modal-header">
+            <div>
+                <div class="modal-title">Secure Evidence Upload</div>
+                <div class="modal-subtitle">All uploads encrypted and hashed on intake</div>
+            </div>
+            <button class="modal-close" onclick="closeUploadModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <div class="upload-zone" onclick="simulateFilePick()">
+                <div class="upload-zone-icon">🔒</div>
+                <p>Drop files here or click to select</p>
+                <span id="upload-filename">PDF, IMG, CSV, DOC, MP3, MP4 supported</span>
+            </div>
+
+            <div class="form-row">
+                <div class="form-field">
+                    <label class="form-label">Evidence Title</label>
+                    <input class="form-input" id="f-title" type="text" placeholder="Exhibit_A_Contract.pdf" />
+                </div>
+                <div class="form-field">
+                    <label class="form-label">Classification</label>
+                    <select class="form-input" id="f-type">
+                        <option value="discovery">Discovery</option>
+                        <option value="exhibit">Exhibit</option>
+                        <option value="sealed">Sealed</option>
+                        <option value="privileged">Privileged</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-field">
+                    <label class="form-label">Filed By</label>
+                    <input class="form-input" id="f-author" type="text" placeholder="Partner / Attorney name" />
+                </div>
+                <div class="form-field">
+                    <label class="form-label">Priority Flag</label>
+                    <select class="form-input" id="f-priority">
+                        <option value="low">Low</option>
+                        <option value="medium">Medium</option>
+                        <option value="high">High</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-field">
+                <label class="form-label">Case Reference</label>
+                <input class="form-input" id="f-case" type="text" value="UNITED v. TECH-CORP (2026-CV)" />
+            </div>
+
+            <div class="form-field">
+                <label class="form-label">Notes / Context</label>
+                <textarea class="form-input" id="f-notes" placeholder="Describe the provenance and relevance of this evidence..."></textarea>
+            </div>
+
+            <div style="background:rgba(66,153,225,0.05);border:1px solid rgba(66,153,225,0.15);border-radius:8px;padding:12px;">
+                <p style="font-size:9px;color:var(--text-dim);line-height:1.7">
+                    <span style="color:var(--accent);font-weight:700">⚡ AUTO-PROCESSING:</span>
+                    SHA-256 hash will be generated, metadata extracted, and entry logged to immutable audit chain upon submission.
+                </p>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-ghost" onclick="closeUploadModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="submitUpload()">Encrypt & Vault →</button>
+        </div>
+    </div>
+</div>
+
+<!-- ─── CONFIRM DELETE ─── -->
+<div id="confirm-overlay">
+    <div class="confirm-box">
+        <div class="confirm-icon">⚠️</div>
+        <div class="confirm-title">Confirm Destruction</div>
+        <p class="confirm-text">This will permanently remove the evidence item from the vault and log the destruction event to the immutable audit chain. This action cannot be undone.</p>
+        <div class="confirm-btns">
+            <button class="btn btn-ghost" onclick="closeConfirm()">Cancel</button>
+            <button class="btn btn-danger" onclick="executeDelete()">Destroy Record</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// ═══════════════════════════════════
+//  DATA STATE
+// ═══════════════════════════════════
+let evidenceItems = [
+    {
+        id: 1,
+        title: 'Emails_Confidential_Q1.pdf',
+        type: 'discovery',
+        priority: 'high',
+        date: '2024-03-12',
+        filedBy: 'J. Harmon, Esq.',
+        caseRef: 'UNITED v. TECH-CORP (2026-CV)',
+        hash: 'SHA256:8a2f9c1d3e4b57a0112f8c9d3e4b57a0e4b57a01a0',
+        size: '4.2 MB',
+        notes: 'Internal email chain from Q1 2024 referencing alleged data sharing with third parties. Key exhibits on pages 14–22.',
+        custody: [
+            { action: 'Created & Vaulted', user: 'J. Harmon', time: '2024-03-12 09:14', dot: 'green' },
+            { action: 'Hash verified by system', user: 'AUTO', time: '2024-03-12 09:14', dot: 'filled' },
+            { action: 'Reviewed by lead counsel', user: 'M. Rivera', time: '2024-03-14 11:30', dot: 'filled' },
+            { action: 'Flagged HIGH priority', user: 'M. Rivera', time: '2024-03-14 11:32', dot: 'red' },
+        ],
+        aiAnalysis: null
+    },
+    {
+        id: 2,
+        title: 'Forensic_Mirror_Mainframe.img',
+        type: 'sealed',
+        priority: 'high',
+        date: '2024-03-14',
+        filedBy: 'CyberSec Consultants LLC',
+        caseRef: 'UNITED v. TECH-CORP (2026-CV)',
+        hash: 'SHA256:k9p0r4t2x1l8m3n5q7w2e6y9u3i0o4k9p0r4t2x',
+        size: '128 GB',
+        notes: 'Forensic image of defendant mainframe server. Court-ordered preservation. Sealed pending expert analysis.',
+        custody: [
+            { action: 'Received from court officer', user: 'CyberSec LLC', time: '2024-03-14 14:00', dot: 'green' },
+            { action: 'Hash verified – Sealed', user: 'AUTO', time: '2024-03-14 14:01', dot: 'red' },
+            { action: 'Access attempt logged', user: 'B. Chen', time: '2024-03-15 08:22', dot: 'filled' },
+        ],
+        aiAnalysis: null
+    },
+    {
+        id: 3,
+        title: 'Exhibit_A_BankStatement.csv',
+        type: 'exhibit',
+        priority: 'medium',
+        date: '2024-03-15',
+        filedBy: 'K. Osei, CPA',
+        caseRef: 'UNITED v. TECH-CORP (2026-CV)',
+        hash: 'SHA256:m1l2z9x8v7u6t5s4r3q2p1o0n9m8l7k6j5i4h3',
+        size: '218 KB',
+        notes: '18 months of transaction history. Highlights suspicious transfers totaling $4.2M to shell companies.',
+        custody: [
+            { action: 'Filed by forensic accountant', user: 'K. Osei CPA', time: '2024-03-15 10:00', dot: 'green' },
+            { action: 'Hash verified', user: 'AUTO', time: '2024-03-15 10:00', dot: 'filled' },
+            { action: 'Marked as primary exhibit', user: 'J. Harmon', time: '2024-03-15 15:45', dot: 'filled' },
+        ],
+        aiAnalysis: null
+    },
+    {
+        id: 4,
+        title: 'Deposition_Transcript_CEO.pdf',
+        type: 'discovery',
+        priority: 'high',
+        date: '2024-03-18',
+        filedBy: 'Court Reporter Services',
+        caseRef: 'UNITED v. TECH-CORP (2026-CV)',
+        hash: 'SHA256:d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3',
+        size: '1.8 MB',
+        notes: 'Certified transcript of CEO deposition. Contradictory statements on pp. 34–38 noted by counsel.',
+        custody: [
+            { action: 'Received from court reporter', user: 'Admin', time: '2024-03-18 16:00', dot: 'green' },
+            { action: 'Hash verified', user: 'AUTO', time: '2024-03-18 16:00', dot: 'filled' },
+        ],
+        aiAnalysis: null
+    },
+    {
+        id: 5,
+        title: 'Attorney_Client_Memo_03.docx',
+        type: 'privileged',
+        priority: 'low',
+        date: '2024-03-20',
+        filedBy: 'M. Rivera, Partner',
+        caseRef: 'UNITED v. TECH-CORP (2026-CV)',
+        hash: 'SHA256:f1e2d3c4b5a69788796a5b4c3d2e1f0a1b2c3d4',
+        size: '98 KB',
+        notes: 'Attorney-client privileged. Internal strategy memo. Do not produce.',
+        custody: [
+            { action: 'Created – marked Privileged', user: 'M. Rivera', time: '2024-03-20 09:00', dot: 'red' },
+            { action: 'Privilege confirmed by partner', user: 'J. Harmon', time: '2024-03-20 09:15', dot: 'filled' },
+        ],
+        aiAnalysis: null
+    }
+];
+
+let currentFilter = 'all';
+let currentSearch = '';
+let selectedItem = null;
+let currentDsTab = 'custody';
+
+// ═══════════════════════════════════
+//  THREE.JS
+// ═══════════════════════════════════
+let scene, camera, renderer;
+const cubes = [];
+let mouseX = 0, mouseY = 0;
+
+function initThree() {
+    scene = new THREE.Scene();
+    camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 1000);
+    renderer = new THREE.WebGLRenderer({
+        canvas: document.getElementById('three-canvas'),
+        antialias: true,
+        alpha: true
+    });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+    const gridHelper = new THREE.GridHelper(120, 48, 0x1a2436, 0x111827);
+    gridHelper.position.y = -10;
+    scene.add(gridHelper);
+
+    const starGeo = new THREE.BufferGeometry();
+    const starPos = new Float32Array(3000 * 3);
+    for (let i = 0; i < 3000 * 3; i++) starPos[i] = (Math.random() - 0.5) * 200;
+    starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+    scene.add(new THREE.Points(starGeo, new THREE.PointsMaterial({
+        color: 0x3a6090, size: 0.06, transparent: true, opacity: 0.5
+    })));
+
+    for (let i = 0; i < 12; i++) spawnDataCube();
+
+    camera.position.set(0, 10, 28);
+    camera.lookAt(0, 0, 0);
+
+    document.addEventListener('mousemove', e => {
+        mouseX = (e.clientX / window.innerWidth - 0.5) * 2;
+        mouseY = (e.clientY / window.innerHeight - 0.5) * 2;
+    });
+
+    animateThree();
+}
+
+function spawnDataCube() {
+    const size = 0.4 + Math.random() * 2;
+    const geo = new THREE.BoxGeometry(size, size, size);
+    const blue = Math.random() > 0.6;
+    const mat = new THREE.MeshBasicMaterial({
+        color: blue ? 0x3182ce : (Math.random() > 0.5 ? 0x2d3748 : 0x1e293b),
+        wireframe: true,
+        transparent: true,
+        opacity: blue ? 0.7 : 0.35
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(
+        (Math.random() - 0.5) * 50,
+        (Math.random() - 0.5) * 22,
+        (Math.random() - 0.5) * 25
+    );
+    mesh.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, 0);
+    scene.add(mesh);
+    cubes.push({ mesh, rx: (Math.random() - 0.5) * 0.015, ry: (Math.random() - 0.5) * 0.015, phase: Math.random() * 10 });
+}
+
+function animateThree() {
+    requestAnimationFrame(animateThree);
+    const t = Date.now() * 0.001;
+    cubes.forEach(c => {
+        c.mesh.rotation.x += c.rx;
+        c.mesh.rotation.y += c.ry;
+        c.mesh.position.y += Math.sin(t + c.phase) * 0.005;
+    });
+    camera.position.x += (mouseX * 3 - camera.position.x) * 0.02;
+    camera.position.y += (-mouseY * 2 + 8 - camera.position.y) * 0.02;
+    camera.lookAt(0, 0, 0);
+    renderer.render(scene, camera);
+}
+
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// ═══════════════════════════════════
+//  RENDER VAULT LIST
+// ═══════════════════════════════════
+function getFilteredItems() {
+    return evidenceItems.filter(item => {
+        const matchFilter = currentFilter === 'all' || item.type === currentFilter;
+        const matchSearch = !currentSearch ||
+            item.title.toLowerCase().includes(currentSearch.toLowerCase()) ||
+            item.filedBy.toLowerCase().includes(currentSearch.toLowerCase()) ||
+            item.caseRef.toLowerCase().includes(currentSearch.toLowerCase());
+        return matchFilter && matchSearch;
+    });
+}
+
+function renderVault() {
+    const list = document.getElementById('vault-list');
+    const items = getFilteredItems();
+
+    if (items.length === 0) {
+        list.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🔍</div><p>No evidence matches your search.</p></div>`;
+        return;
+    }
+
+    list.innerHTML = items.map(item => `
+        <div class="vault-item ${selectedItem && selectedItem.id === item.id ? 'selected' : ''} fade-in"
+             onclick="selectItem(${item.id})">
+            <div class="item-row1">
+                <span class="badge badge-${item.type}">${item.type}</span>
+                <span class="item-hash">${item.hash.slice(0, 14)}…</span>
+            </div>
+            <div class="item-title">${item.title}</div>
+            <div class="item-row2">
+                <span class="item-date">Filed: ${item.date}</span>
+                <div class="item-actions">
+                    <span class="item-action-btn" onclick="event.stopPropagation();copyHash(${item.id})" data-tip="Copy hash">⊕</span>
+                    <span class="item-action-btn" onclick="event.stopPropagation();confirmDeleteById(${item.id})" data-tip="Delete">✕</span>
+                </div>
+            </div>
+        </div>
+    `).join('');
+
+    updateTopbarStats();
+}
+
+function setFilter(f, btn) {
+    currentFilter = f;
+    document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    renderVault();
+}
+
+function filterVault() {
+    currentSearch = document.getElementById('search-input').value;
+    renderVault();
+}
+
+function updateTopbarStats() {
+    const stats = [
+        { label: 'Total Items', value: evidenceItems.length, cls: 'blue' },
+        { label: 'Discovery', value: evidenceItems.filter(i=>i.type==='discovery').length, cls: '' },
+        { label: 'Sealed', value: evidenceItems.filter(i=>i.type==='sealed').length, cls: 'red' },
+        { label: 'Exhibit', value: evidenceItems.filter(i=>i.type==='exhibit').length, cls: 'green' },
+        { label: 'High Priority', value: evidenceItems.filter(i=>i.priority==='high').length, cls: 'amber' },
+        { label: 'Case', value: 'UNITED v. TECH-CORP', cls: '' },
+    ];
+    document.getElementById('topbar-stats').innerHTML = stats.map(s => `
+        <div class="stat-pill">
+            <div class="stat-label">${s.label}</div>
+            <div class="stat-value ${s.cls}">${s.value}</div>
+        </div>
+    `).join('');
+}
+
+// ═══════════════════════════════════
+//  DETAIL VIEW
+// ═══════════════════════════════════
+function selectItem(id) {
+    selectedItem = evidenceItems.find(i => i.id === id);
+    if (!selectedItem) return;
+
+    document.getElementById('default-view').style.display = 'none';
+    document.getElementById('detail-panel').style.display = 'flex';
+
+    document.getElementById('detail-title').textContent = selectedItem.title;
+    document.getElementById('detail-id').textContent = `ID: EVD-${String(selectedItem.id).padStart(4,'0')} · ${selectedItem.caseRef}`;
+    document.getElementById('detail-badge').innerHTML = `<span class="badge badge-${selectedItem.type}">${selectedItem.type}</span>`;
+    document.getElementById('detail-priority').innerHTML = `<span class="priority-flag flag-${selectedItem.priority}">● ${selectedItem.priority}</span>`;
+
+    renderDetailMain();
+    renderDsTab(currentDsTab);
+    renderVault();
+    logEvent(`Opened evidence record: ${selectedItem.title}`, 'info');
+}
+
+function renderDetailMain() {
+    const item = selectedItem;
+    const main = document.getElementById('detail-main-content');
+    main.innerHTML = `
+        <!-- Metadata -->
+        <div class="panel-card fade-in">
+            <div class="card-header">
+                <span class="card-title">Evidence Metadata</span>
+                <div class="integrity-row">
+                    <div class="integrity-dot"></div>
+                    <span class="integrity-label">Integrity Verified</span>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="meta-grid">
+                    <div class="meta-field"><div class="meta-key">Filename</div><div class="meta-val">${item.title}</div></div>
+                    <div class="meta-field"><div class="meta-key">File Size</div><div class="meta-val">${item.size}</div></div>
+                    <div class="meta-field"><div class="meta-key">Classification</div><div class="meta-val">${item.type.toUpperCase()}</div></div>
+                    <div class="meta-field"><div class="meta-key">Priority</div><div class="meta-val">${item.priority.toUpperCase()}</div></div>
+                    <div class="meta-field"><div class="meta-key">Filed By</div><div class="meta-val">${item.filedBy}</div></div>
+                    <div class="meta-field"><div class="meta-key">Date Filed</div><div class="meta-val">${item.date}</div></div>
+                    <div class="meta-field" style="grid-column:1/-1"><div class="meta-key">Case Reference</div><div class="meta-val">${item.caseRef}</div></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Hash -->
+        <div class="panel-card fade-in">
+            <div class="card-header">
+                <span class="card-title">Cryptographic Integrity</span>
+                <button class="btn btn-ghost" onclick="copyHash(${item.id})" style="padding:3px 8px;font-size:8px;">Copy Hash</button>
+            </div>
+            <div class="card-body">
+                <div class="meta-key" style="margin-bottom:6px">SHA-256 Digest</div>
+                <div class="hash-display">${item.hash}</div>
+                <div class="integrity-row" style="margin-top:10px">
+                    <div class="integrity-dot"></div>
+                    <span class="integrity-label">Hash matches vault record · No tampering detected</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Notes -->
+        <div class="panel-card fade-in">
+            <div class="card-header"><span class="card-title">Counsel Notes</span></div>
+            <div class="card-body">
+                <p style="font-size:11px;color:var(--text-secondary);line-height:1.7">${item.notes || '<span style="color:var(--text-dim)">No notes recorded.</span>'}</p>
+            </div>
+        </div>
+
+        <!-- AI Analysis -->
+        <div class="panel-card ai-panel fade-in" id="ai-card">
+            <div class="card-header">
+                <span class="card-title">AI Evidence Analysis</span>
+                <div class="ai-chip">
+                    <span>✦</span> Claude AI
+                </div>
+            </div>
+            <div class="card-body" id="ai-card-body">
+                ${item.aiAnalysis
+                    ? renderAiAnalysis(item.aiAnalysis)
+                    : `<button class="btn btn-ghost" onclick="analyzeCurrentItem()" style="width:100%;padding:12px;border-style:dashed;color:var(--accent);border-color:rgba(66,153,225,0.3);">
+                            ✦ Generate AI Analysis
+                        </button>`
+                }
+            </div>
+        </div>
+    `;
+}
+
+function renderAiAnalysis(text) {
+    const tags = extractTags(text);
+    return `
+        <div class="ai-response">${text}</div>
+        ${tags.length ? `<div class="ai-tags">${tags.map(t=>`<span class="ai-tag">${t}</span>`).join('')}</div>` : ''}
+    `;
+}
+
+function extractTags(text) {
+    const keywords = ['financial', 'email', 'forensic', 'deposition', 'privileged', 'digital', 'banking', 'suspicious', 'contract', 'communication', 'timeline'];
+    return keywords.filter(k => text.toLowerCase().includes(k));
+}
+
+function renderDsTab(tab) {
+    currentDsTab = tab;
+    const content = document.getElementById('ds-tab-content');
+    if (!selectedItem) return;
+
+    if (tab === 'custody') {
+        content.innerHTML = `
+            <div style="font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.15em;margin-bottom:12px;">Chain of Custody</div>
+            <div class="custody-timeline">
+                ${selectedItem.custody.map((e, i, arr) => `
+                    <div class="custody-event">
+                        <div class="custody-line">
+                            <div class="custody-dot ${e.dot}"></div>
+                            ${i < arr.length - 1 ? '<div class="custody-connector" style="flex:1;min-height:20px;"></div>' : ''}
+                        </div>
+                        <div class="custody-text">
+                            <div class="custody-action">${e.action}</div>
+                            <div class="custody-meta">${e.time} · ${e.user}</div>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    } else if (tab === 'notes') {
+        content.innerHTML = `
+            <div style="font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.15em;margin-bottom:12px;">Annotations</div>
+            <textarea class="form-input" style="min-height:200px;background:rgba(0,0,0,0.3)" placeholder="Add private annotations for this item...">${selectedItem.notes||''}</textarea>
+            <button class="btn btn-primary" style="width:100%;margin-top:10px;" onclick="saveNote()">Save Annotation</button>
+        `;
+    } else if (tab === 'related') {
+        const related = evidenceItems.filter(i => i.id !== selectedItem.id && i.caseRef === selectedItem.caseRef).slice(0, 4);
+        content.innerHTML = `
+            <div style="font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.15em;margin-bottom:12px;">Related Items</div>
+            ${related.map(r => `
+                <div class="vault-item" onclick="selectItem(${r.id})" style="margin-bottom:6px;">
+                    <div class="item-row1"><span class="badge badge-${r.type}">${r.type}</span></div>
+                    <div class="item-title">${r.title}</div>
+                    <div class="item-date" style="margin-top:4px;">${r.date}</div>
+                </div>
+            `).join('')}
+        `;
+    }
+}
+
+function switchDsTab(tab, btn) {
+    document.querySelectorAll('.ds-tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    renderDsTab(tab);
+}
+
+function closeDetail() {
+    selectedItem = null;
+    document.getElementById('default-view').style.display = 'block';
+    document.getElementById('detail-panel').style.display = 'none';
+    renderVault();
+}
+
+function saveNote() {
+    const val = document.querySelector('#ds-tab-content textarea')?.value;
+    if (selectedItem && val !== undefined) {
+        selectedItem.notes = val;
+        logEvent(`Annotation updated for: ${selectedItem.title}`, 'success');
+    }
+}
+
+// ═══════════════════════════════════
+//  AI ANALYSIS
+// ═══════════════════════════════════
+async function analyzeCurrentItem() {
+    if (!selectedItem) return;
+
+    const body = document.getElementById('ai-card-body');
+    if (!body) return;
+
+    body.innerHTML = `
+        <div class="ai-loading">
+            <div class="ai-dots">
+                <div class="ai-dot"></div><div class="ai-dot"></div><div class="ai-dot"></div>
+            </div>
+            <span style="font-size:10px;color:var(--text-dim)">Analyzing evidence record…</span>
+        </div>
+    `;
+
+    logEvent(`AI analysis requested for: ${selectedItem.title}`, 'info');
+
+    const prompt = `You are a senior litigation attorney's AI assistant. Analyze this evidence item and provide a concise professional assessment in 3-4 sentences. Focus on: (1) what type of evidence this appears to be, (2) its likely legal significance, (3) any notable flags or concerns.
+
+Evidence Record:
+- Title: ${selectedItem.title}
+- Classification: ${selectedItem.type}
+- Priority: ${selectedItem.priority}
+- Filed By: ${selectedItem.filedBy}
+- File Size: ${selectedItem.size}
+- Counsel Notes: ${selectedItem.notes}
+- Date: ${selectedItem.date}
+
+Respond in plain professional prose. No markdown, no headers. Keep it under 80 words.`;
+
+    try {
+        const res = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                model: 'claude-sonnet-4-20250514',
+                max_tokens: 1000,
+                messages: [{ role: 'user', content: prompt }]
+            })
+        });
+
+        const data = await res.json();
+        const text = data.content?.find(b => b.type === 'text')?.text || 'Analysis unavailable.';
+        selectedItem.aiAnalysis = text;
+
+        body.innerHTML = renderAiAnalysis(text);
+        logEvent(`AI analysis complete for: ${selectedItem.title}`, 'success');
+    } catch (err) {
+        body.innerHTML = `<p style="color:var(--red);font-size:10px;">Analysis failed: ${err.message}</p>`;
+        logEvent(`AI analysis failed: ${err.message}`, 'error');
+    }
+}
+
+// ═══════════════════════════════════
+//  UPLOAD MODAL
+// ═══════════════════════════════════
+const fileExtensions = ['pdf', 'jpg', 'csv', 'docx', 'mp3', 'mp4', 'xlsx', 'png', 'eml', 'txt'];
+
+function openUploadModal() {
+    document.getElementById('modal-overlay').classList.add('open');
+}
+function closeUploadModal() {
+    document.getElementById('modal-overlay').classList.remove('open');
+}
+
+function simulateFilePick() {
+    const exts = fileExtensions;
+    const ext = exts[Math.floor(Math.random() * exts.length)];
+    const names = ['contract', 'email_chain', 'invoice', 'statement', 'photo', 'audio', 'transcript', 'report'];
+    const name = names[Math.floor(Math.random() * names.length)];
+    const filename = `${name}_${Date.now().toString(36)}.${ext}`;
+    document.getElementById('f-title').value = filename;
+    document.getElementById('upload-filename').textContent = `✓ Selected: ${filename}`;
+    document.getElementById('upload-filename').style.color = 'var(--green)';
+}
+
+function submitUpload() {
+    const title = document.getElementById('f-title').value.trim() || `Evidence_${Date.now()}.pdf`;
+    const type = document.getElementById('f-type').value;
+    const priority = document.getElementById('f-priority').value;
+    const filedBy = document.getElementById('f-author').value.trim() || 'Unknown';
+    const caseRef = document.getElementById('f-case').value.trim();
+    const notes = document.getElementById('f-notes').value.trim();
+
+    const newItem = {
+        id: Date.now(),
+        title,
+        type,
+        priority,
+        date: new Date().toISOString().split('T')[0],
+        filedBy,
+        caseRef,
+        hash: `SHA256:${[...Array(40)].map(()=>Math.floor(Math.random()*16).toString(16)).join('')}`,
+        size: `${(Math.random()*50+0.1).toFixed(1)} MB`,
+        notes,
+        custody: [
+            { action: 'Uploaded & Encrypted', user: filedBy, time: new Date().toLocaleString(), dot: 'green' },
+            { action: 'SHA-256 hash generated', user: 'AUTO', time: new Date().toLocaleString(), dot: 'filled' },
+        ],
+        aiAnalysis: null
+    };
+
+    evidenceItems.unshift(newItem);
+    closeUploadModal();
+    renderVault();
+    spawnDataCube();
+    spawnDataCube();
+
+    logEvent(`Secure upload complete: ${title} (${type.toUpperCase()})`, 'success');
+
+    // Reset form
+    ['f-title','f-author','f-case','f-notes'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = id === 'f-case' ? 'UNITED v. TECH-CORP (2026-CV)' : '';
+    });
+    document.getElementById('upload-filename').textContent = 'PDF, IMG, CSV, DOC, MP3, MP4 supported';
+    document.getElementById('upload-filename').style.color = '';
+}
+
+// ═══════════════════════════════════
+//  DELETE
+// ═══════════════════════════════════
+let pendingDeleteId = null;
+
+function confirmDelete() {
+    if (!selectedItem) return;
+    pendingDeleteId = selectedItem.id;
+    document.getElementById('confirm-overlay').classList.add('open');
+}
+
+function confirmDeleteById(id) {
+    pendingDeleteId = id;
+    document.getElementById('confirm-overlay').classList.add('open');
+}
+
+function closeConfirm() {
+    pendingDeleteId = null;
+    document.getElementById('confirm-overlay').classList.remove('open');
+}
+
+function executeDelete() {
+    const item = evidenceItems.find(i => i.id === pendingDeleteId);
+    if (item) {
+        logEvent(`DESTROYED: ${item.title} — Destruction logged to immutable audit chain`, 'error');
+        evidenceItems = evidenceItems.filter(i => i.id !== pendingDeleteId);
+        if (selectedItem && selectedItem.id === pendingDeleteId) closeDetail();
+        renderVault();
+    }
+    closeConfirm();
+}
+
+// ═══════════════════════════════════
+//  UTILITY
+// ═══════════════════════════════════
+function copyHash(id) {
+    const item = evidenceItems.find(i => i.id === id);
+    if (!item) return;
+    navigator.clipboard.writeText(item.hash).then(() => {
+        logEvent(`Hash copied: ${item.hash.slice(0,30)}…`, 'info');
+    }).catch(() => {
+        logEvent(`Hash: ${item.hash}`, 'info');
+    });
+}
+
+function clearLog() {
+    document.getElementById('audit-log').innerHTML = '';
+    logEvent('Audit log cleared by user', 'warning');
+}
+
+const USERS = ['J. Harmon', 'M. Rivera', 'B. Chen', 'AUTO', 'K. Osei'];
+
+function logEvent(msg, cls = '') {
+    const log = document.getElementById('audit-log');
+    const line = document.createElement('div');
+    line.className = 'log-line fade-in';
+    const now = new Date().toLocaleTimeString('en-US', { hour12: false });
+    const user = USERS[Math.floor(Math.random() * USERS.length)];
+    line.innerHTML = `
+        <span class="log-time">${now}</span>
+        <span class="log-user">[${user}]</span>
+        <span class="log-msg ${cls}">${msg}</span>
+    `;
+    log.prepend(line);
+}
+
+function exportReport() {
+    logEvent('Generating chain-of-custody PDF report…', 'info');
+    setTimeout(() => {
+        logEvent('Report generated: CoC_REPORT_2026-CV.pdf · Download initiated', 'success');
+    }, 1200);
+}
+
+// ═══════════════════════════════════
+//  INIT
+// ═══════════════════════════════════
+window.onload = () => {
+    initThree();
+    renderVault();
+    logEvent('Vault initialized · AES-256 encryption active', 'info');
+    logEvent('RSA token verified · Senior Partner clearance granted', 'success');
+    logEvent('Session: UNITED v. TECH-CORP (2026-CV) · 5 items indexed', 'info');
+};
+
+// Keyboard shortcuts
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+        closeUploadModal();
+        closeConfirm();
+        if (selectedItem) closeDetail();
+    }
+    if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        document.getElementById('search-input').focus();
+    }
+});
+</script>
+</body>
+</html>

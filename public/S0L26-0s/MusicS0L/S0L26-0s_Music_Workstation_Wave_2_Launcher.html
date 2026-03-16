@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>S0L26-0s Music Workstation Wave 2</title>
+  <style>
+    :root{
+      --bg:#050816;
+      --panel:rgba(12,18,38,.74);
+      --panel-2:rgba(20,27,56,.72);
+      --border:rgba(144,170,255,.18);
+      --text:#f6f7fb;
+      --muted:#94a3b8;
+      --blue:#56a6ff;
+      --violet:#9b7bff;
+      --cyan:#5ef2ff;
+      --gold:#ffd76a;
+      --danger:#ff6b8a;
+      --good:#4ade80;
+      --shadow:0 18px 60px rgba(0,0,0,.35);
+      --radius:24px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      background:
+        radial-gradient(circle at 20% 20%, rgba(86,166,255,.14), transparent 26%),
+        radial-gradient(circle at 80% 30%, rgba(155,123,255,.14), transparent 24%),
+        radial-gradient(circle at 50% 80%, rgba(94,242,255,.08), transparent 22%),
+        linear-gradient(180deg, #040611 0%, #070b18 42%, #050816 100%);
+      color:var(--text);
+      font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      min-height:100%;
+      overflow-x:hidden;
+    }
+    #bgCanvas{position:fixed; inset:0; width:100%; height:100%; z-index:0}
+    .app{position:relative; z-index:1; padding:16px; display:grid; gap:16px}
+    .topbar{
+      display:grid;
+      grid-template-columns:1.2fr .9fr;
+      gap:16px;
+      align-items:stretch;
+    }
+    .brand, .statusbar, .panel {
+      border:1px solid var(--border);
+      background:linear-gradient(180deg, rgba(16,24,52,.86), rgba(10,16,32,.82));
+      box-shadow:var(--shadow);
+      border-radius:var(--radius);
+      backdrop-filter: blur(18px);
+    }
+    .brand {
+      padding:18px 20px;
+      display:flex;
+      justify-content:space-between;
+      gap:16px;
+      align-items:center;
+    }
+    .brand h1{margin:0; font-size:clamp(1.25rem, 2vw, 2rem); letter-spacing:.02em}
+    .brand p{margin:6px 0 0; color:var(--muted)}
+    .navchips{display:flex; flex-wrap:wrap; gap:8px; justify-content:flex-end}
+    .navchips a, .pill, button, .seg button, select, input[type="range"], input[type="text"], input[type="number"], textarea {
+      border:1px solid var(--border);
+      background:rgba(255,255,255,.05);
+      color:var(--text);
+      border-radius:14px;
+      text-decoration:none;
+      transition:.2s ease;
+    }
+    .navchips a, button, .pill {
+      padding:10px 12px; font-weight:600; font-size:.92rem; cursor:pointer;
+    }
+    .navchips a.active{
+      background:linear-gradient(135deg, rgba(94,242,255,.24), rgba(86,166,255,.24));
+      border-color:rgba(94,242,255,.4);
+    }
+    button:hover, .navchips a:hover, .seg button:hover, .card:hover, .step:hover, .pad:hover, .chip:hover {
+      transform:translateY(-1px);
+      border-color:rgba(255,255,255,.28);
+      background:rgba(255,255,255,.09);
+    }
+    button.primary{background:linear-gradient(135deg, rgba(86,166,255,.25), rgba(155,123,255,.28)); border-color:rgba(94,242,255,.25)}
+    button.good{background:linear-gradient(135deg, rgba(74,222,128,.18), rgba(86,166,255,.22))}
+    button.warn{background:linear-gradient(135deg, rgba(255,215,106,.18), rgba(155,123,255,.24))}
+    button.danger{background:linear-gradient(135deg, rgba(255,107,138,.18), rgba(155,123,255,.24))}
+    button.tiny{padding:7px 10px; font-size:.82rem; border-radius:12px}
+    .statusbar{padding:14px 16px; display:grid; gap:10px}
+    .statusgrid{display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:10px}
+    .stat{padding:10px 12px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.05); border-radius:18px}
+    .stat b{display:block; font-size:.8rem; color:var(--muted); margin-bottom:4px}
+    .stat span{font-size:1.05rem; font-weight:700}
+    .maingrid{display:grid; grid-template-columns:1.12fr .88fr; gap:16px}
+    .panel{padding:16px}
+    .panel h2, .panel h3{margin:0 0 10px}
+    .sub{color:var(--muted); font-size:.92rem; margin-top:4px}
+    .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+    .stack{display:grid; gap:12px}
+    .controls{display:grid; gap:14px}
+    .control{display:grid; gap:7px}
+    label{font-size:.88rem; color:var(--muted)}
+    input[type="range"]{width:100%; padding:0; height:10px}
+    input[type="text"], input[type="number"], select, textarea{padding:10px 12px; width:100%}
+    textarea{min-height:90px; resize:vertical}
+    .seg{display:flex; flex-wrap:wrap; gap:8px}
+    .seg button.active, .toggle.active, .pad.active, .step.active, .slot.active, .chip.active, .laneCard.active {
+      background:linear-gradient(135deg, rgba(94,242,255,.26), rgba(86,166,255,.24));
+      border-color:rgba(94,242,255,.45);
+      box-shadow:0 0 0 1px rgba(94,242,255,.16), 0 10px 28px rgba(86,166,255,.18);
+    }
+    .mini{font-size:.8rem; color:var(--muted)}
+    .grid2{display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:12px}
+    .grid3{display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:12px}
+    .grid4{display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:12px}
+    .card, .laneCard, .pad, .chip{
+      padding:14px; border-radius:18px; border:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.04)
+    }
+    .laneCard{display:grid; gap:10px}
+    .meter{height:10px; border-radius:999px; background:rgba(255,255,255,.06); overflow:hidden}
+    .meter > span{display:block; height:100%; background:linear-gradient(90deg, var(--cyan), var(--blue), var(--violet)); width:40%}
+    canvas.scope, canvas.field, canvas.wave, canvas.chart{
+      width:100%; min-height:220px; border-radius:18px; border:1px solid rgba(255,255,255,.08); background:rgba(2,6,18,.55)
+    }
+    .footerNote{padding:8px 4px 20px; color:var(--muted); font-size:.88rem; text-align:center}
+    .toast{
+      position:fixed; right:18px; bottom:18px; z-index:5;
+      padding:12px 14px; border-radius:16px; color:var(--text);
+      background:linear-gradient(180deg, rgba(18,26,54,.92), rgba(8,14,30,.92));
+      border:1px solid var(--border); box-shadow:var(--shadow); opacity:0; transform:translateY(12px); transition:.25s ease; pointer-events:none;
+    }
+    .toast.show{opacity:1; transform:translateY(0)}
+    .hidden{display:none !important}
+    .stepgrid{display:grid; gap:8px}
+    .steps16{grid-template-columns:repeat(16, minmax(0,1fr))}
+    .steps8{grid-template-columns:repeat(8, minmax(0,1fr))}
+    .step,.slot,.pad,.clipPad,.chip{
+      min-height:44px; display:flex; align-items:center; justify-content:center; text-align:center; cursor:pointer; user-select:none;
+    }
+    .step.playing,.slot.playing,.pad.playing,.clipPad.playing,.chip.playing{
+      outline:2px solid rgba(255,215,106,.75);
+      transform:translateY(-1px) scale(1.02);
+    }
+    .clipPad{padding:12px; border-radius:16px; border:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.04); display:grid; gap:6px; justify-items:start}
+    .clipPad small{color:var(--muted)}
+    .timeline{display:grid; gap:8px}
+    .timelineItem{display:grid; grid-template-columns:96px 1fr; gap:12px; align-items:start; padding:10px 12px; border:1px solid rgba(255,255,255,.08); border-radius:16px; background:rgba(255,255,255,.03)}
+    .waveWrap{position:relative}
+    .marker{
+      position:absolute; top:0; bottom:0; width:2px; background:linear-gradient(180deg,var(--gold),transparent); pointer-events:none;
+    }
+    .pill input[type="file"]{display:none}
+    .kbd{padding:2px 8px; border-radius:10px; border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.05); font-size:.8rem}
+    @media (max-width: 1080px){
+      .topbar, .maingrid{grid-template-columns:1fr}
+      .statusgrid{grid-template-columns:repeat(2, minmax(0,1fr))}
+    }
+    @media (max-width: 720px){
+      .grid2,.grid3,.grid4{grid-template-columns:1fr}
+      .statusgrid{grid-template-columns:1fr 1fr}
+      .brand{align-items:flex-start; flex-direction:column}
+      .navchips{justify-content:flex-start}
+      .timelineItem{grid-template-columns:1fr}
+      .steps16{grid-template-columns:repeat(8,minmax(0,1fr))}
+    }
+</style>
+</head>
+<body>
+  <canvas id="bgCanvas"></canvas>
+  <div class="app">
+    <div class="topbar">
+      <section class="brand">
+        <div>
+          <h1>S0L26-0s Music Workstation Wave 2</h1>
+          <p>S0L26-0s browser-native creative workstation MVP. Single-file, offline-friendly, locally autosaved.</p>
+        </div>
+        <nav class="navchips"><a href="index.html" class="active">Wave 2 Launcher</a><a href="loop-forge.html">Loop Forge</a><a href="bass-lab.html">Bass Lab</a><a href="sample-chop-station.html">Sample Chop Station</a><a href="performance-pad-deck.html">Performance Pad Deck</a><a href="vocal-stack-builder.html">Vocal Stack Builder</a></nav>
+      </section>
+      <section class="statusbar">
+        <div class="row">
+          <button id="powerBtn" class="primary">Power / Audio</button>
+          <button id="saveBtn" class="good">Save</button>
+          <button id="exportBtn" class="warn">Export JSON</button>
+          <label class="pill">Import JSON <input id="importInput" type="file" accept="application/json"></label>
+        </div>
+        <div class="statusgrid" id="statusGrid"></div>
+      </section>
+    </div>
+    
+<main class="maingrid" style="grid-template-columns:1fr;">
+  <section class="panel stack">
+    <div>
+      <h2>Wave 2 • Music Workstation Suite</h2>
+      <p class="sub">Five more browser-native music MVPs: looper, bassline machine, sample chopper, clip launcher, and vocal stack planner. Same family lane as the synth app, just with more little monsters in the room.</p>
+    </div>
+    <div class="grid3">
+      <a class="card" href="loop-forge.html" style="text-decoration:none;color:inherit"><h3>Loop Forge</h3><p class="sub">Scene looper with per-lane lengths, reverse, half-speed, and motion control.</p></a>
+      <a class="card" href="bass-lab.html" style="text-decoration:none;color:inherit"><h3>Bass Lab</h3><p class="sub">Mono bass synth sequencer with glide, accent, scale lock, and mutate tools.</p></a>
+      <a class="card" href="sample-chop-station.html" style="text-decoration:none;color:inherit"><h3>Sample Chop Station</h3><p class="sub">Load audio, slice it, map pads, and sequence chop patterns.</p></a>
+      <a class="card" href="performance-pad-deck.html" style="text-decoration:none;color:inherit"><h3>Performance Pad Deck</h3><p class="sub">Clip-launch surface with deck blending, stutter, risers, and quick scene logic.</p></a>
+      <a class="card" href="vocal-stack-builder.html" style="text-decoration:none;color:inherit"><h3>Vocal Stack Builder</h3><p class="sub">Choir-ish preview plus section-based harmony arrangement and notes.</p></a>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <h3>What changed</h3>
+        <p class="sub">This wave leans more production workflow than single-instrument play. It moves from “one cool toy” into “small weird toolkit.”</p>
+      </div>
+      <div class="card">
+        <h3>Offline-friendly</h3>
+        <p class="sub">Every page includes explicit file-path navigation so the suite still hops around cleanly from a local ZIP review before deployment.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+    <div class="footerNote">Browser goblin note: tap <span class="kbd">Power / Audio</span> once before playback if Chrome wants a ritual gesture.</div>
+  </div>
+  <div class="toast" id="toast"></div>
+  <script>
+  const STORAGE_KEY = "sol26_music_wave2_launcher";
+  const $ = (sel,root=document)=>root.querySelector(sel);
+  const $$ = (sel,root=document)=>Array.from(root.querySelectorAll(sel));
+  const toastEl = $('#toast');
+  function toast(msg){
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(window.__toastTimer);
+    window.__toastTimer = setTimeout(()=>toastEl.classList.remove('show'), 1800);
+  }
+  function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
+  function lerp(a,b,t){ return a + (b-a)*t; }
+  const rand = (a,b)=>Math.random()*(b-a)+a;
+  let audioCtx = null, masterGain = null, analyser = null;
+  async function ensureAudio(){
+    if(!audioCtx){
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      masterGain = audioCtx.createGain();
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 2048;
+      masterGain.gain.value = 0.88;
+      masterGain.connect(analyser);
+      analyser.connect(audioCtx.destination);
+    }
+    if(audioCtx.state === 'suspended') await audioCtx.resume();
+    return audioCtx;
+  }
+  $('#powerBtn').addEventListener('click', async()=>{ await ensureAudio(); toast('Audio engine awake'); });
+  function saveState(state){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    toast('Saved locally');
+  }
+  function loadState(fallback){
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? Object.assign(fallback, JSON.parse(raw)) : fallback;
+    } catch(e) { return fallback; }
+  }
+  $('#exportBtn').addEventListener('click', ()=> {
+    const data = JSON.stringify(window.appState || {}, null, 2);
+    const blob = new Blob([data], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = STORAGE_KEY + '.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+  $('#importInput').addEventListener('change', async (e)=> {
+    const file = e.target.files[0];
+    if(!file) return;
+    try {
+      const data = JSON.parse(await file.text());
+      window.appState = Object.assign(window.appState || {}, data);
+      if(window.renderApp) window.renderApp();
+      toast('Imported state');
+    } catch(err) {
+      toast('Import failed');
+    }
+  });
+  $('#saveBtn').addEventListener('click', ()=> saveState(window.appState || {}));
+  function setStatus(items){
+    const host = $('#statusGrid');
+    host.innerHTML = items.map(it => `<div class="stat"><b>${it.label}</b><span>${it.value}</span></div>`).join('');
+  }
+  // background stars
+  const bg = document.getElementById('bgCanvas');
+  const bgCtx = bg.getContext('2d');
+  let stars = [];
+  function resizeBG(){
+    bg.width = innerWidth * devicePixelRatio;
+    bg.height = innerHeight * devicePixelRatio;
+    bgCtx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+    const count = Math.max(60, Math.floor(innerWidth / 12));
+    stars = Array.from({length:count}, ()=>({
+      x: Math.random()*innerWidth,
+      y: Math.random()*innerHeight,
+      r: Math.random()*1.8 + .2,
+      dx: Math.random()*.25 + .05,
+      a: Math.random()*.8 + .1
+    }));
+  }
+  addEventListener('resize', resizeBG);
+  resizeBG();
+  function drawBG(){
+    bgCtx.clearRect(0,0,innerWidth,innerHeight);
+    const g = bgCtx.createLinearGradient(0,0,0,innerHeight);
+    g.addColorStop(0,'rgba(8,11,24,.08)');
+    g.addColorStop(1,'rgba(3,5,12,.22)');
+    bgCtx.fillStyle = g;
+    bgCtx.fillRect(0,0,innerWidth,innerHeight);
+    for(const s of stars){
+      s.x += s.dx;
+      if(s.x > innerWidth + 8) s.x = -8;
+      bgCtx.beginPath();
+      bgCtx.fillStyle = `rgba(130,180,255,${s.a})`;
+      bgCtx.arc(s.x, s.y, s.r, 0, Math.PI*2);
+      bgCtx.fill();
+    }
+    requestAnimationFrame(drawBG);
+  }
+  drawBG();
+  setStatus([{label:'Wave',value:'2'},{label:'Apps',value:'5'},{label:'Mode',value:'Browser-native MVPs'},{label:'Navigation',value:'Offline friendly'}]);
+  window.appState = {wave:'2'}; window.renderApp = function(){};
+  </script>
+</body>
+</html>

@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ambient Scene Engine — Wave 1 MVP</title>
+  <style>
+    :root{
+      --bg:#050816;
+      --panel:rgba(12,18,38,.74);
+      --panel-2:rgba(20,27,56,.72);
+      --border:rgba(144,170,255,.18);
+      --text:#f6f7fb;
+      --muted:#94a3b8;
+      --blue:#56a6ff;
+      --violet:#9b7bff;
+      --cyan:#5ef2ff;
+      --gold:#ffd76a;
+      --danger:#ff6b8a;
+      --good:#4ade80;
+      --shadow:0 18px 60px rgba(0,0,0,.35);
+      --radius:24px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      background:
+        radial-gradient(circle at 20% 20%, rgba(86,166,255,.14), transparent 26%),
+        radial-gradient(circle at 80% 30%, rgba(155,123,255,.14), transparent 24%),
+        radial-gradient(circle at 50% 80%, rgba(94,242,255,.08), transparent 22%),
+        linear-gradient(180deg, #040611 0%, #070b18 42%, #050816 100%);
+      color:var(--text);
+      font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      min-height:100%;
+      overflow-x:hidden;
+    }
+    #bgCanvas{position:fixed; inset:0; width:100%; height:100%; z-index:0}
+    .app{position:relative; z-index:1; padding:16px; display:grid; gap:16px}
+    .topbar{
+      display:grid;
+      grid-template-columns:1.25fr .95fr;
+      gap:16px;
+      align-items:stretch;
+    }
+    .brand, .statusbar, .panel {
+      border:1px solid var(--border);
+      background:linear-gradient(180deg, rgba(16,24,52,.86), rgba(10,16,32,.82));
+      box-shadow:var(--shadow);
+      border-radius:var(--radius);
+      backdrop-filter: blur(18px);
+    }
+    .brand {
+      padding:18px 20px;
+      display:flex;
+      justify-content:space-between;
+      gap:16px;
+      align-items:center;
+    }
+    .brand h1{margin:0; font-size:clamp(1.25rem, 2vw, 2rem); letter-spacing:.02em}
+    .brand p{margin:6px 0 0; color:var(--muted)}
+    .navchips{display:flex; flex-wrap:wrap; gap:8px; justify-content:flex-end}
+    .navchips a, .pill, button, .seg button, select, input[type="range"], input[type="text"], input[type="number"], textarea {
+      border:1px solid var(--border);
+      background:rgba(255,255,255,.05);
+      color:var(--text);
+      border-radius:14px;
+      text-decoration:none;
+      transition:.2s ease;
+    }
+    .navchips a, button, .pill {
+      padding:10px 12px; font-weight:600; font-size:.92rem; cursor:pointer;
+    }
+    button:hover, .navchips a:hover, .seg button:hover, .card:hover {
+      transform:translateY(-1px);
+      border-color:rgba(255,255,255,.28);
+      background:rgba(255,255,255,.09);
+    }
+    button.primary{background:linear-gradient(135deg, rgba(86,166,255,.25), rgba(155,123,255,.28)); border-color:rgba(94,242,255,.25)}
+    button.good{background:linear-gradient(135deg, rgba(74,222,128,.18), rgba(86,166,255,.22))}
+    button.warn{background:linear-gradient(135deg, rgba(255,215,106,.18), rgba(155,123,255,.24))}
+    button.danger{background:linear-gradient(135deg, rgba(255,107,138,.18), rgba(155,123,255,.24))}
+    .statusbar{padding:14px 16px; display:grid; gap:10px}
+    .statusgrid{display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:10px}
+    .stat{padding:10px 12px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.05); border-radius:18px}
+    .stat b{display:block; font-size:.8rem; color:var(--muted); margin-bottom:4px}
+    .stat span{font-size:1.05rem; font-weight:700}
+    .maingrid{display:grid; grid-template-columns:1.15fr .85fr; gap:16px}
+    .panel{padding:16px}
+    .panel h2, .panel h3{margin:0 0 10px}
+    .sub{color:var(--muted); font-size:.92rem; margin-top:4px}
+    .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+    .stack{display:grid; gap:12px}
+    .controls{display:grid; gap:14px}
+    .control{display:grid; gap:7px}
+    label{font-size:.88rem; color:var(--muted)}
+    input[type="range"]{width:100%; padding:0; height:10px}
+    input[type="text"], input[type="number"], select, textarea{padding:10px 12px; width:100%}
+    textarea{min-height:90px; resize:vertical}
+    .seg{display:flex; flex-wrap:wrap; gap:8px}
+    .seg button.active, .toggle.active, .pad.active, .step.active, .slot.active {
+      background:linear-gradient(135deg, rgba(94,242,255,.26), rgba(86,166,255,.24));
+      border-color:rgba(94,242,255,.45);
+      box-shadow:0 0 0 1px rgba(94,242,255,.16), 0 10px 28px rgba(86,166,255,.18);
+    }
+    .mini{font-size:.8rem; color:var(--muted)}
+    .grid2{display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:12px}
+    .grid3{display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:12px}
+    .grid4{display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:12px}
+    .card{padding:14px; border-radius:18px; border:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.04)}
+    .meter{height:10px; border-radius:999px; background:rgba(255,255,255,.06); overflow:hidden}
+    .meter > span{display:block; height:100%; background:linear-gradient(90deg, var(--cyan), var(--blue), var(--violet)); width:40%}
+    canvas.scope, canvas.field, canvas.wave, canvas.chart{width:100%; min-height:220px; border-radius:18px; border:1px solid rgba(255,255,255,.08); background:rgba(2,6,18,.55)}
+    .footerNote{padding:8px 4px 20px; color:var(--muted); font-size:.88rem; text-align:center}
+    .toast{
+      position:fixed; right:18px; bottom:18px; z-index:5;
+      padding:12px 14px; border-radius:16px; color:var(--text);
+      background:linear-gradient(180deg, rgba(18,26,54,.92), rgba(8,14,30,.92));
+      border:1px solid var(--border); box-shadow:var(--shadow); opacity:0; transform:translateY(12px); transition:.25s ease; pointer-events:none;
+    }
+    .toast.show{opacity:1; transform:translateY(0)}
+    .hidden{display:none !important}
+    @media (max-width: 1080px){
+      .topbar, .maingrid{grid-template-columns:1fr}
+      .statusgrid{grid-template-columns:repeat(2, minmax(0,1fr))}
+    }
+    @media (max-width: 720px){
+      .grid2,.grid3,.grid4{grid-template-columns:1fr}
+      .statusgrid{grid-template-columns:1fr 1fr}
+      .brand{align-items:flex-start; flex-direction:column}
+      .navchips{justify-content:flex-start}
+    }
+  </style>
+  
+</head>
+<body>
+  <canvas id="bgCanvas"></canvas>
+  <div class="app">
+    <div class="topbar">
+      <section class="brand">
+        <div>
+          <h1>Ambient Scene Engine</h1>
+          <p>A mood-building generator with layered drones, weather textures, macro climate controls, and visual atmosphere feedback.</p>
+        </div>
+        <nav class="navchips"><a href="index.html">Wave Launcher</a><a href="beat-foundry.html">Beat Foundry</a><a href="chord-architect.html">Chord Architect</a><a href="spatial-fx-playground.html">Spatial FX Playground</a><a href="ambient-scene-engine.html">Ambient Scene Engine</a><a href="melody-reactor.html">Melody Reactor</a></nav>
+      </section>
+      <section class="statusbar">
+        <div class="row">
+          <button id="powerBtn" class="primary">Power / Audio</button>
+          <button id="saveBtn" class="good">Save</button>
+          <button id="exportBtn" class="warn">Export JSON</button>
+          <label class="pill">Import JSON <input id="importInput" type="file" accept="application/json" class="hidden"></label>
+        </div>
+        <div class="statusgrid" id="statusGrid"></div>
+      </section>
+    </div>
+    
+<main class="maingrid">
+  <section class="panel stack">
+    <div class="row" style="justify-content:space-between">
+      <div>
+        <h2>Scene Builder</h2>
+        <p class="sub">Three drone lanes, weather texture, pulse bed, and shimmer macros. Build moods, not paperwork.</p>
+      </div>
+      <div class="row">
+        <button id="startBtn" class="primary">Start Scene</button>
+        <button id="stopBtn">Stop</button>
+        <button id="randomBtn" class="warn">Random Scene</button>
+        <button id="presetBtn" class="good">Cycle Preset</button>
+      </div>
+    </div>
+    <div class="grid3" id="layerWrap"></div>
+    <canvas id="viz" class="field" width="760" height="360"></canvas>
+  </section>
+  <section class="stack">
+    <section class="panel controls">
+      <div>
+        <h3>Macro Climate</h3>
+        <p class="sub">Big moves first: density, warmth, motion, brightness, weather.</p>
+      </div>
+      <div class="control"><label>Density <span id="densityVal"></span></label><input id="density" type="range" min="0" max="100" value="52"></div>
+      <div class="control"><label>Warmth <span id="warmthVal"></span></label><input id="warmth" type="range" min="0" max="100" value="58"></div>
+      <div class="control"><label>Motion <span id="motionVal"></span></label><input id="motion" type="range" min="0" max="100" value="42"></div>
+      <div class="control"><label>Brightness <span id="brightVal"></span></label><input id="brightness" type="range" min="0" max="100" value="46"></div>
+      <div class="control"><label>Weather <span id="weatherVal"></span></label><input id="weather" type="range" min="0" max="100" value="36"></div>
+      <div id="presetReadout" class="card"></div>
+    </section>
+    <section class="panel stack">
+      <div>
+        <h3>Notes + Export</h3>
+        <p class="sub">Store intent, cue names, or scene context.</p>
+      </div>
+      <textarea id="notes"></textarea>
+      <div class="grid2">
+        <div class="card"><div class="mini">Engine State</div><strong id="engineState"></strong></div>
+        <div class="card"><div class="mini">Current Preset</div><strong id="currentPreset"></strong></div>
+      </div>
+    </section>
+  </section>
+</main>
+
+    <div class="footerNote">Single-file browser MVP • local autosave • no backend required • optimized for fast idea proving</div>
+  </div>
+  <div id="toast" class="toast"></div>
+  <script>
+  const AppUI = (() => {
+    const toast = document.getElementById('toast');
+    const bg = document.getElementById('bgCanvas');
+    const ctx = bg.getContext('2d');
+    let particles = Array.from({length:64}, (_,i)=>({
+      x: Math.random()*window.innerWidth,
+      y: Math.random()*window.innerHeight,
+      r: 0.8 + Math.random()*2.2,
+      dx: -0.35 + Math.random()*0.7,
+      dy: -0.35 + Math.random()*0.7,
+      hue: [190,210,250][i%3]
+    }));
+    function resizeBG() {
+      bg.width = window.innerWidth * devicePixelRatio;
+      bg.height = window.innerHeight * devicePixelRatio;
+      bg.style.width = window.innerWidth + 'px';
+      bg.style.height = window.innerHeight + 'px';
+      ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+    }
+    resizeBG();
+    window.addEventListener('resize', resizeBG);
+    function loop() {
+      const w = window.innerWidth, h = window.innerHeight;
+      ctx.clearRect(0,0,w,h);
+      const g1 = ctx.createRadialGradient(w*.25,h*.2,10,w*.25,h*.2,w*.55);
+      g1.addColorStop(0,'rgba(86,166,255,.17)');
+      g1.addColorStop(1,'rgba(86,166,255,0)');
+      const g2 = ctx.createRadialGradient(w*.8,h*.3,10,w*.8,h*.3,w*.45);
+      g2.addColorStop(0,'rgba(155,123,255,.13)');
+      g2.addColorStop(1,'rgba(155,123,255,0)');
+      ctx.fillStyle = g1; ctx.fillRect(0,0,w,h);
+      ctx.fillStyle = g2; ctx.fillRect(0,0,w,h);
+      particles.forEach(p => {
+        p.x += p.dx; p.y += p.dy;
+        if(p.x < -10) p.x = w + 10; if(p.x > w + 10) p.x = -10;
+        if(p.y < -10) p.y = h + 10; if(p.y > h + 10) p.y = -10;
+        ctx.beginPath();
+        ctx.fillStyle = `hsla(${p.hue}, 100%, 72%, 0.32)`;
+        ctx.shadowColor = `hsla(${p.hue}, 100%, 72%, 0.6)`;
+        ctx.shadowBlur = 18;
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      });
+      requestAnimationFrame(loop);
+    }
+    loop();
+    return {
+      toast(msg) {
+        toast.textContent = msg;
+        toast.classList.add('show');
+        clearTimeout(toast._t);
+        toast._t = setTimeout(() => toast.classList.remove('show'), 1800);
+      },
+      download(name, data) {
+        const blob = new Blob([data], {type:'application/json'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = name; a.click();
+        setTimeout(()=>URL.revokeObjectURL(url), 1500);
+      },
+      fillStatus(items) {
+        const grid = document.getElementById('statusGrid');
+        grid.innerHTML = items.map(item => `<div class="stat"><b>${item.label}</b><span>${item.value}</span></div>`).join('');
+      },
+      clamp(v, a, b) { return Math.min(b, Math.max(a, v)); },
+      choice(arr) { return arr[Math.floor(Math.random()*arr.length)] },
+      rand(min,max) { return min + Math.random()*(max-min); },
+      uid() { return Math.random().toString(36).slice(2,9); },
+    };
+  })();
+  
+(() => {
+  const STORAGE = 'ambient-scene-engine-wave1-v1';
+  const presets = [
+    {name:'Void Bloom', density:34, warmth:42, motion:28, brightness:22, weather:18, root:'D', layers:[{on:true, interval:0, wave:'sine'},{on:true, interval:7, wave:'triangle'},{on:false, interval:12, wave:'sine'}]},
+    {name:'Temple Dust', density:58, warmth:74, motion:22, brightness:36, weather:24, root:'C', layers:[{on:true, interval:0, wave:'triangle'},{on:true, interval:5, wave:'sine'},{on:true, interval:12, wave:'triangle'}]},
+    {name:'City Rain', density:62, warmth:48, motion:51, brightness:44, weather:70, root:'A', layers:[{on:true, interval:0, wave:'triangle'},{on:true, interval:7, wave:'sawtooth'},{on:false, interval:14, wave:'sine'}]},
+    {name:'Aurora Engine', density:55, warmth:64, motion:66, brightness:60, weather:26, root:'E', layers:[{on:true, interval:0, wave:'sine'},{on:true, interval:9, wave:'triangle'},{on:true, interval:16, wave:'sawtooth'}]}
+  ];
+  const roots = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+  const defaultState = () => ({
+    presetIndex:0,
+    density:52,
+    warmth:58,
+    motion:42,
+    brightness:46,
+    weather:36,
+    root:'D',
+    notes:'',
+    running:false,
+    layers:[
+      {on:true, interval:0, wave:'sine', volume:52},
+      {on:true, interval:7, wave:'triangle', volume:44},
+      {on:true, interval:12, wave:'sawtooth', volume:28},
+    ]
+  });
+  let state = load() || defaultState();
+  let ctx, master, analyser, weatherGain, shimmerGain;
+  let layerNodes = [], weatherNode = null, shimmerNode = null;
+  const dom = {
+    layerWrap: document.getElementById('layerWrap'),
+    viz: document.getElementById('viz'),
+    density: document.getElementById('density'),
+    warmth: document.getElementById('warmth'),
+    motion: document.getElementById('motion'),
+    brightness: document.getElementById('brightness'),
+    weather: document.getElementById('weather'),
+    densityVal: document.getElementById('densityVal'),
+    warmthVal: document.getElementById('warmthVal'),
+    motionVal: document.getElementById('motionVal'),
+    brightVal: document.getElementById('brightVal'),
+    weatherVal: document.getElementById('weatherVal'),
+    presetReadout: document.getElementById('presetReadout'),
+    notes: document.getElementById('notes'),
+    engineState: document.getElementById('engineState'),
+    currentPreset: document.getElementById('currentPreset'),
+    startBtn: document.getElementById('startBtn'),
+    stopBtn: document.getElementById('stopBtn'),
+    randomBtn: document.getElementById('randomBtn'),
+    presetBtn: document.getElementById('presetBtn'),
+    saveBtn: document.getElementById('saveBtn'),
+    exportBtn: document.getElementById('exportBtn'),
+    importInput: document.getElementById('importInput'),
+    powerBtn: document.getElementById('powerBtn'),
+  };
+  const vctx = dom.viz.getContext('2d');
+  let vizPhase = 0;
+
+  function load(){ try { return JSON.parse(localStorage.getItem(STORAGE)); } catch { return null; } }
+  function persist(){ localStorage.setItem(STORAGE, JSON.stringify(state)); render(); }
+  function ensureAudio() {
+    if (ctx) return;
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    master = ctx.createGain(); master.gain.value = 0.86;
+    analyser = ctx.createAnalyser(); analyser.fftSize = 512;
+    weatherGain = ctx.createGain(); shimmerGain = ctx.createGain();
+    master.connect(analyser); analyser.connect(ctx.destination);
+  }
+  function midiFor(interval){ return 45 + roots.indexOf(state.root) + interval; }
+  function freqFor(midi){ return 440 * Math.pow(2, (midi - 69) / 12); }
+  function createNoiseBuffer() {
+    const buffer = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i=0;i<data.length;i++) data[i] = (Math.random()*2 - 1);
+    return buffer;
+  }
+  let noiseBuffer = null;
+  function startEngine() {
+    ensureAudio();
+    if (ctx.state === 'suspended') ctx.resume();
+    noiseBuffer = noiseBuffer || createNoiseBuffer();
+    stopEngine(true);
+    const lpMaster = ctx.createBiquadFilter();
+    lpMaster.type = 'lowpass';
+    lpMaster.frequency.value = 900 + state.brightness * 50;
+    lpMaster.connect(master);
+
+    layerNodes = state.layers.map((layer, idx) => {
+      if (!layer.on) return null;
+      const osc = ctx.createOscillator();
+      const lfo = ctx.createOscillator();
+      const lfoGain = ctx.createGain();
+      const filter = ctx.createBiquadFilter();
+      const pan = ctx.createStereoPanner();
+      const gain = ctx.createGain();
+      osc.type = layer.wave;
+      osc.frequency.value = freqFor(midiFor(layer.interval));
+      lfo.type = 'sine';
+      lfo.frequency.value = 0.02 + idx * 0.008 + state.motion / 1000;
+      lfoGain.gain.value = 4 + state.motion * 0.08;
+      lfo.connect(lfoGain).connect(osc.frequency);
+      filter.type = 'lowpass';
+      filter.frequency.value = 900 + state.brightness * 40 + idx * 140;
+      gain.gain.value = (layer.volume / 100) * (0.08 + state.density / 1000);
+      pan.pan.value = idx === 0 ? -0.35 : idx === 1 ? 0.15 : 0.4;
+      osc.connect(filter).connect(gain).connect(pan).connect(lpMaster);
+      osc.start(); lfo.start();
+      return {osc,lfo,lfoGain,filter,gain,pan};
+    }).filter(Boolean);
+
+    const weather = ctx.createBufferSource();
+    weather.buffer = noiseBuffer; weather.loop = true;
+    const weatherFilter = ctx.createBiquadFilter();
+    weatherFilter.type = 'bandpass';
+    weatherFilter.frequency.value = 350 + state.weather * 22;
+    weatherGain = ctx.createGain();
+    weatherGain.gain.value = state.weather / 100 * 0.18;
+    weather.connect(weatherFilter).connect(weatherGain).connect(lpMaster);
+    weather.start();
+    weatherNode = {src:weather, filter:weatherFilter, gain:weatherGain};
+
+    const shimmer = ctx.createOscillator();
+    const shimmerPan = ctx.createStereoPanner();
+    const shimmerAmp = ctx.createGain();
+    shimmer.type = 'sine';
+    shimmer.frequency.value = freqFor(midiFor(24));
+    shimmerAmp.gain.value = state.brightness / 100 * 0.05;
+    shimmerPan.pan.value = 0.25;
+    shimmer.connect(shimmerAmp).connect(shimmerPan).connect(lpMaster);
+    shimmer.start();
+    shimmerNode = {osc:shimmer, gain:shimmerAmp, pan:shimmerPan};
+
+    state.running = true;
+    persist();
+  }
+  function stopEngine(silent=false) {
+    layerNodes.forEach(node => {
+      node.gain.gain.exponentialRampToValueAtTime(0.0001, ctx ? ctx.currentTime + 0.15 : 0);
+      node.osc.stop(ctx.currentTime + 0.2);
+      node.lfo.stop(ctx.currentTime + 0.2);
+    });
+    layerNodes = [];
+    if (weatherNode) {
+      weatherNode.gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.12);
+      weatherNode.src.stop(ctx.currentTime + 0.2);
+      weatherNode = null;
+    }
+    if (shimmerNode) {
+      shimmerNode.gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.12);
+      shimmerNode.osc.stop(ctx.currentTime + 0.2);
+      shimmerNode = null;
+    }
+    state.running = false;
+    if (!silent) persist();
+  }
+  function updateRunningParams() {
+    if (!ctx || !state.running) return;
+    layerNodes.forEach((node, idx) => {
+      node.filter.frequency.setTargetAtTime(800 + state.brightness * 45 + idx * 120, ctx.currentTime, 0.2);
+      node.gain.gain.setTargetAtTime((state.layers[idx].volume / 100) * (0.06 + state.density / 850), ctx.currentTime, 0.3);
+      node.lfo.frequency.setTargetAtTime(0.02 + idx * 0.008 + state.motion / 900, ctx.currentTime, 0.4);
+      node.pan.pan.setTargetAtTime(Math.sin((vizPhase/18) + idx) * 0.35, ctx.currentTime, 0.4);
+    });
+    if (weatherNode) {
+      weatherNode.filter.frequency.setTargetAtTime(260 + state.weather * 24, ctx.currentTime, 0.25);
+      weatherNode.gain.gain.setTargetAtTime(state.weather / 100 * 0.18, ctx.currentTime, 0.25);
+    }
+    if (shimmerNode) {
+      shimmerNode.gain.gain.setTargetAtTime(state.brightness / 100 * 0.05, ctx.currentTime, 0.25);
+      shimmerNode.pan.pan.setTargetAtTime(Math.sin(vizPhase / 50) * 0.3, ctx.currentTime, 0.35);
+    }
+  }
+  function renderLayers() {
+    dom.layerWrap.innerHTML = state.layers.map((layer, idx) => `
+      <div class="card stack">
+        <div class="row" style="justify-content:space-between">
+          <strong>Layer ${idx + 1}</strong>
+          <button data-toggle="${idx}" class="${layer.on ? 'active' : ''}">${layer.on ? 'On' : 'Off'}</button>
+        </div>
+        <div class="control"><label>Interval</label><input data-interval="${idx}" type="number" min="-12" max="24" value="${layer.interval}"></div>
+        <div class="control"><label>Wave</label>
+          <select data-wave="${idx}">
+            ${['sine','triangle','sawtooth','square'].map(w => `<option value="${w}" ${layer.wave===w?'selected':''}>${w}</option>`).join('')}
+          </select>
+        </div>
+        <div class="control"><label>Volume ${layer.volume}%</label><input data-volume="${idx}" type="range" min="0" max="100" value="${layer.volume}"></div>
+      </div>`).join('');
+    dom.layerWrap.querySelectorAll('[data-toggle]').forEach(btn => btn.addEventListener('click', () => { state.layers[+btn.dataset.toggle].on = !state.layers[+btn.dataset.toggle].on; if (state.running) startEngine(); persist(); }));
+    dom.layerWrap.querySelectorAll('[data-interval]').forEach(input => input.addEventListener('change', () => { state.layers[+input.dataset.interval].interval = +input.value; if (state.running) startEngine(); persist(); }));
+    dom.layerWrap.querySelectorAll('[data-wave]').forEach(select => select.addEventListener('change', () => { state.layers[+select.dataset.wave].wave = select.value; if (state.running) startEngine(); persist(); }));
+    dom.layerWrap.querySelectorAll('[data-volume]').forEach(input => input.addEventListener('input', () => { state.layers[+input.dataset.volume].volume = +input.value; updateRunningParams(); persist(); }));
+  }
+  function renderControls() {
+    ['density','warmth','motion','brightness','weather'].forEach(id => dom[id].value = state[id]);
+    dom.notes.value = state.notes;
+    dom.densityVal.textContent = `${state.density}%`;
+    dom.warmthVal.textContent = `${state.warmth}%`;
+    dom.motionVal.textContent = `${state.motion}%`;
+    dom.brightVal.textContent = `${state.brightness}%`;
+    dom.weatherVal.textContent = `${state.weather}%`;
+  }
+  function renderMeta() {
+    const preset = presets[state.presetIndex];
+    dom.presetReadout.innerHTML = `<strong>${preset.name}</strong><div class="sub">Root ${state.root} • density ${state.density}% • weather ${state.weather}%</div>`;
+    dom.engineState.textContent = state.running ? 'Running' : 'Stopped';
+    dom.currentPreset.textContent = preset.name;
+    AppUI.fillStatus([
+      {label:'Preset', value:preset.name},
+      {label:'Root', value:state.root},
+      {label:'Layers On', value:`${state.layers.filter(l=>l.on).length}`},
+      {label:'Weather', value:`${state.weather}%`}
+    ]);
+  }
+  function render() {
+    renderLayers();
+    renderControls();
+    renderMeta();
+  }
+  function applyPreset(index) {
+    const p = presets[index % presets.length];
+    state.presetIndex = index % presets.length;
+    state.density = p.density; state.warmth = p.warmth; state.motion = p.motion; state.brightness = p.brightness; state.weather = p.weather; state.root = p.root;
+    state.layers = JSON.parse(JSON.stringify(p.layers.map((l, i) => Object.assign({volume:[50,40,28][i] || 30}, l))));
+    if (state.running) startEngine();
+    persist();
+  }
+  function randomScene() {
+    state.root = roots[Math.floor(Math.random()*roots.length)];
+    state.density = Math.round(AppUI.rand(25, 76));
+    state.warmth = Math.round(AppUI.rand(18, 84));
+    state.motion = Math.round(AppUI.rand(8, 78));
+    state.brightness = Math.round(AppUI.rand(18, 72));
+    state.weather = Math.round(AppUI.rand(0, 80));
+    state.layers.forEach((layer, idx) => {
+      layer.on = Math.random() > 0.2;
+      layer.interval = [0,5,7,9,12,14,16][Math.floor(Math.random()*7)] + (idx===2 ? 12 : 0);
+      layer.wave = AppUI.choice(['sine','triangle','sawtooth']);
+      layer.volume = Math.round(AppUI.rand(18, 68));
+    });
+    if (state.running) startEngine();
+    persist();
+  }
+  ['density','warmth','motion','brightness','weather'].forEach(id => dom[id].addEventListener('input', () => { state[id] = +dom[id].value; updateRunningParams(); persist(); }));
+  dom.notes.addEventListener('input', () => { state.notes = dom.notes.value; persist(); });
+  dom.startBtn.addEventListener('click', () => { startEngine(); AppUI.toast('Scene engine active.'); });
+  dom.stopBtn.addEventListener('click', () => { if (ctx) stopEngine(); AppUI.toast('Scene engine quieted.'); });
+  dom.randomBtn.addEventListener('click', () => { randomScene(); AppUI.toast('New ambient weather pattern spun up.'); });
+  dom.presetBtn.addEventListener('click', () => { applyPreset((state.presetIndex + 1) % presets.length); AppUI.toast('Preset shifted.'); });
+  dom.powerBtn.addEventListener('click', () => { ensureAudio(); ctx.resume(); AppUI.toast('Ambient engine armed.'); });
+  dom.saveBtn.addEventListener('click', () => { persist(); AppUI.toast('Ambient scene saved.'); });
+  dom.exportBtn.addEventListener('click', () => AppUI.download('ambient-scene-session.json', JSON.stringify(state, null, 2)));
+  dom.importInput.parentElement.addEventListener('click', () => dom.importInput.click());
+  dom.importInput.addEventListener('change', async () => {
+    const file = dom.importInput.files[0];
+    if (!file) return;
+    state = Object.assign(defaultState(), JSON.parse(await file.text()));
+    if (state.running) startEngine();
+    persist();
+    AppUI.toast('Ambient scene imported.');
+  });
+
+  function animate() {
+    requestAnimationFrame(animate);
+    vizPhase += 1 + state.motion / 40;
+    const {width:w,height:h} = dom.viz;
+    vctx.clearRect(0,0,w,h);
+    const grad = vctx.createLinearGradient(0,0,0,h);
+    grad.addColorStop(0, `rgba(86,166,255,${0.08 + state.brightness / 1400})`);
+    grad.addColorStop(1, `rgba(155,123,255,${0.08 + state.warmth / 1600})`);
+    vctx.fillStyle = grad;
+    vctx.fillRect(0,0,w,h);
+    state.layers.forEach((layer, idx) => {
+      if (!layer.on) return;
+      vctx.beginPath();
+      vctx.lineWidth = 2 + idx;
+      vctx.strokeStyle = ['rgba(94,242,255,.72)','rgba(86,166,255,.66)','rgba(255,215,106,.44)'][idx];
+      for (let x=0; x<=w; x+=8) {
+        const y = h * (0.25 + idx * 0.18) + Math.sin((x/80) + vizPhase/35 + idx) * (18 + state.motion / 5) + Math.cos((x/40) + vizPhase/70) * (8 + state.weather / 8);
+        if (x===0) vctx.moveTo(x,y); else vctx.lineTo(x,y);
+      }
+      vctx.stroke();
+    });
+    for (let i=0; i<28; i++) {
+      const x = (i * 77 + vizPhase * (0.4 + state.motion/150)) % (w + 40) - 20;
+      const y = (Math.sin(i + vizPhase/60) * 0.5 + 0.5) * h;
+      vctx.fillStyle = `rgba(255,255,255,${0.04 + state.weather / 1200})`;
+      vctx.beginPath(); vctx.arc(x, y, 1.4 + (i%3), 0, Math.PI*2); vctx.fill();
+    }
+  }
+  animate();
+  render();
+})();
+
+  </script>
+</body>
+</html>
