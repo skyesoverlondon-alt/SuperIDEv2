@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="css/platform.css" />
+
+  <title>SkyeSpace Audio</title>
+  <meta name="description" content="Audio rooms, podcasts, social listening stations, and live speaking spaces." />
+</head>
+<body data-page="audio">
+  <div id="background-mount" aria-hidden="true"></div>
+  <div class="app-shell">
+    <header class="topbar glass">
+      <div class="brand">
+        <img src="assets/skyes-logo.png" alt="SkyeSpace logo" />
+        <div>
+          <small>Skyes Over London</small>
+          <h1>SkyeSpace</h1>
+        </div>
+      </div>
+      <label class="search" aria-label="Search SkyeSpace">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+        <input id="global-search" type="search" placeholder="Search creators, posts, sounds, rooms, boards, videos, drops, events..." />
+      </label>
+      <div class="top-actions">
+        <button class="btn" data-open-compose>Create</button>
+        <button class="icon-btn" title="Notifications">✦</button>
+        <button class="icon-btn" title="Inbox">✉</button>
+        <div class="profile-pill"><span class="profile-badge">SL</span><span>@skyespacehq</span></div>
+      </div>
+    </header>
+
+    <div class="main-grid">
+      <aside class="sidebar glass">
+        <nav class="nav-group" aria-label="SkyeSpace navigation">
+<a class="nav-link" href="index.html"><strong>Platform</strong><span>intertwined home</span></a>
+<a class="nav-link" href="feed.html"><strong>Feed</strong><span>facebook-scale social</span></a>
+<a class="nav-link" href="visuals.html"><strong>Visuals</strong><span>instagram / tumblr aura</span></a>
+<a class="nav-link" href="shorts.html"><strong>Shorts</strong><span>tiktok velocity lane</span></a>
+<a class="nav-link" href="communities.html"><strong>Communities</strong><span>reddit discourse mesh</span></a>
+<a class="nav-link" href="boards.html"><strong>Boards</strong><span>pinterest save engine</span></a>
+<a class="nav-link" href="journals.html"><strong>Journals</strong><span>tumblr long-form</span></a>
+<a class="nav-link" href="video.html"><strong>Video</strong><span>youtube channel surface</span></a>
+<a class="nav-link" href="live.html"><strong>Live</strong><span>stream stages + chat</span></a>
+<a class="nav-link" href="discover.html"><strong>Discover</strong><span>algorithmic magazine</span></a>
+<a class="nav-link" href="market.html"><strong>Market</strong><span>creator storefronts</span></a>
+<a class="nav-link active" href="audio.html"><strong>Audio</strong><span>spaces + podcasts</span></a>
+<a class="nav-link" href="events.html"><strong>Events</strong><span>meetups + premieres</span></a>
+<a class="nav-link" href="messages.html"><strong>Messages</strong><span>social inbox</span></a>
+<a class="nav-link" href="profile.html"><strong>Profile</strong><span>creator identity</span></a>
+<a class="nav-link" href="creator-studio.html"><strong>Creator Studio</strong><span>publishing + analytics</span></a>
+<a class="nav-link" href="settings.html"><strong>Settings</strong><span>controls + trust</span></a>
+        </nav>
+
+<div class="sidebar-card side-brand-card">
+  <div class="eyebrow">SkyeSpace</div>
+  <h3>Actual platform surface</h3>
+  <p class="tiny-note">Seventeen routed pages, one shared identity layer, one injected 3D background lane, and enough layout distinction to stop pretending identical pages are strategy.</p>
+</div>
+<div class="sidebar-card metric-panel">
+  <div class="eyebrow">Network pulse</div>
+  <div class="metric-stack">
+    <div class="metric-row"><strong>8.4M</strong><span>cross-surface monthly interactions</span></div>
+    <div class="metric-row"><strong>412k</strong><span>creator uploads in rotation</span></div>
+    <div class="metric-row"><strong>1,204</strong><span>active communities + rooms</span></div>
+    <div class="metric-row"><strong>94k</strong><span>live chat messages per hour</span></div>
+  </div>
+</div>
+<div class="sidebar-card mini-legend">
+  <div class="eyebrow">Surface logic</div>
+  <p class="tiny-note">Posts can become clips. Clips can become boards. Boards can become products. Videos can open rooms. Journals can seed communities. That is platform behavior, not decorative cosplay.</p>
+</div>
+
+      </aside>
+
+      <main class="main-column audio-main">
+
+<section class="hero hero-audio glass"><div class="hero-copy"><div class="eyebrow">Audio surface</div><h2>Spaces, podcasts, listening rooms, clips, sound ladders, and voice-first communities.</h2><p>Audio gives the platform a different kind of intimacy. Live rooms, serialized podcasts, reactive listener panels, sound discovery, and social listening all belong in a surface that does more than show a play button and hope for the best.</p></div><div class="wave-vault glass"><span></span><span></span><span></span><span></span><span></span><span></span></div></section>
+<section class="audio-layout">
+  <section class="section-card glass span-7"><div class="section-head"><div><h3>Audio rooms</h3><p>Open spaces and ongoing conversations</p></div></div><div id="audio-list" class="audio-list"></div></section>
+  <section class="section-card glass span-5"><div class="section-head"><div><h3>Podcast rail</h3><p>Episodes with listener queues</p></div></div><div id="podcast-grid" class="podcast-grid"></div></section>
+  <section class="section-card glass span-12"><div class="section-head"><div><h3>Listener clubs</h3><p>Communities organized around voices and ideas</p></div></div><div id="listener-clubs" class="listener-clubs"></div></section>
+</section>
+
+      </main>
+
+      <aside class="rail">
+        <section class="rail-card glass">
+          <div class="section-head"><div><h3>Trending</h3><p>cross-surface signals</p></div><span class="chip">Live</span></div>
+          <div id="rail-trending" class="rail-list"></div>
+        </section>
+        <section class="rail-card glass">
+          <div class="section-head"><div><h3>Communities</h3><p>thread clusters</p></div><span class="chip">Rooms</span></div>
+          <div id="rail-communities" class="rail-list"></div>
+        </section>
+        <section class="rail-card glass">
+          <div class="section-head"><div><h3>Creator radar</h3><p>people worth watching</p></div><span class="chip">Suggested</span></div>
+          <div id="rail-creators" class="rail-list"></div>
+        </section>
+      </aside>
+    </div>
+
+
+<footer class="footer">
+  <div class="footer-box glass">
+    <strong>SkyeSpace</strong>
+    <span>Unified social platform UI layer with routed surfaces for feed, visuals, shorts, communities, boards, journals, video, live, discover, market, audio, events, messages, profile, creator studio, and settings.</span>
+  </div>
+</footer>
+
+  </div>
+
+  <div id="compose-modal" class="compose-modal" aria-hidden="true">
+    <div class="compose-backdrop" data-close-compose></div>
+    <div class="compose-panel glass">
+      <div class="compose-head">
+        <div><div class="eyebrow">Create on SkyeSpace</div><h3>Publish into the platform</h3></div>
+        <button class="icon-btn" data-close-compose>✕</button>
+      </div>
+      <form id="compose-form" class="compose-form">
+        <div class="compose-grid">
+          <label><span>Title</span><input type="text" placeholder="What are you publishing?" required /></label>
+          <label><span>Format</span>
+            <select>
+              <option>Feed post</option>
+              <option>Visual drop</option>
+              <option>Short clip</option>
+              <option>Community thread</option>
+              <option>Board collection</option>
+              <option>Journal entry</option>
+              <option>Video episode</option>
+              <option>Live room</option>
+              <option>Audio room</option>
+              <option>Product drop</option>
+              <option>Event page</option>
+            </select>
+          </label>
+        </div>
+        <label><span>Description</span><textarea rows="5" placeholder="Put some heat on it."></textarea></label>
+        <div class="compose-grid">
+          <label><span>Audience</span><select><option>Everyone</option><option>Followers</option><option>Subscribers</option><option>Private room</option></select></label>
+          <label><span>Monetization hook</span><select><option>None</option><option>Tip enabled</option><option>Subscription CTA</option><option>Storefront CTA</option><option>Ticketed event</option></select></label>
+        </div>
+        <div class="compose-actions">
+          <button type="button" class="ghost-btn" data-close-compose>Cancel</button>
+          <button type="submit" class="btn">Queue publish</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="toast" class="toast">Draft queued.</div>
+  <script src="js/platform-data.js"></script>
+  <script src="js/background-injector.js"></script>
+  <script src="js/platform.js"></script>
+</body>
+</html>
