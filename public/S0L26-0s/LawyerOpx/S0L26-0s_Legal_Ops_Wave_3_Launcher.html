@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>S0L26-0s_Legal_Ops_Wave_3 Launcher</title>
+<style>
+
+:root {
+  --bg:#0b1020; --panel:rgba(16,21,41,.88); --panel2:rgba(25,31,58,.95); --line:rgba(255,255,255,.09);
+  --text:#f4f7fb; --muted:#a8b3d1; --gold:#e8c36d; --violet:#7c5cff; --cyan:#4ad8ff;
+  --good:#22c55e; --warn:#f59e0b; --bad:#ef4444;
+}
+* { box-sizing:border-box; }
+html,body { margin:0; min-height:100%; font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; color:var(--text);
+ background:
+  radial-gradient(circle at top left, rgba(124,92,255,.16), transparent 26%),
+  radial-gradient(circle at top right, rgba(74,216,255,.10), transparent 24%),
+  linear-gradient(180deg,#0b1020,#0f1730 54%, #09111f); }
+a { color:inherit; text-decoration:none; }
+.shell { max-width:1440px; margin:0 auto; padding:22px; }
+.nav {
+  display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;
+  padding:16px 18px; border-radius:22px; background:var(--panel); border:1px solid var(--line);
+  position:sticky; top:10px; z-index:10; backdrop-filter:blur(12px);
+}
+.brand { font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+.brand span { color:var(--gold); }
+.navlinks { display:flex; gap:10px; flex-wrap:wrap; }
+.navlinks a { padding:10px 12px; border-radius:999px; border:1px solid var(--line); background:rgba(255,255,255,.03); color:var(--muted); }
+.hero { display:grid; grid-template-columns:1.2fr .9fr; gap:16px; margin-top:18px; }
+.card {
+  background:var(--panel); border:1px solid var(--line); border-radius:26px; padding:20px;
+  box-shadow:0 18px 54px rgba(0,0,0,.24);
+}
+h1 { margin:0 0 8px; font-size:clamp(2rem,4vw,3.3rem); line-height:1.02; }
+p.lead { margin:0; color:var(--muted); line-height:1.68; font-size:1rem; }
+.notice { padding:14px 16px; border-radius:18px; background:rgba(245,158,11,.09); border:1px solid rgba(245,158,11,.22); color:#ffe8b7; }
+.statgrid, .grid4 { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+.stat, .mini { background:var(--panel2); border:1px solid var(--line); border-radius:20px; padding:14px; }
+.stat strong, .mini strong { display:block; font-size:1.55rem; }
+.stat span, .mini span { display:block; color:var(--muted); font-size:.84rem; margin-bottom:6px; }
+.layout { display:grid; grid-template-columns:420px 1fr; gap:16px; margin-top:18px; }
+.stack { display:flex; flex-direction:column; gap:16px; }
+label { display:block; font-size:.82rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:#dfe6ff; margin-bottom:8px; }
+input, select, textarea {
+  width:100%; border-radius:16px; border:1px solid var(--line); background:rgba(255,255,255,.04); color:var(--text);
+  padding:12px 14px; font:inherit;
+}
+textarea { min-height:112px; resize:vertical; }
+.grid2, .grid3 { display:grid; gap:12px; }
+.grid2 { grid-template-columns:1fr 1fr; }
+.grid3 { grid-template-columns:repeat(3,1fr); }
+.btnrow { display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; }
+button {
+  appearance:none; border:none; border-radius:14px; padding:12px 16px; font-weight:800; cursor:pointer;
+  background:linear-gradient(90deg,var(--violet),#5c8cff); color:#fff;
+}
+button.alt { background:rgba(255,255,255,.05); border:1px solid var(--line); color:var(--text); }
+button.warn { background:linear-gradient(90deg,#f59e0b,#ef4444); }
+.list { display:flex; flex-direction:column; gap:12px; }
+.item, .ticket {
+  border:1px solid var(--line); border-radius:20px; background:rgba(255,255,255,.03); padding:14px;
+}
+.itemhead { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; align-items:flex-start; }
+.item h3, .ticket h4 { margin:0 0 6px; font-size:1.05rem; }
+.meta { color:var(--muted); font-size:.92rem; line-height:1.55; }
+.badges { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
+.badge { font-size:.72rem; padding:6px 10px; border-radius:999px; border:1px solid var(--line); color:var(--muted); }
+.badge.warn { color:#fff3d4; border-color:rgba(245,158,11,.26); background:rgba(245,158,11,.13); }
+.badge.good { color:#dfffe8; border-color:rgba(34,197,94,.24); background:rgba(34,197,94,.12); }
+.badge.bad { color:#ffe0e0; border-color:rgba(239,68,68,.24); background:rgba(239,68,68,.12); }
+.empty { padding:16px; border-radius:18px; border:1px dashed rgba(255,255,255,.14); color:var(--muted); }
+.panelbox { background:rgba(255,255,255,.03); border:1px solid var(--line); border-radius:18px; padding:14px; }
+.bigline { font-size:1.2rem; font-weight:800; }
+.bigline.good { color:#b8ffd0; } .bigline.warn { color:#ffe6a6; } .bigline.bad { color:#ffbcbc; }
+.kanban { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
+.lane { background:var(--panel); border:1px solid var(--line); border-radius:22px; padding:14px; min-height:160px; }
+.lane h3, .subh { margin:0 0 12px; font-size:1rem; }
+p { color:var(--muted); line-height:1.62; }
+.rangeval { color:var(--gold); font-weight:800; margin-top:6px; }
+.footer { color:var(--muted); text-align:center; padding:18px 0 8px; font-size:.92rem; }
+@media (max-width: 1150px){ .layout,.hero,.kanban{ grid-template-columns:1fr; } .grid4,.statgrid{grid-template-columns:repeat(2,1fr);} }
+@media (max-width: 760px){ .grid2,.grid3,.grid4,.statgrid{grid-template-columns:1fr;} .shell{padding:14px;} }
+
+.grid-launch { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-top:18px; }
+.launchcard { display:block; background:var(--panel); border:1px solid var(--line); border-radius:24px; padding:18px; box-shadow:0 18px 54px rgba(0,0,0,.24); }
+.launchcard h3 { margin:8px 0; font-size:1.2rem; }
+.launchcard span { color:var(--gold); font-weight:800; }
+@media (max-width:1000px){ .grid-launch{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+<div class="shell">
+  <nav class="nav">
+    <div class="brand">S0L26-0s <span>Legal Ops Wave 3</span></div>
+    <div class="navlinks">
+      <a href="S0L26-0s_Legal_Ops_Wave_1_Launcher.html">Wave 1</a>
+      <a href="S0L26-0s_Legal_Ops_Wave_2_Launcher.html">Wave 2</a>
+      <a href="S0L26-0s_Legal_Ops_Wave_3_Launcher.html">Wave 3</a>
+    </div>
+  </nav>
+  <section class="hero">
+    <div class="card">
+      <div class="badge">Launcher</div>
+      <h1>Legal Ops Wave 3</h1>
+      <p class="lead">Conflict screening, intake routing, motion planning, mediation tracking, and trial prep in one browser-native wave.</p>
+    </div>
+    <div class="card">
+      <div class="notice">These are workflow tools for organization and planning. They are not substitutes for attorney judgment or legal advice. The machine can help hold the paper storm together; it does not get a bar card.</div>
+      <div class="statgrid" style="margin-top:16px">
+        <div class="stat"><span>Apps</span><strong>5</strong></div>
+        <div class="stat"><span>Format</span><strong>Single-file</strong></div>
+        <div class="stat"><span>Storage</span><strong>Local save</strong></div>
+        <div class="stat"><span>Backup</span><strong>JSON</strong></div>
+      </div>
+    </div>
+  </section>
+  <div class="grid-launch"><a class="launchcard" href="Conflict_Checker_MVP.html"><div class="badge">Wave 3 App</div><h3>Conflict Checker</h3><p>Screen matters, parties, and relationships before they turn into expensive chaos.</p><span>Open app →</span></a><a class="launchcard" href="Intake_Triage_Matrix_MVP.html"><div class="badge">Wave 3 App</div><h3>Intake Triage Matrix</h3><p>Score new matters fast so urgent work rises and weak-fit leads stop eating oxygen.</p><span>Open app →</span></a><a class="launchcard" href="Motion_Drafting_Planner_MVP.html"><div class="badge">Wave 3 App</div><h3>Motion Drafting Planner</h3><p>Break motions into parts so drafting stops feeling like a cursed fog bank.</p><span>Open app →</span></a><a class="launchcard" href="Mediation_Room_Board_MVP.html"><div class="badge">Wave 3 App</div><h3>Mediation Room Board</h3><p>Track offers, caucus notes, pressure points, and settlement ladders in one quiet command surface.</p><span>Open app →</span></a><a class="launchcard" href="Trial_Prep_Command_MVP.html"><div class="badge">Wave 3 App</div><h3>Trial Prep Command</h3><p>Run witnesses, exhibits, themes, and day-by-day prep from one compact command deck.</p><span>Open app →</span></a></div>
+  <div class="footer">Offline-friendly launcher for Wave 3.</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Legal Billing & Timekeeper</title>
+<style>
+:root {
+  --bg:#0b1020; --panel:rgba(16,21,41,.88); --panel2:rgba(25,31,58,.95); --line:rgba(255,255,255,.09);
+  --text:#f4f7fb; --muted:#a8b3d1; --gold:#e8c36d; --violet:#7c5cff; --cyan:#4ad8ff;
+  --good:#22c55e; --warn:#f59e0b; --bad:#ef4444;
+}
+* { box-sizing:border-box; }
+html,body { margin:0; min-height:100%; font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; color:var(--text);
+ background:
+  radial-gradient(circle at top left, rgba(124,92,255,.16), transparent 26%),
+  radial-gradient(circle at top right, rgba(74,216,255,.10), transparent 24%),
+  linear-gradient(180deg,#0b1020,#0f1730 54%, #09111f); }
+a { color:inherit; text-decoration:none; }
+.shell { max-width:1480px; margin:0 auto; padding:22px; }
+.nav {
+  display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;
+  padding:16px 18px; border-radius:22px; background:var(--panel); border:1px solid var(--line);
+  position:sticky; top:10px; z-index:10; backdrop-filter:blur(12px);
+}
+.brand { font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+.brand span { color:var(--gold); }
+.navlinks { display:flex; gap:10px; flex-wrap:wrap; }
+.navlinks a { padding:10px 12px; border-radius:999px; border:1px solid var(--line); background:rgba(255,255,255,.03); color:var(--muted); }
+.hero { display:grid; grid-template-columns:1.2fr .95fr; gap:16px; margin-top:18px; }
+.card {
+  background:var(--panel); border:1px solid var(--line); border-radius:26px; padding:20px;
+  box-shadow:0 18px 54px rgba(0,0,0,.24);
+}
+h1 { margin:0 0 8px; font-size:clamp(2rem,4vw,3.3rem); line-height:1.02; }
+p.lead { margin:0; color:var(--muted); line-height:1.68; font-size:1rem; }
+.notice { padding:14px 16px; border-radius:18px; background:rgba(245,158,11,.09); border:1px solid rgba(245,158,11,.22); color:#ffe8b6; }
+.metrics { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin-top:16px; }
+.metric {
+  border-radius:22px; padding:16px; background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.02));
+  border:1px solid var(--line);
+}
+.metric .k { font-size:1.8rem; font-weight:800; margin-top:10px; }
+.metric .l { color:var(--muted); font-size:.85rem; text-transform:uppercase; letter-spacing:.08em; }
+.main { display:grid; grid-template-columns:1.2fr .8fr; gap:16px; margin-top:16px; align-items:start; }
+.panelTitle { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:14px; }
+.panelTitle h2 { margin:0; font-size:1.05rem; letter-spacing:.02em; }
+.row { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:10px; }
+input, select, textarea, button {
+  width:100%; border:none; outline:none; color:var(--text); background:rgba(255,255,255,.04);
+  border:1px solid var(--line); border-radius:16px; padding:12px 14px; font:inherit;
+}
+textarea { min-height:110px; resize:vertical; }
+button {
+  cursor:pointer; font-weight:700; background:linear-gradient(90deg,var(--violet),var(--cyan)); color:#fff;
+  box-shadow:0 14px 34px rgba(74,216,255,.12);
+}
+button.ghost { background:rgba(255,255,255,.03); box-shadow:none; }
+button.gold { background:linear-gradient(90deg,var(--gold),#fbe4ab); color:#101320; }
+.toolbar { display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; }
+.tableWrap { overflow:auto; border:1px solid var(--line); border-radius:22px; background:rgba(255,255,255,.02); }
+table { width:100%; border-collapse:collapse; min-width:760px; }
+th, td { padding:14px; border-bottom:1px solid var(--line); text-align:left; font-size:.94rem; vertical-align:top; }
+th { color:#dfe7ff; font-size:.82rem; text-transform:uppercase; letter-spacing:.08em; background:rgba(255,255,255,.03); }
+.badge { display:inline-flex; align-items:center; gap:6px; padding:7px 10px; border-radius:999px; font-size:.78rem; font-weight:800; text-transform:uppercase; letter-spacing:.06em; }
+.badge.good { background:rgba(34,197,94,.12); color:#86efac; border:1px solid rgba(34,197,94,.25); }
+.badge.warn { background:rgba(245,158,11,.10); color:#fcd34d; border:1px solid rgba(245,158,11,.22); }
+.badge.bad { background:rgba(239,68,68,.10); color:#fca5a5; border:1px solid rgba(239,68,68,.22); }
+.badge.cool { background:rgba(124,92,255,.14); color:#c6b7ff; border:1px solid rgba(124,92,255,.26); }
+.stack { display:grid; gap:16px; }
+.miniGrid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+.list { display:grid; gap:10px; }
+.item {
+  border:1px solid var(--line); border-radius:18px; padding:14px; background:rgba(255,255,255,.03);
+}
+.item h3 { margin:0 0 8px; font-size:1rem; }
+.item p { margin:0; color:var(--muted); line-height:1.55; }
+.foot { margin-top:18px; color:var(--muted); font-size:.88rem; line-height:1.6; }
+small.mono { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; color:#d9dded; }
+hr.sep { border:none; border-top:1px solid var(--line); margin:16px 0; }
+@media (max-width: 1100px) {
+  .hero, .main { grid-template-columns:1fr; }
+  .metrics { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@media (max-width: 760px) {
+  .row, .miniGrid { grid-template-columns:1fr; }
+  .metrics { grid-template-columns:1fr; }
+}
+</style>
+</head>
+<body>
+<div class="shell">
+  <nav class="nav">
+    <div class="brand">S0L26-0s <span>Legal Ops</span></div>
+    <div class="navlinks">
+      <a href="S0L26-0s_Legal_Ops_Wave_1_Launcher.html">Wave 1</a>
+      <a href="S0L26-0s_Legal_Ops_Wave_2_Launcher.html">Wave 2</a>
+      <a href="Legal_Billing_Timekeeper_MVP.html">Refresh App</a>
+    </div>
+  </nav>
+
+  <section class="hero">
+    <div class="card">
+      <div class="badge cool">⏱️ Full MVP</div>
+      <h1>Legal Billing & Timekeeper</h1>
+      <p class="lead">Capture time, categorize work, monitor budget burn, and build cleaner invoice narratives.</p>
+      <div class="toolbar">
+        <button id="seedBtn" class="gold">Load Demo Data</button>
+        <button id="saveBtn">Save Local</button>
+        <button id="exportBtn" class="ghost">Export JSON</button>
+        <label class="ghost" style="display:inline-flex;align-items:center;gap:8px;padding:10px 12px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.03);cursor:pointer;">
+          Import JSON
+          <input id="importFile" type="file" accept=".json,application/json" style="display:none;" />
+        </label>
+      </div>
+      <div class="metrics" id="metrics"></div>
+    </div>
+    <div class="card">
+      <div class="panelTitle"><h2>Ops Frame</h2><span class="badge warn">Support Tool</span></div>
+      <p class="lead">Timekeeping and budget console for entries, matter budgets, narrative quality, and billable/non-billable mix.</p>
+      <hr class="sep" />
+      <div class="notice">
+        This MVP is for workflow support, intake, organization, and planning. It does not replace attorney judgment, filing rules, or legal advice. Tiny but important goblin clause.
+      </div>
+      <div class="foot">
+        Saved locally under <small class="mono">sol26_legal_wave2_legal_billing_timekeeper</small>. Use export/import if you want portable state across machines.
+      </div>
+    </div>
+  </section>
+
+  <section class="main">
+    <div class="card">
+      <div class="panelTitle"><h2>Time Entries</h2><span id="recordCount" class="badge cool">0 records</span></div>
+      <div class="row">
+        <input id="titleInput" placeholder="Title / entry name" />
+        <input id="meta1Input" placeholder="Task" />
+        <input id="meta2Input" placeholder="Matter" />
+        <input id="dueInput" placeholder="Hours" />
+        <input id="ownerInput" placeholder="Rate" />
+      </div>
+      <div class="row" style="margin-top:10px;grid-template-columns:1fr 1fr 1fr 1fr 1.2fr;">
+        <select id="statusInput">
+          <option value="Drafting">Drafting</option>
+          <option value="Collecting">Collecting</option>
+          <option value="Needs Review">Needs Review</option>
+          <option value="Active">Active</option>
+          <option value="Watch">Watch</option>
+          <option value="Complete">Complete</option>
+          <option value="High">High</option>
+          <option value="Medium">Medium</option>
+          <option value="Low">Low</option>
+          <option value="Billable">Billable</option>
+          <option value="Non-billable">Non-billable</option>
+        </select>
+        <input id="searchInput" placeholder="Search records" />
+        <button id="addBtn">Add Record</button>
+        <button id="clearBtn" class="ghost">Clear Form</button>
+        <button id="clearAllBtn" class="ghost">Clear All Records</button>
+      </div>
+      <div class="tableWrap" style="margin-top:14px;">
+        <table>
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>Task</th>
+              <th>Matter</th>
+              <th>Hours</th>
+              <th>Rate</th>
+              <th>Billable</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="stack">
+      <div class="card">
+        <div class="panelTitle"><h2>Invoice Narrative Builder</h2><span class="badge good">Live Notes</span></div>
+        <textarea id="invoice" placeholder="Polish bland time text into clean client-readable summaries"></textarea>
+      </div>
+
+      <div class="card">
+        <div class="panelTitle"><h2>Matter Budgets</h2><span class="badge cool">Structured List</span></div>
+        <div class="row" style="grid-template-columns:1.2fr .9fr .8fr;">
+          <input id="miniTitle" placeholder="Entry" />
+          <input id="miniMeta" placeholder="Owner / amount / strength" />
+          <button id="miniAddBtn">Add Item</button>
+        </div>
+        <div class="list" id="miniList" style="margin-top:12px;"></div>
+      </div>
+
+      <div class="card">
+        <div class="panelTitle"><h2>Playbook Notes</h2><span class="badge warn">Field Guide</span></div>
+        <div class="list"><div class="item"><h3>Play 1</h3><p>Time entries should explain value, not read like cryptic cave scratches.</p></div><div class="item"><h3>Play 2</h3><p>Budget visibility calms clients and prevents ugly surprises.</p></div><div class="item"><h3>Play 3</h3><p>Short, specific narratives age better than vague billable mush.</p></div></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+const STORAGE_KEY = "sol26_legal_wave2_legal_billing_timekeeper";
+const CONFIG = {
+  metrics: ["Hours This Week", "Billable Mix", "Budget Remaining", "Draft Narratives"],
+  seedItems: [{"title": "Draft motion outline", "meta1": "Acosta v. Harbor", "meta2": "2.1", "due": "425", "owner": "Attorney", "status": "Billable"}, {"title": "Document index cleanup", "meta1": "Acosta v. Harbor", "meta2": "1.4", "due": "145", "owner": "Paralegal", "status": "Billable"}, {"title": "Internal staffing sync", "meta1": "Portfolio Admin", "meta2": "0.6", "due": "0", "owner": "Ops", "status": "Non-billable"}]
+};
+
+const state = {
+  records: [],
+  mini: [],
+  notes: "",
+};
+
+const el = (id) => document.getElementById(id);
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) Object.assign(state, JSON.parse(raw));
+  } catch (err) {
+    console.warn("load failed", err);
+  }
+}
+
+function saveState() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  render();
+}
+
+function badgeClass(value) {
+  const v = String(value || "").toLowerCase();
+  if (["complete","billable","strong","high","active"].some(x => v.includes(x))) return "good";
+  if (["watch","needs review","collecting","medium","developing","drafting"].some(x => v.includes(x))) return "warn";
+  if (["low","non-billable","risk","bad"].some(x => v.includes(x))) return "bad";
+  return "cool";
+}
+
+function numberFrom(value) {
+  const n = parseFloat(String(value).replace(/[^0-9.-]/g,""));
+  return isNaN(n) ? 0 : n;
+}
+
+function computeMetrics(records) {
+  const total = records.length;
+  const dueSoon = records.filter(r => {
+    if (!r.due || !/^\\d{4}-\\d{2}-\\d{2}$/.test(r.due)) return false;
+    const d = new Date(r.due + "T00:00:00");
+    const now = new Date();
+    const diff = (d - now) / (1000*60*60*24);
+    return diff >= -1 && diff <= 7;
+  }).length;
+  const owners = new Set(records.map(r => r.owner).filter(Boolean)).size;
+  const complete = total ? Math.round(records.filter(r => String(r.status).toLowerCase().includes("complete")).length / total * 100) : 0;
+  const hours = records.reduce((sum,r)=>sum + numberFrom(r.meta2),0).toFixed(1);
+  const billable = total ? Math.round(records.filter(r => String(r.status).toLowerCase().includes("billable")).length / total * 100) : 0;
+  const confidence = total ? Math.round(records.reduce((sum,r)=>sum + numberFrom(r.status),0) / total) : 0;
+  const recovery = records.reduce((sum,r)=>sum + numberFrom(r.meta2),0);
+  const floor = records.reduce((sum,r)=>sum + numberFrom(r.due),0);
+  const map = {
+    "Open Requests": total,
+    "Imminent Due Dates": dueSoon,
+    "Custodians": owners,
+    "Production Complete %": complete + "%",
+    "Open Follow-Ups": total,
+    "High Urgency Items": records.filter(r => String(r.status).toLowerCase().includes("high")).length,
+    "Unread Summaries": Math.max(total - 1, 0),
+    "Client Confidence": Math.max(10, 92 - records.filter(r => String(r.status).toLowerCase().includes("high")).length * 8) + "%",
+    "Active Scenarios": total,
+    "Counter Ladders": Math.max(total - 1, 0),
+    "Projected Spend": "$" + floor.toLocaleString(),
+    "Expected Recovery": "$" + recovery.toLocaleString(),
+    "Strategic Lanes": total,
+    "Red Flags": records.filter(r => ["watch","mixed","risk","needs review"].some(x => String(r.status).toLowerCase().includes(x) || String(r.meta2).toLowerCase().includes(x))).length,
+    "Priority Moves": dueSoon,
+    "Witness Readiness": Math.max(15, 80 - dueSoon * 6) + "%",
+    "Hours This Week": hours,
+    "Billable Mix": billable + "%",
+    "Budget Remaining": "$" + Math.max(0, 10000 - Math.round(recovery)).toLocaleString(),
+    "Draft Narratives": total
+  };
+  return CONFIG.metrics.map(label => [label, map[label] ?? total]);
+}
+
+function renderMetrics() {
+  el("metrics").innerHTML = computeMetrics(state.records).map(([label, value]) => `
+    <div class="metric">
+      <div class="l">${label}</div>
+      <div class="k">${value}</div>
+    </div>
+  `).join("");
+}
+
+function renderTable() {
+  const q = el("searchInput").value.trim().toLowerCase();
+  const records = state.records.filter(r => !q || JSON.stringify(r).toLowerCase().includes(q));
+  el("recordCount").textContent = `${records.length} records`;
+  el("tableBody").innerHTML = records.map((r, idx) => `
+    <tr>
+      <td><strong>${escapeHtml(r.title)}</strong></td>
+      <td>${escapeHtml(r.meta1)}</td>
+      <td>${escapeHtml(r.meta2)}</td>
+      <td>${escapeHtml(r.due)}</td>
+      <td>${escapeHtml(r.owner)}</td>
+      <td><span class="badge ${badgeClass(r.status)}">${escapeHtml(r.status)}</span></td>
+      <td>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="ghost" onclick="editRecord(${idx})">Edit</button>
+          <button class="ghost" onclick="deleteRecord(${idx})">Delete</button>
+        </div>
+      </td>
+    </tr>
+  `).join("") || `<tr><td colspan="7" style="color:var(--muted);">No records yet. Add one above or load the seed pack.</td></tr>`;
+}
+
+function renderMini() {
+  el("miniList").innerHTML = state.mini.map((item, idx) => `
+    <div class="item">
+      <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;">
+        <div>
+          <h3>${escapeHtml(item.title)}</h3>
+          <p>${escapeHtml(item.meta)}</p>
+        </div>
+        <button class="ghost" style="width:auto;" onclick="deleteMini(${idx})">Remove</button>
+      </div>
+    </div>
+  `).join("") || `<div class="item"><p>No structured items yet.</p></div>`;
+}
+
+function render() {
+  renderMetrics();
+  renderTable();
+  renderMini();
+  el("invoice").value = state.notes || "";
+}
+
+function addRecord() {
+  const record = {
+    title: el("titleInput").value.trim(),
+    meta1: el("meta1Input").value.trim(),
+    meta2: el("meta2Input").value.trim(),
+    due: el("dueInput").value.trim(),
+    owner: el("ownerInput").value.trim(),
+    status: el("statusInput").value.trim()
+  };
+  if (!record.title) return;
+  state.records.unshift(record);
+  clearForm();
+  saveState();
+}
+
+function clearForm() {
+  ["titleInput","meta1Input","meta2Input","dueInput","ownerInput"].forEach(id => el(id).value = "");
+  el("statusInput").value = "Drafting";
+}
+
+function editRecord(idx) {
+  const r = state.records[idx];
+  if (!r) return;
+  el("titleInput").value = r.title || "";
+  el("meta1Input").value = r.meta1 || "";
+  el("meta2Input").value = r.meta2 || "";
+  el("dueInput").value = r.due || "";
+  el("ownerInput").value = r.owner || "";
+  el("statusInput").value = r.status || "Drafting";
+  state.records.splice(idx,1);
+  saveState();
+}
+
+function deleteRecord(idx) {
+  state.records.splice(idx,1);
+  saveState();
+}
+
+function addMini() {
+  const title = el("miniTitle").value.trim();
+  const meta = el("miniMeta").value.trim();
+  if (!title) return;
+  state.mini.unshift({ title, meta });
+  el("miniTitle").value = "";
+  el("miniMeta").value = "";
+  saveState();
+}
+
+function deleteMini(idx) {
+  state.mini.splice(idx,1);
+  saveState();
+}
+
+function loadSeed() {
+  state.records = JSON.parse(JSON.stringify(CONFIG.seedItems));
+  state.mini = [
+    { title: "Priority lane", meta: "Use the right-hand cards for structured sub-tracking." },
+    { title: "Review rhythm", meta: "Morning scan, pre-deadline sweep, end-of-week cleanup." }
+  ];
+  state.notes = "Demo notes loaded. Replace this with real project data.";
+  saveState();
+}
+
+function exportJson() {
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = STORAGE_KEY + ".json";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importJson(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const parsed = JSON.parse(reader.result);
+      state.records = Array.isArray(parsed.records) ? parsed.records : [];
+      state.mini = Array.isArray(parsed.mini) ? parsed.mini : [];
+      state.notes = typeof parsed.notes === "string" ? parsed.notes : "";
+      saveState();
+    } catch (err) {
+      alert("Import failed: invalid JSON.");
+    }
+  };
+  reader.readAsText(file);
+}
+
+function escapeHtml(str) {
+  return String(str ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
+el("addBtn").addEventListener("click", addRecord);
+el("clearBtn").addEventListener("click", clearForm);
+el("clearAllBtn").addEventListener("click", () => {
+  if (confirm("Clear all records?")) {
+    state.records = [];
+    saveState();
+  }
+});
+el("miniAddBtn").addEventListener("click", addMini);
+el("seedBtn").addEventListener("click", loadSeed);
+el("saveBtn").addEventListener("click", saveState);
+el("exportBtn").addEventListener("click", exportJson);
+el("searchInput").addEventListener("input", renderTable);
+el("invoice").addEventListener("input", (e) => {
+  state.notes = e.target.value;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+});
+el("importFile").addEventListener("change", (e) => {
+  const file = e.target.files?.[0];
+  if (file) importJson(file);
+});
+
+loadState();
+if (!state.records.length) loadSeed(); else render();
+</script>
+</body>
+</html>

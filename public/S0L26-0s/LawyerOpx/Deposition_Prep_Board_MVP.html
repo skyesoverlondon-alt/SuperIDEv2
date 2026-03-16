@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Deposition Prep Board</title>
+<style>
+:root {
+  --bg:#0b1020; --panel:rgba(16,21,41,.88); --panel2:rgba(25,31,58,.95); --line:rgba(255,255,255,.09);
+  --text:#f4f7fb; --muted:#a8b3d1; --gold:#e8c36d; --violet:#7c5cff; --cyan:#4ad8ff;
+  --good:#22c55e; --warn:#f59e0b; --bad:#ef4444;
+}
+* { box-sizing:border-box; }
+html,body { margin:0; min-height:100%; font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; color:var(--text);
+ background:
+  radial-gradient(circle at top left, rgba(124,92,255,.16), transparent 26%),
+  radial-gradient(circle at top right, rgba(74,216,255,.10), transparent 24%),
+  linear-gradient(180deg,#0b1020,#0f1730 54%, #09111f); }
+a { color:inherit; text-decoration:none; }
+.shell { max-width:1440px; margin:0 auto; padding:22px; }
+.nav {
+  display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;
+  padding:16px 18px; border-radius:22px; background:var(--panel); border:1px solid var(--line);
+  position:sticky; top:10px; z-index:10; backdrop-filter:blur(12px);
+}
+.brand { font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+.brand span { color:var(--gold); }
+.navlinks { display:flex; gap:10px; flex-wrap:wrap; }
+.navlinks a { padding:10px 12px; border-radius:999px; border:1px solid var(--line); background:rgba(255,255,255,.03); color:var(--muted); }
+.hero { display:grid; grid-template-columns:1.3fr .9fr; gap:16px; margin-top:18px; }
+.card {
+  background:var(--panel); border:1px solid var(--line); border-radius:26px; padding:20px;
+  box-shadow:0 18px 54px rgba(0,0,0,.24);
+}
+h1 { margin:0 0 8px; font-size:clamp(2rem,4vw,3.3rem); line-height:1.02; }
+p.lead { margin:0; color:var(--muted); line-height:1.68; font-size:1rem; }
+.notice { padding:14px 16px; border-radius:18px; background:rgba(245,158,11,.09); border:1px solid rgba(245,158,11,.22); color:#ffe8b7; }
+.statgrid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-top:16px; }
+.stat { background:var(--panel2); border:1px solid var(--line); border-radius:20px; padding:14px; }
+.stat strong { display:block; font-size:1.55rem; }
+.layout { display:grid; grid-template-columns:420px 1fr; gap:16px; margin-top:18px; }
+.stack { display:flex; flex-direction:column; gap:16px; }
+label { display:block; font-size:.82rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:#dfe6ff; margin-bottom:8px; }
+input, select, textarea {
+  width:100%; border-radius:16px; border:1px solid var(--line); background:rgba(255,255,255,.04); color:var(--text);
+  padding:12px 14px; font:inherit;
+}
+textarea { min-height:112px; resize:vertical; }
+.grid2, .grid3 { display:grid; gap:12px; }
+.grid2 { grid-template-columns:1fr 1fr; }
+.grid3 { grid-template-columns:repeat(3,1fr); }
+.btnrow { display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; }
+button {
+  appearance:none; border:none; border-radius:14px; padding:12px 16px; font-weight:800; cursor:pointer;
+  background:linear-gradient(90deg,var(--violet),#5c8cff); color:#fff;
+}
+button.alt { background:rgba(255,255,255,.05); border:1px solid var(--line); color:var(--text); }
+button.warn { background:linear-gradient(90deg,#f59e0b,#ef4444); }
+.list { display:flex; flex-direction:column; gap:12px; }
+.item {
+  border:1px solid var(--line); border-radius:20px; background:rgba(255,255,255,.03); padding:14px;
+}
+.itemhead { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; align-items:flex-start; }
+.item h3 { margin:0 0 6px; font-size:1.05rem; }
+.meta { color:var(--muted); font-size:.92rem; line-height:1.55; }
+.badges { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
+.badge { font-size:.72rem; padding:6px 10px; border-radius:999px; border:1px solid var(--line); color:var(--muted); }
+.badge.hot { color:#fff3d4; border-color:rgba(245,158,11,.26); background:rgba(245,158,11,.13); }
+.badge.good { color:#daf7e2; border-color:rgba(34,197,94,.26); background:rgba(34,197,94,.12); }
+.badge.bad { color:#ffd4d4; border-color:rgba(239,68,68,.28); background:rgba(239,68,68,.11); }
+.paneltitle { margin:0 0 12px; font-size:1.12rem; }
+.toolbar { display:flex; gap:10px; flex-wrap:wrap; }
+.search {
+  width:100%; padding:12px 14px; border-radius:16px; border:1px solid var(--line); background:rgba(255,255,255,.04); color:var(--text);
+}
+table { width:100%; border-collapse:collapse; font-size:.94rem; }
+th, td { text-align:left; padding:12px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+th { color:#d7def7; font-size:.8rem; text-transform:uppercase; letter-spacing:.06em; }
+.prebox {
+  white-space:pre-wrap; line-height:1.6; color:#eef3ff; background:rgba(255,255,255,.03); border:1px solid var(--line);
+  border-radius:18px; padding:16px; min-height:180px;
+}
+.small { color:var(--muted); font-size:.9rem; }
+footer { color:var(--muted); padding:26px 4px 10px; }
+@media (max-width: 1080px) {
+  .hero, .layout { grid-template-columns:1fr; }
+  .statgrid { grid-template-columns:repeat(2,1fr); }
+}
+@media (max-width: 720px) {
+  .grid2, .grid3 { grid-template-columns:1fr; }
+  .statgrid { grid-template-columns:1fr 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="shell">
+  <nav class="nav">
+    <div class="brand">S0L26-0s <span>Deposition Prep Board</span></div>
+    <div class="navlinks"><a href="S0L26-0s_Legal_Ops_Wave_1_Launcher.html">Wave 1 Launcher</a><a href="Legal_Intake_Desk_MVP.html">Intake Desk</a><a href="Matter_Timeline_Studio_MVP.html">Timeline Studio</a><a href="Evidence_Exhibit_Organizer_MVP.html">Evidence Organizer</a><a href="Deadline_Docket_Tracker_MVP.html">Docket Tracker</a><a href="Deposition_Prep_Board_MVP.html">Deposition Prep</a></div>
+  </nav>
+
+  <section class="hero">
+    <div class="card">
+      <h1>Deposition Prep Board</h1>
+      <p class="lead">Witness prep board for topic mapping, exhibit planning, admissions goals, and outline generation.</p>
+    </div>
+    <div class="card">
+      <div class="notice">Workflow tool only. This app is for organization, intake, prep, and process support. It is not legal advice, does not determine rights or outcomes, and should be reviewed by qualified counsel before real-world use.</div>
+      <div id="stats" class="statgrid"></div>
+    </div>
+  </section>
+
+  
+<section class="layout">
+  <div class="stack">
+    <div class="card">
+      <h2 class="paneltitle">Add Witness / Prep Entry</h2>
+      <div class="grid2">
+        <div><label>Witness / Interview Subject</label><input id="name" placeholder="Dana Lewis"></div>
+        <div><label>Matter</label><input id="matter" placeholder="Brooks workplace dispute"></div>
+      </div>
+      <div class="grid3">
+        <div><label>Role</label><select id="role"><option>Fact Witness</option><option>Client</option><option>Supervisor</option><option>Corporate Rep</option><option>Expert</option><option>Other</option></select></div>
+        <div><label>Priority</label><select id="priority"><option>Critical</option><option>High</option><option>Normal</option></select></div>
+        <div><label>Session Date</label><input id="date" type="date"></div>
+      </div>
+      <div><label>Primary Topics</label><textarea id="topics" placeholder="Hiring timeline, overtime complaints, final schedule changes, termination meeting."></textarea></div>
+      <div><label>Key Exhibits / Documents</label><textarea id="exhibits" placeholder="PX-002 payroll ledger, PX-004 complaint email, text screenshot packet."></textarea></div>
+      <div><label>Admissions / Goals</label><textarea id="goals" placeholder="Confirm supervisor knowledge, timing, policy deviations, and who approved the decision."></textarea></div>
+      <div><label>Question Spine</label><textarea id="questions" placeholder="Start broad, lock timeline, test memory, then pin document foundation."></textarea></div>
+      <div class="btnrow">
+        <button id="saveEntry">Save Entry</button>
+        <button class="alt" id="loadDemo">Load Demo</button>
+        <button class="alt" id="exportState">Export JSON</button>
+        <label class="alt" style="display:inline-flex;align-items:center;gap:10px;padding:12px 16px;border-radius:14px;border:1px solid var(--line);cursor:pointer;">Import JSON<input id="importState" type="file" accept=".json" hidden></label>
+      </div>
+    </div>
+    <div class="card">
+      <h2 class="paneltitle">Prep Outline</h2>
+      <div id="outline" class="prebox"></div>
+    </div>
+  </div>
+  <div class="stack">
+    <div class="card">
+      <div class="grid2">
+        <div><label>Search Matter / Witness</label><input id="q1" placeholder="Search witness or matter"></div>
+        <div><label>Search Topic / Exhibit / Goal</label><input id="q2" placeholder="Search prep content"></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2 class="paneltitle">Prep Board</h2>
+      <div id="board" class="list"></div>
+    </div>
+  </div>
+</section>
+
+
+  <footer>Local autosave key: <code>sol26_deposition_prep</code> · JSON import/export enabled.</footer>
+</div>
+<script>
+const STORAGE_KEY = "sol26_deposition_prep";
+const $ = sel => document.querySelector(sel);
+const $$ = sel => [...document.querySelectorAll(sel)];
+function loadState(fallback) {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch(err) {
+    return fallback;
+  }
+}
+function saveState(state) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+function downloadJSON(filename, data) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 800);
+}
+function importJSON(file, cb) {
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      cb(JSON.parse(reader.result));
+    } catch(err) {
+      alert('That JSON file looks cursed. Import failed.');
+    }
+  };
+  reader.readAsText(file);
+}
+function fmtDate(d) {
+  if(!d) return '—';
+  const dt = new Date(d + 'T12:00:00');
+  if(Number.isNaN(dt.getTime())) return d;
+  return dt.toLocaleDateString();
+}
+function daysUntil(d) {
+  if(!d) return null;
+  const now = new Date();
+  const target = new Date(d + 'T12:00:00');
+  return Math.ceil((target - now) / 86400000);
+}
+
+const demoEntries = [
+  {id:crypto.randomUUID(), name:'Dana Lewis', matter:'Brooks workplace dispute', role:'Supervisor', priority:'Critical', date:'2026-03-27', topics:'Overtime complaints, scheduling authority, termination timeline', exhibits:'Complaint email thread, scheduling texts, policy handbook', goals:'Establish notice, control, sequence, and inconsistency with policy', questions:'Who first learned of the complaint? What changed after that? Who approved the schedule? Who attended the termination meeting?'},
+  {id:crypto.randomUUID(), name:'Naomi Brooks', matter:'Brooks workplace dispute', role:'Client', priority:'High', date:'2026-03-20', topics:'Work history, complaint chronology, damages, later job search', exhibits:'Personal notes, final pay stub, text exports', goals:'Clarify timeline and avoid gaps or accidental overstatement', questions:'Walk through dates. Who was present? What documents do you still have?'}
+];
+let state = loadState({entries: demoEntries});
+
+function makeOutline(e) {
+  if (!e) return 'Select or save a prep entry to generate the outline.';
+  return `${e.name} · ${e.role}\nMatter: ${e.matter}\nSession Date: ${fmtDate(e.date)} · Priority: ${e.priority}\n\nPrimary Topics\n${e.topics || '—'}\n\nKey Exhibits / Documents\n${e.exhibits || '—'}\n\nAdmissions / Goals\n${e.goals || '—'}\n\nQuestion Spine\n${e.questions || '—'}`;
+}
+function render() {
+  const q1 = $('#q1').value.trim().toLowerCase();
+  const q2 = $('#q2').value.trim().toLowerCase();
+  const list = state.entries.filter(e => [e.name,e.matter,e.role].join(' ').toLowerCase().includes(q1))
+                            .filter(e => [e.topics,e.exhibits,e.goals,e.questions].join(' ').toLowerCase().includes(q2));
+  $('#board').innerHTML = list.map(e => {
+    const cls = e.priority === 'Critical' ? 'bad' : e.priority === 'High' ? 'hot' : 'good';
+    return `<article class="item">
+      <div class="itemhead">
+        <div>
+          <h3>${e.name} · ${e.matter}</h3>
+          <div class="meta">${e.role} · Session ${fmtDate(e.date)}</div>
+          <div class="badges">
+            <span class="badge ${cls}">${e.priority}</span>
+          </div>
+          <div class="meta" style="margin-top:10px;">Topics: ${e.topics}</div>
+        </div>
+        <div class="btnrow">
+          <button class="alt" onclick="previewEntry('${e.id}')">Preview</button>
+          <button class="alt" onclick="removeEntry('${e.id}')">Delete</button>
+        </div>
+      </div>
+    </article>`;
+  }).join('') || '<div class="small">No prep entries found.</div>';
+  $('#outline').textContent = makeOutline(list[0] || state.entries[0]);
+  const critical = state.entries.filter(e=>e.priority==='Critical').length;
+  const matters = new Set(state.entries.map(e=>e.matter)).size;
+  const nextDate = [...state.entries].sort((a,b)=>(a.date||'').localeCompare(b.date||''))[0]?.date || '';
+  $('#stats').innerHTML = `
+    <div class="stat"><strong>${state.entries.length}</strong><span>Total prep entries</span></div>
+    <div class="stat"><strong>${critical}</strong><span>Critical witnesses</span></div>
+    <div class="stat"><strong>${matters}</strong><span>Matters covered</span></div>
+    <div class="stat"><strong>${nextDate ? fmtDate(nextDate) : '—'}</strong><span>Next session</span></div>`;
+  saveState(state);
+}
+window.previewEntry = id => {
+  const e = state.entries.find(x => x.id === id);
+  $('#outline').textContent = makeOutline(e);
+};
+window.removeEntry = id => { state.entries = state.entries.filter(e => e.id !== id); render(); };
+$('#saveEntry').addEventListener('click', () => {
+  const rec = {
+    id:crypto.randomUUID(),
+    name:$('#name').value.trim(),
+    matter:$('#matter').value.trim(),
+    role:$('#role').value,
+    priority:$('#priority').value,
+    date:$('#date').value,
+    topics:$('#topics').value.trim(),
+    exhibits:$('#exhibits').value.trim(),
+    goals:$('#goals').value.trim(),
+    questions:$('#questions').value.trim()
+  };
+  if (!rec.name || !rec.matter || !rec.topics) return alert('Witness, matter, and topics are required.');
+  state.entries.unshift(rec);
+  $('#outline').textContent = makeOutline(rec);
+  render();
+});
+$('#q1').addEventListener('input', render);
+$('#q2').addEventListener('input', render);
+$('#loadDemo').addEventListener('click', ()=>{ state = {entries:[...demoEntries]}; render(); });
+$('#exportState').addEventListener('click', () => downloadJSON('deposition-prep-board-data.json', state));
+$('#importState').addEventListener('change', e => importJSON(e.target.files[0], data => { if (data && Array.isArray(data.entries)) { state = data; render(); }}));
+render();
+
+</script>
+</body>
+</html>

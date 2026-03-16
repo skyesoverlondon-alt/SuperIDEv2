@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Matter Timeline Studio</title>
+<style>
+:root {
+  --bg:#0b1020; --panel:rgba(16,21,41,.88); --panel2:rgba(25,31,58,.95); --line:rgba(255,255,255,.09);
+  --text:#f4f7fb; --muted:#a8b3d1; --gold:#e8c36d; --violet:#7c5cff; --cyan:#4ad8ff;
+  --good:#22c55e; --warn:#f59e0b; --bad:#ef4444;
+}
+* { box-sizing:border-box; }
+html,body { margin:0; min-height:100%; font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; color:var(--text);
+ background:
+  radial-gradient(circle at top left, rgba(124,92,255,.16), transparent 26%),
+  radial-gradient(circle at top right, rgba(74,216,255,.10), transparent 24%),
+  linear-gradient(180deg,#0b1020,#0f1730 54%, #09111f); }
+a { color:inherit; text-decoration:none; }
+.shell { max-width:1440px; margin:0 auto; padding:22px; }
+.nav {
+  display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;
+  padding:16px 18px; border-radius:22px; background:var(--panel); border:1px solid var(--line);
+  position:sticky; top:10px; z-index:10; backdrop-filter:blur(12px);
+}
+.brand { font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+.brand span { color:var(--gold); }
+.navlinks { display:flex; gap:10px; flex-wrap:wrap; }
+.navlinks a { padding:10px 12px; border-radius:999px; border:1px solid var(--line); background:rgba(255,255,255,.03); color:var(--muted); }
+.hero { display:grid; grid-template-columns:1.3fr .9fr; gap:16px; margin-top:18px; }
+.card {
+  background:var(--panel); border:1px solid var(--line); border-radius:26px; padding:20px;
+  box-shadow:0 18px 54px rgba(0,0,0,.24);
+}
+h1 { margin:0 0 8px; font-size:clamp(2rem,4vw,3.3rem); line-height:1.02; }
+p.lead { margin:0; color:var(--muted); line-height:1.68; font-size:1rem; }
+.notice { padding:14px 16px; border-radius:18px; background:rgba(245,158,11,.09); border:1px solid rgba(245,158,11,.22); color:#ffe8b7; }
+.statgrid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-top:16px; }
+.stat { background:var(--panel2); border:1px solid var(--line); border-radius:20px; padding:14px; }
+.stat strong { display:block; font-size:1.55rem; }
+.layout { display:grid; grid-template-columns:420px 1fr; gap:16px; margin-top:18px; }
+.stack { display:flex; flex-direction:column; gap:16px; }
+label { display:block; font-size:.82rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:#dfe6ff; margin-bottom:8px; }
+input, select, textarea {
+  width:100%; border-radius:16px; border:1px solid var(--line); background:rgba(255,255,255,.04); color:var(--text);
+  padding:12px 14px; font:inherit;
+}
+textarea { min-height:112px; resize:vertical; }
+.grid2, .grid3 { display:grid; gap:12px; }
+.grid2 { grid-template-columns:1fr 1fr; }
+.grid3 { grid-template-columns:repeat(3,1fr); }
+.btnrow { display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; }
+button {
+  appearance:none; border:none; border-radius:14px; padding:12px 16px; font-weight:800; cursor:pointer;
+  background:linear-gradient(90deg,var(--violet),#5c8cff); color:#fff;
+}
+button.alt { background:rgba(255,255,255,.05); border:1px solid var(--line); color:var(--text); }
+button.warn { background:linear-gradient(90deg,#f59e0b,#ef4444); }
+.list { display:flex; flex-direction:column; gap:12px; }
+.item {
+  border:1px solid var(--line); border-radius:20px; background:rgba(255,255,255,.03); padding:14px;
+}
+.itemhead { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; align-items:flex-start; }
+.item h3 { margin:0 0 6px; font-size:1.05rem; }
+.meta { color:var(--muted); font-size:.92rem; line-height:1.55; }
+.badges { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
+.badge { font-size:.72rem; padding:6px 10px; border-radius:999px; border:1px solid var(--line); color:var(--muted); }
+.badge.hot { color:#fff3d4; border-color:rgba(245,158,11,.26); background:rgba(245,158,11,.13); }
+.badge.good { color:#daf7e2; border-color:rgba(34,197,94,.26); background:rgba(34,197,94,.12); }
+.badge.bad { color:#ffd4d4; border-color:rgba(239,68,68,.28); background:rgba(239,68,68,.11); }
+.paneltitle { margin:0 0 12px; font-size:1.12rem; }
+.toolbar { display:flex; gap:10px; flex-wrap:wrap; }
+.search {
+  width:100%; padding:12px 14px; border-radius:16px; border:1px solid var(--line); background:rgba(255,255,255,.04); color:var(--text);
+}
+table { width:100%; border-collapse:collapse; font-size:.94rem; }
+th, td { text-align:left; padding:12px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+th { color:#d7def7; font-size:.8rem; text-transform:uppercase; letter-spacing:.06em; }
+.prebox {
+  white-space:pre-wrap; line-height:1.6; color:#eef3ff; background:rgba(255,255,255,.03); border:1px solid var(--line);
+  border-radius:18px; padding:16px; min-height:180px;
+}
+.small { color:var(--muted); font-size:.9rem; }
+footer { color:var(--muted); padding:26px 4px 10px; }
+@media (max-width: 1080px) {
+  .hero, .layout { grid-template-columns:1fr; }
+  .statgrid { grid-template-columns:repeat(2,1fr); }
+}
+@media (max-width: 720px) {
+  .grid2, .grid3 { grid-template-columns:1fr; }
+  .statgrid { grid-template-columns:1fr 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="shell">
+  <nav class="nav">
+    <div class="brand">S0L26-0s <span>Matter Timeline Studio</span></div>
+    <div class="navlinks"><a href="S0L26-0s_Legal_Ops_Wave_1_Launcher.html">Wave 1 Launcher</a><a href="Legal_Intake_Desk_MVP.html">Intake Desk</a><a href="Matter_Timeline_Studio_MVP.html">Timeline Studio</a><a href="Evidence_Exhibit_Organizer_MVP.html">Evidence Organizer</a><a href="Deadline_Docket_Tracker_MVP.html">Docket Tracker</a><a href="Deposition_Prep_Board_MVP.html">Deposition Prep</a></div>
+  </nav>
+
+  <section class="hero">
+    <div class="card">
+      <h1>Matter Timeline Studio</h1>
+      <p class="lead">Chronology builder for interviews, exhibits, communications, and dated case events.</p>
+    </div>
+    <div class="card">
+      <div class="notice">Workflow tool only. This app is for organization, intake, prep, and process support. It is not legal advice, does not determine rights or outcomes, and should be reviewed by qualified counsel before real-world use.</div>
+      <div id="stats" class="statgrid"></div>
+    </div>
+  </section>
+
+  
+<section class="layout">
+  <div class="stack">
+    <div class="card">
+      <h2 class="paneltitle">Add Timeline Event</h2>
+      <div class="grid2">
+        <div><label>Matter Name</label><input id="matter" placeholder="Brooks workplace dispute"></div>
+        <div><label>Event Date</label><input id="date" type="date"></div>
+      </div>
+      <div class="grid3">
+        <div><label>Event Type</label><select id="type"><option>Incident</option><option>Communication</option><option>Medical</option><option>Employment</option><option>Court</option><option>Evidence</option><option>Other</option></select></div>
+        <div><label>Source</label><input id="source" placeholder="Client interview"></div>
+        <div><label>Reliability</label><select id="reliability"><option>High</option><option>Medium</option><option>Low</option></select></div>
+      </div>
+      <div><label>Event Summary</label><textarea id="summaryInput" placeholder="Describe the event in plain language."></textarea></div>
+      <div class="grid2">
+        <div><label>Witness / Contact</label><input id="witness" placeholder="Dana Lewis"></div>
+        <div><label>Tag</label><input id="tag" placeholder="termination / payroll / call log"></div>
+      </div>
+      <div class="btnrow">
+        <button id="saveEvent">Add Event</button>
+        <button class="alt" id="loadDemo">Load Demo</button>
+        <button class="alt" id="exportState">Export JSON</button>
+        <label class="alt" style="display:inline-flex;align-items:center;gap:10px;padding:12px 16px;border-radius:14px;border:1px solid var(--line);cursor:pointer;">Import JSON<input id="importState" type="file" accept=".json" hidden></label>
+      </div>
+    </div>
+    <div class="card">
+      <h2 class="paneltitle">Generated Chronology</h2>
+      <div id="chronology" class="prebox"></div>
+    </div>
+  </div>
+  <div class="stack">
+    <div class="card">
+      <div class="grid2">
+        <div><label>Filter Matter</label><input id="filterMatter" placeholder="Search matter"></div>
+        <div><label>Filter Tag / Type / Source</label><input id="filterTag" placeholder="Search tag or source"></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2 class="paneltitle">Timeline Table</h2>
+      <div style="overflow:auto;">
+        <table>
+          <thead><tr><th>Date</th><th>Matter</th><th>Type</th><th>Summary</th><th>Reliability</th><th>Action</th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+  <footer>Local autosave key: <code>sol26_matter_timeline</code> · JSON import/export enabled.</footer>
+</div>
+<script>
+const STORAGE_KEY = "sol26_matter_timeline";
+const $ = sel => document.querySelector(sel);
+const $$ = sel => [...document.querySelectorAll(sel)];
+function loadState(fallback) {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch(err) {
+    return fallback;
+  }
+}
+function saveState(state) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+function downloadJSON(filename, data) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 800);
+}
+function importJSON(file, cb) {
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      cb(JSON.parse(reader.result));
+    } catch(err) {
+      alert('That JSON file looks cursed. Import failed.');
+    }
+  };
+  reader.readAsText(file);
+}
+function fmtDate(d) {
+  if(!d) return '—';
+  const dt = new Date(d + 'T12:00:00');
+  if(Number.isNaN(dt.getTime())) return d;
+  return dt.toLocaleDateString();
+}
+function daysUntil(d) {
+  if(!d) return null;
+  const now = new Date();
+  const target = new Date(d + 'T12:00:00');
+  return Math.ceil((target - now) / 86400000);
+}
+
+const demoEvents = [
+  {id:crypto.randomUUID(), matter:'Brooks workplace dispute', date:'2026-01-19', type:'Employment', source:'Client interview', reliability:'High', summary:'Client reports termination shortly after escalating overtime concerns to supervisor.', witness:'Dana Lewis', tag:'termination'},
+  {id:crypto.randomUUID(), matter:'Brooks workplace dispute', date:'2026-01-22', type:'Communication', source:'Text message screenshots', reliability:'High', summary:'Supervisor text suggests final schedule changes after complaint thread.', witness:'Supervisor', tag:'texts'},
+  {id:crypto.randomUUID(), matter:'Brooks workplace dispute', date:'2026-01-28', type:'Evidence', source:'Payroll records', reliability:'Medium', summary:'Payroll entries show disputed hours not reflected in final check.', witness:'Payroll office', tag:'payroll'}
+];
+let state = loadState({events: demoEvents});
+
+function buildChronology(list) {
+  if (!list.length) return 'No events yet.';
+  return list.sort((a,b)=>a.date.localeCompare(b.date)).map((e,i) =>
+    `${i+1}. ${fmtDate(e.date)} · ${e.type} · ${e.matter}\nSource: ${e.source} · Reliability: ${e.reliability} · Witness: ${e.witness || '—'}\n${e.summary}\nTag: ${e.tag || '—'}`
+  ).join('\n\n');
+}
+function render() {
+  const qMatter = $('#filterMatter').value.trim().toLowerCase();
+  const qTag = $('#filterTag').value.trim().toLowerCase();
+  const list = [...state.events]
+    .filter(e => !qMatter || e.matter.toLowerCase().includes(qMatter))
+    .filter(e => !qTag || [e.type,e.source,e.tag,e.summary].join(' ').toLowerCase().includes(qTag))
+    .sort((a,b)=>a.date.localeCompare(b.date));
+  $('#rows').innerHTML = list.map(e => {
+    const cls = e.reliability === 'High' ? 'good' : e.reliability === 'Medium' ? 'hot' : 'bad';
+    return `<tr>
+      <td>${fmtDate(e.date)}</td>
+      <td>${e.matter}</td>
+      <td>${e.type}<div class="badges"><span class="badge ${cls}">${e.reliability}</span></div></td>
+      <td>${e.summary}<div class="small">${e.source} · ${e.tag || '—'}</div></td>
+      <td>${e.reliability}</td>
+      <td><button class="alt" onclick="removeEvent('${e.id}')">Delete</button></td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="6" class="small">No events found.</td></tr>';
+  $('#chronology').textContent = buildChronology(list);
+
+  const matters = new Set(state.events.map(e=>e.matter)).size;
+  const high = state.events.filter(e=>e.reliability==='High').length;
+  const latest = [...state.events].sort((a,b)=>b.date.localeCompare(a.date))[0]?.date || '';
+  $('#stats').innerHTML = `
+    <div class="stat"><strong>${state.events.length}</strong><span>Total events</span></div>
+    <div class="stat"><strong>${matters}</strong><span>Matters tracked</span></div>
+    <div class="stat"><strong>${high}</strong><span>High reliability</span></div>
+    <div class="stat"><strong>${latest ? fmtDate(latest) : '—'}</strong><span>Latest dated event</span></div>`;
+  saveState(state);
+}
+window.removeEvent = id => { state.events = state.events.filter(e => e.id !== id); render(); };
+$('#saveEvent').addEventListener('click', () => {
+  const rec = {
+    id: crypto.randomUUID(),
+    matter: $('#matter').value.trim(),
+    date: $('#date').value,
+    type: $('#type').value,
+    source: $('#source').value.trim(),
+    reliability: $('#reliability').value,
+    summary: $('#summaryInput').value.trim(),
+    witness: $('#witness').value.trim(),
+    tag: $('#tag').value.trim()
+  };
+  if (!rec.matter || !rec.date || !rec.summary) return alert('Matter, date, and summary are required.');
+  state.events.push(rec);
+  render();
+});
+$('#filterMatter').addEventListener('input', render);
+$('#filterTag').addEventListener('input', render);
+$('#loadDemo').addEventListener('click', () => { state = {events:[...demoEvents]}; render(); });
+$('#exportState').addEventListener('click', () => downloadJSON('matter-timeline-studio-data.json', state));
+$('#importState').addEventListener('change', e => importJSON(e.target.files[0], data => { if (data && Array.isArray(data.events)) { state = data; render(); }}));
+render();
+
+</script>
+</body>
+</html>

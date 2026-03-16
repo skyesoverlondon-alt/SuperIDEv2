@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Conflict Checker</title>
+<style>
+:root {
+  --bg:#0b1020; --panel:rgba(16,21,41,.88); --panel2:rgba(25,31,58,.95); --line:rgba(255,255,255,.09);
+  --text:#f4f7fb; --muted:#a8b3d1; --gold:#e8c36d; --violet:#7c5cff; --cyan:#4ad8ff;
+  --good:#22c55e; --warn:#f59e0b; --bad:#ef4444;
+}
+* { box-sizing:border-box; }
+html,body { margin:0; min-height:100%; font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; color:var(--text);
+ background:
+  radial-gradient(circle at top left, rgba(124,92,255,.16), transparent 26%),
+  radial-gradient(circle at top right, rgba(74,216,255,.10), transparent 24%),
+  linear-gradient(180deg,#0b1020,#0f1730 54%, #09111f); }
+a { color:inherit; text-decoration:none; }
+.shell { max-width:1440px; margin:0 auto; padding:22px; }
+.nav {
+  display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;
+  padding:16px 18px; border-radius:22px; background:var(--panel); border:1px solid var(--line);
+  position:sticky; top:10px; z-index:10; backdrop-filter:blur(12px);
+}
+.brand { font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+.brand span { color:var(--gold); }
+.navlinks { display:flex; gap:10px; flex-wrap:wrap; }
+.navlinks a { padding:10px 12px; border-radius:999px; border:1px solid var(--line); background:rgba(255,255,255,.03); color:var(--muted); }
+.hero { display:grid; grid-template-columns:1.2fr .9fr; gap:16px; margin-top:18px; }
+.card {
+  background:var(--panel); border:1px solid var(--line); border-radius:26px; padding:20px;
+  box-shadow:0 18px 54px rgba(0,0,0,.24);
+}
+h1 { margin:0 0 8px; font-size:clamp(2rem,4vw,3.3rem); line-height:1.02; }
+p.lead { margin:0; color:var(--muted); line-height:1.68; font-size:1rem; }
+.notice { padding:14px 16px; border-radius:18px; background:rgba(245,158,11,.09); border:1px solid rgba(245,158,11,.22); color:#ffe8b7; }
+.statgrid, .grid4 { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+.stat, .mini { background:var(--panel2); border:1px solid var(--line); border-radius:20px; padding:14px; }
+.stat strong, .mini strong { display:block; font-size:1.55rem; }
+.stat span, .mini span { display:block; color:var(--muted); font-size:.84rem; margin-bottom:6px; }
+.layout { display:grid; grid-template-columns:420px 1fr; gap:16px; margin-top:18px; }
+.stack { display:flex; flex-direction:column; gap:16px; }
+label { display:block; font-size:.82rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:#dfe6ff; margin-bottom:8px; }
+input, select, textarea {
+  width:100%; border-radius:16px; border:1px solid var(--line); background:rgba(255,255,255,.04); color:var(--text);
+  padding:12px 14px; font:inherit;
+}
+textarea { min-height:112px; resize:vertical; }
+.grid2, .grid3 { display:grid; gap:12px; }
+.grid2 { grid-template-columns:1fr 1fr; }
+.grid3 { grid-template-columns:repeat(3,1fr); }
+.btnrow { display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; }
+button {
+  appearance:none; border:none; border-radius:14px; padding:12px 16px; font-weight:800; cursor:pointer;
+  background:linear-gradient(90deg,var(--violet),#5c8cff); color:#fff;
+}
+button.alt { background:rgba(255,255,255,.05); border:1px solid var(--line); color:var(--text); }
+button.warn { background:linear-gradient(90deg,#f59e0b,#ef4444); }
+.list { display:flex; flex-direction:column; gap:12px; }
+.item, .ticket {
+  border:1px solid var(--line); border-radius:20px; background:rgba(255,255,255,.03); padding:14px;
+}
+.itemhead { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; align-items:flex-start; }
+.item h3, .ticket h4 { margin:0 0 6px; font-size:1.05rem; }
+.meta { color:var(--muted); font-size:.92rem; line-height:1.55; }
+.badges { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
+.badge { font-size:.72rem; padding:6px 10px; border-radius:999px; border:1px solid var(--line); color:var(--muted); }
+.badge.warn { color:#fff3d4; border-color:rgba(245,158,11,.26); background:rgba(245,158,11,.13); }
+.badge.good { color:#dfffe8; border-color:rgba(34,197,94,.24); background:rgba(34,197,94,.12); }
+.badge.bad { color:#ffe0e0; border-color:rgba(239,68,68,.24); background:rgba(239,68,68,.12); }
+.empty { padding:16px; border-radius:18px; border:1px dashed rgba(255,255,255,.14); color:var(--muted); }
+.panelbox { background:rgba(255,255,255,.03); border:1px solid var(--line); border-radius:18px; padding:14px; }
+.bigline { font-size:1.2rem; font-weight:800; }
+.bigline.good { color:#b8ffd0; } .bigline.warn { color:#ffe6a6; } .bigline.bad { color:#ffbcbc; }
+.kanban { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
+.lane { background:var(--panel); border:1px solid var(--line); border-radius:22px; padding:14px; min-height:160px; }
+.lane h3, .subh { margin:0 0 12px; font-size:1rem; }
+p { color:var(--muted); line-height:1.62; }
+.rangeval { color:var(--gold); font-weight:800; margin-top:6px; }
+.footer { color:var(--muted); text-align:center; padding:18px 0 8px; font-size:.92rem; }
+@media (max-width: 1150px){ .layout,.hero,.kanban{ grid-template-columns:1fr; } .grid4,.statgrid{grid-template-columns:repeat(2,1fr);} }
+@media (max-width: 760px){ .grid2,.grid3,.grid4,.statgrid{grid-template-columns:1fr;} .shell{padding:14px;} }
+</style>
+</head>
+<body onload="boot()">
+  <div class="shell">
+    <nav class="nav">
+      <div class="brand">S0L26-0s <span>Legal Ops</span></div>
+      <div class="navlinks"><a href="S0L26-0s_Legal_Ops_Wave_3_Launcher.html">Launcher</a><a href="Conflict_Checker_MVP.html">Conflict Checker</a><a href="Intake_Triage_Matrix_MVP.html">Intake Triage</a><a href="Motion_Drafting_Planner_MVP.html">Motion Planner</a><a href="Mediation_Room_Board_MVP.html">Mediation Board</a><a href="Trial_Prep_Command_MVP.html">Trial Prep</a></div>
+    </nav>
+
+    <section class="hero">
+      <div class="card">
+        <div class="badge">Legal Ops MVP</div>
+        <h1>Conflict Checker</h1>
+        <p class="lead">Screen matters, parties, and relationships before they turn into expensive chaos.</p>
+      </div>
+      <div class="card">
+        <div class="notice">Track clients, adverse parties, affiliates, and related entities. Score conflict risk, log waivers, and keep a searchable history in the browser. This is an ops workflow tool, not legal advice.</div>
+        <div class="statgrid" style="margin-top:16px"><div class="stat"><span>Lane</span><strong>Entity graph</strong></div><div class="stat"><span>Lane</span><strong>Risk scoring</strong></div><div class="stat"><span>Lane</span><strong>Waiver log</strong></div><div class="stat"><span>Lane</span><strong>JSON backup</strong></div></div>
+      </div>
+    </section>
+
+    <section class="layout">
+      <div class="stack"><section class="card"><h2>Matter Setup</h2>
+<div class="grid2">
+  <div><label>Matter Name</label><input id="matterName" placeholder="Rivera v. Apex Storage" /></div>
+  <div><label>Matter Type</label><select id="matterType"><option>Litigation</option><option>Employment</option><option>Family</option><option>Real Estate</option><option>Corporate</option><option>IP</option><option>Other</option></select></div>
+</div>
+<div class="grid2">
+  <div><label>Jurisdiction</label><input id="jurisdiction" placeholder="Arizona Superior Court" /></div>
+  <div><label>Screening Attorney / Team</label><input id="team" placeholder="Ops Team Alpha" /></div>
+</div>
+<div class="grid2">
+  <div><label>Prospective / Current Client</label><input id="client" placeholder="Maria Rivera" /></div>
+  <div><label>Adverse Party</label><input id="adverse" placeholder="Apex Storage LLC" /></div>
+</div>
+<div><label>Summary Notes</label><textarea id="matterNotes" placeholder="Known relationships, prior representations, common ownership, insurers, subsidiaries, former clients, etc."></textarea></div>
+<div class="btnrow"><button onclick="saveMatter()">Save Matter Record</button><button class="alt" onclick="seedMatter()">Load Demo</button></div>
+</section><section class="card"><h2>Entity / Relationship Entry</h2>
+<div class="grid2">
+  <div><label>Entity Name</label><input id="entityName" placeholder="Apex Storage Holdings" /></div>
+  <div><label>Role</label><select id="entityRole"><option>Client</option><option>Prospective Client</option><option>Adverse Party</option><option>Affiliate</option><option>Witness</option><option>Vendor</option><option>Insurer</option><option>Other</option></select></div>
+</div>
+<div class="grid3">
+  <div><label>Relationship</label><select id="relationship"><option>Direct</option><option>Parent / Subsidiary</option><option>Officer / Owner</option><option>Former Representation</option><option>Common Counsel</option><option>Shared Insurance</option><option>Family / Personal</option><option>Other</option></select></div>
+  <div><label>Risk Weight</label><input id="riskWeight" type="number" min="0" max="100" value="25" /></div>
+  <div><label>Status</label><select id="entityStatus"><option>Needs Review</option><option>Cleared</option><option>Potential Conflict</option><option>Waiver Needed</option><option>Blocked</option></select></div>
+</div>
+<div><label>Notes</label><textarea id="entityNotes" placeholder="Describe the relationship or prior work."></textarea></div>
+<div class="btnrow"><button onclick="addEntity()">Add Entity</button><button class="alt" onclick="clearEntityForm()">Clear</button></div>
+</section></div>
+      <div class="stack"><section class="card"><h2>Conflict Ledger</h2><div id="entityList" class="list"></div></section><section class="card"><h2>Screening Summary</h2>
+<div class="grid3 stats-block">
+  <div class="mini"><span>Total entities</span><strong id="totalEntities">0</strong></div>
+  <div class="mini"><span>Avg risk score</span><strong id="avgRisk">0</strong></div>
+  <div class="mini"><span>Blocked / waiver</span><strong id="flaggedCount">0</strong></div>
+</div>
+<div class="grid2">
+  <div class="panelbox"><label>Recommended Ops Status</label><div id="recommendedStatus" class="bigline">Clear to Review</div></div>
+  <div class="panelbox"><label>Waiver / Escalation Log</label><textarea id="waiverLog" placeholder="Record waiver steps, ethics review routing, conflict committee notes, or follow-up actions."></textarea></div>
+</div>
+<div class="btnrow"><button onclick="exportData()">Export JSON</button><button class="alt" onclick="importDataPrompt()">Import JSON</button><button class="warn" onclick="resetAll()">Reset</button></div>
+</section></div>
+    </section>
+
+    <div class="footer">Single-file browser MVP · local autosave · offline nav links included.</div>
+  </div>
+<script>
+const KEY='legal_conflict_checker_mvp_v1';
+let state={matter:{},entities:[],waiverLog:''};
+function boot(){ const raw=localStorage.getItem(KEY); if(raw){ try{ state=JSON.parse(raw);}catch(e){} } syncMatterFields(); render(); }
+function persist(){ state.waiverLog=document.getElementById('waiverLog')?.value||state.waiverLog||''; localStorage.setItem(KEY, JSON.stringify(state)); }
+function syncMatterFields(){ const m=state.matter||{}; ['matterName','matterType','jurisdiction','team','client','adverse','matterNotes'].forEach(id=>{ const el=document.getElementById(id); if(el && m[id]!==undefined) el.value=m[id]; }); const wl=document.getElementById('waiverLog'); if(wl) wl.value=state.waiverLog||''; }
+function saveMatter(){ state.matter={}; ['matterName','matterType','jurisdiction','team','client','adverse','matterNotes'].forEach(id=>state.matter[id]=document.getElementById(id).value.trim()); persist(); render(); }
+function seedMatter(){ document.getElementById('matterName').value='Rivera v. Apex Storage'; document.getElementById('matterType').value='Litigation'; document.getElementById('jurisdiction').value='Maricopa County Superior Court'; document.getElementById('team').value='Phoenix Ops Team'; document.getElementById('client').value='Maria Rivera'; document.getElementById('adverse').value='Apex Storage LLC'; document.getElementById('matterNotes').value='Prospective plaintiff matter. Need screen for prior work involving Apex affiliates and board members.'; document.getElementById('entityName').value='Apex Storage Holdings'; document.getElementById('entityRole').value='Affiliate'; document.getElementById('relationship').value='Parent / Subsidiary'; document.getElementById('riskWeight').value=42; document.getElementById('entityStatus').value='Potential Conflict'; document.getElementById('entityNotes').value='Name match to former due diligence matter for storage portfolio; confirm exact corporate family.'; saveMatter(); }
+function addEntity(){ const entity={ id:Date.now().toString(36), name:val('entityName'), role:val('entityRole'), relationship:val('relationship'), risk:Math.max(0,Math.min(100,Number(val('riskWeight'))||0)), status:val('entityStatus'), notes:val('entityNotes')}; if(!entity.name) return; state.entities.unshift(entity); persist(); clearEntityForm(); render(); }
+function clearEntityForm(){ ['entityName','entityNotes'].forEach(id=>document.getElementById(id).value=''); document.getElementById('riskWeight').value=25; document.getElementById('entityRole').value='Client'; document.getElementById('relationship').value='Direct'; document.getElementById('entityStatus').value='Needs Review'; }
+function removeEntity(id){ state.entities=state.entities.filter(x=>x.id!==id); persist(); render(); }
+function toggleStatus(id){ const order=['Needs Review','Cleared','Potential Conflict','Waiver Needed','Blocked']; const item=state.entities.find(x=>x.id===id); if(!item) return; item.status=order[(order.indexOf(item.status)+1)%order.length]; persist(); render(); }
+function val(id){ return document.getElementById(id).value.trim(); }
+function render(){ const list=document.getElementById('entityList'); list.innerHTML=''; if(!state.entities.length){ list.innerHTML='<div class="empty">No entities added yet. Add the people and entities circling this matter so the gremlin can spot overlap.</div>'; }
+ state.entities.forEach(item=>{ const el=document.createElement('div'); el.className='item'; el.innerHTML=`<div class="itemhead"><div><h3>${escapeHtml(item.name)}</h3><div class="meta">${escapeHtml(item.role)} · ${escapeHtml(item.relationship)} · Risk ${item.risk}</div><div class="badges"><span class="badge ${badgeClass(item.status)}">${escapeHtml(item.status)}</span></div></div><div class="btnrow"><button class="alt" onclick="toggleStatus('${item.id}')">Cycle Status</button><button class="warn" onclick="removeEntity('${item.id}')">Remove</button></div></div><div class="meta" style="margin-top:8px">${escapeHtml(item.notes||'No notes')}</div>`; list.appendChild(el); });
+ const total=state.entities.length; const avg=total?Math.round(state.entities.reduce((a,b)=>a+b.risk,0)/total):0; const flagged=state.entities.filter(x=>['Potential Conflict','Waiver Needed','Blocked'].includes(x.status)).length; document.getElementById('totalEntities').textContent=String(total); document.getElementById('avgRisk').textContent=String(avg); document.getElementById('flaggedCount').textContent=String(flagged);
+ const rec = flagged>0 || avg>=50 ? (state.entities.some(x=>x.status==='Blocked')?'Do Not Open Until Cleared':'Escalate for Ethics Review') : total? 'Clear with Standard Review' : 'Clear to Review';
+ const rs=document.getElementById('recommendedStatus'); rs.textContent=rec; rs.className='bigline '+(rec.includes('Do Not')?'bad':rec.includes('Escalate')?'warn':'good');
+ }
+function badgeClass(status){ if(status==='Cleared') return 'good'; if(status==='Potential Conflict' || status==='Waiver Needed') return 'warn'; if(status==='Blocked') return 'bad'; return ''; }
+function exportData(){ persist(); const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='conflict-checker-backup.json'; a.click(); URL.revokeObjectURL(a.href); }
+function importDataPrompt(){ const raw=prompt('Paste JSON backup'); if(!raw) return; try{ state=JSON.parse(raw); persist(); syncMatterFields(); render(); } catch(e){ alert('That JSON is cursed.'); } }
+function resetAll(){ if(!confirm('Reset this workspace?')) return; state={matter:{},entities:[],waiverLog:''}; localStorage.removeItem(KEY); location.reload(); }
+function escapeHtml(s){ return (s??'').toString().replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+window.addEventListener('beforeunload',persist);
+</script>
+</body>
+</html>

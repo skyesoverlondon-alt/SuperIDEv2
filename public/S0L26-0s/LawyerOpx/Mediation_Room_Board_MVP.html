@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mediation Room Board</title>
+<style>
+:root {
+  --bg:#0b1020; --panel:rgba(16,21,41,.88); --panel2:rgba(25,31,58,.95); --line:rgba(255,255,255,.09);
+  --text:#f4f7fb; --muted:#a8b3d1; --gold:#e8c36d; --violet:#7c5cff; --cyan:#4ad8ff;
+  --good:#22c55e; --warn:#f59e0b; --bad:#ef4444;
+}
+* { box-sizing:border-box; }
+html,body { margin:0; min-height:100%; font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; color:var(--text);
+ background:
+  radial-gradient(circle at top left, rgba(124,92,255,.16), transparent 26%),
+  radial-gradient(circle at top right, rgba(74,216,255,.10), transparent 24%),
+  linear-gradient(180deg,#0b1020,#0f1730 54%, #09111f); }
+a { color:inherit; text-decoration:none; }
+.shell { max-width:1440px; margin:0 auto; padding:22px; }
+.nav {
+  display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;
+  padding:16px 18px; border-radius:22px; background:var(--panel); border:1px solid var(--line);
+  position:sticky; top:10px; z-index:10; backdrop-filter:blur(12px);
+}
+.brand { font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+.brand span { color:var(--gold); }
+.navlinks { display:flex; gap:10px; flex-wrap:wrap; }
+.navlinks a { padding:10px 12px; border-radius:999px; border:1px solid var(--line); background:rgba(255,255,255,.03); color:var(--muted); }
+.hero { display:grid; grid-template-columns:1.2fr .9fr; gap:16px; margin-top:18px; }
+.card {
+  background:var(--panel); border:1px solid var(--line); border-radius:26px; padding:20px;
+  box-shadow:0 18px 54px rgba(0,0,0,.24);
+}
+h1 { margin:0 0 8px; font-size:clamp(2rem,4vw,3.3rem); line-height:1.02; }
+p.lead { margin:0; color:var(--muted); line-height:1.68; font-size:1rem; }
+.notice { padding:14px 16px; border-radius:18px; background:rgba(245,158,11,.09); border:1px solid rgba(245,158,11,.22); color:#ffe8b7; }
+.statgrid, .grid4 { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+.stat, .mini { background:var(--panel2); border:1px solid var(--line); border-radius:20px; padding:14px; }
+.stat strong, .mini strong { display:block; font-size:1.55rem; }
+.stat span, .mini span { display:block; color:var(--muted); font-size:.84rem; margin-bottom:6px; }
+.layout { display:grid; grid-template-columns:420px 1fr; gap:16px; margin-top:18px; }
+.stack { display:flex; flex-direction:column; gap:16px; }
+label { display:block; font-size:.82rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:#dfe6ff; margin-bottom:8px; }
+input, select, textarea {
+  width:100%; border-radius:16px; border:1px solid var(--line); background:rgba(255,255,255,.04); color:var(--text);
+  padding:12px 14px; font:inherit;
+}
+textarea { min-height:112px; resize:vertical; }
+.grid2, .grid3 { display:grid; gap:12px; }
+.grid2 { grid-template-columns:1fr 1fr; }
+.grid3 { grid-template-columns:repeat(3,1fr); }
+.btnrow { display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; }
+button {
+  appearance:none; border:none; border-radius:14px; padding:12px 16px; font-weight:800; cursor:pointer;
+  background:linear-gradient(90deg,var(--violet),#5c8cff); color:#fff;
+}
+button.alt { background:rgba(255,255,255,.05); border:1px solid var(--line); color:var(--text); }
+button.warn { background:linear-gradient(90deg,#f59e0b,#ef4444); }
+.list { display:flex; flex-direction:column; gap:12px; }
+.item, .ticket {
+  border:1px solid var(--line); border-radius:20px; background:rgba(255,255,255,.03); padding:14px;
+}
+.itemhead { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; align-items:flex-start; }
+.item h3, .ticket h4 { margin:0 0 6px; font-size:1.05rem; }
+.meta { color:var(--muted); font-size:.92rem; line-height:1.55; }
+.badges { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
+.badge { font-size:.72rem; padding:6px 10px; border-radius:999px; border:1px solid var(--line); color:var(--muted); }
+.badge.warn { color:#fff3d4; border-color:rgba(245,158,11,.26); background:rgba(245,158,11,.13); }
+.badge.good { color:#dfffe8; border-color:rgba(34,197,94,.24); background:rgba(34,197,94,.12); }
+.badge.bad { color:#ffe0e0; border-color:rgba(239,68,68,.24); background:rgba(239,68,68,.12); }
+.empty { padding:16px; border-radius:18px; border:1px dashed rgba(255,255,255,.14); color:var(--muted); }
+.panelbox { background:rgba(255,255,255,.03); border:1px solid var(--line); border-radius:18px; padding:14px; }
+.bigline { font-size:1.2rem; font-weight:800; }
+.bigline.good { color:#b8ffd0; } .bigline.warn { color:#ffe6a6; } .bigline.bad { color:#ffbcbc; }
+.kanban { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
+.lane { background:var(--panel); border:1px solid var(--line); border-radius:22px; padding:14px; min-height:160px; }
+.lane h3, .subh { margin:0 0 12px; font-size:1rem; }
+p { color:var(--muted); line-height:1.62; }
+.rangeval { color:var(--gold); font-weight:800; margin-top:6px; }
+.footer { color:var(--muted); text-align:center; padding:18px 0 8px; font-size:.92rem; }
+@media (max-width: 1150px){ .layout,.hero,.kanban{ grid-template-columns:1fr; } .grid4,.statgrid{grid-template-columns:repeat(2,1fr);} }
+@media (max-width: 760px){ .grid2,.grid3,.grid4,.statgrid{grid-template-columns:1fr;} .shell{padding:14px;} }
+</style>
+</head>
+<body onload="boot()">
+  <div class="shell">
+    <nav class="nav">
+      <div class="brand">S0L26-0s <span>Legal Ops</span></div>
+      <div class="navlinks"><a href="S0L26-0s_Legal_Ops_Wave_3_Launcher.html">Launcher</a><a href="Conflict_Checker_MVP.html">Conflict Checker</a><a href="Intake_Triage_Matrix_MVP.html">Intake Triage</a><a href="Motion_Drafting_Planner_MVP.html">Motion Planner</a><a href="Mediation_Room_Board_MVP.html">Mediation Board</a><a href="Trial_Prep_Command_MVP.html">Trial Prep</a></div>
+    </nav>
+
+    <section class="hero">
+      <div class="card">
+        <div class="badge">Legal Ops MVP</div>
+        <h1>Mediation Room Board</h1>
+        <p class="lead">Track offers, caucus notes, pressure points, and settlement ladders in one quiet command surface.</p>
+      </div>
+      <div class="card">
+        <div class="notice">Useful for planning and note capture during mediation. Offer history, issue tracking, risk sliders, and concession logs stay local in the browser unless you export them.</div>
+        <div class="statgrid" style="margin-top:16px"><div class="stat"><span>Lane</span><strong>Offer ladder</strong></div><div class="stat"><span>Lane</span><strong>Issue tracker</strong></div><div class="stat"><span>Lane</span><strong>Caucus notes</strong></div><div class="stat"><span>Lane</span><strong>Risk framing</strong></div></div>
+      </div>
+    </section>
+
+    <section class="layout">
+      <div class="stack"><section class="card"><h2>Session Setup</h2>
+<div class="grid2"><div><label>Matter</label><input id="matter" placeholder="Parker v. Northgate" /></div><div><label>Mediator</label><input id="mediator" placeholder="A. Monroe" /></div></div>
+<div class="grid3"><div><label>Client Starting Position</label><input id="clientStart" placeholder="$450,000 demand" /></div><div><label>Defense Starting Position</label><input id="defenseStart" placeholder="$95,000 offer" /></div><div><label>Session Goal</label><input id="goal" placeholder="Close below ceiling while preserving non-monetary terms" /></div></div>
+<div><label>Session Notes</label><textarea id="sessionNotes" placeholder="Room dynamics, deal blockers, authority, insurance layers, apology terms, confidentiality, etc."></textarea></div>
+<div class="btnrow"><button onclick="saveHeader()">Save Session</button><button class="alt" onclick="demoHeader()">Load Demo</button></div>
+</section><section class="card"><h2>Offer Entry</h2>
+<div class="grid3"><div><label>Round</label><input id="round" type="number" min="1" value="1" /></div><div><label>From Side</label><select id="side"><option>Client</option><option>Defense</option><option>Mediator Proposal</option></select></div><div><label>Amount / Term</label><input id="amount" placeholder="$250,000 plus neutral letter" /></div></div>
+<div class="grid2"><div><label>Concession / Condition</label><input id="condition" placeholder="Confidentiality; payment within 20 days" /></div><div><label>Temperature</label><select id="temperature"><option>Constructive</option><option>Tense</option><option>Stalled</option><option>Breakthrough</option></select></div></div>
+<div><label>Offer Notes</label><textarea id="offerNotes" placeholder="Add authority limitations, hidden signals, tone, and room read."></textarea></div>
+<div class="btnrow"><button onclick="addOffer()">Add Offer</button><button class="alt" onclick="clearOfferForm()">Clear</button></div>
+</section></div>
+      <div class="stack"><section class="card"><h2>Mediation Dashboard</h2>
+<div class="grid4"><div class="mini"><span>Total rounds</span><strong id="totalRounds">0</strong></div><div class="mini"><span>Breakthroughs</span><strong id="breakCount">0</strong></div><div class="mini"><span>Stalled moments</span><strong id="stallCount">0</strong></div><div class="mini"><span>Latest direction</span><strong id="latestSide">—</strong></div></div>
+<div id="offerList" class="list"></div>
+</section><section class="card"><h2>Issue / Risk Panel</h2>
+<div class="grid3">
+  <div><label>Liability Risk (1-10)</label><input id="liability" type="range" min="1" max="10" value="5" oninput="showRisk()" /></div>
+  <div><label>Damages Risk (1-10)</label><input id="damages" type="range" min="1" max="10" value="5" oninput="showRisk()" /></div>
+  <div><label>Collection / Enforcement Risk (1-10)</label><input id="collection" type="range" min="1" max="10" value="5" oninput="showRisk()" /></div>
+</div>
+<div class="panelbox"><label>Current Risk Snapshot</label><div id="riskSummary" class="bigline">Balanced</div></div>
+<div class="btnrow"><button onclick="exportData()">Export JSON</button><button class="alt" onclick="importDataPrompt()">Import JSON</button><button class="warn" onclick="resetAll()">Reset</button></div>
+</section></div>
+    </section>
+
+    <div class="footer">Single-file browser MVP · local autosave · offline nav links included.</div>
+  </div>
+<script>
+const KEY='mediation_room_board_mvp_v1'; let state={header:{},offers:[],risk:{liability:5,damages:5,collection:5}};
+function boot(){ const raw=localStorage.getItem(KEY); if(raw){try{state=JSON.parse(raw);}catch(e){}} syncHeader(); syncRisk(); render(); }
+function persist(){ state.risk={liability:+document.getElementById('liability').value,damages:+document.getElementById('damages').value,collection:+document.getElementById('collection').value}; localStorage.setItem(KEY, JSON.stringify(state)); }
+function syncHeader(){ ['matter','mediator','clientStart','defenseStart','goal','sessionNotes'].forEach(id=>{ const el=document.getElementById(id); if(el && state.header[id]!==undefined) el.value=state.header[id]; }); }
+function saveHeader(){ state.header={}; ['matter','mediator','clientStart','defenseStart','goal','sessionNotes'].forEach(id=>state.header[id]=document.getElementById(id).value.trim()); persist(); }
+function demoHeader(){ document.getElementById('matter').value='Parker v. Northgate'; document.getElementById('mediator').value='A. Monroe'; document.getElementById('clientStart').value='$450,000 demand'; document.getElementById('defenseStart').value='$95,000 offer'; document.getElementById('goal').value='Move the room toward a monetized close with confidentiality and neutral reference language.'; document.getElementById('sessionNotes').value='Carrier has authority ceiling. Plaintiff side needs speed and certainty more than spectacle.'; saveHeader(); }
+function addOffer(){ const o={ id:Date.now().toString(36), round:+val('round'), side:val('side'), amount:val('amount'), condition:val('condition'), temperature:val('temperature'), notes:val('offerNotes')}; if(!o.amount) return; state.offers.push(o); persist(); clearOfferForm(); render(); }
+function clearOfferForm(){ document.getElementById('round').value = state.offers.length+1 || 1; ['amount','condition','offerNotes'].forEach(id=>document.getElementById(id).value=''); document.getElementById('side').selectedIndex=0; document.getElementById('temperature').selectedIndex=0; }
+function removeOffer(id){ state.offers=state.offers.filter(x=>x.id!==id); persist(); render(); }
+function render(){ const list=document.getElementById('offerList'); list.innerHTML=''; if(!state.offers.length) list.innerHTML='<div class="empty">No offers yet. Add the opening dance steps.</div>';
+ [...state.offers].sort((a,b)=>a.round-b.round).forEach(item=>{ const el=document.createElement('div'); el.className='item'; el.innerHTML=`<div class="itemhead"><div><h3>Round ${item.round} · ${escapeHtml(item.side)}</h3><div class="meta">${escapeHtml(item.amount)} · ${escapeHtml(item.temperature)}</div></div><button class="warn" onclick="removeOffer('${item.id}')">Remove</button></div><div class="meta" style="margin-top:8px"><strong>Condition:</strong> ${escapeHtml(item.condition||'—')}<br><strong>Notes:</strong> ${escapeHtml(item.notes||'—')}</div>`; list.appendChild(el); });
+ document.getElementById('totalRounds').textContent=String(state.offers.length); document.getElementById('breakCount').textContent=String(state.offers.filter(x=>x.temperature==='Breakthrough').length); document.getElementById('stallCount').textContent=String(state.offers.filter(x=>x.temperature==='Stalled').length); document.getElementById('latestSide').textContent=state.offers.length?state.offers[state.offers.length-1].side:'—'; showRisk(); }
+function syncRisk(){ ['liability','damages','collection'].forEach(id=>{ if(state.risk&&state.risk[id]!=null) document.getElementById(id).value=state.risk[id]; }); }
+function showRisk(){ const l=+document.getElementById('liability').value, d=+document.getElementById('damages').value, c=+document.getElementById('collection').value; const avg=(l+d+c)/3; const label=avg>=7?'Heavy pressure':avg>=5?'Balanced risk':'Manageable risk'; const el=document.getElementById('riskSummary'); el.textContent=`${label} · Avg ${avg.toFixed(1)}`; el.className='bigline '+(avg>=7?'bad':avg>=5?'warn':'good'); persist(); }
+function exportData(){ persist(); const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='mediation-room-board-backup.json'; a.click(); URL.revokeObjectURL(a.href); }
+function importDataPrompt(){ const raw=prompt('Paste JSON backup'); if(!raw) return; try{state=JSON.parse(raw); persist(); syncHeader(); syncRisk(); render();}catch(e){alert('That JSON is not cooperating.');} }
+function resetAll(){ if(!confirm('Reset this workspace?')) return; localStorage.removeItem(KEY); location.reload(); }
+function val(id){ return document.getElementById(id).value.trim(); }
+function escapeHtml(s){ return (s??'').toString().replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+</script>
+</body>
+</html>

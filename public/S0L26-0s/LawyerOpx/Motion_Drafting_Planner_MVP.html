@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Motion Drafting Planner</title>
+<style>
+:root {
+  --bg:#0b1020; --panel:rgba(16,21,41,.88); --panel2:rgba(25,31,58,.95); --line:rgba(255,255,255,.09);
+  --text:#f4f7fb; --muted:#a8b3d1; --gold:#e8c36d; --violet:#7c5cff; --cyan:#4ad8ff;
+  --good:#22c55e; --warn:#f59e0b; --bad:#ef4444;
+}
+* { box-sizing:border-box; }
+html,body { margin:0; min-height:100%; font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; color:var(--text);
+ background:
+  radial-gradient(circle at top left, rgba(124,92,255,.16), transparent 26%),
+  radial-gradient(circle at top right, rgba(74,216,255,.10), transparent 24%),
+  linear-gradient(180deg,#0b1020,#0f1730 54%, #09111f); }
+a { color:inherit; text-decoration:none; }
+.shell { max-width:1440px; margin:0 auto; padding:22px; }
+.nav {
+  display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;
+  padding:16px 18px; border-radius:22px; background:var(--panel); border:1px solid var(--line);
+  position:sticky; top:10px; z-index:10; backdrop-filter:blur(12px);
+}
+.brand { font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+.brand span { color:var(--gold); }
+.navlinks { display:flex; gap:10px; flex-wrap:wrap; }
+.navlinks a { padding:10px 12px; border-radius:999px; border:1px solid var(--line); background:rgba(255,255,255,.03); color:var(--muted); }
+.hero { display:grid; grid-template-columns:1.2fr .9fr; gap:16px; margin-top:18px; }
+.card {
+  background:var(--panel); border:1px solid var(--line); border-radius:26px; padding:20px;
+  box-shadow:0 18px 54px rgba(0,0,0,.24);
+}
+h1 { margin:0 0 8px; font-size:clamp(2rem,4vw,3.3rem); line-height:1.02; }
+p.lead { margin:0; color:var(--muted); line-height:1.68; font-size:1rem; }
+.notice { padding:14px 16px; border-radius:18px; background:rgba(245,158,11,.09); border:1px solid rgba(245,158,11,.22); color:#ffe8b7; }
+.statgrid, .grid4 { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+.stat, .mini { background:var(--panel2); border:1px solid var(--line); border-radius:20px; padding:14px; }
+.stat strong, .mini strong { display:block; font-size:1.55rem; }
+.stat span, .mini span { display:block; color:var(--muted); font-size:.84rem; margin-bottom:6px; }
+.layout { display:grid; grid-template-columns:420px 1fr; gap:16px; margin-top:18px; }
+.stack { display:flex; flex-direction:column; gap:16px; }
+label { display:block; font-size:.82rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:#dfe6ff; margin-bottom:8px; }
+input, select, textarea {
+  width:100%; border-radius:16px; border:1px solid var(--line); background:rgba(255,255,255,.04); color:var(--text);
+  padding:12px 14px; font:inherit;
+}
+textarea { min-height:112px; resize:vertical; }
+.grid2, .grid3 { display:grid; gap:12px; }
+.grid2 { grid-template-columns:1fr 1fr; }
+.grid3 { grid-template-columns:repeat(3,1fr); }
+.btnrow { display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; }
+button {
+  appearance:none; border:none; border-radius:14px; padding:12px 16px; font-weight:800; cursor:pointer;
+  background:linear-gradient(90deg,var(--violet),#5c8cff); color:#fff;
+}
+button.alt { background:rgba(255,255,255,.05); border:1px solid var(--line); color:var(--text); }
+button.warn { background:linear-gradient(90deg,#f59e0b,#ef4444); }
+.list { display:flex; flex-direction:column; gap:12px; }
+.item, .ticket {
+  border:1px solid var(--line); border-radius:20px; background:rgba(255,255,255,.03); padding:14px;
+}
+.itemhead { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; align-items:flex-start; }
+.item h3, .ticket h4 { margin:0 0 6px; font-size:1.05rem; }
+.meta { color:var(--muted); font-size:.92rem; line-height:1.55; }
+.badges { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
+.badge { font-size:.72rem; padding:6px 10px; border-radius:999px; border:1px solid var(--line); color:var(--muted); }
+.badge.warn { color:#fff3d4; border-color:rgba(245,158,11,.26); background:rgba(245,158,11,.13); }
+.badge.good { color:#dfffe8; border-color:rgba(34,197,94,.24); background:rgba(34,197,94,.12); }
+.badge.bad { color:#ffe0e0; border-color:rgba(239,68,68,.24); background:rgba(239,68,68,.12); }
+.empty { padding:16px; border-radius:18px; border:1px dashed rgba(255,255,255,.14); color:var(--muted); }
+.panelbox { background:rgba(255,255,255,.03); border:1px solid var(--line); border-radius:18px; padding:14px; }
+.bigline { font-size:1.2rem; font-weight:800; }
+.bigline.good { color:#b8ffd0; } .bigline.warn { color:#ffe6a6; } .bigline.bad { color:#ffbcbc; }
+.kanban { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
+.lane { background:var(--panel); border:1px solid var(--line); border-radius:22px; padding:14px; min-height:160px; }
+.lane h3, .subh { margin:0 0 12px; font-size:1rem; }
+p { color:var(--muted); line-height:1.62; }
+.rangeval { color:var(--gold); font-weight:800; margin-top:6px; }
+.footer { color:var(--muted); text-align:center; padding:18px 0 8px; font-size:.92rem; }
+@media (max-width: 1150px){ .layout,.hero,.kanban{ grid-template-columns:1fr; } .grid4,.statgrid{grid-template-columns:repeat(2,1fr);} }
+@media (max-width: 760px){ .grid2,.grid3,.grid4,.statgrid{grid-template-columns:1fr;} .shell{padding:14px;} }
+</style>
+</head>
+<body onload="boot()">
+  <div class="shell">
+    <nav class="nav">
+      <div class="brand">S0L26-0s <span>Legal Ops</span></div>
+      <div class="navlinks"><a href="S0L26-0s_Legal_Ops_Wave_3_Launcher.html">Launcher</a><a href="Conflict_Checker_MVP.html">Conflict Checker</a><a href="Intake_Triage_Matrix_MVP.html">Intake Triage</a><a href="Motion_Drafting_Planner_MVP.html">Motion Planner</a><a href="Mediation_Room_Board_MVP.html">Mediation Board</a><a href="Trial_Prep_Command_MVP.html">Trial Prep</a></div>
+    </nav>
+
+    <section class="hero">
+      <div class="card">
+        <div class="badge">Legal Ops MVP</div>
+        <h1>Motion Drafting Planner</h1>
+        <p class="lead">Break motions into parts so drafting stops feeling like a cursed fog bank.</p>
+      </div>
+      <div class="card">
+        <div class="notice">Plan motion type, relief requested, fact blocks, authority buckets, exhibits, and drafting progress. Great for coordination and ops visibility. Still not legal advice. The robot has boundaries.</div>
+        <div class="statgrid" style="margin-top:16px"><div class="stat"><span>Lane</span><strong>Argument map</strong></div><div class="stat"><span>Lane</span><strong>Checklist lanes</strong></div><div class="stat"><span>Lane</span><strong>Exhibit ties</strong></div><div class="stat"><span>Lane</span><strong>Draft status</strong></div></div>
+      </div>
+    </section>
+
+    <section class="layout">
+      <div class="stack"><section class="card"><h2>Motion Setup</h2>
+<div class="grid2"><div><label>Matter</label><input id="matter" placeholder="Acme v. Holloway" /></div><div><label>Motion Type</label><select id="motionType"><option>Motion to Dismiss</option><option>Motion for Summary Judgment</option><option>Motion to Compel</option><option>Motion in Limine</option><option>Protective Order</option><option>Temporary Restraining Order</option><option>Other</option></select></div></div>
+<div class="grid2"><div><label>Relief Requested</label><textarea id="relief" placeholder="What ruling or order is sought?"></textarea></div><div><label>Core Theme</label><textarea id="theme" placeholder="What is the simple spine of the motion?"></textarea></div></div>
+<div class="btnrow"><button onclick="saveHeader()">Save Header</button><button class="alt" onclick="demoHeader()">Load Demo</button></div>
+</section><section class="card"><h2>Argument / Fact Block Entry</h2>
+<div class="grid2"><div><label>Section Name</label><input id="blockTitle" placeholder="Undisputed Material Fact 01" /></div><div><label>Block Type</label><select id="blockType"><option>Argument</option><option>Fact</option><option>Authority</option><option>Exhibit</option><option>Counterpoint</option><option>Procedural</option></select></div></div>
+<div class="grid3"><div><label>Status</label><select id="blockStatus"><option>To Draft</option><option>Researching</option><option>Drafting</option><option>Needs Review</option><option>Ready</option></select></div><div><label>Owner</label><input id="blockOwner" placeholder="Skyes / Ops / Paralegal" /></div><div><label>Priority</label><select id="blockPriority"><option>Critical</option><option>High</option><option>Normal</option><option>Low</option></select></div></div>
+<div><label>Content / Notes</label><textarea id="blockNotes" placeholder="Facts, record cites to gather, authority bucket, or exhibit notes."></textarea></div>
+<div class="btnrow"><button onclick="addBlock()">Add Block</button><button class="alt" onclick="clearBlockForm()">Clear</button></div>
+</section></div>
+      <div class="stack"><section class="card"><h2>Draft Board</h2><div id="columns" class="kanban"></div></section><section class="card"><h2>Progress / Backup</h2>
+<div class="grid4"><div class="mini"><span>Total blocks</span><strong id="totalBlocks">0</strong></div><div class="mini"><span>Ready</span><strong id="readyCount">0</strong></div><div class="mini"><span>Needs review</span><strong id="reviewCount">0</strong></div><div class="mini"><span>In motion</span><strong id="activeCount">0</strong></div></div>
+<div class="btnrow"><button onclick="exportData()">Export JSON</button><button class="alt" onclick="importDataPrompt()">Import JSON</button><button class="warn" onclick="resetAll()">Reset</button></div>
+</section></div>
+    </section>
+
+    <div class="footer">Single-file browser MVP · local autosave · offline nav links included.</div>
+  </div>
+<script>
+const KEY='motion_drafting_planner_mvp_v1'; let state={header:{},blocks:[]};
+function boot(){ const raw=localStorage.getItem(KEY); if(raw){try{state=JSON.parse(raw);}catch(e){}} syncHeader(); render(); }
+function persist(){ localStorage.setItem(KEY, JSON.stringify(state)); }
+function syncHeader(){ ['matter','motionType','relief','theme'].forEach(id=>{ const el=document.getElementById(id); if(el && state.header[id]!==undefined) el.value=state.header[id]; }); }
+function saveHeader(){ state.header={}; ['matter','motionType','relief','theme'].forEach(id=>state.header[id]=document.getElementById(id).value.trim()); persist(); }
+function demoHeader(){ document.getElementById('matter').value='Acme v. Holloway'; document.getElementById('motionType').value='Motion for Summary Judgment'; document.getElementById('relief').value='Entry of summary judgment on liability and dismissal of counterclaims.'; document.getElementById('theme').value='The record is one-directional: the essential facts are undisputed and the defense theory collapses under its own paperwork.'; saveHeader(); }
+function addBlock(){ const b={ id:Date.now().toString(36), title:val('blockTitle'), type:val('blockType'), status:val('blockStatus'), owner:val('blockOwner'), priority:val('blockPriority'), notes:val('blockNotes')}; if(!b.title) return; state.blocks.unshift(b); persist(); clearBlockForm(); render(); }
+function clearBlockForm(){ ['blockTitle','blockOwner','blockNotes'].forEach(id=>document.getElementById(id).value=''); document.getElementById('blockType').selectedIndex=0; document.getElementById('blockStatus').selectedIndex=0; document.getElementById('blockPriority').selectedIndex=0; }
+function move(id,dir){ const order=['To Draft','Researching','Drafting','Needs Review','Ready']; const item=state.blocks.find(x=>x.id===id); if(!item) return; let idx=order.indexOf(item.status); idx=Math.max(0,Math.min(order.length-1, idx+dir)); item.status=order[idx]; persist(); render(); }
+function removeBlock(id){ state.blocks=state.blocks.filter(x=>x.id!==id); persist(); render(); }
+function render(){ const order=['To Draft','Researching','Drafting','Needs Review','Ready']; const columns=document.getElementById('columns'); columns.innerHTML=''; order.forEach(status=>{ const col=document.createElement('div'); col.className='lane'; col.innerHTML=`<h3>${status}</h3>`; const items=state.blocks.filter(x=>x.status===status); if(!items.length) col.innerHTML += `<div class="empty">Nothing in ${status} yet.</div>`; items.forEach(item=>{ const el=document.createElement('div'); el.className='ticket'; el.innerHTML=`<h4>${escapeHtml(item.title)}</h4><div class="meta">${escapeHtml(item.type)} · ${escapeHtml(item.priority)} · ${escapeHtml(item.owner||'Unassigned')}</div><p>${escapeHtml(item.notes||'')}</p><div class="btnrow"><button class="alt" onclick="move('${item.id}',1)">Advance</button><button class="alt" onclick="move('${item.id}',-1)">Back</button><button class="warn" onclick="removeBlock('${item.id}')">Remove</button></div>`; col.appendChild(el); }); columns.appendChild(col); });
+ document.getElementById('totalBlocks').textContent=state.blocks.length; document.getElementById('readyCount').textContent=state.blocks.filter(x=>x.status==='Ready').length; document.getElementById('reviewCount').textContent=state.blocks.filter(x=>x.status==='Needs Review').length; document.getElementById('activeCount').textContent=state.blocks.filter(x=>['Researching','Drafting'].includes(x.status)).length;
+ }
+function exportData(){ persist(); const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='motion-drafting-planner-backup.json'; a.click(); URL.revokeObjectURL(a.href); }
+function importDataPrompt(){ const raw=prompt('Paste JSON backup'); if(!raw) return; try{state=JSON.parse(raw); persist(); syncHeader(); render();}catch(e){alert('That JSON exploded.');} }
+function resetAll(){ if(!confirm('Reset this workspace?')) return; localStorage.removeItem(KEY); location.reload(); }
+function val(id){ return document.getElementById(id).value.trim(); }
+function escapeHtml(s){ return (s??'').toString().replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+</script>
+</body>
+</html>

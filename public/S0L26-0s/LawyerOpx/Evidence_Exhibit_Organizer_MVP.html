@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Evidence Exhibit Organizer</title>
+<style>
+:root {
+  --bg:#0b1020; --panel:rgba(16,21,41,.88); --panel2:rgba(25,31,58,.95); --line:rgba(255,255,255,.09);
+  --text:#f4f7fb; --muted:#a8b3d1; --gold:#e8c36d; --violet:#7c5cff; --cyan:#4ad8ff;
+  --good:#22c55e; --warn:#f59e0b; --bad:#ef4444;
+}
+* { box-sizing:border-box; }
+html,body { margin:0; min-height:100%; font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; color:var(--text);
+ background:
+  radial-gradient(circle at top left, rgba(124,92,255,.16), transparent 26%),
+  radial-gradient(circle at top right, rgba(74,216,255,.10), transparent 24%),
+  linear-gradient(180deg,#0b1020,#0f1730 54%, #09111f); }
+a { color:inherit; text-decoration:none; }
+.shell { max-width:1440px; margin:0 auto; padding:22px; }
+.nav {
+  display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;
+  padding:16px 18px; border-radius:22px; background:var(--panel); border:1px solid var(--line);
+  position:sticky; top:10px; z-index:10; backdrop-filter:blur(12px);
+}
+.brand { font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+.brand span { color:var(--gold); }
+.navlinks { display:flex; gap:10px; flex-wrap:wrap; }
+.navlinks a { padding:10px 12px; border-radius:999px; border:1px solid var(--line); background:rgba(255,255,255,.03); color:var(--muted); }
+.hero { display:grid; grid-template-columns:1.3fr .9fr; gap:16px; margin-top:18px; }
+.card {
+  background:var(--panel); border:1px solid var(--line); border-radius:26px; padding:20px;
+  box-shadow:0 18px 54px rgba(0,0,0,.24);
+}
+h1 { margin:0 0 8px; font-size:clamp(2rem,4vw,3.3rem); line-height:1.02; }
+p.lead { margin:0; color:var(--muted); line-height:1.68; font-size:1rem; }
+.notice { padding:14px 16px; border-radius:18px; background:rgba(245,158,11,.09); border:1px solid rgba(245,158,11,.22); color:#ffe8b7; }
+.statgrid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-top:16px; }
+.stat { background:var(--panel2); border:1px solid var(--line); border-radius:20px; padding:14px; }
+.stat strong { display:block; font-size:1.55rem; }
+.layout { display:grid; grid-template-columns:420px 1fr; gap:16px; margin-top:18px; }
+.stack { display:flex; flex-direction:column; gap:16px; }
+label { display:block; font-size:.82rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:#dfe6ff; margin-bottom:8px; }
+input, select, textarea {
+  width:100%; border-radius:16px; border:1px solid var(--line); background:rgba(255,255,255,.04); color:var(--text);
+  padding:12px 14px; font:inherit;
+}
+textarea { min-height:112px; resize:vertical; }
+.grid2, .grid3 { display:grid; gap:12px; }
+.grid2 { grid-template-columns:1fr 1fr; }
+.grid3 { grid-template-columns:repeat(3,1fr); }
+.btnrow { display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; }
+button {
+  appearance:none; border:none; border-radius:14px; padding:12px 16px; font-weight:800; cursor:pointer;
+  background:linear-gradient(90deg,var(--violet),#5c8cff); color:#fff;
+}
+button.alt { background:rgba(255,255,255,.05); border:1px solid var(--line); color:var(--text); }
+button.warn { background:linear-gradient(90deg,#f59e0b,#ef4444); }
+.list { display:flex; flex-direction:column; gap:12px; }
+.item {
+  border:1px solid var(--line); border-radius:20px; background:rgba(255,255,255,.03); padding:14px;
+}
+.itemhead { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; align-items:flex-start; }
+.item h3 { margin:0 0 6px; font-size:1.05rem; }
+.meta { color:var(--muted); font-size:.92rem; line-height:1.55; }
+.badges { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
+.badge { font-size:.72rem; padding:6px 10px; border-radius:999px; border:1px solid var(--line); color:var(--muted); }
+.badge.hot { color:#fff3d4; border-color:rgba(245,158,11,.26); background:rgba(245,158,11,.13); }
+.badge.good { color:#daf7e2; border-color:rgba(34,197,94,.26); background:rgba(34,197,94,.12); }
+.badge.bad { color:#ffd4d4; border-color:rgba(239,68,68,.28); background:rgba(239,68,68,.11); }
+.paneltitle { margin:0 0 12px; font-size:1.12rem; }
+.toolbar { display:flex; gap:10px; flex-wrap:wrap; }
+.search {
+  width:100%; padding:12px 14px; border-radius:16px; border:1px solid var(--line); background:rgba(255,255,255,.04); color:var(--text);
+}
+table { width:100%; border-collapse:collapse; font-size:.94rem; }
+th, td { text-align:left; padding:12px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+th { color:#d7def7; font-size:.8rem; text-transform:uppercase; letter-spacing:.06em; }
+.prebox {
+  white-space:pre-wrap; line-height:1.6; color:#eef3ff; background:rgba(255,255,255,.03); border:1px solid var(--line);
+  border-radius:18px; padding:16px; min-height:180px;
+}
+.small { color:var(--muted); font-size:.9rem; }
+footer { color:var(--muted); padding:26px 4px 10px; }
+@media (max-width: 1080px) {
+  .hero, .layout { grid-template-columns:1fr; }
+  .statgrid { grid-template-columns:repeat(2,1fr); }
+}
+@media (max-width: 720px) {
+  .grid2, .grid3 { grid-template-columns:1fr; }
+  .statgrid { grid-template-columns:1fr 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="shell">
+  <nav class="nav">
+    <div class="brand">S0L26-0s <span>Evidence Exhibit Organizer</span></div>
+    <div class="navlinks"><a href="S0L26-0s_Legal_Ops_Wave_1_Launcher.html">Wave 1 Launcher</a><a href="Legal_Intake_Desk_MVP.html">Intake Desk</a><a href="Matter_Timeline_Studio_MVP.html">Timeline Studio</a><a href="Evidence_Exhibit_Organizer_MVP.html">Evidence Organizer</a><a href="Deadline_Docket_Tracker_MVP.html">Docket Tracker</a><a href="Deposition_Prep_Board_MVP.html">Deposition Prep</a></div>
+  </nav>
+
+  <section class="hero">
+    <div class="card">
+      <h1>Evidence Exhibit Organizer</h1>
+      <p class="lead">Inventory, privilege flagging, authenticity tracking, and exhibit sheet generation for evidence workflow.</p>
+    </div>
+    <div class="card">
+      <div class="notice">Workflow tool only. This app is for organization, intake, prep, and process support. It is not legal advice, does not determine rights or outcomes, and should be reviewed by qualified counsel before real-world use.</div>
+      <div id="stats" class="statgrid"></div>
+    </div>
+  </section>
+
+  
+<section class="layout">
+  <div class="stack">
+    <div class="card">
+      <h2 class="paneltitle">Add Exhibit / Evidence Item</h2>
+      <div class="grid2">
+        <div><label>Matter</label><input id="matter" placeholder="Rivera v. Meridian Clinic"></div>
+        <div><label>Exhibit ID</label><input id="eid" placeholder="PX-001"></div>
+      </div>
+      <div class="grid3">
+        <div><label>Type</label><select id="type"><option>Photo</option><option>Video</option><option>Record</option><option>Email</option><option>Text Message</option><option>Medical</option><option>Invoice</option><option>Other</option></select></div>
+        <div><label>Source</label><input id="source" placeholder="Client phone export"></div>
+        <div><label>Date Collected</label><input id="collected" type="date"></div>
+      </div>
+      <div class="grid3">
+        <div><label>Authenticity</label><select id="auth"><option>Unverified</option><option>Pending Review</option><option>Verified</option></select></div>
+        <div><label>Privilege</label><select id="priv"><option>Non-Privileged</option><option>Potentially Privileged</option><option>Privileged</option></select></div>
+        <div><label>Relevance</label><select id="rel"><option>Critical</option><option>Strong</option><option>Useful</option><option>Background</option></select></div>
+      </div>
+      <div><label>Description</label><textarea id="desc" placeholder="What this item is and why it matters."></textarea></div>
+      <div><label>Chain / Handling Notes</label><textarea id="chain" placeholder="Who collected it, where it came from, and any handling details."></textarea></div>
+      <div class="btnrow">
+        <button id="saveItem">Save Item</button>
+        <button class="alt" id="loadDemo">Load Demo</button>
+        <button class="alt" id="exportState">Export JSON</button>
+        <label class="alt" style="display:inline-flex;align-items:center;gap:10px;padding:12px 16px;border-radius:14px;border:1px solid var(--line);cursor:pointer;">Import JSON<input id="importState" type="file" accept=".json" hidden></label>
+      </div>
+    </div>
+    <div class="card">
+      <h2 class="paneltitle">Exhibit Sheet Preview</h2>
+      <div id="sheet" class="prebox"></div>
+    </div>
+  </div>
+
+  <div class="stack">
+    <div class="card">
+      <div class="grid2">
+        <div><label>Search Matter / ID</label><input id="q1" placeholder="Rivera / PX-001"></div>
+        <div><label>Search Type / Source / Relevance</label><input id="q2" placeholder="photo / medical / critical"></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2 class="paneltitle">Evidence Inventory</h2>
+      <div id="inventory" class="list"></div>
+    </div>
+  </div>
+</section>
+
+
+  <footer>Local autosave key: <code>sol26_evidence_organizer</code> · JSON import/export enabled.</footer>
+</div>
+<script>
+const STORAGE_KEY = "sol26_evidence_organizer";
+const $ = sel => document.querySelector(sel);
+const $$ = sel => [...document.querySelectorAll(sel)];
+function loadState(fallback) {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch(err) {
+    return fallback;
+  }
+}
+function saveState(state) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+function downloadJSON(filename, data) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 800);
+}
+function importJSON(file, cb) {
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      cb(JSON.parse(reader.result));
+    } catch(err) {
+      alert('That JSON file looks cursed. Import failed.');
+    }
+  };
+  reader.readAsText(file);
+}
+function fmtDate(d) {
+  if(!d) return '—';
+  const dt = new Date(d + 'T12:00:00');
+  if(Number.isNaN(dt.getTime())) return d;
+  return dt.toLocaleDateString();
+}
+function daysUntil(d) {
+  if(!d) return null;
+  const now = new Date();
+  const target = new Date(d + 'T12:00:00');
+  return Math.ceil((target - now) / 86400000);
+}
+
+const demoItems = [
+  {id:crypto.randomUUID(), matter:'Rivera v. Meridian Clinic', eid:'PX-001', type:'Photo', source:'Client phone export', collected:'2026-02-12', auth:'Pending Review', priv:'Non-Privileged', rel:'Critical', desc:'Photos of spill area and caution-sign placement taken shortly after incident.', chain:'Images forwarded from original device; preserve original metadata if possible.'},
+  {id:crypto.randomUUID(), matter:'Rivera v. Meridian Clinic', eid:'PX-002', type:'Medical', source:'Urgent care records', collected:'2026-02-14', auth:'Verified', priv:'Potentially Privileged', rel:'Strong', desc:'Urgent care intake and diagnosis records from two days after incident.', chain:'Received by secure portal from provider records desk.'}
+];
+let state = loadState({items: demoItems});
+
+function buildSheet(item) {
+  if (!item) return 'Save or select an evidence item to preview the exhibit sheet.';
+  return `${item.matter}\n${item.eid} · ${item.type}\nCollected: ${fmtDate(item.collected)} · Source: ${item.source}\nAuthenticity: ${item.auth}\nPrivilege: ${item.priv}\nRelevance: ${item.rel}\n\nDescription\n${item.desc || '—'}\n\nChain / Handling Notes\n${item.chain || '—'}`;
+}
+function render() {
+  const q1 = $('#q1').value.trim().toLowerCase();
+  const q2 = $('#q2').value.trim().toLowerCase();
+  const list = state.items.filter(i => [i.matter,i.eid].join(' ').toLowerCase().includes(q1))
+                          .filter(i => [i.type,i.source,i.rel,i.desc].join(' ').toLowerCase().includes(q2));
+  $('#inventory').innerHTML = list.map(i => {
+    const authCls = i.auth === 'Verified' ? 'good' : i.auth === 'Pending Review' ? 'hot' : 'bad';
+    const privCls = i.priv === 'Privileged' ? 'bad' : i.priv === 'Potentially Privileged' ? 'hot' : 'good';
+    return `<article class="item">
+      <div class="itemhead">
+        <div>
+          <h3>${i.eid} · ${i.matter}</h3>
+          <div class="meta">${i.type} · Source: ${i.source} · Collected ${fmtDate(i.collected)}</div>
+          <div class="badges">
+            <span class="badge ${authCls}">${i.auth}</span>
+            <span class="badge ${privCls}">${i.priv}</span>
+            <span class="badge">${i.rel}</span>
+          </div>
+          <div class="meta" style="margin-top:10px;">${i.desc}</div>
+        </div>
+        <div class="btnrow">
+          <button class="alt" onclick="previewItem('${i.id}')">Preview</button>
+          <button class="alt" onclick="removeItem('${i.id}')">Delete</button>
+        </div>
+      </div>
+    </article>`;
+  }).join('') || '<div class="small">No evidence items found.</div>';
+  $('#sheet').textContent = buildSheet(list[0] || state.items[0]);
+
+  const verified = state.items.filter(i=>i.auth==='Verified').length;
+  const privileged = state.items.filter(i=>i.priv==='Privileged').length;
+  const critical = state.items.filter(i=>i.rel==='Critical').length;
+  $('#stats').innerHTML = `
+    <div class="stat"><strong>${state.items.length}</strong><span>Total items</span></div>
+    <div class="stat"><strong>${verified}</strong><span>Verified</span></div>
+    <div class="stat"><strong>${critical}</strong><span>Critical exhibits</span></div>
+    <div class="stat"><strong>${privileged}</strong><span>Privileged flagged</span></div>`;
+  saveState(state);
+}
+window.previewItem = id => {
+  const item = state.items.find(i => i.id === id);
+  $('#sheet').textContent = buildSheet(item);
+};
+window.removeItem = id => { state.items = state.items.filter(i => i.id !== id); render(); };
+$('#saveItem').addEventListener('click', () => {
+  const rec = {
+    id:crypto.randomUUID(),
+    matter:$('#matter').value.trim(),
+    eid:$('#eid').value.trim(),
+    type:$('#type').value,
+    source:$('#source').value.trim(),
+    collected:$('#collected').value,
+    auth:$('#auth').value,
+    priv:$('#priv').value,
+    rel:$('#rel').value,
+    desc:$('#desc').value.trim(),
+    chain:$('#chain').value.trim()
+  };
+  if (!rec.matter || !rec.eid || !rec.desc) return alert('Matter, exhibit ID, and description are required.');
+  state.items.unshift(rec);
+  $('#sheet').textContent = buildSheet(rec);
+  render();
+});
+$('#q1').addEventListener('input', render);
+$('#q2').addEventListener('input', render);
+$('#loadDemo').addEventListener('click', ()=>{ state = {items:[...demoItems]}; render(); });
+$('#exportState').addEventListener('click', () => downloadJSON('evidence-exhibit-organizer-data.json', state));
+$('#importState').addEventListener('change', e => importJSON(e.target.files[0], data => { if (data && Array.isArray(data.items)) { state = data; render(); }}));
+render();
+
+</script>
+</body>
+</html>

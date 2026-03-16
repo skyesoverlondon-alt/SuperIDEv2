@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Hearing Prep Scheduler</title>
+<style>
+:root {
+  --bg:#0b1020; --panel:rgba(16,21,41,.88); --panel2:rgba(25,31,58,.95); --line:rgba(255,255,255,.09);
+  --text:#f4f7fb; --muted:#a8b3d1; --gold:#e8c36d; --violet:#7c5cff; --cyan:#4ad8ff;
+  --good:#22c55e; --warn:#f59e0b; --bad:#ef4444; --rose:#fb7185;
+}
+* { box-sizing:border-box; }
+html,body { margin:0; min-height:100%; font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; color:var(--text);
+ background:
+  radial-gradient(circle at top left, rgba(124,92,255,.16), transparent 26%),
+  radial-gradient(circle at top right, rgba(74,216,255,.10), transparent 24%),
+  linear-gradient(180deg,#0b1020,#0f1730 54%, #09111f); }
+a { color:inherit; text-decoration:none; }
+button,input,select,textarea { font:inherit; }
+.shell { max-width:1440px; margin:0 auto; padding:22px; }
+.nav {
+  display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;
+  padding:16px 18px; border-radius:22px; background:var(--panel); border:1px solid var(--line);
+  position:sticky; top:10px; z-index:10; backdrop-filter:blur(12px);
+}
+.brand { font-weight:800; letter-spacing:.04em; display:flex; align-items:center; gap:12px; }
+.brand .orb { width:14px; height:14px; border-radius:999px; background:linear-gradient(135deg,var(--gold),var(--violet)); box-shadow:0 0 18px rgba(232,195,109,.4); }
+.navlinks { display:flex; gap:10px; flex-wrap:wrap; }
+.navlinks a, .chip {
+  padding:10px 14px; border-radius:999px; border:1px solid var(--line); background:rgba(255,255,255,.03); color:var(--muted);
+}
+.hero {
+  margin-top:18px; padding:26px; border:1px solid var(--line); border-radius:28px; background:linear-gradient(135deg,rgba(124,92,255,.18),rgba(74,216,255,.08) 45%, rgba(232,195,109,.10));
+  box-shadow:0 30px 80px rgba(0,0,0,.18);
+}
+.hero h1 { margin:0 0 8px; font-size:clamp(2rem,4vw,3.5rem); }
+.hero p { margin:0; color:var(--muted); max-width:1000px; line-height:1.55; }
+.actions { display:flex; flex-wrap:wrap; gap:12px; margin-top:18px; }
+.btn {
+  border:none; cursor:pointer; padding:12px 16px; border-radius:16px; background:linear-gradient(135deg,var(--violet),#6246ea); color:white; font-weight:700;
+  box-shadow:0 12px 30px rgba(98,70,234,.28);
+}
+.btn.alt { background:rgba(255,255,255,.06); color:var(--text); border:1px solid var(--line); box-shadow:none; }
+.btn.warn { background:linear-gradient(135deg,#f59e0b,#ef4444); }
+.grid { display:grid; gap:18px; margin-top:18px; }
+.cards { grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); }
+.main { grid-template-columns:1.2fr .8fr; align-items:start; }
+@media (max-width: 1040px){ .main { grid-template-columns:1fr; } }
+.card {
+  background:var(--panel); border:1px solid var(--line); border-radius:24px; padding:18px; box-shadow:0 18px 50px rgba(0,0,0,.18);
+}
+.metric { font-size:1.9rem; font-weight:800; margin-top:10px; }
+.muted { color:var(--muted); }
+.kicker { text-transform:uppercase; letter-spacing:.14em; font-size:.78rem; color:var(--gold); }
+.section-title { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px; }
+.section-title h2, .section-title h3 { margin:0; font-size:1.12rem; }
+.formgrid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+.formgrid.three { grid-template-columns:repeat(3,minmax(0,1fr)); }
+.formgrid.full { grid-template-columns:1fr; }
+@media (max-width: 820px){ .formgrid, .formgrid.three { grid-template-columns:1fr; } }
+label { display:flex; flex-direction:column; gap:6px; font-size:.95rem; color:var(--muted); }
+input,select,textarea {
+  width:100%; padding:12px 13px; border-radius:14px; border:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.04); color:var(--text); outline:none;
+}
+textarea { min-height:96px; resize:vertical; }
+.tablewrap { overflow:auto; border-radius:18px; border:1px solid var(--line); }
+table { width:100%; border-collapse:collapse; min-width:840px; }
+th,td { padding:12px 14px; text-align:left; border-bottom:1px solid rgba(255,255,255,.06); vertical-align:top; }
+th { position:sticky; top:0; background:rgba(11,16,32,.96); font-size:.82rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); }
+.tag { display:inline-flex; align-items:center; gap:8px; border-radius:999px; padding:7px 10px; font-size:.82rem; border:1px solid var(--line); background:rgba(255,255,255,.04); }
+.good { color:var(--good); }
+.warntext { color:var(--warn); }
+.bad { color:var(--bad); }
+.rose { color:var(--rose); }
+.list { display:grid; gap:10px; }
+.item {
+  padding:14px; border:1px solid var(--line); border-radius:16px; background:rgba(255,255,255,.03);
+}
+.item h4 { margin:0 0 8px; }
+.item p { margin:0; color:var(--muted); line-height:1.45; }
+.footer { margin:24px 0 60px; color:var(--muted); text-align:center; }
+.small { font-size:.88rem; }
+.empty { padding:20px; border:1px dashed rgba(255,255,255,.12); border-radius:18px; color:var(--muted); text-align:center; }
+.searchbar { display:flex; gap:10px; flex-wrap:wrap; }
+.searchbar input, .searchbar select { flex:1 1 180px; }
+.twoCol { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+@media (max-width: 820px){ .twoCol { grid-template-columns:1fr; } }
+code.inline { padding:2px 6px; border-radius:8px; background:rgba(255,255,255,.08); }
+</style>
+</head>
+<body>
+  <div class="shell">
+    <nav class="nav">
+      <div class="brand"><span class="orb"></span><span>Hearing Prep Scheduler</span></div>
+      <div class="navlinks">
+        <a href="S0L26-0s_Legal_Ops_Wave_1_Launcher.html">Legal Wave 1</a>
+        <a href="S0L26-0s_Legal_Ops_Wave_2_Launcher.html">Legal Wave 2</a>
+        <a href="S0L26-0s_Legal_Ops_Wave_3_Launcher.html">Legal Wave 3</a>
+        <a href="S0L26-0s_Legal_Ops_Wave_4_Launcher.html">Legal Wave 4</a>
+      </div>
+    </nav>
+
+    <section class="hero">
+      <div class="kicker">S0L26-0s Legal Ops · Wave 4</div>
+      <h1>Calendaring and readiness control for hearing-week chaos.</h1>
+      <p>Coordinate dates, witness readiness, exhibit readiness, and argument prep for hearings and formal appearances.</p>
+      <div class="actions">
+        <button class="btn" id="seedBtn">Load Demo Data</button>
+        <button class="btn alt" id="exportBtn">Export JSON</button>
+        <label class="btn alt" style="cursor:pointer;display:inline-flex;align-items:center;gap:8px;">Import JSON<input type="file" id="importInput" accept="application/json" hidden /></label>
+        <button class="btn warn" id="resetBtn">Reset Workspace</button>
+      </div>
+    </section>
+
+    <section class="grid cards"><div class="card"><div class="kicker">Active Prep</div><div class="metric" id="metric_active">0</div><div class="muted small">not completed</div></div><div class="card"><div class="kicker">At Risk</div><div class="metric" id="metric_risk">0</div><div class="muted small">needs intervention</div></div><div class="card"><div class="kicker">Within 14 Days</div><div class="metric" id="metric_soon">0</div><div class="muted small">countdown drumbeat</div></div><div class="card"><div class="kicker">Ready</div><div class="metric" id="metric_ready">0</div><div class="muted small">hearing pack stable</div></div></section>
+
+    <section class="grid main">
+      <div class="card">
+        <div class="section-title"><h2>Workspace Input</h2><span class="tag">autosaves locally</span></div>
+        
+<form id="entryForm" class="list">
+  <div class="formgrid three">
+    <label>Hearing / Event<input name="event" placeholder="Preliminary Injunction Hearing" required /></label>
+    <label>Matter<input name="matter" placeholder="Riverstone v. Crest" required /></label>
+    <label>Lead Attorney<input name="lead" placeholder="A. Cole" required /></label>
+  </div>
+  <div class="formgrid three">
+    <label>Date<input type="date" name="date" /></label>
+    <label>Status<select name="status"><option>Scheduling</option><option>Prep Active</option><option>Ready</option><option>Completed</option><option>At Risk</option></select></label>
+    <label>Forum<input name="forum" placeholder="Superior Court / ALJ / Agency" /></label>
+  </div>
+  <div class="formgrid three">
+    <label>Witnesses Ready<select name="witness"><option>None</option><option>Partial</option><option>Ready</option></select></label>
+    <label>Exhibits Ready<select name="exhibits"><option>None</option><option>Partial</option><option>Ready</option></select></label>
+    <label>Outline Ready<select name="outline"><option>No</option><option>Working</option><option>Yes</option></select></label>
+  </div>
+  <label>Prep Notes<textarea name="notes" placeholder="Themes, risk points, appearance logistics, exhibit issues, witness gaps, argument timing."></textarea></label>
+  <div class="actions"><button class="btn" type="submit">Add Hearing Prep Item</button></div>
+</form>
+
+      </div>
+      <div class="card">
+        
+<div class="section-title"><h3>Prep Doctrine</h3><span class="tag">logistics + readiness</span></div>
+<div class="list">
+  <div class="item"><h4>Simple truth</h4><p>Hearings are where a thousand tiny preventable failures put on a trench coat and try to impersonate destiny.</p></div>
+  <div class="item"><h4>Keep visible</h4><p>Witness readiness, exhibit readiness, outline state, and lead attorney stay on the same board so prep does not fragment into twelve anxious threads.</p></div>
+  <div class="item"><h4>Good use</h4><p>Calendaring, staffing, and readiness checks for motion hearings, administrative appearances, status conferences, and evidentiary events.</p></div>
+</div>
+
+      </div>
+    </section>
+
+    <section class="card" style="margin-top:18px;">
+      <div class="section-title">
+        <h2>Operating Board</h2>
+        <div class="searchbar">
+          <input id="searchInput" placeholder="Search title, owner, notes, or tags" />
+          <select id="statusFilter"><option value="">All statuses</option></select>
+        </div>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Event</th><th>Matter</th><th>Lead</th><th>Status</th><th>Date</th><th>Forum</th><th>Witnesses</th><th>Exhibits</th><th>Outline</th><th>Notes</th><th>Actions</th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <div class="footer small">Single-file browser MVP. Useful legal ops lane, not pretend courtroom wizardry.</div>
+  </div>
+
+<script>
+
+function readStore(key, fallback){ try{ return JSON.parse(localStorage.getItem(key)) ?? fallback; }catch(e){ return fallback; } }
+function writeStore(key, value){ localStorage.setItem(key, JSON.stringify(value)); }
+function downloadJson(filename, data){
+  const blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 800);
+}
+function wireJsonImport(input, onData){
+  input.addEventListener('change', async (e)=>{
+    const file = e.target.files?.[0]; if(!file) return;
+    try { const text = await file.text(); onData(JSON.parse(text)); }
+    catch(err){ alert('Could not read JSON backup. Tiny goblin in the file.'); }
+    finally { input.value = ''; }
+  });
+}
+function fmtDate(v){ if(!v) return '—'; return new Date(v+'T00:00:00').toLocaleDateString(undefined,{month:'short', day:'numeric', year:'numeric'}); }
+function pyuid(){ return Math.random().toString(36).slice(2,10); }
+function esc(s){ return String(s ?? '').replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
+
+const STORAGE_KEY = 'hearing_prep_scheduler_mvp_store_v1';
+const seedItems = [{"id": "pofotgzz", "event": "Temporary Restraining Order Hearing", "matter": "Crest v. Luma", "lead": "A. Cole", "status": "Prep Active", "date": "2026-03-24", "forum": "Superior Court", "witness": "Partial", "exhibits": "Ready", "outline": "Working", "notes": "Need declaration clean-up and bench copy logistics."}, {"id": "yf7oc0q0", "event": "Scheduling Conference", "matter": "Mesa Imaging dispute", "lead": "R. Tran", "status": "Ready", "date": "2026-03-20", "forum": "Federal Court", "witness": "None", "exhibits": "None", "outline": "Yes", "notes": "Short appearance. Confirm local rule timing and dial-in backup."}, {"id": "hbkpw1ci", "event": "Licensing Board Appearance", "matter": "State Board inquiry", "lead": "K. Mora", "status": "At Risk", "date": "2026-03-18", "forum": "Agency", "witness": "None", "exhibits": "Partial", "outline": "Working", "notes": "Client packet incomplete and one exhibit chain is still chaos."}];
+const state = readStore(STORAGE_KEY, { items: seedItems.slice() });
+const el = {
+  rows: document.getElementById('rows'),
+  search: document.getElementById('searchInput'),
+  statusFilter: document.getElementById('statusFilter'),
+  seedBtn: document.getElementById('seedBtn'),
+  exportBtn: document.getElementById('exportBtn'),
+  importInput: document.getElementById('importInput'),
+  resetBtn: document.getElementById('resetBtn')
+};
+function persist(){ writeStore(STORAGE_KEY, state); render(); }
+function setMetrics(metrics){ for(const [k,v] of Object.entries(metrics)){ const node=document.getElementById('metric_'+k); if(node) node.textContent=v; } }
+
+const entryForm = document.getElementById('entryForm');
+entryForm.addEventListener('submit', (e)=>{
+  e.preventDefault();
+  const item = Object.fromEntries(new FormData(entryForm).entries()); item.id = pyuid();
+  state.items.unshift(item); entryForm.reset(); persist();
+});
+function buildStatusFilter(){
+  const vals = [...new Set(state.items.map(i=>i.status).filter(Boolean))].sort();
+  const current = el.statusFilter.value;
+  el.statusFilter.innerHTML = '<option value="">All statuses</option>' + vals.map(v=>`<option ${v===current?'selected':''}>${esc(v)}</option>`).join('');
+}
+function render(){
+  buildStatusFilter();
+  const q = el.search.value.trim().toLowerCase();
+  const status = el.statusFilter.value;
+  const items = state.items.filter(i=>{
+    const hay = [i.event,i.matter,i.lead,i.notes,i.forum,i.witness,i.exhibits,i.outline].join(' ').toLowerCase();
+    return (!q || hay.includes(q)) && (!status || i.status===status);
+  });
+  const now = new Date(); const soon = new Date(); soon.setDate(soon.getDate()+14);
+  setMetrics({
+    active: state.items.filter(i=>i.status!=='Completed').length,
+    risk: state.items.filter(i=>i.status==='At Risk').length,
+    soon: state.items.filter(i=>i.date && new Date(i.date+'T00:00:00') <= soon && new Date(i.date+'T00:00:00') >= new Date(now.toDateString())).length,
+    ready: state.items.filter(i=>i.status==='Ready').length,
+  });
+  if(!items.length){ el.rows.innerHTML = '<tr><td colspan="11"><div class="empty">No matching hearing prep items.</div></td></tr>'; return; }
+  el.rows.innerHTML = items.map(i=>`
+    <tr>
+      <td><strong>${esc(i.event)}</strong></td>
+      <td>${esc(i.matter)}</td>
+      <td>${esc(i.lead)}</td>
+      <td><span class="tag ${i.status==='At Risk'?'bad':''}">${esc(i.status)}</span></td>
+      <td>${fmtDate(i.date)}</td>
+      <td>${esc(i.forum)}</td>
+      <td><span class="tag ${i.witness==='Ready'?'good':i.witness==='Partial'?'warntext':'bad'}">${esc(i.witness)}</span></td>
+      <td><span class="tag ${i.exhibits==='Ready'?'good':i.exhibits==='Partial'?'warntext':'bad'}">${esc(i.exhibits)}</span></td>
+      <td>${esc(i.outline)}</td>
+      <td class="small">${esc(i.notes)}</td>
+      <td><button class="btn alt small" onclick="removeItem('${i.id}')">Delete</button></td>
+    </tr>`).join('');
+}
+function removeItem(id){ state.items = state.items.filter(i=>i.id!==id); persist(); }
+
+
+wireJsonImport(el.importInput, (data)=>{
+  if(Array.isArray(data)) state.items = data;
+  else if(data && Array.isArray(data.items)) state.items = data.items;
+  else return alert('JSON shape unsupported. Need an array or {items:[...]}.');
+  persist();
+});
+el.exportBtn.addEventListener('click', ()=>downloadJson('hearing_prep_scheduler_backup.json', state));
+el.seedBtn.addEventListener('click', ()=>{ state.items = seedItems.map(x=>({...x,id:pyuid()})); persist(); });
+el.resetBtn.addEventListener('click', ()=>{ if(confirm('Reset this workspace?')){ state.items=[]; persist(); } });
+el.search.addEventListener('input', render);
+el.statusFilter.addEventListener('change', render);
+render();
+</script>
+</body>
+</html>

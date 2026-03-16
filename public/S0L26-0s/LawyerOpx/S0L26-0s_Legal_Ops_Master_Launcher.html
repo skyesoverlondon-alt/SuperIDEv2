@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>S0L26-0s Legal Ops Master Launcher</title>
+<style>
+:root {
+  --bg:#0b0c16;
+  --panel:rgba(18,20,36,.84);
+  --panel2:rgba(28,31,52,.94);
+  --line:rgba(255,255,255,.08);
+  --text:#f7f7fb;
+  --muted:#aab0cf;
+  --gold:#f1c96b;
+  --violet:#8b5cf6;
+  --cyan:#53d7ff;
+  --good:#4ade80;
+}
+* { box-sizing:border-box; }
+html,body { margin:0; min-height:100%; background:
+  radial-gradient(circle at top left, rgba(139,92,246,.18), transparent 30%),
+  radial-gradient(circle at top right, rgba(83,215,255,.12), transparent 28%),
+  linear-gradient(180deg, #090a13 0%, #0d1120 100%);
+  color:var(--text);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+}
+a { color:inherit; text-decoration:none; }
+.shell { max-width:1450px; margin:0 auto; padding:24px; }
+.nav {
+  display:flex; gap:12px; flex-wrap:wrap; align-items:center; justify-content:space-between;
+  padding:16px 18px; border:1px solid var(--line); background:var(--panel); border-radius:24px;
+  position:sticky; top:10px; backdrop-filter: blur(12px); z-index:10;
+}
+.brand { font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+.brand span { color:var(--gold); }
+.navlinks { display:flex; flex-wrap:wrap; gap:10px; }
+.navlinks a { padding:10px 14px; border-radius:999px; border:1px solid var(--line); background:rgba(255,255,255,.03); }
+.hero { display:grid; grid-template-columns:1.4fr .9fr; gap:18px; margin-top:20px; }
+.card {
+  background:var(--panel); border:1px solid var(--line); border-radius:28px; padding:22px;
+  box-shadow:0 12px 48px rgba(0,0,0,.26);
+}
+.big h1 { margin:0 0 8px; font-size:clamp(2rem,5vw,4rem); line-height:1.02; }
+.big p { color:var(--muted); font-size:1.02rem; line-height:1.7; }
+.kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-top:18px; }
+.kpi { padding:16px; border-radius:22px; background:var(--panel2); border:1px solid var(--line); }
+.kpi strong { display:block; font-size:1.7rem; }
+.tools { display:grid; grid-template-columns:repeat(auto-fit,minmax(270px,1fr)); gap:14px; margin-top:22px; }
+.tool {
+  background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+  border:1px solid var(--line); border-radius:24px; padding:16px; display:flex; flex-direction:column; gap:12px;
+}
+.tagrow { display:flex; gap:8px; flex-wrap:wrap; }
+.tag {
+  font-size:.74rem; letter-spacing:.06em; text-transform:uppercase; color:#0b1020;
+  background:linear-gradient(90deg,var(--gold),#f6e2ae); padding:6px 10px; border-radius:999px; font-weight:800;
+}
+.subtag { font-size:.72rem; color:var(--muted); border:1px solid var(--line); padding:6px 10px; border-radius:999px; }
+.tool h3 { margin:0; font-size:1.14rem; }
+.tool p { margin:0; color:var(--muted); line-height:1.55; min-height:94px; }
+.actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:auto; }
+.btn {
+  padding:10px 14px; border-radius:14px; background:linear-gradient(90deg,var(--violet),#5a8cff);
+  color:white; font-weight:700; border:none; display:inline-flex; align-items:center; justify-content:center;
+}
+.btn.alt { background:rgba(255,255,255,.05); border:1px solid var(--line); }
+.section-title { margin:34px 0 12px; font-size:1.35rem; }
+.notice {
+  padding:14px 16px; border-radius:18px; background:rgba(74,222,128,.09); border:1px solid rgba(74,222,128,.22); color:#dff8e7;
+}
+.searchbar {
+  width:100%; padding:14px 16px; border-radius:16px; border:1px solid var(--line); background:rgba(255,255,255,.04);
+  color:var(--text); font-size:1rem;
+}
+.quickgrid { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+.footer { color:var(--muted); padding:28px 4px 12px; }
+@media (max-width: 980px) {
+  .hero { grid-template-columns:1fr; }
+  .kpis { grid-template-columns:repeat(2,1fr); }
+  .quickgrid { grid-template-columns:1fr; }
+}
+</style>
+</head>
+<body>
+<div class="shell">
+  <nav class="nav">
+    <div class="brand">S0L26-0s <span>Legal Ops</span> Master Launcher</div>
+    <div class="navlinks">
+      <a href="#suite">Suite</a>
+      <a href="#wave1">Wave 1</a>
+      <a href="#wave2">Wave 2</a>
+      <a href="#wave3">Wave 3</a>
+      <a href="#wave4">Wave 4</a>
+      <a href="#wave5">Wave 5</a>
+    </div>
+  </nav>
+
+  <section class="hero">
+    <div class="card big">
+      <h1>One legal ops launcher. Twenty-five browser tools. Zero filing-cabinet goblins.</h1>
+      <p>This master launcher unifies the full legal field batch into one offline-friendly control surface. Every app remains a separate single-file MVP, but this gives you one clean entry point for review, demos, and zip-side navigation without rummaging through wave folders like a cursed paralegal raccoon.</p>
+      <div class="kpis">
+        <div class="kpi"><strong>25</strong><span>Apps linked</span></div>
+        <div class="kpi"><strong>5</strong><span>Completed waves</span></div>
+        <div class="kpi"><strong>100%</strong><span>Browser-native</span></div>
+        <div class="kpi"><strong>1</strong><span>Master entry point</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="notice">Use this file from inside the extracted bundle. All links are explicit relative file paths for offline review. These are legal operations tools for workflow, tracking, organization, and prep — not legal advice robots wearing a fake mustache.</div>
+      <h2 class="section-title">Wave Launchers</h2>
+      <div class="quickgrid">
+        <a class="btn alt" href="S0L26-0s_Legal_Ops_Wave_1_Launcher.html">Open Wave 1</a>
+        <a class="btn alt" href="S0L26-0s_Legal_Ops_Wave_2_Launcher.html">Open Wave 2</a>
+        <a class="btn alt" href="S0L26-0s_Legal_Ops_Wave_3_Launcher.html">Open Wave 3</a>
+        <a class="btn alt" href="S0L26-0s_Legal_Ops_Wave_4_Launcher.html">Open Wave 4</a>
+        <a class="btn alt" href="S0L26-0s_Legal_Ops_Wave_5_Launcher.html">Open Wave 5</a>
+      </div>
+      <h2 class="section-title">Quick Filter</h2>
+      <input id="search" class="searchbar" placeholder="Filter by app name, wave, lane, or function..." />
+    </div>
+  </section>
+
+  <h2 id="suite" class="section-title">Full Suite</h2>
+  <div id="grid" class="tools"></div>
+
+  <div class="footer">Built as a single-entry launcher for the complete legal ops set.</div>
+</div>
+
+<script>
+const apps = [
+  {
+    "name": "Legal Intake Desk",
+    "file": "Legal_Intake_Desk_MVP.html",
+    "wave": "Wave 1",
+    "lane": "Client intake",
+    "desc": "Capture clients, matters, urgency, next steps, and clean intake summaries."
+  },
+  {
+    "name": "Matter Timeline Studio",
+    "file": "Matter_Timeline_Studio_MVP.html",
+    "wave": "Wave 1",
+    "lane": "Chronology + case story",
+    "desc": "Build chronology lanes, milestones, incident records, and case narratives."
+  },
+  {
+    "name": "Evidence Exhibit Organizer",
+    "file": "Evidence_Exhibit_Organizer_MVP.html",
+    "wave": "Wave 1",
+    "lane": "Evidence operations",
+    "desc": "Organize exhibits, tags, source notes, chain status, and review buckets."
+  },
+  {
+    "name": "Deadline Docket Tracker",
+    "file": "Deadline_Docket_Tracker_MVP.html",
+    "wave": "Wave 1",
+    "lane": "Deadlines + court dates",
+    "desc": "Track due dates, triggers, owners, reminders, and docket posture."
+  },
+  {
+    "name": "Deposition Prep Board",
+    "file": "Deposition_Prep_Board_MVP.html",
+    "wave": "Wave 1",
+    "lane": "Witness prep",
+    "desc": "Prep witness themes, attack points, exhibit hooks, and question plans."
+  },
+  {
+    "name": "Discovery Request Manager",
+    "file": "Discovery_Request_Manager_MVP.html",
+    "wave": "Wave 2",
+    "lane": "Discovery operations",
+    "desc": "Manage requests, responses, deficiencies, hold notes, and production status."
+  },
+  {
+    "name": "Client Communication Ledger",
+    "file": "Client_Communication_Ledger_MVP.html",
+    "wave": "Wave 2",
+    "lane": "Comms tracking",
+    "desc": "Log outreach, notes, promises, escalations, and response history."
+  },
+  {
+    "name": "Settlement Scenario Studio",
+    "file": "Settlement_Scenario_Studio_MVP.html",
+    "wave": "Wave 2",
+    "lane": "Settlement modeling",
+    "desc": "Model scenarios, offers, walk-away logic, risks, and negotiation posture."
+  },
+  {
+    "name": "Case Strategy Canvas",
+    "file": "Case_Strategy_Canvas_MVP.html",
+    "wave": "Wave 2",
+    "lane": "Strategy mapping",
+    "desc": "Map claims, defenses, leverage, risks, facts, and tactical priorities."
+  },
+  {
+    "name": "Legal Billing Timekeeper",
+    "file": "Legal_Billing_Timekeeper_MVP.html",
+    "wave": "Wave 2",
+    "lane": "Time + billing",
+    "desc": "Capture time entries, rate logic, work types, and invoice totals."
+  },
+  {
+    "name": "Conflict Checker",
+    "file": "Conflict_Checker_MVP.html",
+    "wave": "Wave 3",
+    "lane": "Conflict screening",
+    "desc": "Run party screening lanes, overlap flags, reviewer notes, and disposition tracking."
+  },
+  {
+    "name": "Intake Triage Matrix",
+    "file": "Intake_Triage_Matrix_MVP.html",
+    "wave": "Wave 3",
+    "lane": "Intake scoring",
+    "desc": "Score fit, urgency, risk, value, capacity, and routing outcomes."
+  },
+  {
+    "name": "Motion Drafting Planner",
+    "file": "Motion_Drafting_Planner_MVP.html",
+    "wave": "Wave 3",
+    "lane": "Motion workflow",
+    "desc": "Plan motions, authorities, evidence hooks, filing tasks, and review status."
+  },
+  {
+    "name": "Mediation Room Board",
+    "file": "Mediation_Room_Board_MVP.html",
+    "wave": "Wave 3",
+    "lane": "Mediation prep",
+    "desc": "Track positions, caucus notes, pressure points, mediator asks, and outcome drift."
+  },
+  {
+    "name": "Trial Prep Command",
+    "file": "Trial_Prep_Command_MVP.html",
+    "wave": "Wave 3",
+    "lane": "Trial command board",
+    "desc": "Centralize witnesses, exhibits, themes, deadlines, and trial-day readiness."
+  },
+  {
+    "name": "Contract Review Tracker",
+    "file": "Contract_Review_Tracker_MVP.html",
+    "wave": "Wave 4",
+    "lane": "Contract review",
+    "desc": "Manage review queues, clause issues, redline status, approval steps, and owners."
+  },
+  {
+    "name": "Compliance Incident Board",
+    "file": "Compliance_Incident_Board_MVP.html",
+    "wave": "Wave 4",
+    "lane": "Compliance ops",
+    "desc": "Track incidents, severity, investigation steps, remediation, and closure notes."
+  },
+  {
+    "name": "Hearing Prep Scheduler",
+    "file": "Hearing_Prep_Scheduler_MVP.html",
+    "wave": "Wave 4",
+    "lane": "Hearing workflow",
+    "desc": "Coordinate hearing tasks, arguments, logistics, calendars, and prep readiness."
+  },
+  {
+    "name": "Client Document Request Vault",
+    "file": "Client_Document_Request_Vault_MVP.html",
+    "wave": "Wave 4",
+    "lane": "Document requests",
+    "desc": "Request, chase, receive, and catalog client documents with status lanes."
+  },
+  {
+    "name": "Appellate Issue Mapper",
+    "file": "Appellate_Issue_Mapper_MVP.html",
+    "wave": "Wave 4",
+    "lane": "Appeal issue mapping",
+    "desc": "Map preserved issues, standards of review, record cites, and argument posture."
+  },
+  {
+    "name": "Contract Lifecycle Board",
+    "file": "Contract_Lifecycle_Board_MVP.html",
+    "wave": "Wave 5",
+    "lane": "Contract lifecycle",
+    "desc": "Track draft-to-signature-to-renewal lifecycle with reminders and ownership."
+  },
+  {
+    "name": "Subpoena Response Tracker",
+    "file": "Subpoena_Response_Tracker_MVP.html",
+    "wave": "Wave 5",
+    "lane": "Subpoena ops",
+    "desc": "Manage subpoena intake, objections, productions, deadlines, and correspondence."
+  },
+  {
+    "name": "Internal Investigation Room",
+    "file": "Internal_Investigation_Room_MVP.html",
+    "wave": "Wave 5",
+    "lane": "Investigations",
+    "desc": "Run interview logs, allegation lanes, evidence notes, and findings workflow."
+  },
+  {
+    "name": "Regulatory Filing Calendar",
+    "file": "Regulatory_Filing_Calendar_MVP.html",
+    "wave": "Wave 5",
+    "lane": "Regulatory calendar",
+    "desc": "Track filing obligations, cadence, jurisdictions, owners, and completion status."
+  },
+  {
+    "name": "Legal Knowledge Vault",
+    "file": "Legal_Knowledge_Vault_MVP.html",
+    "wave": "Wave 5",
+    "lane": "Knowledge ops",
+    "desc": "Store reusable playbooks, issue notes, templates, and retrieval tags."
+  }
+];
+
+const grid = document.getElementById('grid');
+const search = document.getElementById('search');
+
+function render(filter='') {
+  const q = filter.trim().toLowerCase();
+  grid.innerHTML = '';
+  apps
+    .filter(app => !q || [app.name, app.wave, app.lane, app.desc].join(' ').toLowerCase().includes(q))
+    .forEach(app => {
+      const el = document.createElement('article');
+      el.className = 'tool';
+      const anchorId = app.wave.toLowerCase().replace(/\s+/g,'');
+      el.innerHTML = `
+        <div class="tagrow">
+          <span class="tag">${app.wave}</span>
+          <span class="subtag">${app.lane}</span>
+        </div>
+        <h3 id="${anchorId}">${app.name}</h3>
+        <p>${app.desc}</p>
+        <div class="actions">
+          <a class="btn" href="${app.file}">Open App</a>
+          <a class="btn alt" href="${app.file}" download>Download File</a>
+        </div>`;
+      grid.appendChild(el);
+    });
+}
+search.addEventListener('input', e => render(e.target.value));
+render();
+</script>
+</body>
+</html>

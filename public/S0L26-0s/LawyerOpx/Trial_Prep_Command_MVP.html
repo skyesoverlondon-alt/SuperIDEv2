@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Trial Prep Command</title>
+<style>
+:root {
+  --bg:#0b1020; --panel:rgba(16,21,41,.88); --panel2:rgba(25,31,58,.95); --line:rgba(255,255,255,.09);
+  --text:#f4f7fb; --muted:#a8b3d1; --gold:#e8c36d; --violet:#7c5cff; --cyan:#4ad8ff;
+  --good:#22c55e; --warn:#f59e0b; --bad:#ef4444;
+}
+* { box-sizing:border-box; }
+html,body { margin:0; min-height:100%; font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; color:var(--text);
+ background:
+  radial-gradient(circle at top left, rgba(124,92,255,.16), transparent 26%),
+  radial-gradient(circle at top right, rgba(74,216,255,.10), transparent 24%),
+  linear-gradient(180deg,#0b1020,#0f1730 54%, #09111f); }
+a { color:inherit; text-decoration:none; }
+.shell { max-width:1440px; margin:0 auto; padding:22px; }
+.nav {
+  display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;
+  padding:16px 18px; border-radius:22px; background:var(--panel); border:1px solid var(--line);
+  position:sticky; top:10px; z-index:10; backdrop-filter:blur(12px);
+}
+.brand { font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+.brand span { color:var(--gold); }
+.navlinks { display:flex; gap:10px; flex-wrap:wrap; }
+.navlinks a { padding:10px 12px; border-radius:999px; border:1px solid var(--line); background:rgba(255,255,255,.03); color:var(--muted); }
+.hero { display:grid; grid-template-columns:1.2fr .9fr; gap:16px; margin-top:18px; }
+.card {
+  background:var(--panel); border:1px solid var(--line); border-radius:26px; padding:20px;
+  box-shadow:0 18px 54px rgba(0,0,0,.24);
+}
+h1 { margin:0 0 8px; font-size:clamp(2rem,4vw,3.3rem); line-height:1.02; }
+p.lead { margin:0; color:var(--muted); line-height:1.68; font-size:1rem; }
+.notice { padding:14px 16px; border-radius:18px; background:rgba(245,158,11,.09); border:1px solid rgba(245,158,11,.22); color:#ffe8b7; }
+.statgrid, .grid4 { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+.stat, .mini { background:var(--panel2); border:1px solid var(--line); border-radius:20px; padding:14px; }
+.stat strong, .mini strong { display:block; font-size:1.55rem; }
+.stat span, .mini span { display:block; color:var(--muted); font-size:.84rem; margin-bottom:6px; }
+.layout { display:grid; grid-template-columns:420px 1fr; gap:16px; margin-top:18px; }
+.stack { display:flex; flex-direction:column; gap:16px; }
+label { display:block; font-size:.82rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:#dfe6ff; margin-bottom:8px; }
+input, select, textarea {
+  width:100%; border-radius:16px; border:1px solid var(--line); background:rgba(255,255,255,.04); color:var(--text);
+  padding:12px 14px; font:inherit;
+}
+textarea { min-height:112px; resize:vertical; }
+.grid2, .grid3 { display:grid; gap:12px; }
+.grid2 { grid-template-columns:1fr 1fr; }
+.grid3 { grid-template-columns:repeat(3,1fr); }
+.btnrow { display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; }
+button {
+  appearance:none; border:none; border-radius:14px; padding:12px 16px; font-weight:800; cursor:pointer;
+  background:linear-gradient(90deg,var(--violet),#5c8cff); color:#fff;
+}
+button.alt { background:rgba(255,255,255,.05); border:1px solid var(--line); color:var(--text); }
+button.warn { background:linear-gradient(90deg,#f59e0b,#ef4444); }
+.list { display:flex; flex-direction:column; gap:12px; }
+.item, .ticket {
+  border:1px solid var(--line); border-radius:20px; background:rgba(255,255,255,.03); padding:14px;
+}
+.itemhead { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; align-items:flex-start; }
+.item h3, .ticket h4 { margin:0 0 6px; font-size:1.05rem; }
+.meta { color:var(--muted); font-size:.92rem; line-height:1.55; }
+.badges { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
+.badge { font-size:.72rem; padding:6px 10px; border-radius:999px; border:1px solid var(--line); color:var(--muted); }
+.badge.warn { color:#fff3d4; border-color:rgba(245,158,11,.26); background:rgba(245,158,11,.13); }
+.badge.good { color:#dfffe8; border-color:rgba(34,197,94,.24); background:rgba(34,197,94,.12); }
+.badge.bad { color:#ffe0e0; border-color:rgba(239,68,68,.24); background:rgba(239,68,68,.12); }
+.empty { padding:16px; border-radius:18px; border:1px dashed rgba(255,255,255,.14); color:var(--muted); }
+.panelbox { background:rgba(255,255,255,.03); border:1px solid var(--line); border-radius:18px; padding:14px; }
+.bigline { font-size:1.2rem; font-weight:800; }
+.bigline.good { color:#b8ffd0; } .bigline.warn { color:#ffe6a6; } .bigline.bad { color:#ffbcbc; }
+.kanban { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
+.lane { background:var(--panel); border:1px solid var(--line); border-radius:22px; padding:14px; min-height:160px; }
+.lane h3, .subh { margin:0 0 12px; font-size:1rem; }
+p { color:var(--muted); line-height:1.62; }
+.rangeval { color:var(--gold); font-weight:800; margin-top:6px; }
+.footer { color:var(--muted); text-align:center; padding:18px 0 8px; font-size:.92rem; }
+@media (max-width: 1150px){ .layout,.hero,.kanban{ grid-template-columns:1fr; } .grid4,.statgrid{grid-template-columns:repeat(2,1fr);} }
+@media (max-width: 760px){ .grid2,.grid3,.grid4,.statgrid{grid-template-columns:1fr;} .shell{padding:14px;} }
+</style>
+</head>
+<body onload="boot()">
+  <div class="shell">
+    <nav class="nav">
+      <div class="brand">S0L26-0s <span>Legal Ops</span></div>
+      <div class="navlinks"><a href="S0L26-0s_Legal_Ops_Wave_3_Launcher.html">Launcher</a><a href="Conflict_Checker_MVP.html">Conflict Checker</a><a href="Intake_Triage_Matrix_MVP.html">Intake Triage</a><a href="Motion_Drafting_Planner_MVP.html">Motion Planner</a><a href="Mediation_Room_Board_MVP.html">Mediation Board</a><a href="Trial_Prep_Command_MVP.html">Trial Prep</a></div>
+    </nav>
+
+    <section class="hero">
+      <div class="card">
+        <div class="badge">Legal Ops MVP</div>
+        <h1>Trial Prep Command</h1>
+        <p class="lead">Run witnesses, exhibits, themes, and day-by-day prep from one compact command deck.</p>
+      </div>
+      <div class="card">
+        <div class="notice">A trial-prep organizer for ops, not a substitute for attorney judgment. Track witness readiness, exhibit status, daily checklists, and theory themes without drowning in tab soup.</div>
+        <div class="statgrid" style="margin-top:16px"><div class="stat"><span>Lane</span><strong>Witness board</strong></div><div class="stat"><span>Lane</span><strong>Exhibit status</strong></div><div class="stat"><span>Lane</span><strong>Trial themes</strong></div><div class="stat"><span>Lane</span><strong>Day plan</strong></div></div>
+      </div>
+    </section>
+
+    <section class="layout">
+      <div class="stack"><section class="card"><h2>Witness Entry</h2>
+<div class="grid2"><div><label>Witness Name</label><input id="witnessName" placeholder="Avery Cole" /></div><div><label>Witness Type</label><select id="witnessType"><option>Fact Witness</option><option>Expert</option><option>Corporate Rep</option><option>Treating Provider</option><option>Impeachment / Rebuttal</option></select></div></div>
+<div class="grid3"><div><label>Readiness</label><select id="witnessReady"><option>Not Started</option><option>Interviewed</option><option>Prepared</option><option>At Risk</option><option>Ready</option></select></div><div><label>Day / Order</label><input id="witnessDay" placeholder="Day 2 · First AM" /></div><div><label>Owner</label><input id="witnessOwner" placeholder="Trial team" /></div></div>
+<div><label>Key Points / Risks</label><textarea id="witnessNotes" placeholder="Cross vulnerabilities, documents needed, direct themes, impeachment points, logistics."></textarea></div>
+<div class="btnrow"><button onclick="addWitness()">Add Witness</button><button class="alt" onclick="seedWitness()">Load Demo</button></div>
+</section><section class="card"><h2>Exhibit Entry</h2>
+<div class="grid2"><div><label>Exhibit ID</label><input id="exhibitId" placeholder="PX-101" /></div><div><label>Status</label><select id="exhibitStatus"><option>Collecting</option><option>Marked</option><option>Needs Foundation</option><option>Objection Risk</option><option>Ready</option></select></div></div>
+<div class="grid2"><div><label>Description</label><input id="exhibitDesc" placeholder="Signed master services agreement" /></div><div><label>Tied Witness / Theme</label><input id="exhibitTie" placeholder="Avery Cole / notice and breach" /></div></div>
+<div class="btnrow"><button onclick="addExhibit()">Add Exhibit</button><button class="alt" onclick="clearExhibitForm()">Clear</button></div>
+</section></div>
+      <div class="stack"><section class="card"><h2>Command View</h2>
+<div class="grid4"><div class="mini"><span>Witnesses</span><strong id="witCount">0</strong></div><div class="mini"><span>Ready witnesses</span><strong id="witReady">0</strong></div><div class="mini"><span>Exhibits</span><strong id="exCount">0</strong></div><div class="mini"><span>Ready exhibits</span><strong id="exReady">0</strong></div></div>
+<div class="grid2"><div><h3 class="subh">Witness Board</h3><div id="witnessList" class="list"></div></div><div><h3 class="subh">Exhibit Board</h3><div id="exhibitList" class="list"></div></div></div>
+</section><section class="card"><h2>Themes / Daily Checklist</h2>
+<div><label>Case Themes</label><textarea id="themes" placeholder="Theme 1: Broken promise. Theme 2: Notice ignored. Theme 3: Documents outrun the story."></textarea></div>
+<div><label>Day Checklist</label><textarea id="dayChecklist" placeholder="Print witness packets, sync demonstratives, verify projector, objections notebook, exhibits cart, witness arrival texts."></textarea></div>
+<div class="btnrow"><button onclick="saveTextPanels()">Save Notes</button><button onclick="exportData()">Export JSON</button><button class="alt" onclick="importDataPrompt()">Import JSON</button><button class="warn" onclick="resetAll()">Reset</button></div>
+</section></div>
+    </section>
+
+    <div class="footer">Single-file browser MVP · local autosave · offline nav links included.</div>
+  </div>
+<script>
+const KEY='trial_prep_command_mvp_v1'; let state={witnesses:[], exhibits:[], themes:'', dayChecklist:''};
+function boot(){ const raw=localStorage.getItem(KEY); if(raw){try{state=JSON.parse(raw);}catch(e){}} syncTextPanels(); render(); }
+function persist(){ state.themes=document.getElementById('themes')?.value||state.themes; state.dayChecklist=document.getElementById('dayChecklist')?.value||state.dayChecklist; localStorage.setItem(KEY, JSON.stringify(state)); }
+function syncTextPanels(){ document.getElementById('themes').value=state.themes||''; document.getElementById('dayChecklist').value=state.dayChecklist||''; }
+function addWitness(){ const w={ id:Date.now().toString(36), name:val('witnessName'), type:val('witnessType'), readiness:val('witnessReady'), day:val('witnessDay'), owner:val('witnessOwner'), notes:val('witnessNotes')}; if(!w.name) return; state.witnesses.unshift(w); persist(); clearWitnessForm(); render(); }
+function seedWitness(){ document.getElementById('witnessName').value='Avery Cole'; document.getElementById('witnessType').value='Corporate Rep'; document.getElementById('witnessReady').value='Prepared'; document.getElementById('witnessDay').value='Day 2 · First AM'; document.getElementById('witnessOwner').value='Trial Team'; document.getElementById('witnessNotes').value='Strong on foundation and notice. Needs tight prep on stray email chain and damages assumptions.'; }
+function clearWitnessForm(){ ['witnessName','witnessDay','witnessOwner','witnessNotes'].forEach(id=>document.getElementById(id).value=''); document.getElementById('witnessType').selectedIndex=0; document.getElementById('witnessReady').selectedIndex=0; }
+function addExhibit(){ const e={ id:Date.now().toString(36), exId:val('exhibitId'), status:val('exhibitStatus'), desc:val('exhibitDesc'), tie:val('exhibitTie')}; if(!e.exId) return; state.exhibits.unshift(e); persist(); clearExhibitForm(); render(); }
+function clearExhibitForm(){ ['exhibitId','exhibitDesc','exhibitTie'].forEach(id=>document.getElementById(id).value=''); document.getElementById('exhibitStatus').selectedIndex=0; }
+function removeWitness(id){ state.witnesses=state.witnesses.filter(x=>x.id!==id); persist(); render(); }
+function removeExhibit(id){ state.exhibits=state.exhibits.filter(x=>x.id!==id); persist(); render(); }
+function cycleWitness(id){ const order=['Not Started','Interviewed','Prepared','At Risk','Ready']; const w=state.witnesses.find(x=>x.id===id); if(!w) return; w.readiness=order[(order.indexOf(w.readiness)+1)%order.length]; persist(); render(); }
+function cycleExhibit(id){ const order=['Collecting','Marked','Needs Foundation','Objection Risk','Ready']; const e=state.exhibits.find(x=>x.id===id); if(!e) return; e.status=order[(order.indexOf(e.status)+1)%order.length]; persist(); render(); }
+function saveTextPanels(){ persist(); }
+function render(){ const wl=document.getElementById('witnessList'); const el=document.getElementById('exhibitList'); wl.innerHTML=''; el.innerHTML=''; if(!state.witnesses.length) wl.innerHTML='<div class="empty">No witnesses added yet.</div>'; if(!state.exhibits.length) el.innerHTML='<div class="empty">No exhibits added yet.</div>';
+ state.witnesses.forEach(item=>{ const d=document.createElement('div'); d.className='item'; d.innerHTML=`<div class="itemhead"><div><h3>${escapeHtml(item.name)}</h3><div class="meta">${escapeHtml(item.type)} · ${escapeHtml(item.day||'Unscheduled')} · ${escapeHtml(item.owner||'Unassigned')}</div><div class="badges"><span class="badge ${badgeClass(item.readiness)}">${escapeHtml(item.readiness)}</span></div></div><div class="btnrow"><button class="alt" onclick="cycleWitness('${item.id}')">Cycle</button><button class="warn" onclick="removeWitness('${item.id}')">Remove</button></div></div><p>${escapeHtml(item.notes||'')}</p>`; wl.appendChild(d); });
+ state.exhibits.forEach(item=>{ const d=document.createElement('div'); d.className='item'; d.innerHTML=`<div class="itemhead"><div><h3>${escapeHtml(item.exId)}</h3><div class="meta">${escapeHtml(item.desc||'No description')}</div><div class="badges"><span class="badge ${badgeClass(item.status)}">${escapeHtml(item.status)}</span></div></div><div class="btnrow"><button class="alt" onclick="cycleExhibit('${item.id}')">Cycle</button><button class="warn" onclick="removeExhibit('${item.id}')">Remove</button></div></div><div class="meta">Tie: ${escapeHtml(item.tie||'—')}</div>`; el.appendChild(d); });
+ document.getElementById('witCount').textContent=state.witnesses.length; document.getElementById('witReady').textContent=state.witnesses.filter(x=>['Prepared','Ready'].includes(x.readiness)).length; document.getElementById('exCount').textContent=state.exhibits.length; document.getElementById('exReady').textContent=state.exhibits.filter(x=>x.status==='Ready').length;
+ }
+function badgeClass(status){ if(['Ready','Prepared','Marked'].includes(status)) return 'good'; if(['At Risk','Needs Foundation','Objection Risk'].includes(status)) return 'warn'; return ''; }
+function exportData(){ persist(); const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='trial-prep-command-backup.json'; a.click(); URL.revokeObjectURL(a.href); }
+function importDataPrompt(){ const raw=prompt('Paste JSON backup'); if(!raw) return; try{state=JSON.parse(raw); persist(); syncTextPanels(); render();}catch(e){alert('That JSON is a goblin.');} }
+function resetAll(){ if(!confirm('Reset this workspace?')) return; localStorage.removeItem(KEY); location.reload(); }
+function val(id){ return document.getElementById(id).value.trim(); }
+function escapeHtml(s){ return (s??'').toString().replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+</script>
+</body>
+</html>

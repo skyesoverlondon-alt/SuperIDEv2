@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>S0L26-0s Legal Ops Wave 2 Launcher</title>
+<style>
+:root {
+  --bg:#0a1120; --panel:rgba(18,23,45,.9); --line:rgba(255,255,255,.09); --text:#f6f8fd; --muted:#abb6d7; --gold:#e7c26b; --violet:#7c5cff; --cyan:#50d9ff;
+}
+*{box-sizing:border-box} html,body{margin:0;min-height:100%;font-family:Inter,system-ui,sans-serif;color:var(--text);
+background:radial-gradient(circle at top left, rgba(124,92,255,.18), transparent 26%), radial-gradient(circle at top right, rgba(80,217,255,.12), transparent 24%), linear-gradient(180deg,#09101d,#0f1730);}
+a{text-decoration:none;color:inherit}
+.shell{max-width:1360px;margin:0 auto;padding:24px}
+.nav{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:16px 18px;border-radius:24px;background:var(--panel);border:1px solid var(--line)}
+.brand{font-weight:800;text-transform:uppercase;letter-spacing:.08em}.brand span{color:var(--gold)}
+.hero{display:grid;grid-template-columns:1.15fr .9fr;gap:18px;margin-top:20px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:28px;padding:22px}
+h1{margin:0 0 10px;font-size:clamp(2rem,5vw,4rem);line-height:1.02}
+p{margin:0;color:var(--muted);line-height:1.68}
+.notice{padding:14px 16px;border-radius:18px;background:rgba(245,158,11,.09);border:1px solid rgba(245,158,11,.22);color:#ffe7b1}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-top:22px}
+.app{background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:24px;padding:16px;display:flex;flex-direction:column;gap:12px;transition:transform .15s ease,border-color .15s ease}
+.app:hover{transform:translateY(-3px);border-color:rgba(231,194,107,.45)}
+.tag{padding:6px 10px;border-radius:999px;background:linear-gradient(90deg,var(--gold),#f7e4b6);color:#09101d;font-size:.72rem;font-weight:800;text-transform:uppercase}
+.sub{padding:6px 10px;border-radius:999px;border:1px solid var(--line);font-size:.72rem;color:var(--muted)}
+h3{margin:0;font-size:1.08rem} .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto} .chips span{padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.03);border:1px solid var(--line);font-size:.76rem;color:var(--muted)}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px} .btn{padding:12px 14px;border-radius:999px;background:linear-gradient(90deg,var(--violet),var(--cyan));font-weight:800}
+.mini{display:grid;gap:12px} .stat{padding:14px;border-radius:22px;background:rgba(255,255,255,.03);border:1px solid var(--line)} .stat b{display:block;font-size:1.4rem;margin-top:6px}
+@media (max-width: 980px){.hero{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <nav class="nav">
+    <div class="brand">S0L26-0s <span>Legal Ops</span></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <a class="sub" href="S0L26-0s_Legal_Ops_Wave_1_Launcher.html">Wave 1</a>
+      <a class="sub" href="S0L26-0s_Legal_Ops_Wave_2_Launcher.html">Wave 2</a>
+      <a class="sub" href="S0L26-0s_Music_Workstation_Master_Launcher.html">Music Master</a>
+    </div>
+  </nav>
+
+  <section class="hero">
+    <div class="card">
+      <div class="tag">Wave 2</div>
+      <h1>Legal Ops Apps, Round Two</h1>
+      <p>This wave pushes deeper into the back-office and case-planning lane: discovery tracking, communication logs, settlement scenarios, strategy mapping, and billing/time capture. Real workflow skeletons, not costume jewelry pretending to be software.</p>
+      <div class="toolbar">
+        <a class="btn" href="Discovery_Request_Manager_MVP.html">Open Wave</a>
+      </div>
+    </div>
+    <div class="card mini">
+      <div class="notice">Support tools only. They organize process and planning; they do not replace attorney judgment or filing rules.</div>
+      <div class="stat">Apps in this wave<b>5</b></div>
+      <div class="stat">Persistence<b>Local save + JSON</b></div>
+      <div class="stat">Format<b>Single-file HTML</b></div>
+    </div>
+  </section>
+
+  <section class="grid">
+    
+      <a class="app" href="Discovery_Request_Manager_MVP.html">
+        <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;">
+          <div class="tag">🗂️ Wave 2 MVP</div>
+          <div class="sub">Single-file</div>
+        </div>
+        <h3>Discovery Request Manager</h3>
+        <p>Discovery ops board for requests, objections, production status, custodian mapping, and rolling response checkpoints.</p>
+        <div class="chips">
+          <span>Local save</span><span>JSON export</span><span>Offline nav</span>
+        </div>
+      </a>
+    
+      <a class="app" href="Client_Communication_Ledger_MVP.html">
+        <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;">
+          <div class="tag">📞 Wave 2 MVP</div>
+          <div class="sub">Single-file</div>
+        </div>
+        <h3>Client Communication Ledger</h3>
+        <p>Client comms log with chronology, follow-up commitments, urgency signals, and relationship temperature tracking.</p>
+        <div class="chips">
+          <span>Local save</span><span>JSON export</span><span>Offline nav</span>
+        </div>
+      </a>
+    
+      <a class="app" href="Settlement_Scenario_Studio_MVP.html">
+        <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;">
+          <div class="tag">⚖️ Wave 2 MVP</div>
+          <div class="sub">Single-file</div>
+        </div>
+        <h3>Settlement Scenario Studio</h3>
+        <p>Negotiation planning studio for offer ladders, reserve assumptions, cost exposure, and mediation prep snapshots.</p>
+        <div class="chips">
+          <span>Local save</span><span>JSON export</span><span>Offline nav</span>
+        </div>
+      </a>
+    
+      <a class="app" href="Case_Strategy_Canvas_MVP.html">
+        <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;">
+          <div class="tag">🧠 Wave 2 MVP</div>
+          <div class="sub">Single-file</div>
+        </div>
+        <h3>Case Strategy Canvas</h3>
+        <p>Strategy canvas for issues, leverage points, theory statements, attack/defense lanes, and next-step alignment.</p>
+        <div class="chips">
+          <span>Local save</span><span>JSON export</span><span>Offline nav</span>
+        </div>
+      </a>
+    
+      <a class="app" href="Legal_Billing_Timekeeper_MVP.html">
+        <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;">
+          <div class="tag">⏱️ Wave 2 MVP</div>
+          <div class="sub">Single-file</div>
+        </div>
+        <h3>Legal Billing & Timekeeper</h3>
+        <p>Timekeeping and budget console for entries, matter budgets, narrative quality, and billable/non-billable mix.</p>
+        <div class="chips">
+          <span>Local save</span><span>JSON export</span><span>Offline nav</span>
+        </div>
+      </a>
+    
+  </section>
+</div>
+</body>
+</html>
