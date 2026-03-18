@@ -35,10 +35,11 @@
     "release:gates": "node scripts/evaluate-release-gates.js",
     "release:checklist": "node scripts/run-release-checklist.js",
     "build": "vite build",
-    "preview": "vite preview",
+    "preview": "npm run build && wrangler dev",
     "handoff:runtime": "node scripts/check-runtime-deploy.js --handoff",
     "deploy:worker": "npm --prefix worker clean-install --progress=false && npm --prefix worker run deploy",
-    "deploy:worker:dry": "npm --prefix worker clean-install --progress=false && npm --prefix worker run deploy -- --dry-run"
+    "deploy:worker:dry": "npm --prefix worker clean-install --progress=false && npm --prefix worker run deploy -- --dry-run",
+    "deploy": "npm run build && wrangler deploy"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.6.0",
@@ -52,12 +53,14 @@
     "three": "^0.183.2"
   },
   "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.28.0",
     "@types/node": "^22.10.7",
     "@types/react": "^18.3.4",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.4",
     "playwright": "^1.58.2",
     "typescript": "^5.7.3",
-    "vite": "^6.0.7"
+    "vite": "^6.0.7",
+    "wrangler": "^4.73.0"
   }
 }
